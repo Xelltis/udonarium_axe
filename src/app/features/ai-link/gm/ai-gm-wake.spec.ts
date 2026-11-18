@@ -1,5 +1,5 @@
 import type { AgentEvent } from '@axe/application/agent/agent-event-log.service';
-import { aiGmHears, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-gm/ai-gm-wake';
+import { aiGmHears, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-link/gm/ai-gm-wake';
 
 function line(set: Partial<Extract<AgentEvent, { kind: 'chat' }>> = {}): AgentEvent {
   return {

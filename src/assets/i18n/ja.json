@@ -263,6 +263,10 @@
     },
     "aiLink": {
       "title": "AI連携",
+      "tabs": {
+        "link": "接続と履歴",
+        "gm": "GMを任せる"
+      },
       "hint": "AI（Claudeなど）に、この席のまま部屋を読ませたり操作させたりします。AIの側で動くブリッジ（axe-mcp）に、このタブをつなぎます。",
       "connect": "つなぐ",
       "disconnect": "切る",

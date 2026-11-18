@@ -263,6 +263,10 @@
     },
     "aiLink": {
       "title": "AI link",
+      "tabs": {
+        "link": "Link and history",
+        "gm": "Game master"
+      },
       "hint": "Lets an AI (such as Claude) read the room, or act in it, as this seat. This tab connects to the bridge (axe-mcp) the AI runs.",
       "connect": "Connect",
       "disconnect": "Disconnect",

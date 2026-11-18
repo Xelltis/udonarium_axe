@@ -23,8 +23,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { aiGmHears, type AiGmMode, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-gm/ai-gm-wake';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
+import { aiGmHears, type AiGmMode, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-link/gm/ai-gm-wake';
 
 /** What this browser keeps of the game master: how it is run, and what the person wrote for it. */
 export interface AiGmPreferences {

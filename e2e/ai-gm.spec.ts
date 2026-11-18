@@ -198,12 +198,13 @@ test.describe('the AI game master', () => {
       await becomeGm(page);
       await putAwayTutorial(page);
       await openFabMenu(page);
-      await page.getByTestId('fab-ai-gm').click();
+      await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-gm').click();
       const panel = page.locator('ai-gm-panel');
       const state = panel.getByTestId('ai-gm-state');
       await expect(state).toHaveAttribute('data-state', 'unlinked');
 
-      await panel.getByTestId('ai-gm-link-toggle').click();
+      await page.getByTestId('ai-link-toggle').click();
       await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
       await panel.getByTestId('ai-gm-instructions').fill('舞台は港町。口調は穏やかに');
       await panel.getByTestId('ai-gm-instructions').blur();
@@ -238,12 +239,15 @@ test.describe('the AI game master', () => {
       const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
       expect(stored).not.toContain(KEY);
 
-      // Linked again from the AI link panel, the AI GM panel comes back to work the game master from.
+      // Closed, let go of and linked again from the half of the link, the panel turns back to the half the
+      // game master is worked from.
       await page.locator('ui-panel').filter({ has: panel }).getByTestId('panel-close').dispatchEvent('click');
       await expect(panel).toHaveCount(0);
       await openFabMenu(page);
       await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-link').click();
       const link = page.locator('ai-link-panel');
+      await expect(link.getByTestId('ai-link-history')).toBeVisible();
       await link.getByTestId('ai-link-toggle').click();
       await expect(link.getByTestId('ai-link-state')).toHaveAttribute('data-state', 'idle');
       await link.getByTestId('ai-link-toggle').click();
@@ -279,10 +283,11 @@ test.describe('the AI game master', () => {
       await becomeGm(page);
       await putAwayTutorial(page);
       await openFabMenu(page);
-      await page.getByTestId('fab-ai-gm').click();
+      await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-gm').click();
       const panel = page.locator('ai-gm-panel');
       const state = panel.getByTestId('ai-gm-state');
-      await panel.getByTestId('ai-gm-link-toggle').click();
+      await page.getByTestId('ai-link-toggle').click();
       await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
 
       // The model and the spending are the AI app's: the panel leaves them out, and says how to begin.
@@ -354,10 +359,11 @@ test.describe('the AI game master', () => {
       await becomeGm(page);
       await putAwayTutorial(page);
       await openFabMenu(page);
-      await page.getByTestId('fab-ai-gm').click();
+      await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-gm').click();
       const panel = page.locator('ai-gm-panel');
       const state = panel.getByTestId('ai-gm-state');
-      await panel.getByTestId('ai-gm-link-toggle').click();
+      await page.getByTestId('ai-link-toggle').click();
       await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
 
       // The model kept here is Claude's, which this bridge does not run: it is said so, and another is chosen.

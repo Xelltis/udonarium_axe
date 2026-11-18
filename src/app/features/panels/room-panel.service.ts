@@ -1,4 +1,5 @@
 import { inject, Injectable, Injector, Type, ViewContainerRef } from '@angular/core';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { EFFECT_LIBRARY_MIN_SIZE, readEffectLibrarySize } from '@axe/application/effect/effect-library-size';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -37,6 +38,7 @@ export class RoomPanelService {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly injector = inject(Injector);
+  private readonly aiLinkView = inject(AiLinkViewService);
 
   private opened = 0;
 
@@ -366,16 +368,15 @@ export class RoomPanelService {
             ),
           option: { width: 440, height: 680, minWidth: 340, minHeight: 360 },
         };
+      case 'aiGm':
+        // The game master is run from a half of the AI link panel: the panel is opened on that half.
+        this.aiLinkView.show('gm');
+        return this.panelOf('aiLink');
       case 'aiLink':
         return {
           load: () =>
             import('@axe/features/ai-link/ai-link-panel/ai-link-panel.component').then((m) => m.AiLinkPanelComponent),
-          option: { width: 480, height: 640, minWidth: 360, minHeight: 360, single: 'ai-link' },
-        };
-      case 'aiGm':
-        return {
-          load: () => import('@axe/features/ai-gm/ai-gm-panel/ai-gm-panel.component').then((m) => m.AiGmPanelComponent),
-          option: { width: 500, height: 720, minWidth: 360, minHeight: 400, single: 'ai-gm' },
+          option: { width: 500, height: 720, minWidth: 360, minHeight: 400, single: 'ai-link' },
         };
     }
   }

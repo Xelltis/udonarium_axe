@@ -5,9 +5,9 @@ import type { AgentLinkState } from '@axe/core/agent/agent-bridge-client';
 import { GM_DEFAULT_SETTINGS } from '@axe/core/agent/agent-gm';
 import type { GmStatus } from '@axe/core/agent/agent-protocol';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { type AiGmPreferences, AiGmService } from '@axe/features/ai-gm/ai-gm.service';
-import { AiGmPanelComponent } from '@axe/features/ai-gm/ai-gm-panel/ai-gm-panel.component';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
+import { type AiGmPreferences, AiGmService } from '@axe/features/ai-link/gm/ai-gm.service';
+import { AiGmPanelComponent } from '@axe/features/ai-link/gm/ai-gm-panel/ai-gm-panel.component';
 
 describe('AiGmPanelComponent', () => {
   let role: PeerRole;
@@ -82,11 +82,10 @@ describe('AiGmPanelComponent', () => {
 
   const find = <T extends HTMLElement>(host: HTMLElement, id: string) => host.querySelector<T>(`[data-testid="${id}"]`);
 
-  it('says it is not connected, and connects to the bridge at a press', async () => {
+  it('says it is not connected, leaving the connecting to the panel it is a half of', async () => {
     const { host } = await panel();
     expect(find(host, 'ai-gm-state')?.getAttribute('data-state')).toBe('unlinked');
-    find(host, 'ai-gm-link-toggle')!.click();
-    expect(link.connect).toHaveBeenCalled();
+    expect(find(host, 'ai-gm-link-toggle')).toBeNull();
     expect(find(host, 'ai-gm-start')).toBeNull();
   });
 

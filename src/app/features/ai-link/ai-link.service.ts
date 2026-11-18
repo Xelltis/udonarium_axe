@@ -1,5 +1,6 @@
 import { DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { AgentToolRunner } from '@axe/application/agent/agent-tool-runner.service';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -63,6 +64,7 @@ export class AiLinkService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tools = inject(AgentToolsSetup);
   private readonly panels = inject(RoomPanelService);
+  private readonly view = inject(AiLinkViewService);
   private client: AgentBridgeClient | null = null;
   private retry: ReturnType<typeof setTimeout> | null = null;
 
@@ -79,7 +81,10 @@ export class AiLinkService {
    * kept with the link, so a page opened again while it runs still gives it back.
    */
   private lentFrom: AgentScope | null = null;
-  /** How many AI GM panels are open, as they tell it: one is opened on reaching a game-master bridge if none is. */
+  /**
+   * How many AI link panels show the half the game master is run from, as that half tells it: the
+   * panel is opened on it on reaching a game-master bridge if none does.
+   */
   private gmPanels = 0;
   /** What the bridge connected last told of the game master, for whoever comes to listen later. */
   private gmLatest: { status: GmStatus | null; notes: string | null } = { status: null, notes: null };
@@ -136,7 +141,7 @@ export class AiLinkService {
           // one found running, as on a page opened again, gets its panel, which hands it what happens.
           if (!this.gmHeard.observed) {
             if (message.status.run === 'off') this.takeBack();
-            else if (this.gmPanels === 0) this.panels.open('aiGm');
+            else if (this.gmPanels === 0) this.openGmHalf();
           }
         }
         if (message.type === 'gm.notes') this.gmLatest = { ...this.gmLatest, notes: message.notes };
@@ -223,7 +228,7 @@ export class AiLinkService {
         this.seat().scope === 'write' ? 'feature.aiLink.notice.startedWrite' : 'feature.aiLink.notice.startedRead'
       );
       // A bridge running the game master is worked from the AI GM panel, which also hands it what happens.
-      if (state.mode === 'gm' && this.gmPanels === 0) this.panels.open('aiGm');
+      if (state.mode === 'gm' && this.gmPanels === 0) this.openGmHalf();
     }
     if (state.kind === 'lost') {
       if (was === 'connected') this.tellRoom('feature.aiLink.notice.lost');
@@ -233,6 +238,12 @@ export class AiLinkService {
         if (this.client === client) client.connect();
       }, RETRY_MS);
     }
+  }
+
+  /** Opens the AI link panel on the half the game master is run from, or turns it to that half where it is open. */
+  private openGmHalf(): void {
+    this.view.show('gm');
+    this.panels.open('aiLink');
   }
 
   private stopRetrying(): void {

@@ -263,6 +263,10 @@
     },
     "aiLink": {
       "title": "AI 연동",
+      "tabs": {
+        "link": "연결과 기록",
+        "gm": "GM 맡기기"
+      },
       "hint": "AI(Claude 등)가 이 자리 그대로 방을 읽거나 조작하게 합니다. AI 쪽에서 실행되는 브리지(axe-mcp)에 이 탭을 연결합니다.",
       "connect": "연결",
       "disconnect": "끊기",

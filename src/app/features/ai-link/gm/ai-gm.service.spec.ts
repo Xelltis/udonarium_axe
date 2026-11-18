@@ -16,8 +16,8 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { AI_GM_DEFAULT_CALL_NAME, AiGmService, readAiGmPreferences } from '@axe/features/ai-gm/ai-gm.service';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
+import { AI_GM_DEFAULT_CALL_NAME, AiGmService, readAiGmPreferences } from '@axe/features/ai-link/gm/ai-gm.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { Subject } from 'rxjs';
 

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { AGENT_PROTOCOL_VERSION } from '@axe/core/agent/agent-protocol';
@@ -181,7 +182,8 @@ describe('AiLinkService', () => {
     expect(openPanel).not.toHaveBeenCalled();
 
     sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
-    expect(openPanel).toHaveBeenCalledWith('aiGm');
+    expect(openPanel).toHaveBeenCalledWith('aiLink');
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
 
     openPanel.mockClear();
     link.noteGmPanel(true);
@@ -241,7 +243,8 @@ describe('AiLinkService', () => {
 
     link.connect();
     sockets[1].greet('gm');
-    expect(openPanel).toHaveBeenCalledWith('aiGm');
+    expect(openPanel).toHaveBeenCalledWith('aiLink');
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
 
     openPanel.mockClear();
     link.noteGmPanel(true);
@@ -251,7 +254,8 @@ describe('AiLinkService', () => {
     link.noteGmPanel(false);
     link.connect();
     sockets[3].greet('gm');
-    expect(openPanel).toHaveBeenCalledWith('aiGm');
+    expect(openPanel).toHaveBeenCalledWith('aiLink');
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
   });
 
   it('lets a watching seat give the AI reading only, whatever was chosen', () => {

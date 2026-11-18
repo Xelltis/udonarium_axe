@@ -80,7 +80,7 @@ const LABEL_KEYS: Record<PanelName, string> = {
   soundSettings: 'common.panel.soundSettings',
   menuEditor: 'feature.menuEditor.title',
   aiLink: 'feature.aiLink.title',
-  aiGm: 'feature.aiGm.title',
+  aiGm: 'feature.aiLink.title',
 };
 
 /** Anything unknown reads as the chat palette, which is where a panel slot starts. */

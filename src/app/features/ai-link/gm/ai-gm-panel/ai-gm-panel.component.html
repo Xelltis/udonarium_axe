@@ -1,5 +1,9 @@
 <div class="text-ui-text bg-ui-elevated flex h-full min-h-0 flex-col gap-2.5 overflow-y-auto p-3 text-[13px]">
-  <p class="text-ui-dim m-0 shrink-0 text-xs/relaxed">{{ 'feature.aiGm.hint' | transloco }}</p>
+  @if (!gm.bridgeHandsTurns()) {
+    <p class="text-ui-dim m-0 shrink-0 text-xs/relaxed" data-testid="ai-gm-hint">
+      {{ 'feature.aiGm.hint' | transloco }}
+    </p>
+  }
 
   <section
     class="border-ui-border-panel bg-ui-surface rounded-ui flex shrink-0 flex-col gap-2 border border-solid p-3"
@@ -12,16 +16,6 @@
       <span class="min-w-0 flex-1 leading-snug" data-testid="ai-gm-state" [attr.data-state]="stateKey()">
         {{ 'feature.aiGm.state.' + stateKey() | transloco }}
       </span>
-      @if (stateKey() === 'unlinked' || stateKey() === 'linking') {
-        <button
-          type="button"
-          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover shrink-0 cursor-pointer border border-solid px-3 py-1 text-[13px]"
-          data-testid="ai-gm-link-toggle"
-          (click)="toggleLink()"
-        >
-          {{ (linking() ? 'feature.aiLink.disconnect' : 'feature.aiLink.connect') | transloco }}
-        </button>
-      }
     </div>
     @if (gm.status()?.problem; as problem) {
       <p class="text-ui-danger m-0 text-[11px] leading-relaxed wrap-break-word" data-testid="ai-gm-problem">

@@ -1,28 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AgentToolRunner } from '@axe/application/agent/agent-tool-runner.service';
+import { type AiLinkTab, AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { AGENT_BRIDGE_PORT, AGENT_TRUSTED_ORIGINS, type AgentScope } from '@axe/core/agent/agent-protocol';
 import { agentToolOf } from '@axe/core/agent/agent-tools';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
+import { AI_LINK_RELEASES_URL } from '@axe/features/ai-link/ai-link-releases';
+import { AiGmPanelComponent } from '@axe/features/ai-link/gm/ai-gm-panel/ai-gm-panel.component';
 import { TranslocoModule } from '@jsverse/transloco';
-
-/** Where the bridge is downloaded from. */
-export const AI_LINK_RELEASES_URL = 'https://github.com/Xelltis/udonarium_axe/releases/latest';
 
 /** What the panel says of where the link stands, by the i18n key under feature.aiLink.state. */
 export type AiLinkStateKey = 'idle' | 'connecting' | 'connected' | 'unreachable' | 'lost' | 'busy' | 'protocol';
 
 /**
- * The panel a seat links an AI from: whether it is linked, what it lets the AI do, what the AI has
- * done, and how to set up the bridge the AI is started with, written for this page, and the port it
- * waits on where that is not the usual one.
+ * The panel a seat links an AI from. Whether it is linked stands at the top, over two halves: the
+ * link itself (the port the bridge waits on, what the AI is let do, what it has done, and how to set
+ * up the bridge the AI is started with, written for this page), and having the AI be the game master.
  */
 @Component({
   selector: 'ai-link-panel',
   templateUrl: './ai-link-panel.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslocoModule],
+  imports: [TranslocoModule, AiGmPanelComponent],
   host: { class: 'block h-full' },
 })
 export class AiLinkPanelComponent {
@@ -30,6 +30,12 @@ export class AiLinkPanelComponent {
   protected readonly runner = inject(AgentToolRunner);
   private readonly permission = inject(RolePermissionService);
 
+  protected readonly view = inject(AiLinkViewService);
+
+  protected readonly tabs: readonly AiLinkTab[] = ['link', 'gm'];
+  protected readonly scopes: readonly AgentScope[] = ['read', 'write'];
+  /** The half of the panel shown. */
+  protected readonly tab = this.view.tab;
   protected readonly releasesUrl = AI_LINK_RELEASES_URL;
   /** Which command was copied last, to say so beside it. */
   protected readonly copied = signal<'code' | 'desktop' | null>(null);
