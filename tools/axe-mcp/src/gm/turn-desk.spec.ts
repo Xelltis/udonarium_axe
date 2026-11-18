@@ -317,6 +317,17 @@ describe('TurnDesk', () => {
     expect(await waiting).toMatchObject({ turn: true, events: [LINE] });
   });
 
+  it('hands the next turn to whoever asks once the conversation taking one has hung up', async () => {
+    const tab = await connect();
+    const first = {};
+    start(tab);
+    expect(await desk.waitForTurn(2000, undefined, first)).toMatchObject({ turn: true });
+    tab.say({ type: 'gm.nudge', direction: '' });
+
+    desk.leave(first);
+    expect(await desk.waitForTurn(2000, undefined, {})).toMatchObject({ turn: true });
+  });
+
   it('lets a later wait take the place of an earlier one', async () => {
     await connect();
     const earlier = desk.waitForTurn(2000);

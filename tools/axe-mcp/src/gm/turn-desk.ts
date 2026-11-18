@@ -209,6 +209,14 @@ export class TurnDesk {
   }
 
   /**
+   * Lets go of a conversation that is over, as a client that hung up: the turn it was taking is no
+   * longer held for it, and whoever asks next is handed the next.
+   */
+  leave(conversation: object): void {
+    if (conversation === this.waiting) this.holderSeenAt = 0;
+  }
+
+  /**
    * Has a conversation told the instructions and the notebook again with its next turn, as one that
    * begins anew in a client the bridge already knows has had neither.
    */

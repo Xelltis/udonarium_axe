@@ -104,6 +104,18 @@ export class AgentViews {
    */
   readonly tabsRead = signal<ReadonlySet<string> | null>(null);
 
+  /**
+   * Whether a chat line is the AI's to read: any line while every tab is read, and otherwise a line
+   * of a tab it is let read, one the table itself put out, or a whisper to this seat, wherever said.
+   */
+  readsLine(line: { readonly id: string; readonly tab: string; readonly system?: boolean }): boolean {
+    const read = this.tabsRead();
+    if (!read || read.has(line.tab) || line.system) return true;
+    const me = PeerCursor.myCursor?.userId ?? '';
+    const message = this.objectStore.get<ChatMessage>(line.id);
+    return me !== '' && message instanceof ChatMessage && message.sendTo.includes(me);
+  }
+
   /** The grid the pieces of the table in view move over. */
   grid(table: GameTable = this.tabletop.currentTable): CellGrid {
     return moveGridOf(table);

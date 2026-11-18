@@ -81,12 +81,12 @@ export function serveMcpOverHttp(link: TabLink, options: McpHttpOptions): Promis
         sessions.delete(sessionId);
       },
     });
+    const server = createMcpServer(link, options.version, options.desk);
     transport.onclose = () => {
       if (transport.sessionId) sessions.delete(transport.sessionId);
+      options.desk?.leave(server);
     };
-    void createMcpServer(link, options.version, options.desk)
-      .connect(transport)
-      .then(() => transport.handleRequest(req, res));
+    void server.connect(transport).then(() => transport.handleRequest(req, res));
   });
 
   return new Promise((resolve, reject) => {

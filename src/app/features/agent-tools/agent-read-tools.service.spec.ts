@@ -159,7 +159,14 @@ describe('AgentReadTools', () => {
     expect((call('read_chat') as { lines: { text: string }[] }).lines.map((line) => line.text)).toEqual([
       'ここだけの話',
     ]);
+    // A tab is still found by name for what is said and rolled there, kept from reading or not.
+    expect(tools.tab(open.name)).toBe(open);
+    // What the table put out, and a line of a tab it reads, are its to read; another tab's line is not.
+    expect(views.readsLine({ id: 'x', tab: other.identifier })).toBe(true);
+    expect(views.readsLine({ id: 'x', tab: open.identifier })).toBe(false);
+    expect(views.readsLine({ id: 'x', tab: open.identifier, system: true })).toBe(true);
     views.tabsRead.set(null);
+    expect(views.readsLine({ id: 'x', tab: open.identifier })).toBe(true);
   });
 
   it('names the seat a line came from, this seat’s own before its cursor knows its user, and says plainly who sent it', () => {
