@@ -30,12 +30,15 @@ pre-push:
   jobs:
     - name: test
       glob:
+        - 'src/*'
         - 'src/**/*'
         - 'vitest.config.mts'
         - 'vitest-base.config.mts'
-        - 'tsconfig.spec.json'
+        - 'tsconfig*.json'
+        - 'angular.json'
         - 'eslint.config.ts'
         - 'package.json'
+        - 'package-lock.json'
       run: node scripts/vitest-related.mjs --disk-specs {push_files}
 
     - name: test-mcp

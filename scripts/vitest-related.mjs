@@ -94,7 +94,7 @@ function diskSpecs() {
 }
 
 /** What every spec runs on beside the sources: what is installed, and how the sources are checked. */
-const UNDER_EVERY_SPEC = /^(?:package(?:-lock)?\.json|tsconfig(?:\.[^/]+)?\.json)$/;
+const UNDER_EVERY_SPEC = /^(?:package(?:-lock)?\.json|tsconfig(?:\.[^/]+)?\.json|angular\.json|eslint\.config\.ts)$/;
 /** A file of words a spec may read by any road: a dictionary, a stylesheet, an agreement kept as JSON. */
 const WORDS = /\.(?:json|css|scss|html|txt|svg|md)$/;
 

@@ -269,10 +269,15 @@ export class ModelLayer {
 
   /** Turns every part made to turn to where it stands at a moment; answers whether there is any. */
   private turnHerdsTo(timeMs: number): boolean {
+    // A herd is laid where its parts stand at the moment last turned to, so one moment is turned to once.
+    const moved = timeMs !== this.turnedToMs;
     this.turnedToMs = timeMs;
     let any = false;
     for (const herd of this.herds.values()) {
       if (!herd.turning) continue;
+      any = true;
+      // Nothing has turned since they were last placed: the moment stands, and so do the herds.
+      if (!moved) continue;
       const { flock, loaded } = herd.turning;
       const turns = (part: number) => loaded.parts[part].spin !== undefined;
       this.placeHerd(
@@ -280,9 +285,8 @@ export class ModelLayer {
         flock.map((model) => partPlacementsOf(model, loaded, timeMs, turns)),
         turns
       );
-      any = true;
     }
-    if (any) this.changed = true;
+    if (any && moved) this.changed = true;
     return any;
   }
 
