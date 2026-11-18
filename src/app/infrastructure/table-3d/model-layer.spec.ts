@@ -148,6 +148,24 @@ describe('a part made to turn', () => {
     wheel.add(sails);
     wheel.updateMatrixWorld(true);
     expect(rounded(standingBoxOf(wheel).min.toArray())).toEqual([-2.5, 1.4, 1]);
+
+    // A part that turns hung from a mesh that does not is left out just the same.
+    const tower = boxed([-1.5, 0, -1.5], [1.5, 5.6, 1.5]);
+    const hung = new Group();
+    hung.userData = { spin: [0, 0, 1, 24] };
+    hung.add(boxed([-2.5, 1.4, 1], [2.5, 6.4, 1.2]));
+    tower.add(hung);
+    const mill = new Group();
+    mill.add(tower);
+    expect(rounded(standingBoxOf(mill).min.toArray())).toEqual([-1.5, 0, -1.5]);
+    expect(rounded(standingBoxOf(mill).max.toArray())).toEqual([1.5, 5.6, 1.5]);
+  });
+
+  it('places only the parts wanted of it, as when what turns alone is moved each frame', () => {
+    const [body, rim] = partPlacementsOf(knight(), wheel, 1000, (part) => part === 1);
+
+    expect(body).toEqual([]);
+    expect(drawn(rim[0], 0.5, 1, 0)).toEqual([100, 75, 200]);
   });
 
   it('reads nothing that names no axis, no turning, or anything but four figures', () => {

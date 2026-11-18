@@ -274,10 +274,11 @@ export class ModelLayer {
     for (const herd of this.herds.values()) {
       if (!herd.turning) continue;
       const { flock, loaded } = herd.turning;
+      const turns = (part: number) => loaded.parts[part].spin !== undefined;
       this.placeHerd(
         herd,
-        flock.map((model) => partPlacementsOf(model, loaded, timeMs)),
-        (part) => loaded.parts[part].spin !== undefined
+        flock.map((model) => partPlacementsOf(model, loaded, timeMs, turns)),
+        turns
       );
       any = true;
     }
@@ -690,16 +691,23 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
 
 /**
  * Where each mesh of a model is drawn for a piece or block: placed with the model, and a leaf that swings
- * on a hinge of its own swung open about it while its door stands open.
+ * on a hinge of its own swung open about it while its door stands open. Given which parts are wanted,
+ * the others of a model placed part by part are left with no place, as when only what turns is moved.
  */
-export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure, timeMs = 0): Matrix4[][] {
+export function partPlacementsOf(
+  model: TableWorldModel,
+  loaded: ModelMeasure,
+  timeMs = 0,
+  wanted?: (part: number) => boolean
+): Matrix4[][] {
   if (loaded.facade && model.boxPx) return facadePlacementsOf(model, loaded);
   if (loaded.tile && model.boxPx) return tilePlacementsOf(model, loaded);
   if (loaded.joined && model.boxPx) return joinedPlacementsOf(model, loaded);
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
   const open = model.door?.open === true;
-  return (loaded.parts ?? []).map(({ within, swing, spin }) => {
+  return (loaded.parts ?? []).map(({ within, swing, spin }, part) => {
+    if (wanted && !wanted(part)) return [];
     const turned = open && swing ? swungAbout(scaling, swing) : spin ? spunAbout(scaling, spin, timeMs) : null;
     return [
       turned ? frame.clone().multiply(turned).multiply(scaling).multiply(within) : placement.clone().multiply(within),
@@ -945,8 +953,20 @@ function swingOf(object: Object3D): { hinge: Vector3; deg: number } | null {
  */
 export function standingBoxOf(scene: Object3D): Box3 {
   const box = new Box3();
+  scene.updateWorldMatrix(true, true);
   scene.traverse((object) => {
-    if (object instanceof Mesh && !spinOf(object)) box.expandByObject(object);
+    if (!(object instanceof Mesh) || spinOf(object)) return;
+    // By the mesh's own shape alone, as its kind keeps it (a mesh on a skeleton keeps the box of its
+    // pose): a part that turns may hang from one that does not, and is not to be counted with it.
+    const posed = object as Mesh & { boundingBox?: Box3 | null; computeBoundingBox?: () => void };
+    if (posed.boundingBox !== undefined) {
+      if (posed.boundingBox === null) posed.computeBoundingBox?.();
+      if (posed.boundingBox) box.union(posed.boundingBox.clone().applyMatrix4(object.matrixWorld));
+      return;
+    }
+    const geometry = object.geometry;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    if (geometry.boundingBox) box.union(geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
   });
   return box.isEmpty() ? new Box3().setFromObject(scene) : box;
 }

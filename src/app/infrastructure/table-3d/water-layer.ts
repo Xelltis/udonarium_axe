@@ -198,11 +198,14 @@ export class WaterLayer {
     if (water.seaFloor && board) this.addSeaFloor(water.seaFloor, board());
     this.add(water.sides, this.sideMaterial(), SURFACE_ORDER);
     this.add(water.shore, this.shoreMaterial(), SHORE_ORDER);
-    this.add(water.falls, this.fallMaterial(), FALL_ORDER, (geometry) =>
-      geometry.setAttribute('fallAt', new Float32BufferAttribute(water.fallAt, 2))
-    );
-    this.add(water.lips, this.lipMaterial(), FOAM_ORDER);
-    this.add(water.splashes, this.splashMaterial(), FOAM_ORDER);
+    // Made only where water falls: making them builds the pictures they are drawn with as well.
+    if (water.falls.points.length > 0) {
+      this.add(water.falls, this.fallMaterial(), FALL_ORDER, (geometry) =>
+        geometry.setAttribute('fallAt', new Float32BufferAttribute(water.fallAt, 2))
+      );
+    }
+    if (water.lips.points.length > 0) this.add(water.lips, this.lipMaterial(), FOAM_ORDER);
+    if (water.splashes.points.length > 0) this.add(water.splashes, this.splashMaterial(), FOAM_ORDER);
     this.changed = true;
   }
 
