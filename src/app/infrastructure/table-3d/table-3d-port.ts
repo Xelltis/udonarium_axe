@@ -210,6 +210,11 @@ export interface Table3dEngine {
    * at once as they stand now, and again whenever a model with one is read, laid, moved or taken away.
    */
   onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void;
+  /**
+   * Lets the parts of the models made to turn, as the sails of a windmill are, turn, or stands them as
+   * they were made, as for a reader who asks for less motion.
+   */
+  setModelMotion(moving: boolean): void;
   /** Hangs the sheets of fog in the air, drifting where things may move, or takes them away with none. */
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void;
   /**

@@ -813,6 +813,7 @@ export class Table3dService {
         { injector }
       ),
       told(() => engine.setFogAir(this.tableVeil.fogAir(), this.motion.enabled())),
+      told(() => engine.setModelMotion(this.motion.enabled())),
       told(() => engine.setWeather(this.weatherFall())),
       told(() => engine.setSkyLight(this.skyLight())),
       told(() => engine.setSky(this.sky())),

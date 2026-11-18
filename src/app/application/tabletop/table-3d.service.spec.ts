@@ -74,6 +74,7 @@ class FakeEngine implements Table3dEngine {
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
   spoutsHeard: (spouts: readonly WaterSpout[]) => void = () => undefined;
+  modelMotions: boolean[] = [];
   weathers: (Table3dWeatherFall | null)[] = [];
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
@@ -134,6 +135,10 @@ class FakeEngine implements Table3dEngine {
 
   setFogAir(sheets: readonly Table3dFogAirSheet[]): void {
     this.fogAirSheets.push(sheets);
+  }
+
+  setModelMotion(moving: boolean): void {
+    this.modelMotions.push(moving);
   }
 
   onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void {

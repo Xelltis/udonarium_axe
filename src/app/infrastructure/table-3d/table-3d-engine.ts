@@ -832,12 +832,12 @@ class ThreeTableEngine implements Table3dEngine {
     const flowing = this.water.advance(timeMs);
     const hanging = this.fogAir.advance(timeMs);
     const passing = this.backdrops.advance(timeMs);
-    const walking = this.models.advance(timeMs);
+    const modelled = this.models.advance(timeMs);
     const falling = this.weather.advance(timeMs, this.camera);
     this.strike(timeMs);
     this.takeChanges();
-    if (walking || falling) return true;
-    return drifting || flowing || hanging || passing ? 'slowly' : false;
+    if (modelled === true || falling) return true;
+    return drifting || flowing || hanging || passing || modelled === 'slowly' ? 'slowly' : false;
   }
 
   setSky(sky: SkyDome | null): void {
@@ -872,6 +872,11 @@ class ThreeTableEngine implements Table3dEngine {
   onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void {
     this.spoutsHeard = heard;
     heard(this.spouts);
+  }
+
+  setModelMotion(moving: boolean): void {
+    this.models.setTurning(moving);
+    this.takeChanges();
   }
 
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
