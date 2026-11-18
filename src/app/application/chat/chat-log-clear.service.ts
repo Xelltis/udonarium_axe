@@ -56,9 +56,13 @@ export class ChatLogClearService {
     return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
   }
 
-  /** The lines of the tab a clearing of that reach takes, in the order they stand. */
+  /**
+   * The lines of the tab a clearing of that reach takes, in the order they stand: of the lines this
+   * seat may see alone, whatever the reach and whoever clears. A whisper between others is none of
+   * this seat's to clear, and counting it would tell how many there are; it is left where it stands.
+   */
   linesWithin(tab: ChatTab, reach?: ChatLogClearReach): ChatMessage[] {
-    const lines = tab.chatMessages.filter((line) => line instanceof ChatMessage);
+    const lines = tab.chatMessages.filter((line) => line instanceof ChatMessage && line.isDisplayable);
     const reached = !reach
       ? lines
       : 'before' in reach
@@ -68,8 +72,8 @@ export class ChatLogClearService {
   }
 
   /**
-   * Clears the tab's log as far as the reach given, the whole of it where none is, and posts in the
-   * tab who cleared it and up to when. Clearing the whole log puts the tab's portraits back as well.
+   * Clears the tab's log as far as the reach given, the whole of it where none is, of the lines this
+   * seat may see, and posts in the tab who cleared it and up to when. Clearing the whole log puts the tab's portraits back as well.
    * A reach that takes no line of the tab leaves it as it is, with nothing posted. Does nothing for a
    * seat that may not clear logs.
    */

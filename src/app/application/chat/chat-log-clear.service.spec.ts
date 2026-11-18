@@ -1,13 +1,19 @@
 import { TestBed } from '@angular/core/testing';
-import { ChatLogClearService, clearedMomentText } from '@axe/application/chat/chat-log-clear.service';
+import {
+  type ChatLogClearReach,
+  ChatLogClearService,
+  clearedMomentText,
+} from '@axe/application/chat/chat-log-clear.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { Network } from '@axe/core/network/network';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
+import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatLogClearService', () => {
@@ -55,6 +61,38 @@ describe('ChatLogClearService', () => {
     // Whatever else the tab held went with the whole log: only the notice of the clearing is left.
     expect(tab.children).toHaveLength(1);
     expect(noticeKeys()).toEqual(['common.chat.logClearedBy {"user":"アリス"}']);
+  });
+
+  describe('with whispers between others among the lines', () => {
+    let last: ChatMessage;
+
+    beforeEach(() => {
+      beSeat(PeerRole.GameMaster);
+      const me = beMyself('alice').userId;
+      say('みんなへ', 1000);
+      tab.addMessage({ from: 'bob', name: 'ボブ', text: 'ボブからキャロルへ', timestamp: 2000, to: 'carol' });
+      tab.addMessage({ from: 'bob', name: 'ボブ', text: 'ボブから私へ', timestamp: 3000, to: me });
+      tab.addMessage({ from: me, name: 'アリス', text: '私からボブへ', timestamp: 4000, to: 'bob' });
+      last = say('区切り', 5000);
+    });
+
+    const reaches: [string, () => ChatLogClearReach | undefined, string[]][] = [
+      ['the whole log', () => undefined, []],
+      ['the lines before a moment', () => ({ before: 4500 }), ['区切り']],
+      ['the lines before a line', () => ({ beforeLine: last }), ['区切り']],
+    ];
+
+    it.each(reaches)('takes and counts only what this seat may see when clearing %s', (_, reachOf, left) => {
+      const reach = reachOf();
+
+      expect(service.linesWithin(tab, reach).map((line) => line.text)).toEqual(
+        ['みんなへ', 'ボブから私へ', '私からボブへ', '区切り'].filter((text) => !left.includes(text))
+      );
+      service.clear(tab, reach);
+
+      // The whisper between the others stands where it stood, whoever cleared and however far.
+      expect(said()).toEqual(['ボブからキャロルへ', ...left]);
+    });
   });
 
   it('clears only the lines said before a moment, leaving the portraits, and names the moment', () => {
