@@ -18,8 +18,10 @@
  * Every spec runs when the files handed include a runner config, a setup file, or anything a setup
  * file imports at any depth without waiting, since setup loads those into every spec. With
  * `--disk-specs`, as before a push, the specs that read files off the disk run as well whatever was
- * changed: a dictionary, a model or a source one of them checks is reached by no import. A changed
- * dictionary adds every spec that names TestBed as well, for the words those draw. What setup
+ * changed: a model or a source one of them checks is reached by no import. And every spec runs where
+ * what was changed is a file of words under src that no import accounts for (a dictionary, a
+ * stylesheet of the whole page, an agreement kept as JSON), or what every spec runs on: a spec may
+ * come to such a file through a helper or the setup, which the imports read here do not tell. What setup
  * imports only for a spec that builds a TestBed module, the providers every module is given, adds
  * every spec that names TestBed, as setup tells such a spec by that word.
  */
@@ -83,27 +85,40 @@ const stagedPaths = process.argv
   .filter((arg) => !arg.startsWith('--'))
   .map((f) => posix.normalize(f.replaceAll('\\', '/')));
 
-/** A dictionary, which the test setup gives every TestBed module: a spec that names TestBed may check its words. */
-const DICTIONARY = /^src\/assets\/i18n\/[^/]+\.json$/;
-
-/**
- * The specs run with `--disk-specs` whatever sources were changed: those that read files off the
- * disk, and, where a dictionary was changed, every spec that names TestBed, since the words a
- * component draws come out of the dictionaries the setup hands it.
- */
+/** The specs that read files off the disk, run with `--disk-specs` whatever was changed. */
 function diskSpecs() {
   if (!withDiskSpecs || stagedPaths.length === 0) return [];
-  const dictionaryChanged = stagedPaths.some((file) => DICTIONARY.test(file));
-  return sourcesUnder('src').filter((file) => {
-    if (!file.endsWith('.spec.ts')) return false;
-    const source = readFileSync(file, 'utf-8');
-    return READS_DISK.test(source) || (dictionaryChanged && source.includes(TEST_BED_WORD));
-  });
+  return sourcesUnder('src').filter(
+    (file) => file.endsWith('.spec.ts') && READS_DISK.test(readFileSync(file, 'utf-8'))
+  );
+}
+
+/** What every spec runs on beside the sources: what is installed, and how the sources are checked. */
+const UNDER_EVERY_SPEC = /^(?:package(?:-lock)?\.json|tsconfig(?:\.[^/]+)?\.json)$/;
+/** A file of words a spec may read by any road: a dictionary, a stylesheet, an agreement kept as JSON. */
+const WORDS = /\.(?:json|css|scss|html|txt|svg|md)$/;
+
+/**
+ * A file handed in that no import accounts for and a spec may yet read: what every spec runs on, or
+ * a file of words under src that is neither a source nor the template or stylesheet beside one. A
+ * spec comes to such a file through a helper, a setup file or an import of the file itself, none of
+ * which tells here, so before a push every spec is run for it.
+ */
+function unaccountedFor(file) {
+  if (UNDER_EVERY_SPEC.test(file)) return true;
+  if (!file.startsWith('src/') || file.endsWith('.ts') || !WORDS.test(file)) return false;
+  return !existsSync(file.replace(/\.(html|css)$/, '.ts')) || !/\.(html|css)$/.test(file);
 }
 
 const stagedConfig = stagedPaths.find((file) => configs.has(file));
 if (stagedConfig !== undefined) {
   console.log(`[vitest-related] ${stagedConfig} configures every spec; running every spec`);
+  run([]);
+}
+
+const stagedUnaccounted = withDiskSpecs ? stagedPaths.find(unaccountedFor) : undefined;
+if (stagedUnaccounted !== undefined) {
+  console.log(`[vitest-related] ${stagedUnaccounted} may be read by any spec; running every spec`);
   run([]);
 }
 
@@ -126,7 +141,7 @@ if (staged.size === 0) {
     process.exit(0);
   }
   console.log(
-    `[vitest-related] no changed source is imported by a spec; running the ${fromDisk.length} that read files or draw a changed dictionary's words`
+    `[vitest-related] no changed source is imported by a spec; running the ${fromDisk.length} that read files`
   );
   run(fromDisk.sort());
 }

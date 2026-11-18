@@ -19,6 +19,7 @@
  *   node scripts/e2e-related.mjs --since main  ... by what has changed since a commit
  *   node scripts/e2e-related.mjs src/app/...   ... by the files named
  *   node scripts/e2e-related.mjs --run         runs them, each kind of project in turn
+ *   node scripts/e2e-related.mjs --run --build  builds the app first, where there is anything to run
  *   node scripts/e2e-related.mjs --run --visual  runs the pictures too, which are left out otherwise,
  *                                                each way of drawing them by itself
  */
@@ -40,6 +41,8 @@ const REACHES_EVERY_SPEC = [
   /^package(?:-lock)?\.json$/,
   /^angular\.json$/,
   /^tsconfig(?:\.app)?\.json$/,
+  /^\.postcssrc\.json$/,
+  /^\.browserslistrc$/,
   /^playwright\.config\.ts$/,
   /^e2e\/(?!visual\/|server\/).+(?<!\.spec)\.(?:ts|mjs)$/,
   /^src\/(?:index\.html|styles\.css|main\.ts)$/,
@@ -228,6 +231,12 @@ for (const kind of ['e2e', 'visual']) {
 }
 
 if (flags.has('--run')) {
+  const kindsRun = (flags.has('--visual') ? ['e2e', 'visual'] : ['e2e']).filter((kind) => kinds[kind].length > 0);
+  // The specs work what was last built: built here, and only where there is a spec to run on it.
+  if (flags.has('--build') && kindsRun.length > 0) {
+    const built = spawnSync('npx', ['ng', 'build'], { stdio: 'inherit', shell: process.platform === 'win32' });
+    if (built.status !== 0) process.exit(built.status ?? 1);
+  }
   for (const kind of flags.has('--visual') ? ['e2e', 'visual'] : ['e2e']) {
     if (kinds[kind].length === 0) continue;
     // The pictures are drawn without a graphics card, and the two ways of drawing them at once are more
