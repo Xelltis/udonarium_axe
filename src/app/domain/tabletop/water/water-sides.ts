@@ -38,7 +38,7 @@ export interface WaterSide {
 }
 
 /** The steps to the cell across each side of a square, in the order its corners are given. */
-const SQUARE_SIDE_STEPS: readonly (readonly [number, number])[] = [
+export const SQUARE_SIDE_STEPS: readonly (readonly [number, number])[] = [
   [0, -1],
   [1, 0],
   [0, 1],
@@ -118,7 +118,7 @@ export function waterSidesOf(
 }
 
 /** The way square across an edge into its own cell, which reads the ground either side without sliding along it. */
-function inwardOf(
+export function inwardOf(
   from: { x: number; y: number },
   to: { x: number; y: number },
   centre: { x: number; y: number }

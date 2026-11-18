@@ -56,6 +56,7 @@ import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { blockFootprintOf } from '@axe/domain/tabletop/terrain-footprint';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import { waterColumnsOf, waterFallsOf, type WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
@@ -354,8 +355,16 @@ export class Table3dService {
   });
 
   /**
+   * Where the spouts of the models drawn on the table stand, the mouths water pours from, as the
+   * engine last told of them once it had read the models and placed them.
+   */
+  private readonly spouts = signal<readonly WaterSpout[]>([], {
+    equal: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  });
+
+  /**
    * The water on the table in view, as this seat sees it, with the floor of a map the weather puts
-   * under water, moving where things may move.
+   * under water and the water falling over its edges and from the spouts, moving where things may move.
    */
   private readonly water = computed(() => {
     const grid = this.waterCells.grid();
@@ -363,14 +372,19 @@ export class Table3dService {
     const weather = this.ambience.weather();
     const underwater = weather?.kind === 'underwater' ? weather : null;
     const moving = this.motion.enabled();
-    if (!grid || cells.size < 1) return tableWaterOf(grid, cells, [], [], moving, underwater);
+    const spouts = this.spouts();
+    if (!grid || (cells.size < 1 && spouts.length < 1)) return tableWaterOf(grid, cells, [], [], moving, underwater);
     return tableWaterOf(
       grid,
       cells,
       waterSidesOf(grid, cells, this.waterCells.groundAt),
       waterShoreOf(grid, cells, this.waterCells.bankGroundOf),
       moving,
-      underwater
+      underwater,
+      {
+        falls: waterFallsOf(grid, cells),
+        columns: waterColumnsOf(grid, cells, spouts, (x, y) => this.ground.heightPxAt(x, y)),
+      }
     );
   });
 
@@ -749,6 +763,7 @@ export class Table3dService {
         },
         { injector }
       );
+    engine.onSpouts((spouts) => queueMicrotask(() => this.spouts.set(spouts)));
     return [
       told(() => {
         const world = this.world();

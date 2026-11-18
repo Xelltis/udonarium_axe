@@ -34,6 +34,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
+import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
@@ -72,6 +73,7 @@ class FakeEngine implements Table3dEngine {
   effectFrames: EffectFrame[] = [];
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
+  spoutsHeard: (spouts: readonly WaterSpout[]) => void = () => undefined;
   weathers: (Table3dWeatherFall | null)[] = [];
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
@@ -132,6 +134,10 @@ class FakeEngine implements Table3dEngine {
 
   setFogAir(sheets: readonly Table3dFogAirSheet[]): void {
     this.fogAirSheets.push(sheets);
+  }
+
+  onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void {
+    this.spoutsHeard = heard;
   }
 
   setWeather(weather: Table3dWeatherFall | null): void {
@@ -387,6 +393,32 @@ describe('Table3dService', () => {
     await scene.whenIdle();
 
     expect(engines[0].readiesFirst).toEqual([false]);
+  });
+
+  it('pours water from the spouts the engine tells of, down to the floor of a table with no water on it', async () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    expect(scene.world().water.falls.points.length).toBe(0);
+
+    engines[0].spoutsHeard([{ key: 'pipe:0', x: 125, y: 100, mouthPx: 60, outX: 0, outY: 1, widthPx: 12 }]);
+    await Promise.resolve();
+    TestBed.tick();
+
+    const water = engines[0].worlds.at(-1)!.water;
+    expect(water.falls.points.length / 3).toBe(4 * 6);
+    expect(Math.max(...[...water.falls.points].filter((_, index) => index % 3 === 2))).toBe(60);
+    expect(water.splashes.points.length).toBeGreaterThan(0);
+
+    engines[0].spoutsHeard([]);
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(engines[0].worlds.at(-1)!.water.falls.points.length).toBe(0);
   });
 
   it('draws the scene and the camera on the frame after it is given a canvas, and once only', async () => {

@@ -1,5 +1,5 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
-import { ModelLayer, partPlacementsOf, placementOf } from '@axe/infrastructure/table-3d/model-layer';
+import { ModelLayer, partPlacementsOf, placementOf, spoutsOf } from '@axe/infrastructure/table-3d/model-layer';
 import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   AnimationClip,
@@ -38,6 +38,30 @@ function drawnAt(model: TableWorldModel, x: number, y: number, z: number): numbe
   const point = new Vector3(x, y, z).applyMatrix4(placementOf(model, MADE));
   return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
 }
+
+describe('spoutsOf', () => {
+  /** A drain one unit across and two tall, its mouth a unit up at the middle of its south face. */
+  const drain = { ...MADE, spouts: [new Vector3(0, 1, 0.5)] };
+
+  it('finds the mouth of a model placed for its block, how high it is, the way it faces and how wide it pours', () => {
+    expect(spoutsOf(knight(), drain)).toEqual([
+      { key: 'knight:0', x: 100, y: 225, mouthPx: 50, outX: 0, outY: 1, widthPx: 12 },
+    ]);
+  });
+
+  it('turns the mouth with the model, and lifts it with the ground the block stands on', () => {
+    const turned = knight({ model: { ...knight().model, turnDeg: 90 }, altitudePx: 30 });
+
+    expect(spoutsOf(turned, drain)).toEqual([
+      { key: 'knight:0', x: 75, y: 200, mouthPx: 80, outX: -1, outY: 0, widthPx: 12 },
+    ]);
+  });
+
+  it('finds none on a model not read yet, nor on one made with no spout', () => {
+    expect(spoutsOf(knight(), null)).toEqual([]);
+    expect(spoutsOf(knight(), MADE)).toEqual([]);
+  });
+});
 
 describe('placementOf', () => {
   it('stands a model on its piece’s foot, fitted inside the piece’s box', () => {

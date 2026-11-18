@@ -33,6 +33,12 @@ const POND_CELL = { x: 26.1, y: 12.1 };
  */
 const PONDSIDE_OF_B = { x: 20.5, y: 16.1 };
 
+/**
+ * Where a second, lower pond is laid, straight south of the one a piece wades in and against it, for
+ * the water of the first to fall into.
+ */
+const LOWER_POND = { x: 20.5, y: 19.1 };
+
 /** The net of light drifts for as long as the page is open, so every shot holds it at one moment. */
 const WATER_SNAP = { animationAt: 1200 };
 
@@ -92,12 +98,12 @@ async function createPiece(page: Page, position: { x: number; y: number }) {
 /** Where the pond was laid on the table layer, the middle of it, where a press on a canvas opens its menu. */
 let pondAt: { x: number; y: number } | null = null;
 
-async function layPond(page: Page, position: { x: number; y: number }) {
+async function layPond(page: Page, position: { x: number; y: number }, ponds = 1) {
   const at = await clearOfMarks(page, position);
   const menu = await rightClickTable(page, at);
   await hoverMenu(page, menu, '環境エフェクトを置く');
   await chooseMenu(page, menu, '水');
-  await expect(page.locator('table-ambience')).toHaveCount(1);
+  await expect(page.locator('table-ambience')).toHaveCount(ponds);
   await settle(page, 400);
   pondAt = at;
 }
@@ -295,6 +301,20 @@ test('murky water flows past a piece, carrying its silt and streaked by the curr
   await waterBuilt(page);
   await settle(page, 400);
   await snap(page, 'water-river', WATER_SNAP);
+});
+
+test('flowing water falls over the edge onto the lower pond beside it', async ({ page }) => {
+  await prepare(page);
+  await closePanels(page);
+  await freeze(page);
+  await drawCanvasThrough(page);
+  await layPond(page, await cellSpot(page, LOWER_POND.x, LOWER_POND.y));
+  await layPond(page, await cellSpot(page, PONDSIDE_OF_B.x, PONDSIDE_OF_B.y), 2);
+  await setWaterLevel(page, '1.5');
+  await setFlow(page, '70', '↓ 下');
+  await waterBuilt(page);
+  await settle(page, 400);
+  await snap(page, 'water-fall', WATER_SNAP);
 });
 
 test('the whole map under water', async ({ page }) => {

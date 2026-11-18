@@ -8,6 +8,7 @@ import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-da
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { lightAxis } from '@axe/domain/tabletop/vision-scene/light-shape';
+import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
@@ -325,8 +326,14 @@ class ThreeTableEngine implements Table3dEngine {
       this.piecesMoved();
       this.needsFrame();
     },
-    () => this.renderer
+    () => this.renderer,
+    (spouts) => {
+      this.spouts = spouts;
+      this.spoutsHeard?.(spouts);
+    }
   );
+  private spouts: readonly WaterSpout[] = [];
+  private spoutsHeard: ((spouts: readonly WaterSpout[]) => void) | null = null;
   private readonly dice = new TableDiceLayer(
     () => this.renderer,
     (material, lit) => this.veil.cover(material, lit ? 'lit' : 'unlit'),
@@ -860,6 +867,11 @@ class ThreeTableEngine implements Table3dEngine {
         this.post.compileApart(this.scene, this.camera, this.finishing(), staging)
       );
     }
+  }
+
+  onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void {
+    this.spoutsHeard = heard;
+    heard(this.spouts);
   }
 
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {

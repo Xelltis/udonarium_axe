@@ -1,4 +1,5 @@
 import { partFacesOf } from '@axe/domain/character/part-look';
+import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
@@ -70,6 +71,12 @@ interface LoadedModel {
   readonly joined?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
   readonly parts: readonly ModelPart[];
+  /**
+   * The mouths water pours from, measured from the model's foot, each node of the model saying where
+   * its own is in its extras as `{ "spout": [x, y, z] }`: the mouth of a drain in a wall, facing the
+   * way the model's south does.
+   */
+  readonly spouts?: readonly Vector3[];
 }
 
 /**
@@ -128,6 +135,9 @@ interface StoodModel {
 /** How many radians a degree is. */
 const RADIANS = Math.PI / 180;
 
+/** How wide the water pouring from a spout is, in the units its model was made in. */
+const SPOUT_WIDTH = 0.24;
+
 /**
  * How long a model read but no longer laid on the table is kept, in milliseconds, before what it
  * holds is let go of: long enough that a piece the fog hides and shows again, or a table gone to and
@@ -161,13 +171,16 @@ export class ModelLayer {
   private laid: readonly TableWorldModel[] = [];
   private changed = false;
   private lastTimeMs: number | null = null;
+  /** The spouts last told of, as one text, so that the same spouts are not told of twice. */
+  private toldSpouts = '[]';
   /** Whether the layer has been let go of, after which a model still being read is let go of as it comes. */
   private disposed = false;
 
   constructor(
     private readonly dress: (material: Material) => void,
     private readonly arrived: () => void,
-    private readonly renderer: () => WebGPURenderer
+    private readonly renderer: () => WebGPURenderer,
+    private readonly spoutsMoved: (spouts: readonly WaterSpout[]) => void = () => undefined
   ) {
     this.reader = new HeldModelReader(() => this.renderer());
   }
@@ -286,7 +299,17 @@ export class ModelLayer {
     }
     for (const [url, flock] of flocks) this.herd(url, this.loaded.get(url)!, flock);
     this.noteUnused();
+    this.tellSpouts();
     this.changed = true;
+  }
+
+  /** Tells where the spouts of the models laid stand on the table, whenever they are not where they were last told. */
+  private tellSpouts(): void {
+    const spouts = this.laid.flatMap((model) => spoutsOf(model, this.loaded.get(model.url) ?? null));
+    const told = JSON.stringify(spouts);
+    if (told === this.toldSpouts) return;
+    this.toldSpouts = told;
+    this.spoutsMoved(spouts);
   }
 
   /**
@@ -466,7 +489,10 @@ export class ModelLayer {
     const madeHeight = tile && extras.height === 'made';
     const joined = fit === 'joined';
     const parts: ModelPart[] = [];
+    const spouts: Vector3[] = [];
     gltf.scene.traverse((object) => {
+      const spout = facade || tile || joined ? null : spoutOf(object);
+      if (spout) spouts.push(spout.applyMatrix4(object.matrixWorld).applyMatrix4(fromFoot));
       if (!(object instanceof Mesh)) return;
       if (facade || tile || joined) {
         parts.push({
@@ -485,7 +511,19 @@ export class ModelLayer {
       });
     });
     const stretch = fit === 'stretch';
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile, madeHeight, joined };
+    return {
+      gltf,
+      size,
+      foot,
+      animated: gltf.animations.length > 0,
+      parts,
+      stretch,
+      facade,
+      tile,
+      madeHeight,
+      joined,
+      ...(spouts.length ? { spouts } : {}),
+    };
   }
 
   private settle(url: string): void {
@@ -816,6 +854,42 @@ function swingOf(object: Object3D): { hinge: Vector3; deg: number } | null {
     }
   }
   return null;
+}
+
+/** The mouth a node of a model says water pours from, where it was made, or null for a node that says none. */
+function spoutOf(object: Object3D): Vector3 | null {
+  const spout = (object.userData as { spout?: unknown }).spout;
+  if (!Array.isArray(spout) || spout.length !== 3 || !spout.every((value) => Number.isFinite(value))) return null;
+  return new Vector3(spout[0] as number, spout[1] as number, spout[2] as number);
+}
+
+/**
+ * Where the spouts of a model stand once it is placed for its piece or block, in table pixels: each
+ * mouth, how high it is, the way it faces across the floor and how wide its water pours. A model not
+ * read yet, or with no spout, has none.
+ */
+export function spoutsOf(
+  model: TableWorldModel,
+  loaded: (ModelMeasure & Pick<LoadedModel, 'spouts'>) | null
+): WaterSpout[] {
+  if (!loaded?.spouts?.length) return [];
+  const placement = placementOf(model, loaded);
+  const facing = new Vector3(0, 0, 1).transformDirection(placement);
+  const across = Math.hypot(facing.x, facing.z) || 1;
+  const widthPx = SPOUT_WIDTH * placement.getMaxScaleOnAxis();
+  const rounded = (value: number) => Math.round(value * 100) / 100;
+  return loaded.spouts.map((spout, index) => {
+    const mouth = spout.clone().applyMatrix4(placement);
+    return {
+      key: `${model.owner}:${index}`,
+      x: rounded(mouth.x),
+      y: rounded(mouth.z),
+      mouthPx: rounded(mouth.y),
+      outX: rounded(facing.x / across),
+      outY: rounded(facing.z / across),
+      widthPx: rounded(widthPx),
+    };
+  });
 }
 
 /** The scale a model is drawn at to stand as large as it may inside its box, keeping its shape. */
