@@ -25,20 +25,29 @@ describe('AiGmPanelComponent', () => {
     const now = state();
     return now.kind === 'connected' && now.mode === 'gm';
   });
-  const running = computed(() => bridgeRunsGm() && (status()?.run ?? 'off') !== 'off');
+  const linked = computed(() => state().kind === 'connected');
+  const bridgeHandsTurns = computed(() => {
+    const now = state();
+    return now.kind === 'connected' && now.mode === 'mcp';
+  });
+  const running = computed(() => linked() && (status()?.run ?? 'off') !== 'off');
+  const unattended = computed(() => running() && status()?.attended === false);
   const gm = {
     preferences,
     status,
     asides: signal([{ text: '酒場の場面へ', at: 0 }]),
+    linked,
     bridgeRunsGm,
+    bridgeHandsTurns,
     running,
+    unattended,
     models: signal([
       { id: 'claude-opus-5-5', name: 'Claude Opus 5.5' },
       { id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5' },
     ]),
     modelNotRun: signal(false),
     pieces: signal(['ゴブリン']),
-    mayStart: () => bridgeRunsGm() && role === PeerRole.GameMaster,
+    mayStart: () => linked() && role === PeerRole.GameMaster,
     start: vi.fn(),
     stop: vi.fn(),
     nudge: vi.fn(() => true),
@@ -88,10 +97,43 @@ describe('AiGmPanelComponent', () => {
     expect(link.noteGmPanel).toHaveBeenLastCalledWith(false);
   });
 
-  it('says a bridge that hands an AI app’s calls on does not run the game master', async () => {
-    state.set({ kind: 'connected', bridge: '1.80.0', mode: 'mcp', models: [] });
+  it('starts the game master on a bridge that hands the turns to an AI app, leaving the model and the spending out', async () => {
+    state.set({ kind: 'connected', bridge: '1.81.0', mode: 'mcp', models: [] });
+    status.set({ run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: false, starts: 0 });
     const { host } = await panel();
-    expect(find(host, 'ai-gm-state')?.getAttribute('data-state')).toBe('mcpBridge');
+
+    expect(find(host, 'ai-gm-state')?.getAttribute('data-state')).toBe('off');
+    expect(find(host, 'ai-gm-mcp-hint')?.textContent).toContain('run_ai_gm');
+    expect(find(host, 'ai-gm-model-section')).toBeNull();
+    expect(find(host, 'ai-gm-effort-low')).toBeNull();
+    expect(find(host, 'ai-gm-budget')).toBeNull();
+    expect(find(host, 'ai-gm-spent')).toBeNull();
+    expect(find(host, 'ai-gm-mode-called')).not.toBeNull();
+    find(host, 'ai-gm-start')!.click();
+    expect(gm.start).toHaveBeenCalledWith(false);
+  });
+
+  it('says that no AI is waiting for its turn while it runs with none there, and how it stands once one is', async () => {
+    state.set({ kind: 'connected', bridge: '1.81.0', mode: 'mcp', models: [] });
+    const waiting = { run: 'waiting', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: true, starts: 1 };
+    status.set({ ...waiting, attended: false } as GmStatus);
+    const { host, settle } = await panel();
+    expect(find(host, 'ai-gm-state')?.getAttribute('data-state')).toBe('away');
+    expect(find(host, 'ai-gm-stop')).not.toBeNull();
+
+    status.set({ ...waiting, attended: true } as GmStatus);
+    await settle();
+    expect(find(host, 'ai-gm-state')?.getAttribute('data-state')).toBe('waiting');
+  });
+
+  it('shows the model, the depth and the budget for a bridge that runs the model itself', async () => {
+    state.set({ kind: 'connected', bridge: '1.81.0', mode: 'gm', models: gm.models() });
+    const { host } = await panel();
+
+    expect(find(host, 'ai-gm-mcp-hint')).toBeNull();
+    expect(find(host, 'ai-gm-model-section')).not.toBeNull();
+    expect(find(host, 'ai-gm-effort-low')).not.toBeNull();
+    expect(find(host, 'ai-gm-budget')).not.toBeNull();
   });
 
   it('starts it only on the game master’s seat, and starts over where a conversation is kept', async () => {

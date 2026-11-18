@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server as HttpServer, type Ser
 
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
+import type { TurnDesk } from './gm/turn-desk';
 import { isLoopbackHost } from './loopback';
 import { createMcpServer } from './mcp-server';
 import type { TabLink } from './tab-link';
@@ -18,6 +19,8 @@ export interface McpHttpOptions {
   readonly token: string | null;
   readonly version: string;
   readonly log: (line: string) => void;
+  /** The desk the game master's turns are handed to the AI at, shared by every client. */
+  readonly desk?: TurnDesk;
 }
 
 function sameText(a: string, b: string): boolean {
@@ -81,7 +84,7 @@ export function serveMcpOverHttp(link: TabLink, options: McpHttpOptions): Promis
     transport.onclose = () => {
       if (transport.sessionId) sessions.delete(transport.sessionId);
     };
-    void createMcpServer(link, options.version)
+    void createMcpServer(link, options.version, options.desk)
       .connect(transport)
       .then(() => transport.handleRequest(req, res));
   });

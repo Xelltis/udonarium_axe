@@ -184,7 +184,7 @@
       "state": {
         "unlinked": "Not connected to a bridge",
         "linking": "Looking for the bridge…",
-        "mcpBridge": "The bridge connected does not run the AI GM. Connect to a bridge started with gm",
+        "away": "No AI is waiting for its turn. Have the AI app start the AI GM",
         "off": "Stopped",
         "waiting": "Running (waiting for its next turn)",
         "thinking": "Thinking…",
@@ -197,6 +197,7 @@
       "spent": "Spent ${{spent}} of ${{budget}} · conversation {{tokens}} tokens (estimate)",
       "spentTokens": "Used {{spent}} of {{budget}} tokens · conversation {{tokens}} tokens (the cost is not counted)",
       "gameMasterOnly": "The AI GM can be started only on the game master's seat",
+      "mcpHint": "The bridge connected is the AI link (MCP) one. Press Start and run the run_ai_gm prompt in the AI app, and that AI is the game master (/mcp__axe__run_ai_gm in Claude Code). The model and what it costs are the AI app’s",
       "start": "Start",
       "resume": "Resume",
       "restart": "Start over",
@@ -252,7 +253,8 @@
         "start": "Start the bridge with the key in an environment variable (macOS and Linux)",
         "powerShell": "In Windows PowerShell",
         "connect": "Press Connect in this panel, then Start.",
-        "otherProvider": "To run it on another AI, start the bridge with gm --provider openai --base-url <address> --model <name>, with the key in AXE_GM_API_KEY. Any API compatible with OpenAI is reached, a model served on this computer among them."
+        "otherProvider": "To run it on another AI, start the bridge with gm --provider openai --base-url <address> --model <name>, with the key in AXE_GM_API_KEY. Any API compatible with OpenAI is reached, a model served on this computer among them.",
+        "mcp": "Without an API key, an AI such as Claude Code connected through the AI link (MCP) can be the game master too: connect to a bridge started without gm, press Start, and run the run_ai_gm prompt in the AI app."
       },
       "notice": {
         "started": "{{name}} started the AI GM",

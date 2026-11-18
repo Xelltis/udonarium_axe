@@ -185,9 +185,9 @@ describe('AiGmService', () => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
-  it('starts only on the game master’s seat with a bridge that runs it, letting the AI change the room', () => {
+  it('starts only on the game master’s seat with a bridge connected, letting the AI change the room', () => {
     const gm = make();
-    state.set({ ...GM_BRIDGE, mode: 'mcp' });
+    state.set({ kind: 'idle' });
     expect(gm.start(false)).toBe(false);
     state.set(GM_BRIDGE);
     role = PeerRole.Player;
@@ -206,6 +206,34 @@ describe('AiGmService', () => {
       notes: '',
       fresh: true,
     });
+  });
+
+  it('starts on a bridge that hands the turns to an AI app, whatever model was chosen for another, and tells when no AI is there', () => {
+    const gm = make();
+    state.set({ ...GM_BRIDGE, mode: 'mcp', models: [] });
+    gm.update({ settings: { ...GM_DEFAULT_SETTINGS, model: 'claude-kept-from-before' } });
+    expect(gm.bridgeHandsTurns()).toBe(true);
+    expect(gm.bridgeRunsGm()).toBe(false);
+    expect(gm.modelNotRun()).toBe(false);
+
+    expect(gm.start(false)).toBe(true);
+    expect(scope()).toBe('write');
+    expect(told.at(-1)).toMatchObject({ type: 'gm.start', fresh: false });
+
+    const waiting: GmStatus = {
+      run: 'waiting',
+      model: '',
+      spentUsd: 0,
+      budgetUsd: 0,
+      contextTokens: 0,
+      kept: false,
+      starts: 1,
+    };
+    heard.next({ type: 'gm.status', status: { ...waiting, attended: false } });
+    expect(gm.running()).toBe(true);
+    expect(gm.unattended()).toBe(true);
+    heard.next({ type: 'gm.status', status: { ...waiting, attended: true } });
+    expect(gm.unattended()).toBe(false);
   });
 
   it('tells that the model chosen is none of those the bridge connected runs', () => {

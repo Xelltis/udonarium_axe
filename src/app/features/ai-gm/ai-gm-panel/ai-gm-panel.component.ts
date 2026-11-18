@@ -11,22 +11,14 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 /** What the panel says of the game master, by the i18n key under feature.aiGm.state. */
 export type AiGmStateKey =
-  | 'unlinked'
-  | 'linking'
-  | 'mcpBridge'
-  | 'off'
-  | 'waiting'
-  | 'thinking'
-  | 'asked'
-  | 'budget'
-  | 'key'
-  | 'failed'
-  | 'seat';
+  'unlinked' | 'linking' | 'off' | 'waiting' | 'thinking' | 'away' | 'asked' | 'budget' | 'key' | 'failed' | 'seat';
 
 /**
- * The panel the game master's seat runs Claude as the game master from: how it stands and what it
+ * The panel the game master's seat runs an AI as the game master from: how it stands and what it
  * spent, starting and stopping it, how it is run, the instructions and the notebook, asking it to
  * go on, what it wrote aside, the pieces it runs, and how to start the bridge that holds the key.
+ * With a bridge that hands the turns to an AI app connected over MCP, the model, how deeply it thinks
+ * and what it may spend are that app's, and are left out here.
  */
 @Component({
   selector: 'ai-gm-panel',
@@ -58,9 +50,9 @@ export class AiGmPanelComponent {
     const state = this.link.state();
     if (state.kind === 'idle' || state.kind === 'refused') return 'unlinked';
     if (state.kind !== 'connected') return 'linking';
-    if (state.mode !== 'gm') return 'mcpBridge';
     const status = this.gm.status();
     if (!status) return 'off';
+    if (this.gm.unattended()) return 'away';
     if (status.run !== 'off') return status.run;
     return status.halted ?? 'off';
   });

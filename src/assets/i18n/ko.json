@@ -184,7 +184,7 @@
       "state": {
         "unlinked": "브리지에 연결되어 있지 않습니다",
         "linking": "브리지를 찾고 있습니다…",
-        "mcpBridge": "연결된 브리지는 AI GM을 움직이지 않습니다. gm을 붙여 시작한 브리지에 연결하세요",
+        "away": "AI가 차례를 기다리고 있지 않습니다. AI 앱에서 AI GM을 시작하게 하세요",
         "off": "멈춰 있습니다",
         "waiting": "움직이고 있습니다 (다음 차례를 기다리는 중)",
         "thinking": "생각하고 있습니다…",
@@ -197,6 +197,7 @@
       "spent": "사용 ${{spent}} / 상한 ${{budget}} · 대화 길이 {{tokens}} 토큰 (추정)",
       "spentTokens": "사용 토큰 {{spent}} / 상한 {{budget}} · 대화 길이 {{tokens}} 토큰 (요금은 세지 않습니다)",
       "gameMasterOnly": "AI GM은 GM 자리에서만 시작할 수 있습니다",
+      "mcpHint": "연결된 것은 AI 연동(MCP) 브리지입니다. [시작]을 누르고 AI 앱에서 run_ai_gm 프롬프트를 실행하면 그 AI가 GM을 맡습니다(Claude Code에서는 /mcp__axe__run_ai_gm). 모델과 요금은 AI 앱의 것입니다",
       "start": "시작",
       "resume": "이어서 시작",
       "restart": "처음부터 시작",
@@ -252,7 +253,8 @@
         "start": "키를 환경 변수에 넣고 브리지를 시작합니다 (macOS와 Linux)",
         "powerShell": "Windows PowerShell에서는 다음과 같습니다",
         "connect": "이 화면에서 [연결]을 누른 뒤 [시작]을 누릅니다.",
-        "otherProvider": "Claude 이외의 AI로 움직일 때는 시작하는 줄에 gm --provider openai --base-url 주소 --model 모델 이름을 붙이고, 키는 AXE_GM_API_KEY에 넣습니다. OpenAI 호환 API라면 이 컴퓨터에서 돌리는 모델에도 연결할 수 있습니다."
+        "otherProvider": "Claude 이외의 AI로 움직일 때는 시작하는 줄에 gm --provider openai --base-url 주소 --model 모델 이름을 붙이고, 키는 AXE_GM_API_KEY에 넣습니다. OpenAI 호환 API라면 이 컴퓨터에서 돌리는 모델에도 연결할 수 있습니다.",
+        "mcp": "API 키 없이, AI 연동(MCP)으로 연결한 Claude Code 같은 AI에게 GM을 맡길 수도 있습니다. gm 없이 시작한 브리지에 연결하고 [시작]을 누른 뒤 AI 앱에서 run_ai_gm 프롬프트를 실행합니다."
       },
       "notice": {
         "started": "{{name}} 님이 AI GM을 시작했습니다",

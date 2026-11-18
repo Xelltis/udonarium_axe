@@ -130,7 +130,15 @@ export class AiLinkService {
       onState: (state) => this.become(client, state),
       onGm: (message) => {
         if (this.client !== client) return;
-        if (message.type === 'gm.status') this.gmLatest = { ...this.gmLatest, status: message.status };
+        if (message.type === 'gm.status') {
+          this.gmLatest = { ...this.gmLatest, status: message.status };
+          // With nobody here to hear it: what a game master was lent is given back once none runs, and
+          // one found running, as on a page opened again, gets its panel, which hands it what happens.
+          if (!this.gmHeard.observed) {
+            if (message.status.run === 'off') this.takeBack();
+            else if (this.gmPanels === 0) this.panels.open('aiGm');
+          }
+        }
         if (message.type === 'gm.notes') this.gmLatest = { ...this.gmLatest, notes: message.notes };
         this.gmHeard.next(message);
       },
@@ -211,8 +219,6 @@ export class AiLinkService {
     const was = this.state().kind;
     this.state.set(state);
     if (state.kind === 'connected' && was !== 'connected') {
-      // What a game master was lent is not left to a bridge that runs none.
-      if (state.mode !== 'gm') this.takeBack();
       this.tellRoom(
         this.seat().scope === 'write' ? 'feature.aiLink.notice.startedWrite' : 'feature.aiLink.notice.startedRead'
       );

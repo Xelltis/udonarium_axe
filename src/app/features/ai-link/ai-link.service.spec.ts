@@ -157,14 +157,49 @@ describe('AiLinkService', () => {
     expect(link.scope()).toBe('write');
   });
 
-  it('does not leave what a game master was lent to a bridge that runs none', () => {
+  it('gives back what a game master was lent once the bridge tells that none runs, with nobody here to hear it', () => {
+    const off = { run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: false, starts: 0 };
     localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
     const link = make();
     link.connect();
     sockets[0].greet('mcp');
+    expect(link.scope()).toBe('write');
 
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: { ...off, run: 'waiting' } }) });
+    expect(link.scope()).toBe('write');
+
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: off }) });
     expect(link.scope()).toBe('read');
     expect(sockets[0].sent.at(-1)).toMatchObject({ type: 'seat', seat: { scope: 'read' } });
+  });
+
+  it('opens the AI GM panel on finding a game master running with nobody here to hand it what happens', () => {
+    const waiting = { run: 'waiting', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: true, starts: 1 };
+    const link = make();
+    link.connect();
+    sockets[0].greet('mcp');
+    expect(openPanel).not.toHaveBeenCalled();
+
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
+    expect(openPanel).toHaveBeenCalledWith('aiGm');
+
+    openPanel.mockClear();
+    link.noteGmPanel(true);
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
+    expect(openPanel).not.toHaveBeenCalled();
+  });
+
+  it('leaves the giving back to whoever hears what the bridge tells of the game master', () => {
+    const off = { run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: false, starts: 0 };
+    localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
+    const link = make();
+    const heard = link.gmHeard.subscribe(() => undefined);
+    link.connect();
+    sockets[0].greet('mcp');
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: off }) });
+
+    expect(link.scope()).toBe('write');
+    heard.unsubscribe();
   });
 
   it('passes on what a game-master bridge tells, keeps its latest status and notebook, and tells it what it is asked to', () => {

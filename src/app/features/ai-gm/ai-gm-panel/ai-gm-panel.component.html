@@ -12,7 +12,7 @@
       <span class="min-w-0 flex-1 leading-snug" data-testid="ai-gm-state" [attr.data-state]="stateKey()">
         {{ 'feature.aiGm.state.' + stateKey() | transloco }}
       </span>
-      @if (stateKey() === 'unlinked' || stateKey() === 'linking' || stateKey() === 'mcpBridge') {
+      @if (stateKey() === 'unlinked' || stateKey() === 'linking') {
         <button
           type="button"
           class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover shrink-0 cursor-pointer border border-solid px-3 py-1 text-[13px]"
@@ -37,7 +37,12 @@
         {{ spending.key | transloco: spending }}
       </p>
     }
-    @if (gm.bridgeRunsGm()) {
+    @if (gm.bridgeHandsTurns()) {
+      <p class="text-ui-dim m-0 text-[11px] leading-relaxed" data-testid="ai-gm-mcp-hint">
+        {{ 'feature.aiGm.mcpHint' | transloco }}
+      </p>
+    }
+    @if (gm.linked()) {
       @if (!isGameMaster()) {
         <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.aiGm.gameMasterOnly' | transloco }}</p>
       }
@@ -116,48 +121,50 @@
       <span class="text-[12px] font-semibold">{{ 'feature.aiGm.settings.heading' | transloco }}</span>
     </div>
 
-    <div class="flex flex-col gap-0.5">
-      <span class="text-ui-muted text-[11px]">{{ 'feature.aiGm.settings.model' | transloco }}</span>
-      @for (model of gm.models(); track model.id) {
-        <label class="hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-0.5">
-          <input
-            type="radio"
-            name="ai-gm-model"
-            class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-            [attr.data-testid]="'ai-gm-model-' + model.id"
-            [checked]="gm.preferences().settings.model === model.id"
-            (change)="setModel(model.id)"
-          />
-          <span>{{ model.name }}</span>
-        </label>
-      } @empty {
-        <span class="text-[12px]">{{ gm.preferences().settings.model }}</span>
-      }
-      @if (gm.modelNotRun()) {
-        <p class="text-ui-danger m-0 text-[11px] leading-relaxed" data-testid="ai-gm-model-not-run">
-          {{ 'feature.aiGm.settings.modelNotRun' | transloco }}
-        </p>
-      }
-    </div>
-
-    <div class="flex flex-col gap-0.5">
-      <span class="text-ui-muted text-[11px]">{{ 'feature.aiGm.settings.effort' | transloco }}</span>
-      <div class="flex flex-wrap gap-x-3">
-        @for (effort of efforts; track effort) {
-          <label class="flex cursor-pointer items-center gap-1.5 py-0.5">
+    @if (!gm.bridgeHandsTurns()) {
+      <div class="flex flex-col gap-0.5" data-testid="ai-gm-model-section">
+        <span class="text-ui-muted text-[11px]">{{ 'feature.aiGm.settings.model' | transloco }}</span>
+        @for (model of gm.models(); track model.id) {
+          <label class="hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-0.5">
             <input
               type="radio"
-              name="ai-gm-effort"
+              name="ai-gm-model"
               class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
-              [attr.data-testid]="'ai-gm-effort-' + effort"
-              [checked]="gm.preferences().settings.effort === effort"
-              (change)="setEffort(effort)"
+              [attr.data-testid]="'ai-gm-model-' + model.id"
+              [checked]="gm.preferences().settings.model === model.id"
+              (change)="setModel(model.id)"
             />
-            {{ 'feature.aiGm.settings.efforts.' + effort | transloco }}
+            <span>{{ model.name }}</span>
           </label>
+        } @empty {
+          <span class="text-[12px]">{{ gm.preferences().settings.model }}</span>
+        }
+        @if (gm.modelNotRun()) {
+          <p class="text-ui-danger m-0 text-[11px] leading-relaxed" data-testid="ai-gm-model-not-run">
+            {{ 'feature.aiGm.settings.modelNotRun' | transloco }}
+          </p>
         }
       </div>
-    </div>
+
+      <div class="flex flex-col gap-0.5">
+        <span class="text-ui-muted text-[11px]">{{ 'feature.aiGm.settings.effort' | transloco }}</span>
+        <div class="flex flex-wrap gap-x-3">
+          @for (effort of efforts; track effort) {
+            <label class="flex cursor-pointer items-center gap-1.5 py-0.5">
+              <input
+                type="radio"
+                name="ai-gm-effort"
+                class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+                [attr.data-testid]="'ai-gm-effort-' + effort"
+                [checked]="gm.preferences().settings.effort === effort"
+                (change)="setEffort(effort)"
+              />
+              {{ 'feature.aiGm.settings.efforts.' + effort | transloco }}
+            </label>
+          }
+        </div>
+      </div>
+    }
 
     <div class="flex flex-col gap-0.5">
       <span class="text-ui-muted text-[11px]">{{ 'feature.aiGm.settings.mode' | transloco }}</span>
@@ -193,20 +200,22 @@
       />
     </label>
 
-    <label class="text-ui-muted flex items-center gap-2 text-[11px]">
-      {{ 'feature.aiGm.settings.budget' | transloco }}
-      <input
-        #budgetInput
-        type="number"
-        min="0.01"
-        max="1000"
-        step="0.5"
-        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-24 border border-solid px-2 py-0.5 text-right text-[12px] outline-none"
-        data-testid="ai-gm-budget"
-        [value]="gm.preferences().settings.budgetUsd"
-        (change)="setBudget(budgetInput)"
-      />
-    </label>
+    @if (!gm.bridgeHandsTurns()) {
+      <label class="text-ui-muted flex items-center gap-2 text-[11px]">
+        {{ 'feature.aiGm.settings.budget' | transloco }}
+        <input
+          #budgetInput
+          type="number"
+          min="0.01"
+          max="1000"
+          step="0.5"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-24 border border-solid px-2 py-0.5 text-right text-[12px] outline-none"
+          data-testid="ai-gm-budget"
+          [value]="gm.preferences().settings.budgetUsd"
+          (change)="setBudget(budgetInput)"
+        />
+      </label>
+    }
 
     <div class="flex flex-col gap-0.5">
       <span class="text-ui-muted text-[11px]">{{ 'feature.aiGm.settings.tabs' | transloco }}</span>
@@ -317,6 +326,7 @@
       </li>
       <li>{{ 'feature.aiGm.setup.connect' | transloco }}</li>
       <li>{{ 'feature.aiGm.setup.otherProvider' | transloco }}</li>
+      <li>{{ 'feature.aiGm.setup.mcp' | transloco }}</li>
     </ol>
   </details>
 </div>

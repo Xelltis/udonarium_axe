@@ -99,7 +99,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
- * The game master a bridge runs for this seat, as the tab sees it: how it is set up and what the
+ * The game master a bridge runs for this seat, or hands the turns of to an AI app, as the tab sees it: how it is set up and what the
  * person wrote for it (kept in this browser only, never synchronised or saved with the room), how
  * it stands as the bridge tells it, and what it wrote aside. While it runs, everything the seat sees
  * happen is handed on to the bridge as it happens, each event marked where it calls for a turn: the
@@ -133,10 +133,20 @@ export class AiGmService {
   /** What it wrote aside, newest first. */
   readonly asides = signal<readonly AiGmAside[]>([]);
 
-  /** Whether the bridge connected runs the game master. */
+  /** Whether a bridge is connected: either kind takes the game master, running it or handing its turns on. */
+  readonly linked = computed(() => this.link.state().kind === 'connected');
+  /** Whether the bridge connected runs the game master itself, on a model of its own with a key it holds. */
   readonly bridgeRunsGm = computed(() => {
     const state = this.link.state();
     return state.kind === 'connected' && state.mode === 'gm';
+  });
+  /**
+   * Whether the bridge connected hands the game master's turns to an AI app connected over MCP, whose
+   * model and spending are that app's and not chosen here.
+   */
+  readonly bridgeHandsTurns = computed(() => {
+    const state = this.link.state();
+    return state.kind === 'connected' && state.mode === 'mcp';
   });
   /** The models the bridge connected runs. */
   readonly models = computed<readonly GmModelOffer[]>(() => {
@@ -153,7 +163,12 @@ export class AiGmService {
     return models.length > 0 && !models.some((model) => model.id === this.preferences().settings.model);
   });
   /** Whether the game master runs now. */
-  readonly running = computed(() => this.bridgeRunsGm() && (this.status()?.run ?? 'off') !== 'off');
+  readonly running = computed(() => this.linked() && (this.status()?.run ?? 'off') !== 'off');
+  /**
+   * Whether it runs with no AI there to take its turns, as a bridge handing them on tells: the AI app
+   * was closed, or its AI has stopped waiting.
+   */
+  readonly unattended = computed(() => this.running() && this.status()?.attended === false);
 
   /** The pieces it runs: those marked as NPCs, and those of its own seat. */
   readonly pieces = computed(() => {
@@ -178,7 +193,7 @@ export class AiGmService {
       untracked(() => (running ? this.startRelay() : this.stopRelay()));
     });
     effect(() => {
-      if (this.bridgeRunsGm()) return;
+      if (this.linked()) return;
       untracked(() => {
         this.status.set(null);
         this.askedAfter = null;
@@ -191,11 +206,11 @@ export class AiGmService {
   }
 
   /**
-   * Whether the game master may be started here: on the game master's seat, with a bridge that runs
-   * it and the model chosen.
+   * Whether the game master may be started here: on the game master's seat, with a bridge connected,
+   * and where the bridge runs the model itself, one it runs chosen.
    */
   mayStart(): boolean {
-    return this.bridgeRunsGm() && this.permission.isGameMaster() && !this.modelNotRun();
+    return this.linked() && this.permission.isGameMaster() && !this.modelNotRun();
   }
 
   /** Starts it, letting the AI change the room, carrying on from the conversation the bridge kept unless told afresh. */
@@ -226,7 +241,7 @@ export class AiGmService {
     const next = { ...this.preferences(), ...changes };
     this.preferences.set(next);
     this.store();
-    if (!this.bridgeRunsGm()) return;
+    if (!this.linked()) return;
     if ('settings' in changes || 'instructions' in changes || 'notes' in changes) {
       this.link.tellGm({
         type: 'gm.update',
