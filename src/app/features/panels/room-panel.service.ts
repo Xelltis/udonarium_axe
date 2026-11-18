@@ -56,6 +56,9 @@ export class RoomPanelService {
     setup?: (instance: T) => void,
     host?: ViewContainerRef
   ): void {
+    // Asked for by the game master's name, the AI link panel is opened on that half. Moved into a
+    // window of its own it keeps the half it was showing.
+    if (name === 'aiGm' && !host) this.aiLinkView.show('gm');
     this.openFrom(name, this.panelOf(name).load, extra, setup, host);
   }
 
@@ -378,8 +381,7 @@ export class RoomPanelService {
           option: { width: 440, height: 680, minWidth: 340, minHeight: 360 },
         };
       case 'aiGm':
-        // The game master is run from a half of the AI link panel: the panel is opened on that half.
-        this.aiLinkView.show('gm');
+        // The game master is run from a half of the AI link panel, which `open` turns the panel to.
         return this.panelOf('aiLink');
       case 'aiLink':
         return {

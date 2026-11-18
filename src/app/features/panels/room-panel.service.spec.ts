@@ -1,5 +1,6 @@
 import { ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
@@ -37,6 +38,27 @@ describe('RoomPanelService', () => {
     option().controls![0].press({ close: vi.fn(), windowed: () => false } as unknown as PanelService);
     return asked!;
   }
+
+  it('opens the AI link panel on the game master’s half when asked for by that name, and only then turns it', () => {
+    const view = TestBed.inject(AiLinkViewService);
+    const hasSingle = vi.fn(() => true);
+    (TestBed.inject(PanelService) as unknown as { hasSingle: typeof hasSingle }).hasSingle = hasSingle;
+
+    service.open('aiLink');
+    expect(view.tab()).toBe('link');
+    expect(option().single).toBe('ai-link');
+
+    service.open('aiGm');
+    expect(view.tab()).toBe('gm');
+    expect(option(1).single).toBe('ai-link');
+
+    // Asking whether it stands, or moving it to a window of its own, leaves the half shown alone.
+    view.show('link');
+    expect(service.isOpen('aiGm')).toBe(true);
+    expect(view.tab()).toBe('link');
+    service.open('aiGm', {}, undefined, {} as ViewContainerRef);
+    expect(view.tab()).toBe('link');
+  });
 
   it('offers to send a panel on the table to a window of its own', () => {
     service.open('cutInList');

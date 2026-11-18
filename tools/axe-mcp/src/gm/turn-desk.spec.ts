@@ -268,6 +268,17 @@ describe('TurnDesk', () => {
     expect(lastStatus(tab)).toMatchObject({ halted: 'seat' });
   });
 
+  it('tells an AI of another conversation that somebody waits already, the one waiting kept in its place', async () => {
+    const tab = await connect();
+    const first = {};
+    const waiting = desk.waitForTurn(2000, undefined, first);
+
+    expect(await desk.waitForTurn(2000, undefined, {})).toMatchObject({ turn: false });
+
+    start(tab, { instructions: '古城の探索' });
+    expect(await waiting).toMatchObject({ turn: true, instructions: '古城の探索' });
+  });
+
   it('lets a later wait take the place of an earlier one', async () => {
     await connect();
     const earlier = desk.waitForTurn(2000);

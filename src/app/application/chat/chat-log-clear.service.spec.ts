@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ChatLogClearService, clearedMomentText } from '@axe/application/chat/chat-log-clear.service';
+import { ChatLogClearService, clearedMomentText, localMomentText } from '@axe/application/chat/chat-log-clear.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { Network } from '@axe/core/network/network';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -62,7 +62,10 @@ describe('ChatLogClearService', () => {
 
     expect(said()).toEqual(['ちょうどその時刻の発言', '今日の発言']);
     expect(reset).not.toHaveBeenCalled();
-    expect(noticeKeys()).toEqual(['common.chat.logClearedBeforeBy {"user":"アリス","time":"2026/11/18 21:05"}']);
+    expect(noticeKeys()).toEqual([
+      `common.chat.logClearedBeforeBy {"user":"アリス","time":"${clearedMomentText(moment)}"}`,
+    ]);
+    expect(clearedMomentText(moment)).toContain('2026/11/18 21:05 (UTC');
   });
 
   it('cuts at where a line stands in the log, which for a line disclosed later is when it was disclosed', () => {
@@ -141,6 +144,9 @@ describe('ChatLogClearService', () => {
   });
 
   it('writes a moment as the local date and time to the minute', () => {
-    expect(clearedMomentText(new Date(2026, 0, 2, 3, 4, 59).getTime())).toBe('2026/01/02 03:04');
+    const moment = new Date(2026, 0, 2, 3, 4, 59).getTime();
+    expect(localMomentText(moment)).toBe('2026/01/02 03:04');
+    // The notice says how far the seat's time stands from UTC, for seats that keep another.
+    expect(clearedMomentText(moment)).toMatch(/^2026\/01\/02 03:04 \(UTC[+-]\d{1,2}(:\d{2})?\)$/);
   });
 });

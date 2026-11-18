@@ -61,6 +61,9 @@ const NOTHING_YET = 'Nothing has called for a turn of yours yet. Call wait_for_t
 const STOPPED =
   'The person at the seat stopped the game master. Call wait_for_turn again to wait for it to be started anew.';
 const TAKEN_OVER = 'Another call to wait_for_turn took the place of this one.';
+const SOMEONE_WAITS =
+  "Another AI connected to this bridge is waiting for the game master's turn, and one takes the turns at a time. " +
+  'If you are meant to be the game master, call wait_for_turn again in a minute, once its wait is over.';
 
 /**
  * Hands the turns of the game master to an AI connected over MCP, for the tab connected to the bridge.
@@ -154,10 +157,16 @@ export class TurnDesk {
   /**
    * Waits for the AI's next turn, for as long as given: answered with the turn once one is due, or
    * told to ask again. Asking ends the turn the AI was taking. One call waits at a time; a later one
-   * takes the place of an earlier. The instructions and the notebook go with the turn where the
+   * of the same
+   * conversation takes the place of an earlier, and one of another conversation is told that somebody
+   * waits already. The instructions and the notebook go with the turn where the
    * conversation asking has not had them as they stand.
    */
   waitForTurn(timeoutMs: number, signal?: AbortSignal, conversation: object = this): Promise<TurnWait> {
+    // Another conversation waiting keeps its place: were each to take the other's, neither would wait.
+    if (this.waiter && this.waiting !== conversation) {
+      return Promise.resolve({ turn: false, running: this.run !== 'off', note: SOMEONE_WAITS });
+    }
     this.waiter?.({ turn: false, running: this.run !== 'off', note: TAKEN_OVER });
     this.waiter = null;
     this.waiting = conversation;
