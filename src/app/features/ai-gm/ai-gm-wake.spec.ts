@@ -1,5 +1,5 @@
 import type { AgentEvent } from '@axe/application/agent/agent-event-log.service';
-import { type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-gm/ai-gm-wake';
+import { aiGmHears, type AiGmWakeContext, aiGmWakeOf } from '@axe/features/ai-gm/ai-gm-wake';
 
 function line(set: Partial<Extract<AgentEvent, { kind: 'chat' }>> = {}): AgentEvent {
   return {
@@ -38,9 +38,17 @@ describe('aiGmWakeOf', () => {
     for (const context of [answering, called]) {
       expect(aiGmWakeOf(line({ text: 'gm、質問です' }), context)).toBe('called');
       expect(aiGmWakeOf(line({ id: 'to-me', to: ['プレイヤー'] }), context)).toBe('called');
-      expect(aiGmWakeOf(line({ text: 'gm、質問です', tab: 'chatter' }), { ...context, tabs: ['main'] })).toBe('called');
+      expect(aiGmWakeOf(line({ text: 'gm、質問です' }), { ...context, tabs: ['main'] })).toBe('called');
     }
     expect(aiGmWakeOf(line({ text: 'GMさん' }), { ...called, callName: ' ' })).toBeUndefined();
+  });
+
+  it('is not called by its name in a tab it does not listen to, but hears a whisper to its seat there', () => {
+    for (const context of [answering, called]) {
+      const listening = { ...context, tabs: ['main'] };
+      expect(aiGmWakeOf(line({ text: 'AI GMの話ですが', tab: 'chatter' }), listening)).toBeUndefined();
+      expect(aiGmWakeOf(line({ id: 'to-me', to: ['プレイヤー'], tab: 'chatter' }), listening)).toBe('called');
+    }
   });
 
   it('takes the turn of a piece it runs, and of no other', () => {
@@ -63,5 +71,16 @@ describe('aiGmWakeOf', () => {
     // Another seat of the same name as the game master's is a player all the same.
     expect(aiGmWakeOf(line({ seat: 'プレイヤー' }), answering)).toBe('line');
     expect(aiGmWakeOf({ kind: 'seat_joined', seat: 'ボブ' }, answering)).toBeUndefined();
+  });
+
+  it('hears nothing said in a tab it does not listen to but a whisper to its seat, and everything else', () => {
+    const listening = { ...answering, tabs: ['main'] };
+    expect(aiGmHears(line(), listening)).toBe(true);
+    expect(aiGmHears(line({ tab: 'chatter' }), listening)).toBe(false);
+    expect(aiGmHears(line({ tab: 'chatter', by_ai: true }), listening)).toBe(false);
+    expect(aiGmHears(line({ id: 'mine', tab: 'chatter' }), listening)).toBe(false);
+    expect(aiGmHears(line({ id: 'to-me', tab: 'chatter' }), listening)).toBe(true);
+    expect(aiGmHears(line({ tab: 'chatter' }), answering)).toBe(true);
+    expect(aiGmHears({ kind: 'turn', round: 1, phase: 'acting', current: null }, listening)).toBe(true);
   });
 });

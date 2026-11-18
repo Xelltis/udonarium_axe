@@ -227,7 +227,7 @@
         "callName": "Call name",
         "budget": "Spending limit (USD)",
         "tabs": "Tabs it listens to",
-        "tabsHint": "With none chosen, it listens to every tab",
+        "tabsHint": "With none chosen, it listens to every tab. Once some are chosen, lines in the other tabs do not reach it, its call name included (a whisper to its seat still does)",
         "pieces": "Pieces the AI runs",
         "noPieces": "None yet",
         "piecesHint": "Pieces marked as NPCs, and pieces this seat owns. Mark a piece as an NPC from its right-click menu"
