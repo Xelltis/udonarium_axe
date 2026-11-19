@@ -108,7 +108,7 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   },
   backBar: { skin: { side: 'wood_plank', top: 'marble' }, height: 1.35, fill: 0.5, blocksSight: false, whole: true },
   boothSofa: { skin: { side: 'wall_metal', top: 'felt' }, height: 0.65, fill: 0.7, blocksSight: false, whole: true },
-  lowTable: { skin: { side: 'wall_metal', top: 'neon_floor' }, height: 0.3, fill: 0.7, blocksSight: false, spin: 15 },
+  lowTable: { skin: { side: 'wall_metal', top: 'neon_floor' }, height: 0.43, fill: 0.7, blocksSight: false, spin: 15 },
   jukebox: { skin: { side: 'wall_neon', top: 'wall_metal' }, height: 1.2, fill: 0.7, blocksSight: false, whole: true },
   slotMachine: {
     skin: { side: 'wall_neon', top: 'wall_metal' },
@@ -126,7 +126,7 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   },
   rouletteTable: {
     skin: { side: 'wood_plank', top: 'felt' },
-    height: 0.45,
+    height: 0.47,
     fill: 0.84,
     blocksSight: false,
     cells: { w: 2, d: 1 },
@@ -149,12 +149,12 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
   safe: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 0.6, fill: 0.55, blocksSight: false },
   executiveDesk: {
     skin: { side: 'wood_plank', top: 'wood_plank' },
-    height: 0.42,
+    height: 0.76,
     fill: 0.8,
     blocksSight: false,
     cells: { w: 2, d: 1 },
   },
-  still: { skin: { side: 'wood_plank', top: 'wall_metal' }, height: 0.9, fill: 0.8, blocksSight: false, spin: 20 },
+  still: { skin: { side: 'wood_plank', top: 'wall_metal' }, height: 0.89, fill: 0.8, blocksSight: false, spin: 20 },
   speaker: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 1.3, fill: 0.7, blocksSight: false, whole: true },
   aquarium: {
     skin: { side: 'wall_metal', top: 'neon_floor' },
@@ -163,7 +163,7 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
     blocksSight: false,
     whole: true,
   },
-  plant: { skin: { side: 'wood_plank', top: 'rock_moss' }, height: 1.1, fill: 0.5, blocksSight: false, spin: 30 },
+  plant: { skin: { side: 'wood_plank', top: 'rock_moss' }, height: 1.07, fill: 0.5, blocksSight: false, spin: 30 },
   bookshelf: {
     skin: { side: 'wood_plank', top: 'wood_plank' },
     height: 1.8,
@@ -297,6 +297,8 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
     blocksSight: false,
     whole: true,
   },
+  barCounter: { skin: { side: 'wall_neon', top: 'marble' }, height: 0.62, fill: 0.8, blocksSight: false },
+  tavernCounter: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.62, fill: 0.8, blocksSight: false },
 };
 
 /** How long and how wide a shipping container stands on the floor, in cells. */
@@ -306,8 +308,9 @@ export const CONTAINER_WIDTH = 2;
 /**
  * How a piece is set out in a room.
  *
- * - `counter`: one run along the long wall with room to stand behind it, and seats in front; with a
- *   piece to stand at its back, a row of those along the wall behind whoever serves.
+ * - `counter`: one run along the long wall with room to stand behind it, its front facing away from
+ *   that wall, and seats in front; with a piece to stand at its back, a row of those along the wall
+ *   behind whoever serves.
  * - `grid`: posts standing in rows, the way the columns of a building hold its floors up.
  * - `scatter`: one here and there, none touching another.
  * - `stacks`: rows of containers down the length of the room, aisles between the rows and a
@@ -748,10 +751,10 @@ class Furnisher {
       if (!ends.every((cell) => this.walkable(cell.x, cell.y))) continue;
 
       const start = at(0, bar);
-      this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length);
+      const wall: Way = along ? (far === 1 ? 's' : 'n') : far === 1 ? 'e' : 'w';
+      this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length, undefined, 0, BACK_TO[wall]);
       for (const seat of seats) this.put(plan.seat!, seat.x, seat.y, 1, 1);
       if (backed) {
-        const wall: Way = along ? (far === 1 ? 's' : 'n') : far === 1 ? 'e' : 'w';
         for (let offset = 0; offset < length; offset++) {
           const cell = at(offset, shelf);
           this.put(plan.back!, cell.x, cell.y, 1, 1, undefined, 0, BACK_TO[wall]);

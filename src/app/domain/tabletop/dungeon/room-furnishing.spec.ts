@@ -137,9 +137,9 @@ describe('furnishRooms()', () => {
 
   it('runs a counter along the long wall of a bar, with room to serve behind it and seats in front', () => {
     const layout = SEEDS.map((seed) => generateDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed })).find((each) =>
-      each.furnishings!.some((piece) => piece.piece === 'counter')
+      each.furnishings!.some((piece) => piece.piece === 'barCounter')
     )!;
-    const counter = layout.furnishings!.find((piece) => piece.piece === 'counter')!;
+    const counter = layout.furnishings!.find((piece) => piece.piece === 'barCounter')!;
     const hall = layout.rooms.find((room) => room.role === DungeonRoomRole.Hall)!;
     const along = counter.w > 1;
 
@@ -158,7 +158,7 @@ describe('furnishRooms()', () => {
       const roleAt = (x: number, y: number) =>
         layout.rooms.find((room) => room.x <= x && x < room.x + room.w && room.y <= y && y < room.y + room.h)?.role;
       for (const piece of layout.furnishings!) {
-        if (piece.piece === 'counter') expect(roleAt(piece.x, piece.y)).toBe(DungeonRoomRole.Hall);
+        if (piece.piece === 'barCounter') expect(roleAt(piece.x, piece.y)).toBe(DungeonRoomRole.Hall);
         if (piece.piece === 'table') expect(roleAt(piece.x, piece.y)).not.toBe(DungeonRoomRole.DeadEnd);
       }
     }
@@ -526,10 +526,10 @@ describe('a furnished place on the table', () => {
     const built = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 });
     const modelled = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 }, options);
     const runs = built.layout.furnishings!.filter(
-      (piece) => piece.piece === 'counter' || piece.piece === 'shopCounter'
+      (piece) => piece.piece === 'barCounter' || piece.piece === 'shopCounter'
     );
     const counters = modelled.blocks.blocks.filter(
-      (block) => block.thing === 'counter' || block.thing === 'shopCounter'
+      (block) => block.thing === 'barCounter' || block.thing === 'shopCounter'
     );
 
     expect(runs.length).toBeGreaterThan(0);
@@ -540,15 +540,15 @@ describe('a furnished place on the table', () => {
     }
     const upright = SEEDS.concat([2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16])
       .map((seed) => planDungeon({ atmosphere: 'illegalBar', roomCount: 10, seed }, options))
-      .find((plan) => plan.layout.furnishings!.some((piece) => piece.piece === 'counter' && piece.h > piece.w))!;
+      .find((plan) => plan.layout.furnishings!.some((piece) => piece.piece === 'barCounter' && piece.h > piece.w))!;
     expect(upright).toBeDefined();
-    const run = upright.layout.furnishings!.find((piece) => piece.piece === 'counter' && piece.h > piece.w)!;
+    const run = upright.layout.furnishings!.find((piece) => piece.piece === 'barCounter' && piece.h > piece.w)!;
     const cells = upright.blocks.blocks.filter(
       (block) =>
-        block.thing === 'counter' && block.rect.x === run.x && block.rect.y >= run.y && block.rect.y < run.y + run.h
+        block.thing === 'barCounter' && block.rect.x === run.x && block.rect.y >= run.y && block.rect.y < run.y + run.h
     );
     expect(cells.length).toBe(run.h);
-    expect(cells.every((block) => block.modelTurn === 90 && block.footprint!.d === 1)).toBe(true);
+    expect(cells.every((block) => [90, 270].includes(block.modelTurn ?? 0) && block.footprint!.d === 1)).toBe(true);
   });
 
   it('builds furniture of its blocks where models are not asked for, or where it takes a block a cell', () => {

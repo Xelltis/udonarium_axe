@@ -164,6 +164,8 @@ export const FURNISHING_IDS = [
   'bunkBed',
   'chestWood',
   'shelfGoods',
+  'barCounter',
+  'tavernCounter',
 ] as const;
 
 export type FurnishingId = (typeof FURNISHING_IDS)[number];

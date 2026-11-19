@@ -354,7 +354,7 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
     },
     furnishings: [
       { piece: 'shopCounter', arrangement: 'counter', roles: ['entrance'], every: 0 },
-      { piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool', back: 'backBar' },
+      { piece: 'barCounter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool', back: 'backBar' },
       { piece: 'rouletteTable', arrangement: 'centre', roles: ['treasure'], every: 0 },
       { piece: 'executiveDesk', arrangement: 'centre', roles: ['boss'], every: 0 },
       { piece: 'goodsShelf', arrangement: 'wall', roles: ['entrance'], every: 5, most: 3 },
