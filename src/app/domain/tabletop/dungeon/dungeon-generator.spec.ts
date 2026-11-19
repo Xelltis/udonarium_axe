@@ -46,12 +46,13 @@ describe('boardSizeFor()', () => {
     expect(boardSizeFor(rooms, 20)).toEqual({ width: 49, height: 37 });
   });
 
-  it('never lets the board outgrow one scratch mask', () => {
+  it('never lets the board outgrow one scratch mask, and keeps an oblong board no taller than its tallest', () => {
     for (const id of DUNGEON_ATMOSPHERE_IDS) {
       for (const rooms of [3, 8, 12, 16, 20, 99]) {
         const size = boardSizeFor(atmosphereById(id), rooms);
         expect(size.width).toBeLessThanOrEqual(MAX_BOARD_WIDTH);
-        expect(size.height).toBeLessThanOrEqual(MAX_BOARD_HEIGHT);
+        expect(size.height).toBeLessThanOrEqual(MAX_BOARD_WIDTH);
+        if (size.width !== size.height) expect(size.height).toBeLessThanOrEqual(MAX_BOARD_HEIGHT);
       }
     }
   });
@@ -548,6 +549,14 @@ describe('a round tower', () => {
         expect(past, at).toBe(true);
         expect(reachableCells(layout, layout.entrance).size, at).toBe(countOpenCells(layout));
       }
+    }
+  });
+
+  it('holds about as many rooms as asked for on squares, as many as an oblong place does', () => {
+    for (const roomCount of [12, 16, 20]) {
+      const rooms = SEEDS.map((seed) => generateDungeon({ atmosphere: 'wizardTower', roomCount, seed }).rooms.length);
+      const mean = rooms.reduce((sum, count) => sum + count, 0) / rooms.length;
+      expect(mean, `${roomCount}`).toBeGreaterThanOrEqual(roomCount * 0.9);
     }
   });
 
