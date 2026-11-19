@@ -375,6 +375,11 @@ export function isWrittenOtherwise(item: DataElement): boolean {
   return noted.startsWith('>') && heldTextOf(item) !== noted.slice(1);
 }
 
+/** Whether buffs have noted on an item what they left in it, as a buff writing words into it does. */
+export function isNotedByBuffs(item: DataElement): boolean {
+  return (item.getAttribute(DataElementAttribute.BUFF_LEFT) ?? '').startsWith('>');
+}
+
 /** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */
 export function clearBuffTextModifier(element: DataElement): void {
   element.removeAttribute(DataElementAttribute.BUFF_TEXT_TARGET);

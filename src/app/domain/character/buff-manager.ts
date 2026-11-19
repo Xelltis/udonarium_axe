@@ -277,7 +277,8 @@ export class BuffManager {
   /**
    * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
    * now stands on what this one found there, so it puts that back when it goes. Where none did, the item
-   * goes back to what it held, unless someone wrote into it by hand (see {@link writtenByHand}), and
+   * goes back to what it held, moved by what buffs moving its number moved it since (see
+   * `putBackFrom`), unless someone wrote into it by hand (see {@link writtenByHand}), and
    * what it holds then is what the buffs left, even once none writes into it: words written after,
    * while none stands, are told as written by hand should one of them be put back.
    */
@@ -292,7 +293,7 @@ export class BuffManager {
       return;
     }
     if (this.writtenByHand(words.target)) return;
-    status.setText(words.target, words.before);
+    status.setText(words.target, putBackFrom(status.getText(words.target) ?? '', words));
     status.noteLeftByBuffs(words.target);
   }
 
@@ -307,16 +308,17 @@ export class BuffManager {
   }
 
   /**
-   * Changes a number a buff moves, and notes what it leaves in the item where a buff made the item,
-   * which alone the note of a number is read for (see {@link sweepMadeItems}); unless someone had
-   * written into the item otherwise, which stays noted so.
+   * Changes a number a buff moves, and notes what it leaves in the item where the note is read: on an
+   * item a buff made (see {@link sweepMadeItems}), and on one buffs write words into, so a move is not
+   * taken for a hand's as those words go; unless someone had written into the item otherwise, which
+   * stays noted so.
    */
   private changeByBuff(target: string, slot: ResourceSlot, by: number): void {
     const status = this.status();
     if (!status) return;
     const byHand = this.writtenByHand(target);
     status.changeValue(target, slot, by);
-    if (!byHand && status.madeByBuff(target)) status.noteLeftByBuffs(target);
+    if (!byHand && (status.madeByBuff(target) || status.notedByBuffs(target))) status.noteLeftByBuffs(target);
   }
 
   /**
@@ -905,6 +907,20 @@ export class BuffManager {
 function namedOn(status: StatusAccessor, request: ParsedBuffModifierRequest): ParsedBuffModifierRequest {
   const named = status.nameOf(request.target);
   return named === null || named === request.target ? request : { ...request, target: named };
+}
+
+/**
+ * What an item a buff wrote words into goes back to as the buff goes: what it held before, moved by
+ * what buffs moving its number have moved it since the words were written, where both are numbers, as
+ * a level held at 3 and moved to 4 goes back from 1 to 2; else what it held before.
+ */
+function putBackFrom(held: string, words: BuffTextModifier): string {
+  const number = (text: string) => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : null);
+  const now = number(held);
+  const wrote = number(words.text);
+  const before = number(words.before);
+  if (now === null || wrote === null || before === null || now === wrote) return words.before;
+  return String(before + now - wrote);
 }
 
 /** Two buff rows in the order of their identifiers. */

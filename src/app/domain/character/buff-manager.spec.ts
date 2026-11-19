@@ -131,6 +131,7 @@ describe('BuffManager', () => {
         keepsBuffItems: vi.fn(() => false),
         writtenOtherwise: vi.fn(() => false),
         noteLeftByBuffs: vi.fn(),
+        notedByBuffs: vi.fn(() => false),
         nameOf: vi.fn((name: string) => name),
         changeValue: vi.fn(),
       } as unknown as StatusAccessor;
@@ -1334,6 +1335,40 @@ describe('BuffManager', () => {
       grant('猛攻撃', '命中', '+', '2');
 
       expect(detail.getFirstElementByName('命中')!.getAttribute(DataElementAttribute.BUFF_LEFT)).toBe('');
+    });
+
+    it('puts back what an item held, moved as buffs moved it since, whichever way words and moves were laid', () => {
+      const group = detail.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(
+        DataElement.create('レベル', '1', {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'select',
+          [DataElementAttribute.CHOICES]: '1,2,3,4,5',
+        })
+      );
+      for (const [first, second] of [
+        [
+          ['A', '=', '3'],
+          ['B', '+', '1'],
+        ],
+        [
+          ['B', '+', '1'],
+          ['A', '=', '3'],
+        ],
+      ] as const) {
+        grant(first[0], 'レベル', first[1], first[2]);
+        grant(second[0], 'レベル', second[1], second[2]);
+
+        sheeted.delete('A');
+        sheeted.delete('B');
+
+        expect(status.getText('レベル'), `${first[0]} first`).toBe('1');
+      }
+      grant('A', '属性', '=', '3');
+      grant('B', '属性', '+', '1');
+      sheeted.delete('A');
+      sheeted.delete('B');
+      expect(status.getText('属性')).toBe('無属性');
     });
 
     it('keeps words written by hand after the buffs went, as one of them is put back', () => {

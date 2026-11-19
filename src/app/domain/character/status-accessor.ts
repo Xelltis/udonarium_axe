@@ -8,7 +8,7 @@ import {
   makeBuffItem,
   tidyBuffItems,
 } from '@axe/domain/character/buff-made-items';
-import { heldTextOf, isWrittenOtherwise, noteLeftByBuffs } from '@axe/domain/character/buff-modifier';
+import { heldTextOf, isNotedByBuffs, isWrittenOtherwise, noteLeftByBuffs } from '@axe/domain/character/buff-modifier';
 import { type ItemLanding, type ItemTakes, landingOn, type WrittenAs } from '@axe/domain/character/item-landing';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import {
@@ -347,6 +347,12 @@ export class StatusAccessor {
   writtenOtherwise(name: string): boolean {
     const item = this.findData(name);
     return item !== null && isWrittenOtherwise(item);
+  }
+
+  /** Whether buffs have noted on an item what they left in it (see {@link isNotedByBuffs}). */
+  notedByBuffs(name: string): boolean {
+    const item = this.findData(name);
+    return item !== null && isNotedByBuffs(item);
   }
 
   /** Notes on an item what it holds now as what the buffs left there (see {@link noteLeftByBuffs}). */
