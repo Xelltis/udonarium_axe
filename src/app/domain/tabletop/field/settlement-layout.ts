@@ -1094,22 +1094,20 @@ function layStreetLamps(plot: Plot, high: MapRect, cross: MapRect, onStreet: (x:
 /**
  * The lots the blocks between a town's streets are cut into: each block, a run of free cells bounded
  * by streets and the board's edge, cut along its longer way into lots a frontage wide, and into as
- * many rows as it is deep enough for, the first and the last against its sides and an alley between
- * rows where there is room for one; a lot fronts whichever side of it a street runs along, and keeps
- * a cell clear of the next lot along as an alley. A lot too small for a building with a room in it
- * is left out.
+ * many rows as it is deep enough for with an alley between each two, the first and the last against
+ * its sides, so no row stands back to back against another; a lot keeps a cell clear of the next lot
+ * along as an alley, and fronts a street or ground no lot takes (see {@link lotFacing}). A lot too
+ * small for a building with a room in it is left out.
  */
 function townLots(plot: Plot, onStreet: (x: number, y: number) => boolean, rng: () => number): TownLot[] {
-  const blocks = freeBlocks(plot);
-  const lots: TownLot[] = [];
-  for (const block of blocks) {
+  const rects: MapRect[] = [];
+  for (const block of freeBlocks(plot)) {
     const across = block.w >= block.h;
     const length = across ? block.w : block.h;
     const depth = across ? block.h : block.w;
     if (depth < TOWN_DEPTH.least) continue;
-    const rows = Math.max(1, Math.floor(depth / TOWN_DEPTH.least));
-    const alleys = depth >= rows * TOWN_DEPTH.least + rows - 1 ? rows - 1 : 0;
-    const deep = Math.min(TOWN_DEPTH.most, Math.floor((depth - alleys) / rows));
+    const rows = Math.max(1, Math.floor((depth + 1) / (TOWN_DEPTH.least + 1)));
+    const deep = Math.min(TOWN_DEPTH.most, Math.floor((depth - (rows - 1)) / rows));
     for (let row = 0; row < rows; row++) {
       const offset = rows === 1 ? 0 : Math.round(((depth - deep) * row) / (rows - 1));
       for (let at = 0; at < length;) {
@@ -1123,21 +1121,34 @@ function townLots(plot: Plot, onStreet: (x: number, y: number) => boolean, rng: 
           : { x: block.x + offset, y: block.y + at, w: deep, h: span };
         at += wide;
         if (rect.w < LEAST_ROOM + 2 || rect.h < LEAST_ROOM + 2) continue;
-        lots.push(lotFacing(plot, rect, onStreet));
+        rects.push(rect);
       }
     }
   }
-  return lots;
+  const lotted = new Uint8Array(plot.width * plot.height);
+  for (const rect of rects) {
+    for (let y = rect.y; y < rect.y + rect.h; y++)
+      lotted.fill(1, y * plot.width + rect.x, y * plot.width + rect.x + rect.w);
+  }
+  return rects.flatMap((rect) => lotFacing(plot, rect, onStreet, lotted) ?? []);
 }
 
 /**
  * A lot, facing the side of it the most cells of street run along, or where none does, the side with
- * the most free ground on the board beside it, so that its door never opens off the board.
+ * the most free ground on the board beside it that no lot takes, so that its door never opens off the
+ * board nor onto another lot's wall. Null for a lot with no such side, which is left empty.
  */
-function lotFacing(plot: Plot, rect: MapRect, onStreet: (x: number, y: number) => boolean): TownLot {
+function lotFacing(
+  plot: Plot,
+  rect: MapRect,
+  onStreet: (x: number, y: number) => boolean,
+  lotted: Uint8Array
+): TownLot | null {
+  const open = (x: number, y: number) =>
+    plot.inside(x, y) && !plot.taken[y * plot.width + x] && !lotted[y * plot.width + x];
   const count = (cells: MapPoint[]) =>
     cells.filter(({ x, y }) => onStreet(x, y)).length * plot.width * plot.height +
-    cells.filter(({ x, y }) => plot.inside(x, y) && !plot.taken[y * plot.width + x]).length;
+    cells.filter(({ x, y }) => open(x, y)).length;
   const sides: { facing: Facing; street: number }[] = [
     { facing: 's', street: count(Array.from({ length: rect.w }, (_, i) => ({ x: rect.x + i, y: rect.y + rect.h }))) },
     { facing: 'n', street: count(Array.from({ length: rect.w }, (_, i) => ({ x: rect.x + i, y: rect.y - 1 }))) },
@@ -1145,6 +1156,7 @@ function lotFacing(plot: Plot, rect: MapRect, onStreet: (x: number, y: number) =
     { facing: 'w', street: count(Array.from({ length: rect.h }, (_, i) => ({ x: rect.x - 1, y: rect.y + i }))) },
   ];
   const best = sides.reduce((one, other) => (other.street > one.street ? other : one));
+  if (best.street < 1) return null;
   return { rect, facing: best.facing, onStreet: best.street >= plot.width * plot.height };
 }
 

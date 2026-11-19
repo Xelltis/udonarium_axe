@@ -88,6 +88,46 @@ describe('a castle town', () => {
     expect(signs).toBeGreaterThan(SEEDS.length * 3);
   });
 
+  it('lets every floor be walked into from the gate, at every size a field may be', () => {
+    for (let width = 20; width <= 60; width++) {
+      const height = Math.round((width * 3) / 4);
+      for (const seed of [1, 7, 42]) {
+        const town = laySettlement('castleTown', width, height, seed);
+        const blocked = new Uint8Array(width * height);
+        town.walls.forEach((wall, cell) => (blocked[cell] = wall ? 1 : 0));
+        for (const fixture of town.fixtures ?? []) {
+          if (HUNG_FIXTURES.includes(fixture.kind)) continue;
+          const { x, y, w, h } = fixture.rect;
+          for (let dy = 0; dy < h; dy++) blocked.fill(1, (y + dy) * width + x, (y + dy) * width + x + w);
+        }
+        for (const door of town.doors) blocked[door.y * width + door.x] = 0;
+        const gate = town.doors.find((door) => door.kind === 'gate')!;
+        const seen = new Uint8Array(width * height);
+        const queue = [gate.y * width + gate.x];
+        seen[queue[0]] = 1;
+        for (let at = 0; at < queue.length; at++) {
+          const x = queue[at] % width;
+          const y = Math.floor(queue[at] / width);
+          for (const [nx, ny] of [
+            [x + 1, y],
+            [x - 1, y],
+            [x, y + 1],
+            [x, y - 1],
+          ]) {
+            const next = ny * width + nx;
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height || blocked[next] || seen[next]) continue;
+            seen[next] = 1;
+            queue.push(next);
+          }
+        }
+        const shut = [...town.zones].filter(
+          (zone, cell) => zone === SETTLEMENT_ZONES.floor && !blocked[cell] && !seen[cell]
+        ).length;
+        expect(shut, `${width}x${height} seed ${seed}`).toBe(0);
+      }
+    }
+  });
+
   it('keeps the cell in front of every door clear, and stands no two things on one cell', () => {
     for (const [width, height] of [
       [40, 30],
