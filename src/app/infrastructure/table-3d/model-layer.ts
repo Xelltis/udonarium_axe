@@ -1,3 +1,4 @@
+import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
@@ -355,7 +356,7 @@ export class ModelLayer {
     const flocks = new Map<string, TableWorldModel[]>();
     for (const model of this.laid) {
       const loaded = this.loaded.get(model.url);
-      if (loaded === undefined) this.read(model.url);
+      if (loaded === undefined) this.read(model.url, isAppModel(model.model.identifier));
       if (!loaded) continue;
       if (loaded.animated || model.ownCopy) this.stand(model, loaded);
       else flocks.set(model.url, [...(flocks.get(model.url) ?? []), model]);
@@ -525,11 +526,14 @@ export class ModelLayer {
     return stood;
   }
 
-  /** Reads a model from bytes held here, its materials made over for the scene, and asks for a frame once it is read. */
-  private read(url: string): void {
+  /**
+   * Reads a model from bytes held here, its materials made over for the scene, and asks for a frame
+   * once it is read. The glow it was made with is kept only for one of the app's own (`ownGlow`).
+   */
+  private read(url: string, ownGlow: boolean): void {
     if (this.loading.has(url)) return;
     this.loading.add(url);
-    this.parse(url).then(
+    this.parse(url, ownGlow).then(
       (loaded) => {
         if (this.disposed) {
           if (loaded) disposeObject(loaded.gltf.scene);
@@ -547,13 +551,13 @@ export class ModelLayer {
   }
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
-  private async parse(url: string): Promise<LoadedModel | null> {
+  private async parse(url: string, ownGlow: boolean): Promise<LoadedModel | null> {
     const read = await this.reader.read(url);
     if (!read) return null;
     const gltf = { scene: read.scene, animations: read.animations };
     const drawn = new Set<Texture>();
     const undrawn = new Set<Texture>();
-    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn));
+    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn, ownGlow));
     for (const picture of drawn) undrawn.delete(picture);
     releaseReadPictures(drawn, undrawn);
     for (const picture of undrawn) picture.dispose();
@@ -596,12 +600,12 @@ export class ModelLayer {
    * Makes a mesh's material over as the scene's own, as `sceneMaterialOf` makes it: lit as the board
    * is, veiled and darkened with it, throwing shadows.
    */
-  private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>): void {
+  private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>, ownGlow: boolean): void {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
     object.receiveShadow = true;
     const madeOver = (material: Material) => {
-      const lit = sceneMaterialOf(material, drawn, undrawn);
+      const lit = sceneMaterialOf(material, drawn, undrawn, ownGlow);
       this.dress(lit);
       material.dispose();
       return lit;
@@ -612,17 +616,20 @@ export class ModelLayer {
 
 /**
  * A material of a model made over as the scene's own, lit as the board is: its colour, its picture
- * and how it lets light through kept, and the glow it gives off, a neon tube's or a potion's, kept
- * as strong as it was made, with the picture of that glow. The pictures it is drawn with are noted as drawn, and the rest it
- * wore, as its bumps and its shine, as not drawn.
+ * and how it lets light through kept. The glow it gives off, a neon tube's or a potion's, is kept as
+ * strong as it was made, with the picture of that glow, for one of the app's own models (`ownGlow`),
+ * made to glow on purpose; one brought in is drawn without, as it always was, since its glow may be
+ * no more than a way to look unlit, which would stand out of the dark of a table. The pictures it is
+ * drawn with are noted as drawn, and the rest it wore, as its bumps and its shine, as not drawn.
  */
 export function sceneMaterialOf(
   material: Material,
   drawn: Set<Texture>,
-  undrawn: Set<Texture>
+  undrawn: Set<Texture>,
+  ownGlow = false
 ): MeshLambertNodeMaterial {
   const was = material as MeshStandardMaterial;
-  const glows = was.emissive !== undefined && was.emissive.getHex() !== 0;
+  const glows = ownGlow && was.emissive !== undefined && was.emissive.getHex() !== 0;
   const glowMap = glows ? (was.emissiveMap ?? null) : null;
   for (const picture of picturesOf(material)) {
     (picture === was.map || picture === glowMap ? drawn : undrawn).add(picture);

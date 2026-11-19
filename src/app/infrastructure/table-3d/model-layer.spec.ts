@@ -718,13 +718,26 @@ describe('sceneMaterialOf', () => {
     const drawn = new Set<Texture>();
     const undrawn = new Set<Texture>();
 
-    const made = sceneMaterialOf(neon, drawn, undrawn);
+    const made = sceneMaterialOf(neon, drawn, undrawn, true);
 
     expect(made.emissive.getHexString()).toBe('ff2bd6');
     expect(made.emissiveMap).toBe(picture);
     expect(made.emissiveIntensity).toBe(3);
     expect([...drawn]).toEqual([picture]);
     expect([...undrawn]).toEqual([shine]);
+  });
+
+  it('draws a model brought in without the glow it was made with, as it always was, lest it stand out of the dark', () => {
+    const picture = new Texture();
+    const unlit = new MeshStandardMaterial({ map: picture, emissive: '#808080', emissiveMap: picture });
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+
+    const made = sceneMaterialOf(unlit, drawn, undrawn);
+
+    expect(made.emissive.getHex()).toBe(0);
+    expect(made.emissiveMap).toBeNull();
+    expect([...drawn]).toEqual([picture]);
   });
 
   it('gives a part that gives off no glow none, and draws no picture of a glow it does not give off', () => {
