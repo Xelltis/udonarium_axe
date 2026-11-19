@@ -1,8 +1,9 @@
-import { DungeonLayout, DungeonRoomRoleValue } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { DungeonLayout, DungeonRoom } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { TrapKind } from '@axe/domain/tabletop/trap-presets';
 
 export interface DungeonSummaryLabels {
-  roleName(role: DungeonRoomRoleValue): string;
+  /** What a room is called: by the kind of room it is where the place keeps kinds, by the part it plays otherwise. */
+  roleName(room: Pick<DungeonRoom, 'role' | 'set'>): string;
   title: string;
   start: string;
   key: string;
@@ -53,7 +54,7 @@ export function buildDungeonSummary(input: DungeonSummaryInput): string {
 
     const cells = [
       `#${room.index + 1}`,
-      labels.roleName(room.role),
+      labels.roleName(room),
       `${room.w}x${room.h}`,
       `${labels.doors} ${ways.length}`,
       notes.join(' '),

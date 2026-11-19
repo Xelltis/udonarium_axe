@@ -7,7 +7,8 @@ export type TranslateFn = (key: string) => string;
 
 /**
  * The text summary handed over with a generated dungeon map, built from its layout with labels in
- * the reader's language. A place whose rooms go by names of their own has them called by those.
+ * the reader's language. A place whose rooms go by names of their own has them called by those, and
+ * a room of one of the kinds a place keeps by the name of its kind.
  */
 export function describeDungeon(
   layout: DungeonLayout,
@@ -24,7 +25,7 @@ export function describeDungeon(
     name,
     torchRooms: blocks.torchRooms,
     labels: {
-      roleName: (role) => t(`${roles}.${role}`),
+      roleName: (room) => t(`${roles}.${room.set ?? room.role}`),
       title: t('feature.tabletop.dungeonGenerator.summary.seed'),
       start: t('feature.tabletop.dungeonGenerator.summary.start'),
       key: t('feature.tabletop.dungeonGenerator.summary.key'),

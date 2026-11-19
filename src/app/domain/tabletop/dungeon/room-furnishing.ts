@@ -26,6 +26,18 @@ export interface FurnishingShape {
    * the cell's edge: stood as its model it takes the whole cell, whatever share of it its blocks fill.
    */
   whole?: boolean;
+  /**
+   * How many cells it takes, across its front and deep from its front to its back, as its model is
+   * made facing south: a bed is one across and two deep. Left out, one each way.
+   */
+  cells?: { w: number; d: number };
+  /** Whether it lies on the floor as a picture walked over, as a circle drawn on it is. */
+  floor?: boolean;
+}
+
+/** How many cells a piece takes across its front and deep, as its model is made. */
+export function cellsTakenBy(piece: FurnishingId): { w: number; d: number } {
+  return FURNISHING_SHAPES[piece].cells ?? { w: 1, d: 1 };
 }
 
 /**
@@ -88,7 +100,8 @@ export const CONTAINER_WIDTH = 2;
 /**
  * How a piece is set out in a room.
  *
- * - `counter`: one run along the long wall with room to stand behind it, and seats in front.
+ * - `counter`: one run along the long wall with room to stand behind it, and seats in front; with a
+ *   piece to stand at its back, a row of those along the wall behind whoever serves.
  * - `grid`: posts standing in rows, the way the columns of a building hold its floors up.
  * - `scatter`: one here and there, none touching another.
  * - `stacks`: rows of containers down the length of the room, aisles between the rows and a
@@ -97,8 +110,12 @@ export const CONTAINER_WIDTH = 2;
  *   walls and against one another, the way things are left where they are out of the way.
  * - `pipeRun`: one pipe laid along the walls of the room, cell by cell, round its corners: it comes
  *   up out of the floor at one end and goes back into it at the other, with a valve every so often.
+ * - `wall`: runs of pieces standing with their backs to the walls and facing into the room, the way
+ *   shelves, cabinets and benches are lined up along a wall, some with a sign hung over them.
+ * - `centre`: one piece in the middle of the room, lying along its length.
  */
-export type FurnishingArrangement = 'counter' | 'grid' | 'scatter' | 'stacks' | 'corners' | 'pipeRun';
+export type FurnishingArrangement =
+  'counter' | 'grid' | 'scatter' | 'stacks' | 'corners' | 'pipeRun' | 'wall' | 'centre';
 
 export interface FurnishingPlan {
   piece: FurnishingId;
@@ -115,8 +132,17 @@ export interface FurnishingPlan {
   most?: number;
   /** What is set along the front of a counter, one to every other cell. */
   seat?: FurnishingId;
+  /**
+   * What stands along the wall behind a counter, a cell to each cell of it, where the room is deep
+   * enough to keep a row to serve from between them and that wall has no way through it.
+   */
+  back?: FurnishingId;
+  /** What is hung over a run of pieces against a wall, one to a run, picked from these. */
+  above?: readonly FurnishingId[];
   /** What each one is picked from, where the pieces come in more than one kind. Left out, the piece alone. */
   pieces?: readonly FurnishingId[];
+  /** The kind of room it goes in, of the kinds the place keeps for the part the room plays. Left out, any. */
+  set?: string;
 }
 
 export interface FurnishingOptions {
@@ -146,7 +172,24 @@ const SIDES: readonly { dx: number; dy: number }[] = [0, 2, 3, 1].map((side) => 
 /** The fewest cells a pipe runs: an end, one length and an end. */
 const PIPE_SHORTEST = 3;
 
+/** The most pieces in one run against a wall, unless a plan says otherwise. */
+const WALL_RUN_MOST = 3;
+
 type Way = 'n' | 'e' | 's' | 'w';
+
+/** The step from a cell to the cell on each side of it. */
+const WAY_STEPS: Readonly<Record<Way, { dx: number; dy: number }>> = {
+  n: { dx: 0, dy: -1 },
+  e: { dx: 1, dy: 0 },
+  s: { dx: 0, dy: 1 },
+  w: { dx: -1, dy: 0 },
+};
+
+/**
+ * How far a piece made facing south is turned, clockwise as the board is looked down on, to stand
+ * with its back to a wall on each side of it.
+ */
+const BACK_TO: Readonly<Record<Way, number>> = { n: 0, e: 90, s: 180, w: 270 };
 
 const OPPOSITE: Readonly<Record<Way, Way>> = { n: 's', s: 'n', e: 'w', w: 'e' };
 
@@ -161,6 +204,28 @@ const PIPE_END_TURNS: Readonly<Record<Way, number>> = { w: 0, n: 90, e: 180, s: 
  * model is made joining the west to the south.
  */
 const PIPE_ELBOW_TURNS: Readonly<Record<string, number>> = { sw: 0, nw: 90, en: 180, es: 270 };
+
+/**
+ * The cells a piece takes standing with its back to a wall on one side of a cell: so many along the
+ * wall from that cell, rightwards or downwards, and so many out from the wall into the room.
+ */
+function againstWall(
+  side: Way,
+  cell: { x: number; y: number },
+  along: number,
+  out: number
+): { x: number; y: number; w: number; h: number } {
+  switch (side) {
+    case 'n':
+      return { x: cell.x, y: cell.y, w: along, h: out };
+    case 's':
+      return { x: cell.x, y: cell.y - out + 1, w: along, h: out };
+    case 'w':
+      return { x: cell.x, y: cell.y, w: out, h: along };
+    default:
+      return { x: cell.x - out + 1, y: cell.y, w: out, h: along };
+  }
+}
 
 /** The way from one cell to the cell beside it. */
 function stepTo(from: { x: number; y: number }, to: { x: number; y: number }): Way {
@@ -241,11 +306,21 @@ class Furnisher {
     w: number,
     h: number,
     stack?: FurnishingId[],
-    turned?: number
+    turned?: number,
+    facing?: number
   ): void {
     const spin = FURNISHING_SHAPES[piece].spin ?? 0;
     const turn = turned ?? (spin > 0 ? Math.round((this.rng() * 2 - 1) * spin) : 0);
-    this.placed.push(stack ? { piece, x, y, w, h, spin: turn, stack } : { piece, x, y, w, h, spin: turn });
+    this.placed.push({
+      piece,
+      x,
+      y,
+      w,
+      h,
+      spin: turn,
+      ...(stack ? { stack } : {}),
+      ...(facing !== undefined ? { facing } : {}),
+    });
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) this.taken[(y + dy) * this.layout.width + x + dx] = 1;
     }
@@ -449,12 +524,16 @@ class Furnisher {
       .map((far) => ({ far, doors: this.doorsOnSide(room, along, far === 1), key: this.rng() }))
       .sort((left, right) => left.doors - right.doors || left.key - right.key);
 
-    for (const { far } of sides) {
-      const rows = far === 1 ? [depth - 1, depth - 2, depth - 3] : [0, 1, 2];
+    for (const { far, doors } of sides) {
+      const backed = plan.back !== undefined && depth >= 5 && doors === 0;
+      const from = backed ? 1 : 0;
+      const rows = [from, from + 1, from + 2].map((row) => (far === 1 ? depth - 1 - row : row));
       const [behind, bar, front] = rows;
+      const shelf = far === 1 ? depth - 1 : 0;
       const at = (offset: number, row: number) =>
         along ? { x: room.x + 1 + offset, y: room.y + row } : { x: room.x + row, y: room.y + 1 + offset };
-      const cells = [behind, bar, front].flatMap((row) => Array.from({ length }, (_, offset) => at(offset, row)));
+      const used = backed ? [shelf, behind, bar, front] : [behind, bar, front];
+      const cells = used.flatMap((row) => Array.from({ length }, (_, offset) => at(offset, row)));
       if (!cells.every((cell) => this.free(cell.x, cell.y))) continue;
       const seats = plan.seat ? Array.from({ length: Math.ceil(length / 2) }, (_, index) => at(index * 2, front)) : [];
       const standing = [...Array.from({ length }, (_, offset) => at(offset, bar)), ...seats];
@@ -465,8 +544,130 @@ class Furnisher {
       const start = at(0, bar);
       this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length);
       for (const seat of seats) this.put(plan.seat!, seat.x, seat.y, 1, 1);
+      if (backed) {
+        const wall: Way = along ? (far === 1 ? 's' : 'n') : far === 1 ? 'e' : 'w';
+        for (let offset = 0; offset < length; offset++) {
+          const cell = at(offset, shelf);
+          this.put(plan.back!, cell.x, cell.y, 1, 1, undefined, 0, BACK_TO[wall]);
+        }
+      }
       return;
     }
+  }
+
+  /**
+   * Runs of pieces with their backs to the walls, facing into the room.
+   *
+   * The stretches of wall with nothing through them are taken in an order the seed picks, and along
+   * each a run of one kind of piece is laid from a cell the seed picks, each turned so its back meets
+   * the wall, until the room has as many as the plan asks: one to every so many cells of its floor. A
+   * piece that takes more than a cell takes them along the wall and out from it, as a bed does. Each
+   * stands clear of every way through the edge of the room, and only where the room's floor stays one
+   * piece round it. A plan that hangs something over the pieces hangs one over a run.
+   */
+  wall(plan: FurnishingPlan, room: DungeonRoom): void {
+    const pieces = plan.pieces ?? [plan.piece];
+    let left = Math.max(1, Math.floor(roomCells(this.layout, room).length / Math.max(1, plan.every)));
+    const stretches = this.wallStretches(room)
+      .map((stretch) => ({ ...stretch, key: this.rng() }))
+      .sort((one, other) => one.key - other.key);
+    for (const { side, cells } of stretches) {
+      if (left <= 0) break;
+      const piece = pieces[Math.floor(this.rng() * pieces.length) % pieces.length];
+      const { w, d } = cellsTakenBy(piece);
+      const most = Math.min(plan.most ?? WALL_RUN_MOST, left);
+      const first = Math.floor(this.rng() * cells.length);
+      const run: DungeonFurnishing[] = [];
+      for (let at = first; at + w <= cells.length && run.length < most; at += w) {
+        const rect = againstWall(side, cells[at], w, d);
+        if (!this.standsClear(rect) || !this.putRect(room, piece, rect, BACK_TO[side])) {
+          if (run.length > 0) break;
+          continue;
+        }
+        run.push(this.placed[this.placed.length - 1]);
+      }
+      left -= run.length;
+      if (plan.above && run.length > 0) {
+        const under = run[Math.floor(run.length / 2)];
+        under.stack = [plan.above[Math.floor(this.rng() * plan.above.length) % plan.above.length]];
+      }
+    }
+  }
+
+  /**
+   * One piece in the middle of the room, lying along the room's length where it is longer one way
+   * than the other, with open floor all round it.
+   */
+  centre(plan: FurnishingPlan, room: DungeonRoom): void {
+    const pieces = plan.pieces ?? [plan.piece];
+    const piece = pieces[Math.floor(this.rng() * pieces.length) % pieces.length];
+    const { w, d } = cellsTakenBy(piece);
+    const turned = w !== d && room.h > room.w;
+    const rect = {
+      x: room.x + Math.floor((room.w - (turned ? d : w)) / 2),
+      y: room.y + Math.floor((room.h - (turned ? w : d)) / 2),
+      w: turned ? d : w,
+      h: turned ? w : d,
+    };
+    if (!this.clearRect(rect)) return;
+    this.put(piece, rect.x, rect.y, rect.w, rect.h, undefined, 0, turned ? 90 : 0);
+  }
+
+  /**
+   * The stretches of a room's floor along its walls: the cells with wall on one side, gathered into
+   * runs of cells side by side along that wall.
+   */
+  private wallStretches(room: DungeonRoom): { side: Way; cells: { x: number; y: number }[] }[] {
+    const width = this.layout.width;
+    const floor = roomCells(this.layout, room).map((cell) => ({ x: cell % width, y: Math.floor(cell / width) }));
+    const stretches: { side: Way; cells: { x: number; y: number }[] }[] = [];
+    for (const side of ['n', 'e', 's', 'w'] as const) {
+      const { dx, dy } = WAY_STEPS[side];
+      const acrossX = dx === 0;
+      const cells = floor
+        .filter((cell) => cellAt(this.layout, cell.x + dx, cell.y + dy) === DungeonCell.Rock)
+        .sort((one, other) => (acrossX ? one.y - other.y || one.x - other.x : one.x - other.x || one.y - other.y));
+      let run: { x: number; y: number }[] = [];
+      for (const cell of cells) {
+        const last = run[run.length - 1];
+        const next =
+          last !== undefined &&
+          (acrossX ? last.y === cell.y && cell.x === last.x + 1 : last.x === cell.x && cell.y === last.y + 1);
+        if (!next && run.length > 0) {
+          stretches.push({ side, cells: run });
+          run = [];
+        }
+        run.push(cell);
+      }
+      if (run.length > 0) stretches.push({ side, cells: run });
+    }
+    return stretches;
+  }
+
+  /** Whether a piece may take every cell of a rectangle: open floor, nowhere near the way in or out or a way through the room's edge. */
+  private standsClear(rect: { x: number; y: number; w: number; h: number }): boolean {
+    for (let dy = 0; dy < rect.h; dy++) {
+      for (let dx = 0; dx < rect.w; dx++) {
+        const x = rect.x + dx;
+        const y = rect.y + dy;
+        if (!this.free(x, y) || this.nearEnd(x, y)) return false;
+        if (AROUND.some(([ax, ay]) => this.opens(x + ax, y + ay))) return false;
+      }
+    }
+    return true;
+  }
+
+  /** Puts a piece on a rectangle, facing a way, unless the room's floor would no longer be one piece, and tells whether it stands. */
+  private putRect(
+    room: DungeonRoom,
+    piece: FurnishingId,
+    rect: { x: number; y: number; w: number; h: number },
+    facing: number
+  ): boolean {
+    this.put(piece, rect.x, rect.y, rect.w, rect.h, undefined, 0, facing);
+    if (this.staysJoined(room)) return true;
+    this.takeBack();
+    return false;
   }
 
   /**
@@ -539,7 +740,7 @@ export function furnishRooms(
   const furnisher = new Furnisher(layout, rng, options);
   for (const plan of plans) {
     for (const room of layout.rooms) {
-      if (!plan.roles.includes(room.role)) continue;
+      if (!plan.roles.includes(room.role) || (plan.set !== undefined && plan.set !== room.set)) continue;
       furnisher[plan.arrangement](plan, room);
     }
   }

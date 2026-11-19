@@ -1,6 +1,6 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { atmosphereById, DUNGEON_ATMOSPHERE_IDS } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
-import { layoutToBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
+import { DEFAULT_BLOCK_OPTIONS, layoutToBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import { defaultCorridorWidth, generateDungeon, planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import {
   cellAt,
@@ -20,6 +20,7 @@ import {
   FURNISHING_SHAPES,
   furnishRooms,
 } from '@axe/domain/tabletop/dungeon/room-furnishing';
+import { assignRoomSets } from '@axe/domain/tabletop/dungeon/room-roles';
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
@@ -614,3 +615,150 @@ describe('a furnished place on the table', () => {
     for (const door of doors) expect(door.disguised === true).toBe(door.rooms.includes(0));
   });
 });
+
+describe('furniture against the walls and in the middle', () => {
+  /** A plain dungeon of every shape of room, furnished only as the plans given say. */
+  function furnished(seed: number, plans: Parameters<typeof furnishRooms>[1]): DungeonLayout {
+    const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed });
+    layout.furnishings = furnishRooms(layout, plans, seededRandom(seed + 5));
+    return layout;
+  }
+
+  /** The step from a cell towards the wall a piece facing a way has its back to. */
+  const BEHIND: Readonly<Record<number, readonly [number, number]>> = {
+    0: [0, -1],
+    90: [1, 0],
+    180: [0, 1],
+    270: [-1, 0],
+  };
+
+  it('stands each piece with its back to a wall, clear of every way through the edge of its room', () => {
+    let pieces = 0;
+    for (const seed of SEEDS) {
+      const layout = furnished(seed, [{ piece: 'crate', arrangement: 'wall', roles: ['hall', 'chamber'], every: 6 }]);
+      for (const piece of layout.furnishings ?? []) {
+        pieces++;
+        expect(piece.facing, `${seed}`).toBeDefined();
+        expect(piece.spin).toBe(0);
+        const [bx, by] = BEHIND[piece.facing!];
+        expect(cellAt(layout, piece.x + bx, piece.y + by), `${seed} ${JSON.stringify(piece)}`).toBe(DungeonCell.Rock);
+        for (const door of layout.doors) expect(touches(piece, door), `${seed}`).toBe(false);
+        expect(touches(piece, layout.entrance) || touches(piece, layout.exit)).toBe(false);
+      }
+      expect(walkable(layout).size, `${seed}`).toBe(openCount(layout) - furnishedCells(layout).size);
+    }
+    expect(pieces).toBeGreaterThan(SEEDS.length * 3);
+  });
+
+  it('lays them in runs side by side along one wall, and hangs one thing over each run where the plan asks', () => {
+    for (const seed of SEEDS) {
+      const layout = furnished(seed, [
+        { piece: 'crate', arrangement: 'wall', roles: ['hall'], every: 2, most: 3, above: ['barrel'] },
+      ]);
+      const placed = layout.furnishings ?? [];
+      const hung = placed.filter((piece) => piece.stack);
+      expect(hung.length, `${seed}`).toBeGreaterThan(0);
+      for (const piece of hung) expect(piece.stack).toEqual(['barrel']);
+      const beside = placed.filter((piece) =>
+        placed.some(
+          (other) =>
+            other !== piece &&
+            other.facing === piece.facing &&
+            Math.abs(other.x - piece.x) + Math.abs(other.y - piece.y) === 1
+        )
+      );
+      expect(beside.length, `${seed}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('stands one piece in the middle of a room with open floor all round it', () => {
+    let pieces = 0;
+    for (const seed of SEEDS) {
+      const layout = furnished(seed, [{ piece: 'barrel', arrangement: 'centre', roles: ['hall', 'boss'], every: 1 }]);
+      for (const piece of layout.furnishings ?? []) {
+        pieces++;
+        const room = layout.rooms.find(
+          (each) => piece.x >= each.x && piece.y >= each.y && piece.x < each.x + each.w && piece.y < each.y + each.h
+        )!;
+        expect(Math.abs(piece.x - (room.x + (room.w - 1) / 2)), `${seed}`).toBeLessThanOrEqual(0.5);
+        expect(Math.abs(piece.y - (room.y + (room.h - 1) / 2)), `${seed}`).toBeLessThanOrEqual(0.5);
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ]) {
+          expect(open(layout, piece.x + dx, piece.y + dy)).toBe(true);
+        }
+      }
+    }
+    expect(pieces).toBeGreaterThanOrEqual(SEEDS.length);
+  });
+
+  it('stands a row against the wall behind a counter, facing the counter, and keeps a row to serve from between them', () => {
+    let backed = 0;
+    for (const id of DUNGEON_ATMOSPHERE_IDS) {
+      for (const seed of SEEDS) {
+        const layout = generateDungeon({ atmosphere: id, roomCount: 8, seed });
+        if (atmosphereById(id).algorithm !== 'rooms') continue;
+        const placed = furnishRooms(
+          layout,
+          [{ piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, back: 'crate' }],
+          seededRandom(seed)
+        );
+        const shelves = placed.filter((piece) => piece.piece === 'crate');
+        const counter = placed.find((piece) => piece.piece === 'counter');
+        if (!counter || shelves.length === 0) continue;
+        backed++;
+        expect(shelves.length).toBe(Math.max(counter.w, counter.h));
+        for (const shelf of shelves) {
+          const [bx, by] = BEHIND[shelf.facing!];
+          expect(cellAt(layout, shelf.x + bx, shelf.y + by), `${id} ${seed}`).toBe(DungeonCell.Rock);
+          const servedFrom = { x: shelf.x - bx, y: shelf.y - by };
+          expect(
+            placed.some((piece) => touchesCell(piece, servedFrom)),
+            `${id} ${seed}`
+          ).toBe(false);
+          expect(touchesCell(counter, { x: shelf.x - 2 * bx, y: shelf.y - 2 * by }), `${id} ${seed}`).toBe(true);
+        }
+      }
+    }
+    expect(backed).toBeGreaterThan(0);
+  });
+
+  it('furnishes a room only by the plans for the kind of room it is', () => {
+    const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 42 });
+    assignRoomSets(layout, { chamber: ['store', 'barracks'], deadEnd: ['store'] });
+    const kinds = layout.rooms.filter((room) => room.role === 'chamber').map((room) => room.set);
+    expect(kinds.slice(0, 4)).toEqual(['store', 'barracks', 'store', 'barracks'].slice(0, kinds.length));
+    expect(layout.rooms.filter((room) => room.role === 'hall').every((room) => room.set === undefined)).toBe(true);
+
+    const placed = furnishRooms(
+      layout,
+      [{ piece: 'barrel', arrangement: 'scatter', roles: ['chamber', 'deadEnd'], every: 4, set: 'store' }],
+      seededRandom(3)
+    );
+    const roomOf = (piece: DungeonRect) =>
+      layout.rooms.find(
+        (room) => piece.x >= room.x && piece.y >= room.y && piece.x < room.x + room.w && piece.y < room.y + room.h
+      )!;
+    expect(placed.length).toBeGreaterThan(0);
+    expect(placed.every((piece) => roomOf(piece).set === 'store')).toBe(true);
+  });
+
+  it('turns the model of a piece that faces a way to face it', () => {
+    const layout = furnished(7, [{ piece: 'crate', arrangement: 'wall', roles: ['hall', 'chamber'], every: 4 }]);
+    const blocks = layoutToBlocks(layout, atmosphereById('stoneDungeon'), {
+      ...DEFAULT_BLOCK_OPTIONS,
+      models: true,
+    }).blocks.filter((block) => block.thing === 'crate');
+    const faced = (layout.furnishings ?? []).map((piece) => piece.facing ?? 0).sort();
+    expect(blocks.map((block) => block.modelTurn ?? 0).sort()).toEqual(faced);
+    expect(new Set(faced).size).toBeGreaterThan(1);
+  });
+});
+
+/** Whether a piece takes a cell. */
+function touchesCell(piece: DungeonRect, cell: DungeonPoint): boolean {
+  return cell.x >= piece.x && cell.y >= piece.y && cell.x < piece.x + piece.w && cell.y < piece.y + piece.h;
+}

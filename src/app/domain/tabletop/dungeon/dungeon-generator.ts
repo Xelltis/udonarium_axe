@@ -18,7 +18,7 @@ import {
 } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import { clampCorridorWidth, DungeonLayout } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { furnishRooms } from '@axe/domain/tabletop/dungeon/room-furnishing';
-import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
+import { assignRoomRoles, assignRoomSets } from '@axe/domain/tabletop/dungeon/room-roles';
 import { fitBoardTo, generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
 import { cutWaterways, reliefOfWaterways } from '@axe/domain/tabletop/dungeon/sewer-channels';
 import { clampTrapCount, placeTraps } from '@axe/domain/tabletop/dungeon/trap-placing';
@@ -189,6 +189,7 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   // Cut before the roles are given out, so depth is counted from the mouth the party walks in by.
   if ((request.entrance ?? atmosphere.entrance) === 'tunnel') openTunnelMouth(layout);
   assignRoomRoles(layout);
+  if (atmosphere.roomSets) assignRoomSets(layout, atmosphere.roomSets);
   // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
   hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
   if (atmosphere.hiddenDoors) hideDoorsOf(layout, 0);

@@ -144,6 +144,12 @@ export interface DungeonAtmosphere {
   /** What its rooms are called. Left out, they are called what the rooms of a dungeon are. */
   roleNames?: DungeonRoleNaming;
   /**
+   * The kinds of room it keeps for the rooms playing a part, given to them in turn, each furnished as
+   * the plans for that kind say and called by its name: a tower's small rooms are a workshop, an
+   * observatory, a bedroom and a study. Left out, every room playing a part is the same kind.
+   */
+  roomSets?: Readonly<Partial<Record<DungeonRoomRoleValue, readonly string[]>>>;
+  /**
    * Whether the ways out of the room the party comes into are hidden in its walls.
    *
    * What makes a bar a speakeasy is that the way to it is not a door anybody passing sees.

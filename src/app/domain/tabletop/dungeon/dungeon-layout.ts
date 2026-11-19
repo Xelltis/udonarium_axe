@@ -65,6 +65,11 @@ export interface DungeonPoint {
 export interface DungeonRoom extends DungeonRect {
   index: number;
   role: DungeonRoomRoleValue;
+  /**
+   * What the room is, of the kinds of room a place keeps for the part it plays: a workshop, an
+   * observatory or a bedroom among a tower's small rooms. Left out where the place keeps one kind.
+   */
+  set?: string;
 }
 
 export interface DungeonDoor extends DungeonPoint {
@@ -153,6 +158,11 @@ export interface DungeonFurnishing extends DungeonRect {
   piece: FurnishingId;
   /** How far it is turned off square, in degrees. */
   spin: number;
+  /**
+   * Which way it faces, for a piece that stands with its back to a wall or lies one way in the middle
+   * of a room: how far its model, made facing south, is turned clockwise. Left out, as made.
+   */
+  facing?: number;
   /** What is stacked on top of it, from the bottom up. */
   stack?: FurnishingId[];
 }
