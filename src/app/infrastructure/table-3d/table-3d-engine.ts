@@ -572,6 +572,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.color.set(light.colour);
     this.sky.color.set(light.skyColour);
     this.sky.groundColor.copy(new Color(light.skyColour).multiplyScalar(GROUND_BOUNCE));
+    this.veil.setMoonlit(light.moonlit);
     this.lightSky();
     this.changed = true;
   }

@@ -1,6 +1,6 @@
 import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
-import { Color } from 'three/webgpu';
+import { Color, type Mesh, type MeshLambertNodeMaterial } from 'three/webgpu';
 
 describe('the sky over a table drawn on a canvas', () => {
   const board = { x: 0, y: 0, width: 1600, height: 1000 };
@@ -30,6 +30,30 @@ describe('the sky over a table drawn on a canvas', () => {
     expect(wide).toBeLessThan(small);
     expect(none).toBeGreaterThan(0);
     expect(none).toBeLessThan(Infinity);
+    sky.dispose();
+  });
+
+  it('lays ground round the board that gives back the colour of the sky and fades into the horizon', () => {
+    const sky = new SkyLayer();
+    sky.set(skyDomeAt(0.5), board);
+    const ground = sky.group.children.find((child) => child !== sky.group.children[0]) as Mesh | undefined;
+
+    expect(ground).toBeDefined();
+    const material = ground!.material as MeshLambertNodeMaterial;
+    expect(material.emissiveNode).toBeTruthy();
+    expect(material.colorNode).toBeTruthy();
+    sky.set(null, board);
+    expect(sky.group.children.length).toBe(1);
+    sky.dispose();
+  });
+
+  it('hazes the board itself but thinly, the ground beyond fading into the horizon of its own accord', () => {
+    const sky = new SkyLayer();
+    const haze = sky.set(skyDomeAt(0.5), board)!;
+    const acrossBoard = Math.hypot(board.width, board.height);
+    const onBoard = 1 - Math.exp(-((haze.density * acrossBoard) ** 2));
+
+    expect(onBoard).toBeLessThan(0.1);
     sky.dispose();
   });
 

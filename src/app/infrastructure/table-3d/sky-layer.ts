@@ -1,6 +1,8 @@
 import type { SkyDome, SkyWay } from '@axe/domain/tabletop/world/sky-dome';
 import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import {
+  abs,
+  cameraPosition,
   clamp,
   dot,
   float,
@@ -10,9 +12,11 @@ import {
   mix,
   normalize,
   positionLocal,
+  positionWorld,
   pow,
   smoothstep,
   uniform,
+  vec2,
   vec3,
 } from 'three/tsl';
 import {
@@ -43,8 +47,18 @@ const GROUND_DROP_PX = 0.5;
  * a scene with no board is taken to be.
  */
 const HAZE_REACH_PX = 3000;
-/** How many times that breadth off the haze has thickened to all but a third of the view. */
-const HAZE_DEPTH = 3;
+/**
+ * How many times that breadth off the haze has thickened to all but a third of the view. Thin enough
+ * that the board itself is all but clear of it, which a pale sky by day would otherwise wash out:
+ * the ground beyond fades into the horizon of its own accord.
+ */
+const HAZE_DEPTH = 6;
+/**
+ * Where the ground beyond the board starts to fade into the horizon's colour, and where it has, in
+ * boards across from the board's middle.
+ */
+const GROUND_FADES_FROM = 0.75;
+const GROUND_FADES_TO = 7;
 /** Where the sky comes in the order things are drawn: before everything, which is all drawn over it. */
 const SKY_ORDER = -100;
 const GROUND_ORDER = -50;
@@ -56,6 +70,13 @@ const STAR_SHARE = 0.0035;
 const SUN_DISC = 0.99985;
 const MOON_DISC = 0.9997;
 
+/**
+ * How much of the sky the ground beyond the board gives back, looking straight down and looking along it:
+ * a plain under the sky takes its colour, the more the further off it is looked at.
+ */
+const GROUND_REFLECTS_BELOW = 0.55;
+const GROUND_REFLECTS_ALONG = 0.85;
+
 const SUN_COLOUR = '#fff6dc';
 const MOON_COLOUR = '#e8ecff';
 
@@ -64,7 +85,9 @@ const MOON_COLOUR = '#e8ecff';
  * sees where it looks past the board: the sky's colour overhead fading to the horizon's, the glow round
  * a sun near the horizon, the sun and the moon, the stars, and a haze over everything far off, which
  * the ground beyond the board fades into. The sky stands round the eye wherever the eye goes. The
- * ground is lit by the sky as the board is, and lies outside the board, which the veil is read over.
+ * ground is lit by the sky as the board is and gives back the colour of the sky above it, so that
+ * looked down on from above it still tells the hour, and fades into the horizon's colour as it runs
+ * off; it lies outside the board, which the veil is read over.
  */
 export class SkyLayer {
   readonly group = new Group();
@@ -79,6 +102,7 @@ export class SkyLayer {
   private ground: Mesh | null = null;
   private groundKey = '';
   private readonly groundColour = new Color();
+  private readonly groundTint = uniform(new Color());
   private laid: SkyDome | null = null;
   private readonly sunColour = uniform(new Color(SUN_COLOUR));
   private readonly moonColour = uniform(new Color(MOON_COLOUR));
@@ -122,6 +146,7 @@ export class SkyLayer {
     this.moon.value.copy(sceneWay(sky.moon));
     this.stars.value = sky.stars;
     this.groundColour.set(sky.ground);
+    this.groundTint.value.copy(this.groundColour);
     (this.ground?.material as MeshLambertNodeMaterial | undefined)?.color.copy(this.groundColour);
     const across = board ? Math.hypot(board.width, board.height) : HAZE_REACH_PX;
     this.haze.color.set(sky.horizon);
@@ -171,7 +196,16 @@ export class SkyLayer {
     const geometry = new ShapeGeometry(outline);
     geometry.rotateX(Math.PI / 2);
     geometry.translate(0, -GROUND_DROP_PX, 0);
+    const across = Math.hypot(board.width, board.height);
+    const fadesOut = smoothstep(
+      float(across * GROUND_FADES_FROM),
+      float(across * GROUND_FADES_TO),
+      positionWorld.xz.sub(vec2(middle.x, middle.y)).length()
+    );
+    const near = float(1).sub(fadesOut);
     const material = new MeshLambertNodeMaterial({ color: this.groundColour, side: BackSide });
+    material.colorNode = this.groundTint.mul(float(1).sub(this.groundReflects())).mul(near);
+    material.emissiveNode = this.reflection().mul(near).add(this.horizon.mul(fadesOut));
     this.ground = new Mesh(geometry, material);
     this.ground.renderOrder = GROUND_ORDER;
     this.ground.receiveShadow = true;
@@ -188,9 +222,42 @@ export class SkyLayer {
     return this.sunColour.mul(sunDisc).add(this.moonColour.mul(moonDisc.mul(0.5)));
   }
 
+  /**
+   * The way the eye looks at a point of the ground, turned over as the ground turns it back up: the
+   * way to the point of the sky the ground there gives back.
+   */
+  private reflectedWay() {
+    const looking = normalize(positionWorld.sub(cameraPosition));
+    return vec3(looking.x, looking.y.negate(), looking.z);
+  }
+
+  /** How much of the sky the ground gives back where it is looked at: more the further along it the eye looks. */
+  private groundReflects() {
+    const along = float(1).sub(abs(normalize(positionWorld.sub(cameraPosition)).y));
+    return mix(float(GROUND_REFLECTS_BELOW), float(GROUND_REFLECTS_ALONG), pow(clamp(along, 0, 1), 3));
+  }
+
+  /** The colour of the sky the ground gives back, its glow round a low sun with it but not the sun, the moon or the stars. */
+  private reflection() {
+    return this.skyBase(this.reflectedWay()).mul(this.groundReflects());
+  }
+
   /** The colour of the sky the way a point of the dome lies from its middle. */
   private skyColour() {
     const way = normalize(positionLocal);
+    const up = way.y;
+    const cell = floor(way.mul(STAR_CELLS)).add(STAR_CELLS + 1);
+    const seed = cell.x.add(cell.y.mul(STAR_CELLS * 2 + 3)).add(cell.z.mul((STAR_CELLS * 2 + 3) ** 2));
+    const star = smoothstep(1 - STAR_SHARE, 1, hash(seed) as Node<'float'>)
+      .mul(this.stars)
+      .mul(clamp(up.mul(3), 0, 1));
+    return this.skyBase(way)
+      .add(this.bodies())
+      .add(vec3(star, star, star));
+  }
+
+  /** The sky's own colour a way from the eye: overhead fading to the horizon, darker below it, with the glow round a low sun. */
+  private skyBase(way: Node<'vec3'>) {
     const up = way.y;
     const height = pow(clamp(up, 0, 1), 0.45);
     const above = mix(this.horizon, this.zenith, height);
@@ -198,15 +265,7 @@ export class SkyLayer {
     const base = mix(below, above, smoothstep(-0.02, 0.02, up));
     const towardsSun = max(dot(way, this.sun), 0);
     const glow = this.glow.mul(this.glowStrength.mul(pow(towardsSun, 6)).mul(float(1).sub(height)));
-    const cell = floor(way.mul(STAR_CELLS)).add(STAR_CELLS + 1);
-    const seed = cell.x.add(cell.y.mul(STAR_CELLS * 2 + 3)).add(cell.z.mul((STAR_CELLS * 2 + 3) ** 2));
-    const star = smoothstep(1 - STAR_SHARE, 1, hash(seed) as Node<'float'>)
-      .mul(this.stars)
-      .mul(clamp(up.mul(3), 0, 1));
-    return base
-      .add(glow)
-      .add(this.bodies())
-      .add(vec3(star, star, star));
+    return base.add(glow);
   }
 }
 

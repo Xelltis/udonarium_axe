@@ -31,17 +31,22 @@ const MOON_HIGHEST_DEG = 45;
 /** How far the sun is below or above the horizon at the ends of the twilight, in degrees. */
 const TWILIGHT_DEG = 12;
 
-/** The colours of the sky by night, at the sun's setting and by day: overhead, at the horizon and of the ground. */
+/**
+ * The colours of the sky by night, at the sun's rising, at its setting and by day: overhead, at the
+ * horizon, of the ground, and of the glow round the sun. The morning is the paler of the two
+ * twilights, gold under a clearing blue, and the evening the redder.
+ */
 const NIGHT = { zenith: '#060a18', horizon: '#18203a', ground: '#141a22' };
-const DUSK = { zenith: '#3f527f', horizon: '#e9a06e', ground: '#4a4334' };
+const DAWN = { zenith: '#5d82c2', horizon: '#f1d6b0', ground: '#56604a', glow: '#ffd796' };
+const DUSK = { zenith: '#3f527f', horizon: '#e9a06e', ground: '#4a4334', glow: '#ffb070' };
 const DAY = { zenith: '#3b7bd0', horizon: '#b4d8f2', ground: '#6b7552' };
-const GLOW = '#ffb070';
 
 /**
  * The sky at a time of day, from 0 at midnight to 1: the sun rises in the east at six, stands in the
  * south at noon and sets in the west at six in the evening, and the moon crosses the other half of the
- * sky through the night, as the light of the sky has them. The sky turns from night through the warm
- * colours of dusk to day as the sun climbs out of the twilight, the stars fading as it does.
+ * sky through the night, as the light of the sky has them. The sky turns from night through the
+ * colours of the dawn to day as the sun climbs out of the twilight, the stars fading as it does, and
+ * back through the warmer colours of dusk as it sets.
  */
 export function skyDomeAt(dayFraction: number): SkyDome {
   const time = ((dayFraction % 1) + 1) % 1;
@@ -52,11 +57,13 @@ export function skyDomeAt(dayFraction: number): SkyDome {
   const moon = wayOf(moonAlong, Math.sin(Math.PI * moonAlong) * MOON_HIGHEST_DEG);
   const towardsDusk = clamp01((sunHeight + TWILIGHT_DEG) / TWILIGHT_DEG);
   const towardsDay = clamp01(sunHeight / TWILIGHT_DEG);
-  const colour = (key: keyof typeof DAY) => mixHex(mixHex(NIGHT[key], DUSK[key], towardsDusk), DAY[key], towardsDay);
+  const twilight = time < 0.5 ? DAWN : DUSK;
+  const colour = (key: keyof typeof DAY) =>
+    mixHex(mixHex(NIGHT[key], twilight[key], towardsDusk), DAY[key], towardsDay);
   return {
     zenith: colour('zenith'),
     horizon: colour('horizon'),
-    glow: GLOW,
+    glow: twilight.glow,
     glowStrength: round(towardsDusk * (1 - towardsDay)),
     sun,
     moon,
@@ -76,7 +83,8 @@ function wayOf(along: number, heightDeg: number): SkyWay {
   };
 }
 
-function mixHex(from: string, to: string, share: number): string {
+/** A colour some share of the way from one to another, both written as `#rrggbb`. */
+export function mixHex(from: string, to: string, share: number): string {
   const a = channels(from);
   const b = channels(to);
   const t = clamp01(share);

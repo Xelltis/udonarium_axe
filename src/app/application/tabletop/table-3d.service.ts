@@ -165,8 +165,13 @@ export class Table3dService {
   private readonly waterCells = inject(WaterService);
   private readonly ambience = inject(AmbienceService);
 
-  /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
-  readonly skyLight = computed(() => skyLightAt(this.dayFraction()));
+  /**
+   * The light of the sky over the table at the story's hour, as the room's clock tells it, in the
+   * colours of the sky drawn over it where one is.
+   */
+  readonly skyLight = computed(() =>
+    skyLightAt(this.dayFraction(), tableSkyKindOf(this.tabletop.currentTableVersion()?.skyKind) === 'clock')
+  );
 
   /** The sky drawn past the board of the table in view, as it is at the story's hour, or none where the table shows its background picture. */
   readonly sky = computed(() => {
