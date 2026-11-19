@@ -246,6 +246,13 @@ describe('lintChatSyntax', () => {
       expect(codes('&!X/状態=毒/3')).toEqual(['buff.unwritable']);
     });
 
+    it('finds the half-width item a buff can move before a full-width one nothing is written into, as laying it does', () => {
+      const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
+      group.appendChild(DataElement.create('ＨＰ', '', { type: 'check' }));
+
+      expect(codes('&!活力/ＨＰ+1/3')).toEqual([]);
+    });
+
     it('tells nothing of the items of a piece kept from the reader, and all of them to one who may see it', () => {
       speaker.disclosureMode = 'gm';
 

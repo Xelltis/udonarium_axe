@@ -1,5 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
-import { isAmountWritten } from '@axe/domain/character/item-landing';
+import { isAmountWritten, type ItemsLandedOn, namedRequest } from '@axe/domain/character/item-landing';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { evalCalcFormula } from '@axe/domain/data/data-element-calc';
 import {
@@ -224,12 +224,19 @@ export function movesSameStatus(
 
 /**
  * Whether a note piled on a buff speaks of nothing but the status the buff holds at a value, as
- * `HP+2` does on a buff holding HP. Such a note would only hide the value the status is held at.
+ * `HP+2` does on a buff holding HP, `ＨＰ+2` too, each status of the note named as the sheet finds it
+ * (see `namedRequest`). Such a note would only hide the value the status is held at.
  */
-export function speaksOnlyOfHeldStatus(modifier: BuffModifier | null, note: string): boolean {
+export function speaksOnlyOfHeldStatus(
+  modifier: BuffModifier | null,
+  note: string,
+  sheet: Pick<ItemsLandedOn, 'nameOf'> | null
+): boolean {
   if (modifier?.operator !== 'set') return false;
   const items = parseBuffModifierItems(note);
-  return items !== null && items.every((item) => holdsRequestedStatus(modifier, item));
+  return (
+    items !== null && items.every((item) => holdsRequestedStatus(modifier, sheet ? namedRequest(sheet, item) : item))
+  );
 }
 
 /** Parts the text at its commas of either width, leaving those inside brackets in place. */

@@ -84,11 +84,30 @@ export function landingOn(item: ItemTakes | null, slot: ResourceSlot, written: s
 
 /** What a sheet answers about its items, as far as where a value lands goes. */
 export interface ItemsLandedOn {
+  /**
+   * The name an item is found by, as written or in half-width characters, of the two the one finding
+   * an item a value can be written into first; null where neither finds one.
+   */
+  nameOf(reference: string): string | null;
   landingOf(name: string, slot: ResourceSlot, written: string, as: WrittenAs): ItemLanding;
   /** The number the slot of an item holds, or null where it holds none. */
   getValue(name: string, slot: ResourceSlot): number | null;
   /** Whether a buff may make an item of this name, there being none. */
   canMakeForBuff(name: string): boolean;
+}
+
+/**
+ * A request naming its item by the name the sheet finds it by (see {@link ItemsLandedOn.nameOf}), so
+ * one written with full-width letters is the item its half-width name finds, and records that name;
+ * as written where neither finds one. The chat's lint, the report of laying a buff and laying it all
+ * name the item here, so the three find the same one.
+ */
+export function namedRequest<T extends { readonly target: string }>(
+  sheet: Pick<ItemsLandedOn, 'nameOf'>,
+  request: T
+): T {
+  const named = sheet.nameOf(request.target);
+  return named === null || named === request.target ? request : { ...request, target: named };
 }
 
 /**
@@ -117,16 +136,17 @@ export function buffRequestOutcome(
   request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text' | 'lasting'>,
   makesMissing: boolean
 ): BuffRequestOutcome {
-  const landing = landingOfRequest(sheet, request);
+  const named = namedRequest(sheet, request);
+  const landing = landingOfRequest(sheet, named);
   switch (landing.kind) {
     case 'words':
       return { kind: 'lands' };
     case 'number':
-      return sheet.getValue(request.target, request.slot) == null ? { kind: 'noNumber' } : { kind: 'lands' };
+      return sheet.getValue(named.target, named.slot) == null ? { kind: 'noNumber' } : { kind: 'lands' };
     case 'noSlot':
       return { kind: 'noNumber' };
     case 'missing':
-      return makesMissing && !request.lasting && request.slot === 'now' && sheet.canMakeForBuff(request.target)
+      return makesMissing && !named.lasting && named.slot === 'now' && sheet.canMakeForBuff(named.target)
         ? { kind: 'makes' }
         : { kind: 'missing' };
     default:
@@ -135,14 +155,16 @@ export function buffRequestOutcome(
 }
 
 /**
- * Where what a `&!` buff asks for lands on a sheet: its words as words, an amount it holds the item at
- * as an amount written, and one it moves the item by as a move.
+ * Where what a `&!` buff asks for lands on a sheet, on the item its name finds (see
+ * {@link namedRequest}): its words as words, an amount it holds the item at as an amount written, and
+ * one it moves the item by as a move.
  */
 export function landingOfRequest(
   sheet: ItemsLandedOn,
   request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text'>
 ): ItemLanding {
-  if (request.text !== undefined) return sheet.landingOf(request.target, request.slot, request.text, 'words');
+  const { target } = namedRequest(sheet, request);
+  if (request.text !== undefined) return sheet.landingOf(target, request.slot, request.text, 'words');
   const as = request.operator === 'set' ? 'amount' : 'moveBy';
-  return sheet.landingOf(request.target, request.slot, String(request.amount), as);
+  return sheet.landingOf(target, request.slot, String(request.amount), as);
 }

@@ -950,6 +950,17 @@ describe('resource-edit-helpers', () => {
       expect(character.buffs.find('石化')!.value).toBe(5);
     });
 
+    it('keeps a status held at a value where it is when more is stacked naming it in full-width letters', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      edit('&!石化/HP/=/0/1');
+
+      expect(edit('&+!石化/ＨＰ/+/2/3')).toBe('石化を加算 HP=0/3R    ');
+      edit('&+石化/ＨＰ+2/1');
+
+      expect(character.status.getValue('HP', 'now')).toBe(0);
+      expect(character.buffs.find('石化')!.currentValue).toBe('HP=0');
+    });
+
     it('lets the hold go and writes the new note where more is stacked on another status', () => {
       const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
       edit('&!石化/HP/=/0/1');
@@ -1239,6 +1250,8 @@ describe('resource-edit-helpers', () => {
       expect(said(':ＨＰ-1').edit.target).toBe('HP');
       expect(applyResourceEdit({ ...said(':ＨＰ-1').edit, calcAns: -1 }, character)).toContain('HP:');
       expect(character.status.getValue('HP', 'now')).toBe(hp - 1);
+      expect(buff('&!疲労/ＨＰ-3/3')).toBe('疲労を付与 ＨＰ-3/3R    ');
+      expect(character.status.getValue('HP', 'now')).toBe(hp - 4);
     });
 
     it('finds the status a command names in half-width characters as well', () => {

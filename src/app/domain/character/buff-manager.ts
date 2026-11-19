@@ -30,7 +30,7 @@ import {
   isBuffEffectDueAt,
   writeBuffEffectTiming,
 } from '@axe/domain/character/buff-timing';
-import { landingOfRequest } from '@axe/domain/character/item-landing';
+import { landingOfRequest, namedRequest } from '@axe/domain/character/item-landing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
@@ -224,7 +224,7 @@ export class BuffManager {
     return this.alter(() => {
       const status = this.status();
       if (!status) return null;
-      const request = namedOn(status, asked);
+      const request = namedRequest(status, asked);
       const landing = landingOfRequest(status, request);
       if (landing.kind === 'missing') {
         if (!makesMissing || request.lasting || request.slot !== 'now') return null;
@@ -367,7 +367,7 @@ export class BuffManager {
   ): BuffModifier | BuffTextModifier | null {
     return this.alter(() => {
       const status = this.status();
-      const request = status ? namedOn(status, asked) : asked;
+      const request = status ? namedRequest(status, asked) : asked;
       const standing = readBuffModifier(data);
       if (!standing || !movesSameStatus(standing, request)) {
         this.revertModifier(data);
@@ -880,7 +880,7 @@ export class BuffManager {
         return;
       }
 
-      if (!speaksOnlyOfHeldStatus(readBuffModifier(data), info)) {
+      if (!speaksOnlyOfHeldStatus(readBuffModifier(data), info, this.status())) {
         const stacked = stackBuffEffect(`${data.currentValue ?? ''}`, info);
         if (stacked !== null) data.currentValue = stacked;
         else if (info.length > 0) data.currentValue = info;
@@ -892,16 +892,6 @@ export class BuffManager {
       data.value = Number.isFinite(standing) ? settle(standing, round) : round;
     });
   }
-}
-
-/**
- * A request naming its item by the name the sheet finds it by, as written or in half-width (see
- * `StatusAccessor.nameOf`), so a buff written with full-width letters moves the item its half-width
- * name finds and records that name; as written where neither finds one.
- */
-function namedOn(status: StatusAccessor, request: ParsedBuffModifierRequest): ParsedBuffModifierRequest {
-  const named = status.nameOf(request.target);
-  return named === null || named === request.target ? request : { ...request, target: named };
 }
 
 /**
