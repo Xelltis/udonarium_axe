@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { SYSTEM_RESERVED_TAG, TagHidden } from '@axe/domain/media/image-tag';
+import { type ImageSight, SYSTEM_RESERVED_TAG, TagHidden } from '@axe/domain/media/image-tag';
 import { IMAGE_TAG_LOCK_ALIAS, ImageTagLock } from '@axe/domain/media/image-tag-lock';
 
 /**
@@ -25,6 +25,15 @@ export class ImageTagLockService {
     const lock = ImageTagLock.get(tag);
     return !!lock?.isLocked && !lock.isHeldBy(this.ownership.myOwnerKey());
   };
+
+  /**
+   * What this seat may come across of the room's pictures: what the master keeps back for the master
+   * alone, and no tag someone else keeps to themselves. Every list of pictures, the screen's and an
+   * AI's, goes by it.
+   */
+  sight(): ImageSight {
+    return { canSeeSecret: this.rolePermission.canSeeHidden(), hidesTag: this.hides };
+  }
 
   /** Whether the tag is kept to someone now. */
   isLocked(tag: string): boolean {

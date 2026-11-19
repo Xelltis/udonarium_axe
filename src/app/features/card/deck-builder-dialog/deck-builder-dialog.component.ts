@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { trackEvery } from '@axe/application/sync/track-every';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -24,7 +23,6 @@ export interface DeckBuilderResult {
 export class DeckBuilderDialogComponent {
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
   private readonly objectChange = inject(ObjectChangeService);
 
@@ -36,7 +34,7 @@ export class DeckBuilderDialogComponent {
     const tags = new Set<string>();
     for (const image of this.imageStorage.images) {
       const imageTag = ImageTag.get(image.identifier) ?? null;
-      if (!canBrowseImage(imageTag, this.rolePermission.canSeeHidden(), true, this.tagLock.hides)) continue;
+      if (!canBrowseImage(imageTag, this.tagLock.sight())) continue;
       const tag = imageTag?.tag ?? '';
       if (tag.length > 0 && tag !== SYSTEM_RESERVED_TAG) tags.add(tag);
     }
@@ -67,12 +65,7 @@ export class DeckBuilderDialogComponent {
     return this.imageStorage.images.filter(
       (image) =>
         (ImageTag.get(image.identifier)?.tag ?? '') === tag &&
-        canBrowseImage(
-          ImageTag.get(image.identifier) ?? null,
-          this.rolePermission.canSeeHidden(),
-          true,
-          this.tagLock.hides
-        )
+        canBrowseImage(ImageTag.get(image.identifier) ?? null, this.tagLock.sight())
     );
   }
 

@@ -5,11 +5,14 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement } from '@axe/domain/data/data-element';
+import { ImageTag } from '@axe/domain/media/image-tag';
+import { ImageTagLock } from '@axe/domain/media/image-tag-lock';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
@@ -87,6 +90,7 @@ describe('AgentReadTools', () => {
     resetPeerContextProvider();
     vi.useRealTimers();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
+    ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
   });
 
   it('describes the room as the seat sees it: the seat, the table and its grid, and the chat tabs', () => {
@@ -233,6 +237,20 @@ describe('AgentReadTools', () => {
 
     const [listed] = call('list_pieces', { name: 'ゴブリン' }) as { resources: unknown[] }[];
     expect(listed.resources).toContainEqual({ name: '気力', current: 3, max: 5 });
+  });
+
+  it('lists the pictures a player’s seat may come across, none under a tag someone else keeps to themselves', () => {
+    PeerCursor.myCursor.role = PeerRole.Player;
+    for (const [identifier, tag] of [
+      ['mine', 'コマ'],
+      ['boss', 'ボス'],
+    ]) {
+      ImageStorage.instance.add(identifier);
+      ImageTag.create(identifier).tag = tag;
+    }
+    ImageTagLock.lock('ボス', 'someone-else');
+
+    expect((call('list_assets', { kind: 'images' }) as { id: string }[]).map((image) => image.id)).toEqual(['mine']);
   });
 
   it('lists the tables and the scenes, and refuses a kind of thing it does not know', () => {

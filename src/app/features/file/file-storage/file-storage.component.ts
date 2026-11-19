@@ -97,7 +97,7 @@ export class FileStorageComponent {
   private mayShow(imageFile: ImageFile): boolean {
     if (isAccountAvatar(imageFile.context.identifier)) return false;
     const tag = ImageTag.get(imageFile.context.identifier) ?? null;
-    return canBrowseImage(tag, this.canKeepSecret, this.showSecret(), this.tagLock.hides);
+    return canBrowseImage(tag, this.tagLock.sight(), this.showSecret());
   }
 
   /**

@@ -5,6 +5,7 @@ import { type AgentChatLine, AgentViews } from '@axe/application/agent/agent-vie
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -54,6 +55,7 @@ export class AgentReadTools {
   private readonly turns = inject(TurnOrderService);
   private readonly rules = inject(RoomRulesService);
   private readonly permission = inject(RolePermissionService);
+  private readonly tagLock = inject(ImageTagLockService);
   private readonly chat = inject(ChatMessageService);
   private readonly activeTab = inject(ActiveChatTabService);
   private readonly effects = inject(EffectLibraryService);
@@ -226,7 +228,7 @@ export class AgentReadTools {
         );
       case 'images':
         return listed(
-          ImageTag.searchImages([], this.permission.canSeeHidden()).map((image) => ({
+          ImageTag.searchImages([], this.tagLock.sight()).map((image) => ({
             id: image.identifier,
             name: image.name,
           }))

@@ -52,7 +52,7 @@ export class FileSelecterComponent implements ModalContent {
   private mayShow(imageFile: ImageFile): boolean {
     if (isAccountAvatar(imageFile.context.identifier)) return imageFile.context.identifier === this.ownAvatar;
     const tag = ImageTag.get(imageFile.context.identifier) ?? null;
-    return canBrowseImage(tag, this.rolePermission.canSeeHidden(), true, this.tagLock.hides);
+    return canBrowseImage(tag, this.tagLock.sight());
   }
 
   /**

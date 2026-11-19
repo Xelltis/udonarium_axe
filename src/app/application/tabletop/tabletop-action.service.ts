@@ -3,7 +3,6 @@ import { ImageTagLockService } from '@axe/application/file/image-tag-lock.servic
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { PartyService } from '@axe/application/party/party.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PartySetOutService } from '@axe/application/tabletop/party-set-out.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -67,7 +66,6 @@ const BOARD_DEFAULT_HEIGHT = 4;
 export class TabletopActionService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly tabletopService = inject(TabletopService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
   private readonly partyService = inject(PartyService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -476,12 +474,7 @@ export class TabletopActionService {
       (image) =>
         !isAccountAvatar(image.identifier) &&
         (ImageTag.get(image.identifier)?.tag ?? '') === tag &&
-        canBrowseImage(
-          ImageTag.get(image.identifier) ?? null,
-          this.rolePermission.canSeeHidden(),
-          true,
-          this.tagLock.hides
-        )
+        canBrowseImage(ImageTag.get(image.identifier) ?? null, this.tagLock.sight())
     );
     const sources = toDeckCardSources(images, this.t('feature.tabletop.action.defaultCardName'));
     if (sources.length < 1) return null;

@@ -43,7 +43,7 @@ describe('the materials a room is built with', () => {
   it('answers a search for the tag with every one of them', () => {
     registerBuiltinMaterials(imageStorage);
 
-    const textures = ImageTag.searchImages([TEXTURE_IMAGE_TAG]);
+    const textures = ImageTag.searchImages([TEXTURE_IMAGE_TAG], { canSeeSecret: false, hidesTag: () => false });
     expect(textures.length).toBe(Object.keys(TEXTURE_ASSET_URLS).length + Object.keys(WALL_TEXTURE_ASSET_URLS).length);
     expect(textures.some((image) => image.identifier === TEXTURE_ASSET_URLS.marble)).toBe(true);
     expect(textures.some((image) => image.identifier === WALL_TEXTURE_ASSET_URLS.wall_ice)).toBe(true);

@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewC
 import { FormsModule } from '@angular/forms';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { textureImagesOf } from '@axe/application/file/texture-images';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -27,7 +26,6 @@ export class MapEditorTexturePickerComponent {
   private readonly imageStorage = inject(ImageStorage);
   private readonly textureIntake = inject(TextureIntakeService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
 
   private readonly textureFileInput = viewChild<ElementRef<HTMLInputElement>>('textureFileInput');
@@ -36,9 +34,7 @@ export class MapEditorTexturePickerComponent {
   protected readonly textureBaseColor = TEXTURE_BASE_COLOR;
   protected readonly textureAssetUrls = TEXTURE_ASSET_URLS;
 
-  protected readonly imageTextures = computed<ImageFile[]>(() =>
-    textureImagesOf(this.objectChange, this.rolePermission, this.tagLock)
-  );
+  protected readonly imageTextures = computed<ImageFile[]>(() => textureImagesOf(this.objectChange, this.tagLock));
 
   protected selectTexture(id: TextureId): void {
     this.state.textureId.set(id);
