@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { CharacterImportService } from '@axe/application/character/character-import.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { CharacterImportService } from '@axe/features/character/import-character/character-import.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const WAREHOUSE_URL = 'https://character-sheets.appspot.com/sw2.5/edit.html?key=abc';
