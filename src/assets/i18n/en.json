@@ -345,6 +345,11 @@
         "nowWrite": "{{name}}'s AI link may now also act",
         "ended": "{{name}} ended their AI link",
         "lost": "{{name}}'s AI link was lost"
+      },
+      "loadRoom": {
+        "title": "The AI asks to load a room",
+        "ask": "The AI of the AI link wants to load a saved room in place of this one. The room in play will be replaced on everyone's screen. Load it? (Nothing is loaded if there is no answer within a minute.)",
+        "withheld": "This save holds things received only in the shape a room server withholds. Loading it spreads them in that shape to the room."
       }
     },
     "gpuNotice": {

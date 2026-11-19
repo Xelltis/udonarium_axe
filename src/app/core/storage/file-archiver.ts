@@ -280,6 +280,45 @@ export class FileArchiver {
   }
 
   /**
+   * Takes in the pictures, sounds and 3D models among the files under the limits and checks a drop
+   * holds them to, and nothing else: no room data or zip is opened and nothing is placed on the
+   * table. What is too large is named in the result rather than offered for making smaller, as no
+   * reader is there to make it so.
+   */
+  async loadAssets(files: readonly File[]): Promise<LoadResult & { readonly tooLarge: readonly string[] }> {
+    const run: LoadRun = { tooLarge: [], stillWanted: () => true, dataRead: false, images: [], audios: [], models: [] };
+    for (const file of files) {
+      if (file.type.startsWith('image/')) await this.takeImage(file, undefined, run, false);
+      await this.handleAudio(file, run);
+      await this.handleModel(file, run);
+    }
+    if (run.images.length + run.audios.length + run.models.length > 0) emitFileLoaded();
+    return {
+      dataRead: false,
+      images: run.images,
+      audios: run.audios,
+      models: run.models,
+      tooLarge: run.tooLarge.map((each) => each.name),
+    };
+  }
+
+  /**
+   * Whether a zip is a saved room, and whether it was saved by somebody who saw some of it only in
+   * the shape a room server withholds, as a load asks before it goes in; null for a file that is no
+   * readable zip or holds no room.
+   */
+  async roomIn(file: File): Promise<{ readonly withheld: boolean } | null> {
+    let entries: ZipEntry[];
+    try {
+      entries = await readZipEntries(file);
+    } catch {
+      return null;
+    }
+    const root = await this.roomRootOf(entries);
+    return root === null ? null : { withheld: /\swithheld="true"/.test(root) };
+  }
+
+  /**
    * Stores only the images among the files, for a picker that wants pictures and nothing else.
    *
    * Other kinds of file are ignored rather than read, so no room data or zip is opened and
@@ -307,6 +346,16 @@ export class FileArchiver {
     if (!file.type.startsWith('image/')) return false;
     // With no guard there is nothing to stop it.
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return false;
+    return this.takeImage(file, dropPoint, run, handsBackTooLarge);
+  }
+
+  /** Stores a picture and notes it, or notes it too large, as {@link handleImage} does once a load lets it in. */
+  private async takeImage(
+    file: File,
+    dropPoint: { x: number; y: number } | undefined,
+    run: LoadRun,
+    handsBackTooLarge: boolean
+  ): Promise<boolean> {
     const image = await this.storeImage(file);
     if (image === 'oversized') {
       run.tooLarge.push({
@@ -465,12 +514,18 @@ export class FileArchiver {
    */
   private async roomLoadAgreed(entries: ZipEntry[]): Promise<boolean> {
     const guard = this.reloadCheck;
-    const data = entries.find((entry) => baseNameOf(entry.name) === 'data.xml');
-    if (!guard || !data) return true;
-    const root = /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0];
-    if (!root) return true;
+    if (!guard) return true;
+    const root = await this.roomRootOf(entries);
+    if (root === null) return true;
     if (/\swithheld="true"/.test(root) && !guard.answerWithheldCheck()) return false;
     return guard.answerCheck();
+  }
+
+  /** The opening tag of the room an archive's `data.xml` holds, or null where it holds none. */
+  private async roomRootOf(entries: readonly ZipEntry[]): Promise<string | null> {
+    const data = entries.find((entry) => baseNameOf(entry.name) === 'data.xml');
+    if (!data) return null;
+    return /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0] ?? null;
   }
 
   /**

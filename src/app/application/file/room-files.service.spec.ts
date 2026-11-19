@@ -3,6 +3,7 @@ import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { FileArchiver, LoadResult } from '@axe/core/storage/file-archiver';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** A picker with files chosen in it, as the browser hands one over. */
@@ -83,6 +84,29 @@ describe('RoomFilesService', () => {
 
       expect(load).not.toHaveBeenCalled();
       expect(picker.value).toBe('');
+    });
+  });
+
+  describe('loading a room already agreed to', () => {
+    it('asks nothing again, and answers whether the room data was read', async () => {
+      const agree = vi.fn();
+      vi.spyOn(TestBed.inject(ObjectStore), 'get').mockReturnValue({ agreeInAdvance: agree } as unknown as ReturnType<
+        ObjectStore['get']
+      >);
+      const load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true } as LoadResult);
+      const room = new File(['x'], 'room.zip');
+
+      await expect(service.loadAgreed(room)).resolves.toBe(true);
+      expect(agree).toHaveBeenCalledBefore(load);
+      expect(load).toHaveBeenCalledWith([room]);
+    });
+
+    it('loads nothing for a seat that may not change the table', async () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
+      const load = vi.spyOn(TestBed.inject(FileArchiver), 'load');
+
+      await expect(service.loadAgreed(new File(['x'], 'room.zip'))).resolves.toBe(false);
+      expect(load).not.toHaveBeenCalled();
     });
   });
 });

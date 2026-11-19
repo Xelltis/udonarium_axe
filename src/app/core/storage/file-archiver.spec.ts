@@ -414,6 +414,62 @@ describe('FileArchiver', () => {
     });
   });
 
+  describe('taking in assets alone', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('takes in a picture and opens no room data, zipped or not', async () => {
+      const read: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockResolvedValue(ImageFile.createEmpty('pictured'));
+      const zipped = zipSync({ 'data.xml': strToU8('<room></room>') });
+      try {
+        const taken = await FileArchiver.instance.loadAssets([
+          new File([new Uint8Array([1, 2, 3])], 'goblin.png', { type: 'image/png' }),
+          new File([zipped.slice()], 'room.zip', { type: 'application/zip' }),
+          new File(['<room></room>'], 'data.xml', { type: 'application/xml' }),
+        ]);
+
+        expect(taken).toMatchObject({ dataRead: false, images: ['pictured'], tooLarge: [] });
+        expect(read).toEqual([]);
+      } finally {
+        off();
+      }
+    });
+
+    it('takes a picture in though the last load of a room was declined', async () => {
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({ isLoadOk: () => false } as unknown as ReturnType<
+        typeof ObjectStore.instance.get
+      >);
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockResolvedValue(ImageFile.createEmpty('after-decline'));
+
+      const taken = await FileArchiver.instance.loadAssets([
+        new File([new Uint8Array([1])], 'goblin.png', { type: 'image/png' }),
+      ]);
+
+      expect(taken.images).toEqual(['after-decline']);
+    });
+
+    it('names a picture too large to take in rather than offering it for making smaller', async () => {
+      const big = new File([new Uint8Array(3 * 1024 * 1024)], 'huge.png', { type: 'image/png' });
+
+      expect(await FileArchiver.instance.loadAssets([big])).toMatchObject({ images: [], tooLarge: ['huge.png'] });
+    });
+
+    it('tells a saved room, and one saved withheld in part, from any other file', async () => {
+      const zipOf = (files: Record<string, Uint8Array>) =>
+        new File([zipSync(files).slice()], 'x.zip', { type: 'application/zip' });
+
+      expect(await FileArchiver.instance.roomIn(zipOf({ 'data.xml': strToU8('<room></room>') }))).toEqual({
+        withheld: false,
+      });
+      expect(
+        await FileArchiver.instance.roomIn(zipOf({ 'save/data.xml': strToU8('<room withheld="true"></room>') }))
+      ).toEqual({ withheld: true });
+      expect(await FileArchiver.instance.roomIn(zipOf({ 'face.png': new Uint8Array([1]) }))).toBeNull();
+      expect(await FileArchiver.instance.roomIn(new File([new Uint8Array([0, 1])], 'x.zip'))).toBeNull();
+    });
+  });
+
   describe('a room archive whose load is declined', () => {
     const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
 

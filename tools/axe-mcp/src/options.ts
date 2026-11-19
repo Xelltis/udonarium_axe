@@ -32,6 +32,11 @@ export interface BridgeOptions {
   readonly price: { readonly input: number; readonly output: number } | null;
   /** With gm, the most tokens a model with no price uses while the bridge runs. */
   readonly maxTokens: number;
+  /**
+   * The folder whose files the AI may have the bridge read and write, for taking a picture into the
+   * room or saving the room to a file: where the bridge was started unless told otherwise.
+   */
+  readonly filesDir: string;
   readonly help: boolean;
   readonly version: boolean;
 }
@@ -78,6 +83,8 @@ Options:
                          read and written; without it their use is counted in tokens
   --max-tokens <count>   With gm, the most tokens a model with no price uses while it runs
                          (default ${GM_MAX_TOKENS_DEFAULT})
+  --files-dir <folder>   The folder the AI may read files from and save files to (default: where the
+                         bridge is started); a path leading out of it is refused
   --help                 Show this help
   --version              Show the version
 
@@ -86,7 +93,8 @@ Environment:
   AXE_MCP_TOKEN          With --http, the bearer token an MCP client must send
   ANTHROPIC_API_KEY      With gm, the Claude API key the game master is run with
   AXE_GM_API_KEY         With --provider openai, the provider's API key; left out for a server that asks none
-  AXE_GM_MAX_USD         With gm, the same as --max-usd`;
+  AXE_GM_MAX_USD         With gm, the same as --max-usd
+  AXE_MCP_FILES_DIR      The same as --files-dir`;
 
 function portOf(text: string | undefined, flag: string): number | string {
   const port = Number(text);
@@ -139,6 +147,7 @@ export function readOptions(
   const models: string[] = [];
   let price: BridgeOptions['price'] = null;
   let maxTokens = GM_MAX_TOKENS_DEFAULT;
+  let filesDir = env['AXE_MCP_FILES_DIR']?.trim() || '.';
   const origins = new Set(DEFAULT_ORIGINS);
   let help = false;
   let version = false;
@@ -211,6 +220,12 @@ export function readOptions(
         maxTokens = count;
         break;
       }
+      case '--files-dir': {
+        const folder = argv[++i];
+        if (!folder || folder.startsWith('--')) return { error: '--files-dir needs a folder' };
+        filesDir = folder;
+        break;
+      }
       case '--help':
       case '-h':
         help = true;
@@ -247,6 +262,7 @@ export function readOptions(
     models,
     price,
     maxTokens,
+    filesDir,
     help,
     version,
   };

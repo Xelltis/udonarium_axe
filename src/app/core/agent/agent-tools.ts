@@ -17,6 +17,45 @@ export interface AgentToolDefinition {
   readonly input: AgentObjectSchema;
   /** Whether the tool takes something away that cannot be had back by calling another tool. */
   readonly destructive?: boolean;
+  /**
+   * For a tool that takes or gives a file of the person's own computer: the argument naming its path,
+   * and whether the bridge reads that file and hands it to the tab as `file` (see {@link tabInputOf}),
+   * or writes the `file` the tab answers with there. The bridge keeps both to a folder it was told.
+   */
+  readonly localFile?: { readonly arg: string; readonly mode: 'read' | 'write' };
+  /** How long the bridge gives a call, for a tool that takes longer than most. */
+  readonly timeoutMs?: number;
+  /** Whether the tool reaches out to sites beyond the room and the person's computer. */
+  readonly openWorld?: true;
+}
+
+/** A file as the bridge and the tab hand it to each other: its name, its media type and its bytes. */
+export interface AgentFileContent {
+  readonly name: string;
+  readonly type: string;
+  readonly base64: string;
+}
+
+/** The shape of the file the bridge hands a tool that reads one, in place of the path it was given. */
+export const AGENT_FILE_SCHEMA: AgentObjectSchema = {
+  type: 'object',
+  description: 'A file read by the bridge from the path given. Leave it out; give the path.',
+  properties: {
+    name: { type: 'string', maxLength: 255 },
+    type: { type: 'string', maxLength: 100 },
+    base64: { type: 'string' },
+  },
+  required: ['name', 'type', 'base64'],
+  additionalProperties: false,
+};
+
+/**
+ * The input a tool's call reaches the tab with: as the AI gives it, and for a tool that reads a file
+ * of the person's computer, the file the bridge read from the path as well.
+ */
+export function tabInputOf(tool: AgentToolDefinition): AgentObjectSchema {
+  if (tool.localFile?.mode !== 'read') return tool.input;
+  return { ...tool.input, properties: { ...tool.input.properties, file: AGENT_FILE_SCHEMA } };
 }
 
 const PIECE: AgentSchema = {
@@ -197,6 +236,37 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     access: 'read',
     description:
       'List what plays now, every track that can be played as music (with its tag, the playlists that hold it, and its length, tempo and loudness where known), the playlists, and for the game master the scenes that put music on.',
+    input: input({}),
+  },
+  {
+    name: 'list_room_snapshots',
+    title: 'List the room snapshots',
+    access: 'read',
+    description:
+      'List the snapshots of the room this browser keeps (taken as play goes on, or by save_room_snapshot), newest first, by number, time and room name. load_room puts one back.',
+    input: input({}),
+  },
+  {
+    name: 'save_room',
+    title: 'Save the room to a file',
+    access: 'read',
+    localFile: { arg: 'path', mode: 'write' },
+    timeoutMs: 120_000,
+    description:
+      'Save the room as the save button does, into a zip file at a path on the computer the bridge runs on, inside the folder the bridge was started with. With everything, every picture and sound this browser holds goes in, named by anything or not. A file already there is not written over.',
+    input: input(
+      {
+        path: { type: 'string', description: "Where to write the zip, under the bridge's folder.", minLength: 1 },
+        everything: { type: 'boolean', description: 'Also put in every picture and sound this browser holds.' },
+      },
+      ['path']
+    ),
+  },
+  {
+    name: 'save_room_snapshot',
+    title: 'Take a room snapshot',
+    access: 'read',
+    description: 'Keep a snapshot of the room in this browser now, as the room archive panel does. Answers its number.',
     input: input({}),
   },
   {
@@ -497,6 +567,45 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       },
       ['kind', 'sound']
     ),
+  },
+  {
+    name: 'import_asset',
+    title: 'Take in a picture, sound or model',
+    access: 'write',
+    localFile: { arg: 'path', mode: 'read' },
+    timeoutMs: 120_000,
+    description:
+      'Take a picture, a sound or a 3D model (.glb) from a path on the computer the bridge runs on, inside the folder the bridge was started with, into the room, as dropping the file does, under the same limits (pictures 2 MB, sounds and models 10 MB, models 200,000 triangles). Never room data: a zip or an xml is refused. Answers the ids it was taken in under; tag them with change_object on image-tag, audio-tag or model-tag.',
+    input: input({ path: { type: 'string', description: "The file, under the bridge's folder.", minLength: 1 } }, [
+      'path',
+    ]),
+  },
+  {
+    name: 'import_character',
+    title: 'Take in a character sheet',
+    access: 'write',
+    openWorld: true,
+    timeoutMs: 60_000,
+    description:
+      "Make a piece from a character sheet, as the character import panel does: the address of a sheet on a site it knows (the sheet is read from that site), or the sheet's JSON pasted as text. The piece is placed on the table owned by this seat. Answers the piece made and what of the sheet could not be read.",
+    input: input({
+      url: { type: 'string', description: 'The address of the sheet.', maxLength: 2000 },
+      text: { type: 'string', description: "The sheet's JSON, pasted.", maxLength: 2_000_000 },
+    }),
+  },
+  {
+    name: 'load_room',
+    title: 'Load a room',
+    access: 'write',
+    destructive: true,
+    localFile: { arg: 'path', mode: 'read' },
+    timeoutMs: 240_000,
+    description:
+      'Put a saved room in place of the one in play for everyone: a zip at a path on the computer the bridge runs on, inside the folder the bridge was started with, or a snapshot by its number (list_room_snapshots). The person at this seat is asked on their screen first and has a minute to answer; nothing is loaded unless they agree.',
+    input: input({
+      path: { type: 'string', description: "The zip, under the bridge's folder." },
+      snapshot: { type: 'integer', description: 'The number of a snapshot this browser keeps.', minimum: 0 },
+    }),
   },
   {
     name: 'play_music',

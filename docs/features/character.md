@@ -18,7 +18,7 @@
 
 ## キャラクターの取り込み
 
-- **取り込みパイプライン** — ココフォリア コマJSON / キャラクター保管所 / キャラクターシート倉庫 / ゆとシート / CharaXivからキャラコマを生成（`domain/character/import`、`features/character/import-character`。取得と画像の解決は同じフォルダの`character-import.service`）
+- **取り込みパイプライン** — ココフォリア コマJSON / キャラクター保管所 / キャラクターシート倉庫 / ゆとシート / CharaXivからキャラコマを生成（`domain/character/import`、`features/character/import-character`。取得と画像の解決は`application/character/character-import.service`で、AI連携の`import_character`も同じサービスを通る）
 - **取得経路** — 保管所は直fetch（`Access-Control-Allow-Origin: *`）、倉庫はJSONP（CORS不可のためscriptタグ注入）。ゆとシートはキャラクターのURLを`mode=json`のアドレスに直して直fetchする（このサービスはJSONの取得をどのオリジンにも許している）。CharaXivはココフォリア形式の貼り付け。URLから取得の仕方を選ぶのは`detectImportFetchPlan`（`domain/character/import/import-source`）
 - **正規化モデル** — `ImportedCharacter`（statuses / params / system固有sections）へ正規化し、`ImportedCharacterFactory`がdata-elementツリーを構築。保管所CoCは`NA1..NA14`を能力値・SANへ写像、倉庫は`base` / 配列（技能・コンボ・武器）をセクションへ展開。ゆとシートは、`weapon1Name`のように種類・番号・欄を並べたキーを、種類ごとのセクションと番号ごとのグループにまとめる。専用のプロファイル（`system-profiles/ytsheet-sw25-profile`）に合う形なら、そちらで読む
 

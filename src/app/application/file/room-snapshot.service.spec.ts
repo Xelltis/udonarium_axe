@@ -156,6 +156,25 @@ describe('RoomSnapshotService', () => {
     expect(shown).toHaveBeenCalledWith('このスナップショットの部屋は読み込めませんでした。');
   });
 
+  it('asks nothing again for a restore the reader agreed to before it began', async () => {
+    const meta = await service.capture();
+    const objects = TestBed.inject(ObjectStore);
+    const get = objects.get.bind(objects);
+    const asked: string[] = [];
+    vi.spyOn(objects, 'get').mockImplementation(((identifier: string) =>
+      identifier === 'ReloadCheck'
+        ? {
+            reloadCheckStart: () => asked.push('start'),
+            agreeInAdvance: () => asked.push('agreed'),
+            isLoadOk: () => true,
+          }
+        : get(identifier)) as never);
+
+    await expect(service.restore(meta!.id, { agreed: true })).resolves.toBe(true);
+    await service.restore(meta!.id);
+    expect(asked).toEqual(['agreed', 'start']);
+  });
+
   it('stays quiet where the reader declined to overwrite the room with the snapshot', async () => {
     const meta = await service.capture();
     const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});

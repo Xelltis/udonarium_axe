@@ -13,13 +13,14 @@ export class ConfirmService {
    *
    * The question opens in the confirm dialog through the modal service, and a dismissed dialog
    * answers false. Until a dialog component has been registered it falls back to the browser's own
-   * `window.confirm`.
+   * `window.confirm`. Given a signal, the dialog is taken away unanswered, answering false, once the
+   * signal is aborted, as a question a person did not answer in time is.
    */
-  ask(option: ConfirmDialogOption | string): Promise<boolean> {
+  ask(option: ConfirmDialogOption | string, signal?: AbortSignal): Promise<boolean> {
     const asked = typeof option === 'string' ? { message: option } : option;
     if (!this.dialogComponent) return Promise.resolve(window.confirm(asked.message));
     return this.modalService
-      .open<unknown>(this.dialogComponent, asked)
+      .open<unknown>(this.dialogComponent, asked, undefined, signal)
       .then((answer) => answer === true)
       .catch(() => false);
   }

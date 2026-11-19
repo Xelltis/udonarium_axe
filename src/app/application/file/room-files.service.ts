@@ -50,6 +50,18 @@ export class RoomFilesService {
   }
 
   /**
+   * Loads a saved room the reader has already agreed to put in place of the one in play, asked by the
+   * app itself before, as a load an AI asks for is: no question is asked again. Answers whether the
+   * room data was read. Refused for a role that may not edit the table.
+   */
+  async loadAgreed(file: File): Promise<boolean> {
+    if (!this.rolePermission.canEditTabletop()) return false;
+    this.objectStore.get<ReloadCheck>('ReloadCheck')?.agreeInAdvance();
+    const { dataRead } = await this.fileArchiver.load([file]);
+    return dataRead;
+  }
+
+  /**
    * Loads the files chosen in a file picker into the room.
    *
    * Refused for a role that may not edit the table. The picker is cleared either way, so the same

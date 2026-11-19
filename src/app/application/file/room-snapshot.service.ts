@@ -125,9 +125,10 @@ export class RoomSnapshotService {
    * room cannot be read, which is said. A room to start on still being set out at launch is let
    * finish first, so the snapshot lands on it. While a replay's board is shown in place of the table
    * it restores nothing and says why, as the board and what went onto it are thrown away when the
-   * table comes back.
+   * table comes back. Given `agreed`, the reader was asked already, as for a restore an AI asks for,
+   * and is not asked again.
    */
-  async restore(id: number): Promise<boolean> {
+  async restore(id: number, options: { agreed?: boolean } = {}): Promise<boolean> {
     if (!this.isSupported || this._isRestoring()) return false;
     if (isNetworkIsolated()) {
       this.snackbar.show(this.t('app.restoreWhileReplayBoard'));
@@ -140,7 +141,8 @@ export class RoomSnapshotService {
 
       await this.startRoom.whenSettled();
       const reloadCheck = this.objectStore.get<ReloadCheck>('ReloadCheck');
-      reloadCheck?.reloadCheckStart(this.currentRoomName() !== '');
+      if (options.agreed) reloadCheck?.agreeInAdvance();
+      else reloadCheck?.reloadCheckStart(this.currentRoomName() !== '');
 
       const file = new File([record.blob], 'room-snapshot.zip', { type: 'application/zip' });
       const { dataRead } = await this.fileArchiver.load([file]);

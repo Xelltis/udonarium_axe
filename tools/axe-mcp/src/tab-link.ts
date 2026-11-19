@@ -12,9 +12,10 @@ import {
   type GmTabMessage,
   readTabMessage,
 } from '@axe/core/agent/agent-protocol';
-import { agentToolsDigest } from '@axe/core/agent/agent-tools';
+import { AGENT_TOOLS, agentToolsDigest } from '@axe/core/agent/agent-tools';
 import { WebSocket, WebSocketServer } from 'ws';
 
+import { type LocalFiles, type ToolCall, withLocalFiles } from './local-files';
 import { isLoopbackHost } from './loopback';
 
 /** The tab the bridge is connected to, and whose seat it is. */
@@ -47,7 +48,15 @@ export interface TabLinkOptions {
    * would otherwise be told no tab is there a moment before one is.
    */
   readonly tabGraceMs?: number;
+  /**
+   * The files of the person's computer a call may read or write (see `withLocalFiles`): every call,
+   * whoever makes it, goes through them. None, and no file is read or written, where not given.
+   */
+  readonly files?: LocalFiles;
 }
+
+/** The most a message from the tab may weigh: a saved room handed back as base64 with room to spare. */
+const MAX_MESSAGE_BYTES = 160 * 1024 * 1024;
 
 /** How long a call waits for a tab to connect, unless told otherwise. */
 const TAB_GRACE_MS = 8000;
@@ -94,6 +103,7 @@ export class TabLink {
       const server = new WebSocketServer({
         host: '127.0.0.1',
         port: this.options.port,
+        maxPayload: MAX_MESSAGE_BYTES,
         path: AGENT_BRIDGE_PATH,
         verifyClient: ({ origin, req }: { origin: string; req: IncomingMessage }) => this.admits(origin, req),
       });
@@ -150,7 +160,24 @@ export class TabLink {
    * Hands the tab a call and waits for its answer, giving it up after the time given or once the
    * caller gives up on it, and telling the tab so.
    */
-  async call(
+  /**
+   * Hands the tab a call and answers what came of it, the files a tool names read and written on the
+   * way (see `withLocalFiles`), for the MCP clients and the bridge's own game master alike.
+   */
+  call(
+    tool: string,
+    args: Readonly<Record<string, unknown>>,
+    timeoutMs: number,
+    signal?: AbortSignal
+  ): Promise<CallOutcome> {
+    const files = this.options.files;
+    const callTab: ToolCall = (name, input, ms, abort) => this.callTab(name, input, ms, abort);
+    return files
+      ? withLocalFiles(callTab, files, AGENT_TOOLS)(tool, args, timeoutMs, signal)
+      : callTab(tool, args, timeoutMs, signal);
+  }
+
+  private async callTab(
     tool: string,
     args: Readonly<Record<string, unknown>>,
     timeoutMs: number,

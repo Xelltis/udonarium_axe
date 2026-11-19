@@ -216,6 +216,28 @@ describe('ModalService', () => {
       expect(service.isShow).toBe(false);
     });
 
+    it('takes a dialogue away unanswered once the signal it was opened with aborts', async () => {
+      const service = TestBed.inject(ModalService);
+      let destroyCallback: (() => void) | undefined;
+      const panelComponentRef = {
+        instance: { content: () => ({ createComponent: () => ({ instance: {} }) }) },
+        destroy: () => destroyCallback?.(),
+        onDestroy: (cb: () => void) => (destroyCallback = cb),
+      };
+      const parentViewContainerRef = {
+        injector: TestBed.inject(Injector),
+        length: 0,
+        createComponent: () => panelComponentRef,
+      } as unknown as ViewContainerRef;
+      const asking = new AbortController();
+
+      const waiting = service.open(class {}, { title: 'too late' }, parentViewContainerRef, asking.signal);
+      asking.abort();
+
+      await expect(waiting).resolves.toBeNull();
+      expect(service.isShow).toBe(false);
+    });
+
     it('shows again after rejecting, since the count is only decremented once', async () => {
       const service = TestBed.inject(ModalService);
       const rootInjector = TestBed.inject(Injector);
