@@ -987,6 +987,12 @@ class Furnisher {
   }
 }
 
+/** Whether a plan goes in a room of a kind: any where the plan names none, else one of those it names. */
+function goesIn(plan: FurnishingPlan, set: string | undefined): boolean {
+  if (plan.set === undefined) return true;
+  return typeof plan.set === 'string' ? plan.set === set : set !== undefined && plan.set.includes(set);
+}
+
 /**
  * Puts furniture in the rooms that call for it, plan by plan and room by room.
  *
@@ -995,12 +1001,6 @@ class Furnisher {
  * open, and a piece against a wall stands clear of every way through the edge of the room, with the
  * room's floor still one piece round it.
  */
-/** Whether a plan goes in a room of a kind: any where the plan names none, else one of those it names. */
-function goesIn(plan: FurnishingPlan, set: string | undefined): boolean {
-  if (plan.set === undefined) return true;
-  return typeof plan.set === 'string' ? plan.set === set : set !== undefined && plan.set.includes(set);
-}
-
 export function furnishRooms(
   layout: DungeonLayout,
   plans: readonly FurnishingPlan[],
