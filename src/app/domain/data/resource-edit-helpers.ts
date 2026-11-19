@@ -24,7 +24,6 @@ import {
   holdsRequestedStatus,
   parseBuffModifierRequest,
   ParsedBuffModifierRequest,
-  readBuffAmount,
   readBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
@@ -239,20 +238,27 @@ export function statusNamedIn(object: GameCharacter, name: string): string | nul
 }
 
 /**
- * Whether what follows `=` is an amount to work out: a number, a sum, or a roll, with any option
- * letters after it. Letters alone, as `L` or `OK`, are words, not options with no amount.
+ * Whether what follows `=` is an amount to work out, as everything written after it always was: a
+ * number, a sum, a roll or a system's command, anything with a digit in it. Words with none, as `炎`,
+ * `OK` or `L`, are words, and only they.
  */
 export function isAmountWritten(amount: string): boolean {
-  const written = toHalfWidth(amount).trim();
-  if (/\d\s*[dD]|[dD]\s*\d/.test(written)) return true;
-  const bare = splitOptionLetters(written).amount.trim();
-  return bare.length > 0 && Number.isFinite(readBuffAmount(bare));
+  return /\d/.test(toHalfWidth(amount));
 }
 
 /**
- * Where a `:` command's value lands on the status it names (see {@link landingOn}): `>` writes words
- * wherever it is told to, `=` writes words into an item that takes words or a choice and works an
- * amount out to hold the item at, and the other operators move the number by it.
+ * The slot of a status a `:` command reaches: the one it names, but the value itself for the maximum
+ * of a status that has none, as a line of text has none.
+ */
+export function slotWrittenTo(object: GameCharacter, target: string, slot: ResourceSlot): ResourceSlot {
+  return slot === 'max' && object.status.getValue(target, 'max') == null ? 'now' : slot;
+}
+
+/**
+ * Where a `:` command's value lands on the status it names (see {@link landingOn}), in the slot it
+ * reaches (see {@link slotWrittenTo}): `>` writes words wherever it is told to, `=` writes words into
+ * an item that takes words or a choice and works an amount out to hold the item at, and the other
+ * operators move the number by it.
  */
 export function commandLanding(
   object: GameCharacter,
@@ -262,25 +268,48 @@ export function commandLanding(
   amount: string
 ): ItemLanding {
   if (operator === '>') return object.status.landingOf(target, 'now', amount, 'wordsAnywhere');
-  if (operator !== '=') return object.status.landingOf(target, slot, amount, 'moveBy');
-  return object.status.landingOf(target, slot, amount, isAmountWritten(amount) ? 'formula' : 'words');
+  const reached = slotWrittenTo(object, target, slot);
+  if (operator !== '=') return object.status.landingOf(target, reached, amount, 'moveBy');
+  return object.status.landingOf(target, reached, amount, isAmountWritten(amount) ? 'formula' : 'words');
 }
 
 /**
  * Writes a `>` command's text into the character's status, or a `=` one's words, and returns the chat
- * text reporting it. An item holding a choice takes only one of its choices; anything else is left
- * as it was and the report names the choices.
+ * text reporting it (see {@link wordsReport}). An item holding a choice takes only one of its choices;
+ * anything else is left as it was and the report names the choices.
  */
-export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): string {
+export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
   const landing = character.status.landingOf(edit.target, 'now', edit.replace, 'wordsAnywhere');
-  if (landing.kind === 'notAChoice') return `${notAChoiceText(edit.target, edit.replace, landing.choices)}    `;
+  if (landing.kind === 'notAChoice') {
+    return wordsReport(character, edit.target, notAChoiceText(edit.target, edit.replace, landing.choices));
+  }
   character.status.setText(edit.target, edit.replace);
-  return `${edit.target}＞${edit.replace}    `;
+  return wordsReport(character, edit.target, `${edit.target}＞${edit.replace}`);
 }
 
-/** What a report says of words that are none of the choices an item offers. */
+/**
+ * The report of words written into a status, or turned away from a choice: in full, and as it is said
+ * to everyone, which of a piece whose contents are kept from anyone is only that the status was written
+ * into, as only the change is said of a value set on one: what it holds, a roll's answer, and the
+ * choices it offers stay with those who may see them.
+ */
+function wordsReport(character: GameCharacter, target: string, full: string): ResourceEditReport {
+  const said = `${full}    `;
+  return { full: said, shown: isKeptFromAnyone(character) ? `${target}＞${KEPT_VALUE}    ` : said };
+}
+
+/** What a report says of words that are none of the choices an item offers, naming the choices where there are any to say. */
 function notAChoiceText(target: string, words: string, choices: readonly string[]): string {
-  return `${target}に「${words.trim()}」はありません: ${choices.join('・')}`;
+  const offered = choices.length > 0 ? `: ${choices.join('・')}` : '';
+  return `${target}に「${words.trim()}」はありません${offered}`;
+}
+
+/**
+ * The choices of a piece's item that may be said to everyone: none of a piece whose contents are kept
+ * from anyone, which a report seen by all or the chat's lint names no choice of.
+ */
+export function choicesToSay(character: GameCharacter, choices: readonly string[]): readonly string[] {
+  return isKeptFromAnyone(character) ? [] : choices;
 }
 
 /**
@@ -308,22 +337,20 @@ export interface ResourceEditReport {
  * one changes the current value instead. Both texts are empty when the status has no value to change.
  */
 export function applyResourceEditReport(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
+  const nowOrMax = slotWrittenTo(character, edit.target, edit.nowOrMax);
   if (edit.operator === '=') {
-    const landing = character.status.landingOf(edit.target, edit.nowOrMax, String(edit.calcAns), 'amount');
-    const said = (text: string): ResourceEditReport => ({ full: `${text}    `, shown: `${text}    ` });
-    if (landing.kind === 'notAChoice') return said(notAChoiceText(edit.target, String(edit.calcAns), landing.choices));
+    const answer = String(edit.calcAns);
+    const landing = character.status.landingOf(edit.target, nowOrMax, answer, 'amount');
+    if (landing.kind === 'notAChoice') {
+      return wordsReport(character, edit.target, notAChoiceText(edit.target, answer, landing.choices));
+    }
     if (landing.kind === 'words') {
       character.status.setText(edit.target, landing.words);
-      return said(`${edit.target}＞${landing.words}`);
+      return wordsReport(character, edit.target, `${edit.target}＞${landing.words}`);
     }
   }
   let optionText = '';
-  let nowOrMax = edit.nowOrMax;
-
   const maxNum = character.status.getValue(edit.target, 'max');
-  if (nowOrMax === 'max' && maxNum == null) {
-    nowOrMax = 'now';
-  }
 
   const oldNum = character.status.getValue(edit.target, nowOrMax);
   if (oldNum == null) return { full: '', shown: '' };
@@ -538,7 +565,8 @@ function grantCalculatedBuff(
         : character.buffs.applyModifier(data, request, true);
       if (applied && landing.kind === 'missing') made.push(request.target);
       else if (!applied && landing.kind === 'notAChoice') {
-        refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), landing.choices));
+        const choices = choicesToSay(character, landing.choices);
+        refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), choices));
       } else if (!applied && landing.kind === 'notWords') {
         refused.push(`${request.target}は数の項目なので「${request.text}」は書けません`);
       } else if (!applied) missing.push(request.target);

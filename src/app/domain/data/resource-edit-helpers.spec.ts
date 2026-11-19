@@ -9,6 +9,7 @@ import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element
 import {
   applyBuffEdit,
   applyResourceEdit,
+  applyResourceEditReport,
   applyTextEdit,
   type BuffEdit,
   convertCommandToResourceEdit,
@@ -176,7 +177,7 @@ describe('resource-edit-helpers', () => {
       edit.target = '器用度';
       edit.replace = '30';
 
-      const text = applyTextEdit(edit, character);
+      const text = applyTextEdit(edit, character).full;
 
       expect(text).toContain('器用度＞30');
     });
@@ -1084,18 +1085,64 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getText('属性')).toBe('無属性');
     });
 
-    it('reads letters alone after `=` as words, and a number with option letters as an amount', () => {
+    it('reads what follows `=` with no digit in it as words, and anything with one as an amount, as it always was', () => {
       expect(said(':属性=L').edit).toMatchObject({ operator: '>', replace: 'L' });
       expect(said(':属性=OK').edit).toMatchObject({ operator: '>', replace: 'OK' });
       expect(said(':HP=10L').edit).toMatchObject({ operator: '=', amount: '10' });
+      for (const amount of ['13/2F', '[13/2C]+1', 'Card2', '3D', 'K20+5']) {
+        expect(said(`:属性=${amount}`).edit.operator, amount).toBe('=');
+      }
+    });
+
+    it("takes words naming one of a choice's choices as that choice, whatever they read as", () => {
+      character.detailDataElement!.getFirstElementByName('構え')!.setAttribute(DataElementAttribute.CHOICES, 'Lv1,Lv2');
+
+      expect(said(':構え=Lv2').edit).toMatchObject({ operator: '>', replace: 'Lv2' });
+      expect(applyTextEdit(said(':構え=Lv2').edit, character).full).toBe('構え＞Lv2    ');
+      expect(said(':構え=Lv3').edit.operator).toBe('=');
+    });
+
+    it('writes into the value of a status the maximum of which a command names, where it has none, as it moves one', () => {
+      expect(said(':属性^=炎').edit).toMatchObject({ operator: '>', replace: '炎' });
+      expect(said(':段位^=2').edit).toMatchObject({ operator: '>', replace: '2' });
+    });
+
+    describe('of a piece whose contents are kept from anyone', () => {
+      beforeEach(() => {
+        character.disclosureMode = 'gm';
+      });
+
+      it('tells everyone only which status words went into, by `>`, by `=` or as a worked-out choice', () => {
+        expect(applyTextEdit(said(':属性=炎').edit, character)).toEqual({
+          full: '属性＞炎    ',
+          shown: '属性＞？    ',
+        });
+        expect(applyTextEdit(said(':属性>氷').edit, character)).toEqual({
+          full: '属性＞氷    ',
+          shown: '属性＞？    ',
+        });
+        expect(applyResourceEditReport({ ...said(':段位=1d3').edit, calcAns: 2 }, character)).toEqual({
+          full: '段位＞2    ',
+          shown: '段位＞？    ',
+        });
+      });
+
+      it('names a choice of it to none but those who may see it, by the chat or by a buff', () => {
+        expect(applyTextEdit(said(':構え=突撃').edit, character)).toEqual({
+          full: '構えに「突撃」はありません: 通常・攻勢・守勢    ',
+          shown: '構え＞？    ',
+        });
+        expect(applyResourceEditReport({ ...said(':段位=5').edit, calcAns: 5 }, character).shown).toBe('段位＞？    ');
+        expect(buff('&!構え直し/構え=突撃/3')).toBe('構え直しを付与 構え=突撃/3R (構えに「突撃」はありません)    ');
+      });
     });
 
     it('clears an item holding a choice with `>` and nothing, and writes anything into one offering no choices', () => {
-      expect(applyTextEdit(said(':構え>').edit, character)).toBe('構え＞    ');
+      expect(applyTextEdit(said(':構え>').edit, character).full).toBe('構え＞    ');
       expect(character.status.getText('構え')).toBe('');
 
       character.detailDataElement!.getFirstElementByName('構え')!.setAttribute(DataElementAttribute.CHOICES, '');
-      expect(applyTextEdit(said(':構え>突撃').edit, character)).toBe('構え＞突撃    ');
+      expect(applyTextEdit(said(':構え>突撃').edit, character).full).toBe('構え＞突撃    ');
       expect(buff('&!突撃/構え=猛進/3')).toBe('突撃を付与 構え=猛進/3R    ');
     });
 
@@ -1117,14 +1164,14 @@ describe('resource-edit-helpers', () => {
     });
 
     it('writes the words, and writes into an item holding a choice only one of its choices', () => {
-      expect(applyTextEdit(said(':属性=炎').edit, character)).toBe('属性＞炎    ');
+      expect(applyTextEdit(said(':属性=炎').edit, character).full).toBe('属性＞炎    ');
       expect(character.status.getText('属性')).toBe('炎');
 
       expect(said(':構え=攻勢').edit).toMatchObject({ operator: '>', replace: '攻勢' });
-      expect(applyTextEdit(said(':構え=攻勢').edit, character)).toBe('構え＞攻勢    ');
+      expect(applyTextEdit(said(':構え=攻勢').edit, character).full).toBe('構え＞攻勢    ');
       expect(character.status.getText('構え')).toBe('攻勢');
 
-      expect(applyTextEdit(said(':構え>突撃').edit, character)).toBe(
+      expect(applyTextEdit(said(':構え>突撃').edit, character).full).toBe(
         '構えに「突撃」はありません: 通常・攻勢・守勢    '
       );
       expect(character.status.getText('構え')).toBe('攻勢');

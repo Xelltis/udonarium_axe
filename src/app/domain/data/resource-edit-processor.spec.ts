@@ -156,7 +156,7 @@ describe('ResourceEditProcessor', () => {
       edit.target = '器用度';
       edit.replace = '30';
 
-      const result = processor.textEdit(edit, character);
+      const result = processor.textEdit(edit, character).full;
       expect(result).toContain('器用度');
       expect(result).toContain('30');
     });

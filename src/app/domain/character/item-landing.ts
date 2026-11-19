@@ -36,7 +36,8 @@ export type ItemLanding =
  * lint all go by.
  *
  * An item that holds a choice takes, as its value, only one of the choices it offers, a worked-out
- * amount as well as words; a sum or a roll is worked out first and its answer held to the choices as
+ * amount as well as words. Words naming one of its choices are that choice however they read, `Lv2`
+ * no sum to work out; any other sum or roll is worked out first and its answer held to the choices as
  * it is written. One that offers no choices takes anything, and `>` with nothing clears it. One that
  * holds words takes words, and an amount as a number. One that holds numbers takes an amount, and
  * words only as `>` writes them wherever it is told to. An item holding words or a choice has no slot
@@ -52,14 +53,14 @@ export function landingOn(item: ItemTakes | null, slot: ResourceSlot, written: s
     return as === 'wordsAnywhere' ? { kind: 'words', words } : { kind: 'number' };
   }
   if (slot !== 'now' && as !== 'wordsAnywhere') return { kind: 'noSlot' };
-  if (as === 'moveBy' || as === 'formula') return { kind: 'number' };
+  if (as === 'moveBy') return { kind: 'number' };
   if (item.takes === 'choice') {
+    if (item.choices.includes(words)) return { kind: 'words', words };
+    if (as === 'formula') return { kind: 'number' };
     const free = item.choices.length < 1 || (as === 'wordsAnywhere' && words.length < 1);
-    return free || item.choices.includes(words)
-      ? { kind: 'words', words }
-      : { kind: 'notAChoice', choices: item.choices };
+    return free ? { kind: 'words', words } : { kind: 'notAChoice', choices: item.choices };
   }
-  return as === 'amount' ? { kind: 'number' } : { kind: 'words', words };
+  return as === 'amount' || as === 'formula' ? { kind: 'number' } : { kind: 'words', words };
 }
 
 /** What a sheet answers about its items, as far as where a value lands goes. */

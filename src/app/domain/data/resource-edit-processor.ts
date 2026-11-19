@@ -382,8 +382,8 @@ export class ResourceEditProcessor {
     }
   }
 
-  /** Writes a `>` command's text into the character's status; see {@link applyTextEdit}. */
-  textEdit(edit: ResourceEdit, character: GameCharacter): string {
+  /** Writes a `>` command's text into the character's status and returns its reports; see {@link applyTextEdit}. */
+  textEdit(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
     return applyTextEdit(edit, character);
   }
 
@@ -432,13 +432,9 @@ export class ResourceEditProcessor {
       if (edit.targeted) {
         add(`[${saidNameOf(character)}] `);
       }
-      if (edit.operator === '>') {
-        add(this.textEdit(edit, character));
-      } else {
-        const report = this.resourceEdit(edit, character);
-        add(report.shown, report.full);
-        if (report.shown !== report.full) kept.add(character);
-      }
+      const report = edit.operator === '>' ? this.textEdit(edit, character) : this.resourceEdit(edit, character);
+      add(report.shown, report.full);
+      if (report.shown !== report.full) kept.add(character);
       if (edit.embeddedRolls.length > 0) {
         text = text.replace(/[ ]+$/, '');
         full = full.replace(/[ ]+$/, '');

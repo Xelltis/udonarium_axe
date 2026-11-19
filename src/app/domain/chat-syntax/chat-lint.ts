@@ -11,7 +11,7 @@ import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modif
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { landingOfRequest } from '@axe/domain/character/item-landing';
+import { type ItemLanding, landingOfRequest } from '@axe/domain/character/item-landing';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
@@ -32,6 +32,7 @@ import {
   resourceCommandSites,
 } from '@axe/domain/data/resource-command-words';
 import {
+  choicesToSay,
   commandLanding,
   parseResourceEditOption,
   readModifierLayout,
@@ -490,15 +491,29 @@ function lintResource(
   const landings = aimed.map(({ piece, target }) =>
     commandLanding(piece, target!, named.slot, parts.operator, parts.amount)
   );
-  const unchosen = landings.find((landing) => landing.kind === 'notAChoice');
-  if (unchosen?.kind === 'notAChoice') {
-    return add(span, 'error', 'res.notAChoice', { params: { name, choices: unchosen.choices.join('・') } });
-  }
+  const unchosen = saidChoicesMissed(aimed.map(({ piece }, index) => ({ piece, landing: landings[index] })));
+  if (unchosen) return add(span, 'error', 'res.notAChoice', { params: { name, choices: unchosen.join('・') } });
   if (landings.some((landing) => landing.kind === 'noSlot'))
     return add(span, 'error', 'res.noSlot', { params: { name } });
   if (landings.some((landing) => landing.kind !== 'words') && parseResourceEditOption(parts.amount).isErr) {
     add(span, 'error', 'res.badOption');
   }
+}
+
+/**
+ * The choices of the first piece whose item a value is none of the choices of, where they may be said
+ * (see {@link choicesToSay}): of a piece whose contents are kept from anyone, nothing is told, not even
+ * that the value missed. Null where none missed.
+ */
+function saidChoicesMissed(
+  landings: readonly { piece: GameCharacter; landing: ItemLanding }[]
+): readonly string[] | null {
+  for (const { piece, landing } of landings) {
+    if (landing.kind !== 'notAChoice') continue;
+    const choices = choicesToSay(piece, landing.choices);
+    if (choices.length > 0) return choices;
+  }
+  return null;
 }
 
 /**
@@ -515,11 +530,10 @@ function lintBuffStatus(
 ): void {
   const name = request.target;
   const landings = pieces.map((piece) => ({ piece, landing: landingOfRequest(piece.status, request) }));
-  for (const { landing } of landings) {
-    if (landing.kind === 'notAChoice') {
-      return add(span, 'error', 'buff.notAChoice', { params: { name, choices: landing.choices.join('・') } });
-    }
-    if (landing.kind === 'notWords') return add(span, 'error', 'buff.notWords', { params: { name } });
+  const unchosen = saidChoicesMissed(landings);
+  if (unchosen) return add(span, 'error', 'buff.notAChoice', { params: { name, choices: unchosen.join('・') } });
+  if (landings.some(({ landing }) => landing.kind === 'notWords')) {
+    return add(span, 'error', 'buff.notWords', { params: { name } });
   }
   if (landings.some(({ landing }) => landing.kind === 'unwritable')) {
     return add(span, 'warning', 'buff.missingStatus', { params: { name } });

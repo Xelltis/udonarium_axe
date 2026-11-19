@@ -172,7 +172,8 @@ describe('lintChatSyntax', () => {
       expect(codes(':役割=1d3')).not.toContain('res.notAChoice');
       expect(codes(':名前メモ=OK')).toEqual([]);
       expect(codes(':役割+1')).not.toContain('res.notAChoice');
-      expect(lint(':役割^=交渉役')[0]).toMatchObject({ severity: 'error', code: 'res.noSlot' });
+      expect(lint(':役割_MAX=交渉役')[0]).toMatchObject({ severity: 'error', code: 'res.noSlot' });
+      expect(codes(':役割^=交渉役')).toEqual([]);
       expect(lint(':役割=勇者')[0]).toMatchObject({
         severity: 'error',
         code: 'res.notAChoice',
@@ -231,6 +232,13 @@ describe('lintChatSyntax', () => {
       group.appendChild(DataElement.create('状態', '', { type: 'check' }));
 
       expect(codes('&!X/状態=毒/3')).toEqual(['buff.missingStatus']);
+    });
+
+    it('tells nothing of the choices of a piece whose contents are kept from anyone, by a buff or by the chat', () => {
+      speaker.disclosureMode = 'gm';
+
+      expect(codes('&!指揮/役割=勇者/3')).toEqual([]);
+      expect(codes(':役割=勇者')).toEqual([]);
     });
 
     it('finds words that are none of the choices for one target though another lacks the item', () => {
