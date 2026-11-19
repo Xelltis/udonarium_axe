@@ -767,6 +767,26 @@ function touchesCell(piece: DungeonRect, cell: DungeonPoint): boolean {
   return cell.x >= piece.x && cell.y >= piece.y && cell.x < piece.x + piece.w && cell.y < piece.y + piece.h;
 }
 
+describe('a piece of several cells against a wall', () => {
+  it('names the cell out from the wall for it to stand on, and none for one in the middle of a room', () => {
+    let beds = 0;
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'wizardTower', roomCount: 8, seed });
+      for (const piece of layout.furnishings ?? []) {
+        if (piece.piece === 'magicCircle') expect(piece.standsOn, `${seed}`).toBeUndefined();
+        if (piece.piece !== 'canopyBed' || !piece.standsOn) continue;
+        beds++;
+        const back = { 0: [0, -1], 90: [1, 0], 180: [0, 1], 270: [-1, 0] }[piece.facing as 0 | 90 | 180 | 270];
+        const beyond = { x: piece.standsOn.x + back[0], y: piece.standsOn.y + back[1] };
+        const inside =
+          beyond.x >= piece.x && beyond.y >= piece.y && beyond.x < piece.x + piece.w && beyond.y < piece.y + piece.h;
+        expect(inside, `${seed} ${JSON.stringify(piece)}`).toBe(true);
+      }
+    }
+    expect(beds).toBeGreaterThan(0);
+  });
+});
+
 describe('one piece in the middle of a room', () => {
   it('lies along the room’s length, whichever way the piece was made longer', () => {
     for (const [roomW, roomH] of [

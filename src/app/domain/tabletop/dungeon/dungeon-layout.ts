@@ -208,6 +208,12 @@ export interface DungeonSpout extends DungeonPoint {
 /** A piece of furniture standing in a room, and the cells it takes. */
 export interface DungeonFurnishing extends DungeonRect {
   piece: FurnishingId;
+  /**
+   * On a board of hexes, the cell a piece of several cells stands its middle on: for one with its back
+   * to a wall, the cell out from the wall, so it reaches no further into the wall than its cells do.
+   * Left out, the cell nearest its middle.
+   */
+  standsOn?: DungeonPoint;
   /** How far it is turned off square, in degrees. */
   spin: number;
   /**

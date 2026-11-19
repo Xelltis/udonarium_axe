@@ -34,17 +34,27 @@ describe('a piece of furniture of several cells drawn as its model', () => {
     }
   });
 
-  it('stands a piece facing a way on the cell it faces out of, reaching no further into the wall at its back', () => {
+  it('stands a piece on the cell the furnisher names, and one it names none for on the cell nearest its middle', () => {
     for (const gridType of HEXES) {
-      for (const [facing, cell] of [
-        [0, { x: 5, y: 3 }],
-        [180, { x: 5, y: 2 }],
+      const named: DungeonFurnishing = {
+        piece: 'bed',
+        x: 5,
+        y: 2,
+        w: 1,
+        h: 2,
+        spin: 0,
+        facing: 0,
+        standsOn: { x: 5, y: 3 },
+      };
+      const circle: DungeonFurnishing = { piece: 'magicCircle', x: 4, y: 3, w: 3, h: 3, spin: 0, facing: 0 };
+      for (const [piece, cell] of [
+        [named, { x: 5, y: 3 }],
+        [circle, { x: 5, y: 4 }],
       ] as const) {
-        const piece: DungeonFurnishing = { piece: 'bed', x: 5, y: 2, w: 1, h: 2, spin: 0, facing };
         const [block] = furnishingBlocks(piece, 1, { models: true, gridType });
         const middle = middleOf(block, gridType);
         const centre = cellCentre(cell, { type: gridType, sizePx: 1 });
-        expect(Math.hypot(centre.x - middle.x, centre.y - middle.y), `${gridType} ${facing}`).toBeLessThan(1e-9);
+        expect(Math.hypot(centre.x - middle.x, centre.y - middle.y), `${gridType} ${piece.piece}`).toBeLessThan(1e-9);
       }
     }
   });

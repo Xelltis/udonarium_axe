@@ -30,6 +30,9 @@ export const SIDE_STEPS: Readonly<Record<Side, { readonly dx: number; readonly d
   w: { dx: -1, dy: 0 },
 };
 
+/** The four sides of a square, clockwise from straight up. */
+export const SIDES: readonly Side[] = ['n', 'e', 's', 'w'];
+
 /** The side across from each. */
 export const OPPOSITE_SIDE: Readonly<Record<Side, Side>> = { n: 's', s: 'n', e: 'w', w: 'e' };
 

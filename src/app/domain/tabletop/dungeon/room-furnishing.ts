@@ -4,6 +4,7 @@ import {
   ORTHOGONAL_STEPS,
   type Side,
   SIDE_STEPS,
+  SIDES as FOUR_SIDES,
   SQUARE_STEPS_WITH_CORNERS,
   TURN_TO_FACE,
 } from '@axe/domain/tabletop/cell-steps';
@@ -12,6 +13,8 @@ import {
   DungeonCell,
   DungeonFurnishing,
   DungeonLayout,
+  DungeonPoint,
+  DungeonRect,
   DungeonRoom,
   DungeonRoomRoleValue,
   FurnishingId,
@@ -796,7 +799,9 @@ class Furnisher {
           if (run.length > 0) break;
           continue;
         }
-        run.push(this.placed[this.placed.length - 1]);
+        const stood = this.placed[this.placed.length - 1];
+        if (w * d > 1) stood.standsOn = cellOutFrom(rect, side);
+        run.push(stood);
       }
       left -= run.length;
       if (plan.above && run.length > 0) {
@@ -840,7 +845,7 @@ class Furnisher {
    * the edge of the room, and only where the room's floor stays one piece.
    */
   rows(plan: FurnishingPlan, room: DungeonRoom): void {
-    const ways = (['n', 'e', 's', 'w'] as const).map((side) => ({ side, count: this.wayInWeight(room, side) }));
+    const ways = FOUR_SIDES.map((side) => ({ side, count: this.wayInWeight(room, side) }));
     const near = ways.reduce((best, way) => (way.count > best.count ? way : best)).side;
     const far = OPPOSITE_SIDE[near];
     const across = far === 'n' || far === 's';
@@ -896,7 +901,7 @@ class Furnisher {
     const width = this.layout.width;
     const floor = roomCells(this.layout, room).map((cell) => ({ x: cell % width, y: Math.floor(cell / width) }));
     const stretches: { side: Side; cells: { x: number; y: number }[] }[] = [];
-    for (const side of ['n', 'e', 's', 'w'] as const) {
+    for (const side of FOUR_SIDES) {
       const { dx, dy } = SIDE_STEPS[side];
       const acrossX = dx === 0;
       const cells = floor
@@ -992,6 +997,24 @@ class Furnisher {
       return cell === DungeonCell.Door || cell === DungeonCell.Corridor;
     }).length;
   }
+}
+
+/**
+ * The cell of a piece's rectangle out from the wall its back is against: of those farthest from it,
+ * the one nearest the rectangle's middle.
+ */
+function cellOutFrom(rect: DungeonRect, wall: Side): DungeonPoint {
+  const { dx, dy } = SIDE_STEPS[OPPOSITE_SIDE[wall]];
+  const cells = Array.from({ length: rect.w * rect.h }, (_, at) => ({
+    x: rect.x + (at % rect.w),
+    y: rect.y + Math.floor(at / rect.w),
+  }));
+  const reach = Math.max(...cells.map(({ x, y }) => x * dx + y * dy));
+  const middle = { x: rect.x + (rect.w - 1) / 2, y: rect.y + (rect.h - 1) / 2 };
+  const off = (cell: DungeonPoint) => Math.hypot(cell.x - middle.x, cell.y - middle.y);
+  return cells
+    .filter(({ x, y }) => x * dx + y * dy === reach)
+    .reduce((best, cell) => (off(cell) < off(best) ? cell : best));
 }
 
 /**
