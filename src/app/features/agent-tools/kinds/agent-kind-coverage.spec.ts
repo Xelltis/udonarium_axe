@@ -59,7 +59,6 @@ const NOT_YET = [
   'cut-in-scene',
   'data',
   'dice-symbol',
-  'effect-field',
   'effect-preset',
   'engagement-zone',
   'fog-memory',
@@ -69,7 +68,6 @@ const NOT_YET = [
   'image-tag',
   'image-tag-lock',
   'jukebox',
-  'light-source',
   'model-tag',
   'move-block-map',
   'party',
@@ -80,15 +78,9 @@ const NOT_YET = [
   'stamp-pack',
   'status-ailment-catalog',
   'summary-setting',
-  'table-ambience',
-  'table-background-layer',
-  'table-mask',
   'table-move-cost',
-  'table-ruler',
   'table-trigger',
-  'terrain',
   'vn-stage',
-  'white-board',
 ];
 
 describe('AGENT_KIND_COVERAGE', () => {
