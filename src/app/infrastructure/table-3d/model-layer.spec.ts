@@ -1,11 +1,21 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
-import { ModelLayer, partPlacementsOf, placementOf } from '@axe/infrastructure/table-3d/model-layer';
+import {
+  ModelLayer,
+  partPlacementsOf,
+  placedPartsOf,
+  placementOf,
+  spinOf,
+  spinPlacedAt,
+  spoutsOf,
+  standingBoxOf,
+} from '@axe/infrastructure/table-3d/model-layer';
 import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   AnimationClip,
   BufferAttribute,
   BufferGeometry,
   Group,
+  type InstancedMesh,
   Matrix4,
   Mesh,
   Vector3,
@@ -38,6 +48,177 @@ function drawnAt(model: TableWorldModel, x: number, y: number, z: number): numbe
   const point = new Vector3(x, y, z).applyMatrix4(placementOf(model, MADE));
   return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
 }
+
+describe('spoutsOf', () => {
+  /** A drain one unit across and two tall, its mouth a unit up at the middle of its south face. */
+  const drain = { ...MADE, spouts: [new Vector3(0, 1, 0.5)] };
+
+  it('finds the mouth of a model placed for its block, how high it is, the way it faces and how wide it pours', () => {
+    expect(spoutsOf(knight(), drain)).toEqual([
+      { key: 'knight:0', x: 100, y: 225, mouthPx: 50, outX: 0, outY: 1, widthPx: 12 },
+    ]);
+  });
+
+  it('turns the mouth with the model, and lifts it with the ground the block stands on', () => {
+    const turned = knight({ model: { ...knight().model, turnDeg: 90 }, altitudePx: 30 });
+
+    expect(spoutsOf(turned, drain)).toEqual([
+      { key: 'knight:0', x: 75, y: 200, mouthPx: 80, outX: -1, outY: 0, widthPx: 12 },
+    ]);
+  });
+
+  it('finds none on a model not read yet, nor on one made with no spout', () => {
+    expect(spoutsOf(knight(), null)).toEqual([]);
+    expect(spoutsOf(knight(), MADE)).toEqual([]);
+  });
+});
+
+describe('a part made to turn', () => {
+  /** A wheel turning a quarter turn a second about an axis running south through a point a unit up. */
+  const wheel = {
+    ...MADE,
+    parts: [
+      { within: new Matrix4() },
+      { within: new Matrix4(), spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90 } },
+    ],
+  };
+  const drawn = (matrix: Matrix4, x: number, y: number, z: number) => {
+    const point = new Vector3(x, y, z).applyMatrix4(matrix);
+    return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
+  };
+
+  it('stands as it was made at the start, and turns about its own axis by so many degrees a second from the moment alone', () => {
+    const [[body], [rim]] = partPlacementsOf(knight(), wheel);
+    expect(drawn(rim, 0.5, 1, 0)).toEqual(drawn(body, 0.5, 1, 0));
+    expect(drawn(rim, 0.5, 1, 0)).toEqual([125, 50, 200]);
+
+    const [[still], [turned]] = partPlacementsOf(knight(), wheel, 1000);
+    expect(drawn(still, 0.5, 1, 0)).toEqual([125, 50, 200]);
+    expect(drawn(turned, 0.5, 1, 0)).toEqual([100, 75, 200]);
+    expect(drawn(turned, 0, 1, 0)).toEqual([100, 50, 200]);
+
+    const [, [later]] = partPlacementsOf(knight(), wheel, 5000);
+    expect(drawn(later, 0.5, 1, 0)).toEqual(drawn(turned, 0.5, 1, 0));
+  });
+
+  it('stands, turned as time goes, where placing its model afresh at that moment stands it', () => {
+    const stretched = { ...wheel, stretch: true };
+    const copies: [TableWorldModel, typeof stretched | typeof wheel][] = [
+      [knight(), wheel],
+      [knight({ rotateDeg: 37, rollDeg: 12, altitudePx: 30, model: { ...knight().model, turnDeg: 90 } }), wheel],
+      [knight({ boxPx: { widthPx: 150, depthPx: 50 }, heightPx: 80 }), stretched],
+    ];
+    for (const [model, measure] of copies) {
+      const spins = placedPartsOf(model, measure).spins;
+      expect(spins.map((spin) => spin.part)).toEqual([1]);
+      for (const timeMs of [0, 250, 1000, 4321, 987654]) {
+        const [, [afresh]] = partPlacementsOf(model, measure, timeMs);
+        const turned = spinPlacedAt(spins[0], timeMs);
+        afresh.elements.forEach((value, at) =>
+          expect(turned.elements[at], `${model.rotateDeg} ${timeMs}`).toBeCloseTo(value, 6)
+        );
+      }
+    }
+  });
+
+  it('is worked out with the places of its model’s parts, once for the copy, and is none where no part turns', () => {
+    const still = { ...MADE, parts: [{ within: new Matrix4() }, { within: new Matrix4() }] };
+    const turned = knight({ rotateDeg: 37, altitudePx: 30 });
+
+    expect(placedPartsOf(turned, still).spins).toEqual([]);
+    for (const measure of [still, wheel]) {
+      const placed = placedPartsOf(turned, measure, 1234).placements;
+      const afresh = partPlacementsOf(turned, measure, 1234);
+      expect(placed.map((each) => each.map((matrix) => matrix.elements))).toEqual(
+        afresh.map((each) => each.map((matrix) => matrix.elements))
+      );
+    }
+  });
+
+  it('is not turned where its model is laid out of a kit over a block, or while it swings open as a leaf', () => {
+    const block = knight({ boxPx: { widthPx: 100, depthPx: 100 } });
+    expect(placedPartsOf(block, { ...wheel, tile: true }).spins).toEqual([]);
+    expect(placedPartsOf(knight(), { ...wheel, tile: true }).spins.map((spin) => spin.part)).toEqual([1]);
+
+    const leaf = {
+      ...MADE,
+      parts: [{ within: new Matrix4(), swing: { hinge: new Vector3(), deg: 90 }, spin: wheel.parts[1].spin }],
+    };
+    const open = knight({ door: { open: true, shiftX: 0, shiftY: 0, liftPx: 0, turnDeg: 0 } });
+    expect(placedPartsOf(open, leaf).spins).toEqual([]);
+    expect(placedPartsOf(knight(), leaf).spins).toHaveLength(1);
+  });
+
+  it('turns with its model, about the axis as the model is turned', () => {
+    const quarter = knight({ model: { ...knight().model, turnDeg: 90 } });
+
+    const [, [turned]] = partPlacementsOf(quarter, wheel, 1000);
+
+    expect(drawn(turned, 0, 1, 0)).toEqual([100, 50, 200]);
+    expect(drawn(turned, 0.5, 1, 0)).toEqual([100, 75, 200]);
+  });
+
+  it('is read off the node that says so, by the meshes hanging from it, the axis through its own origin where it names no point', () => {
+    const node = new Group();
+    node.userData = { spin: [0, 0, 2, 45], spinAt: [0, 1.5, 0.2] };
+    const sail = new Mesh(new BufferGeometry());
+    node.add(sail);
+    const bare = new Group();
+    bare.userData = { spin: [1, 0, 0, -30] };
+
+    const read = spinOf(sail)!;
+    expect(read.node).toBe(node);
+    expect(read.at.toArray()).toEqual([0, 1.5, 0.2]);
+    expect(read.axis.toArray()).toEqual([0, 0, 1]);
+    expect(read.degPerSecond).toBe(45);
+    expect(spinOf(bare)!.at.toArray()).toEqual([0, 0, 0]);
+    expect(spinOf(new Mesh(new BufferGeometry()))).toBeNull();
+  });
+
+  it('is left out of the box its model stands in, which is round the rest, or round all of a model all of which turns', () => {
+    const boxed = (min: number[], max: number[]) => {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(new Float32Array([...min, ...max, ...min]), 3));
+      return new Mesh(geometry);
+    };
+    const rounded = (values: number[]) => values.map((value) => Math.round(value * 10) / 10);
+    const scene = new Group();
+    scene.add(boxed([-1.5, 0, -1.5], [1.5, 5.6, 1.5]));
+    const sails = new Group();
+    sails.userData = { spin: [0, 0, 1, 24], spinAt: [0, 3.9, 1.1] };
+    sails.add(boxed([-2.5, 1.4, 1], [2.5, 6.4, 1.2]));
+    scene.add(sails);
+    scene.updateMatrixWorld(true);
+
+    const box = standingBoxOf(scene);
+    expect(rounded(box.min.toArray())).toEqual([-1.5, 0, -1.5]);
+    expect(rounded(box.max.toArray())).toEqual([1.5, 5.6, 1.5]);
+
+    const wheel = new Group();
+    wheel.add(sails);
+    wheel.updateMatrixWorld(true);
+    expect(rounded(standingBoxOf(wheel).min.toArray())).toEqual([-2.5, 1.4, 1]);
+
+    // A part that turns hung from a mesh that does not is left out just the same.
+    const tower = boxed([-1.5, 0, -1.5], [1.5, 5.6, 1.5]);
+    const hung = new Group();
+    hung.userData = { spin: [0, 0, 1, 24] };
+    hung.add(boxed([-2.5, 1.4, 1], [2.5, 6.4, 1.2]));
+    tower.add(hung);
+    const mill = new Group();
+    mill.add(tower);
+    expect(rounded(standingBoxOf(mill).min.toArray())).toEqual([-1.5, 0, -1.5]);
+    expect(rounded(standingBoxOf(mill).max.toArray())).toEqual([1.5, 5.6, 1.5]);
+  });
+
+  it('reads nothing that names no axis, no turning, or anything but four figures', () => {
+    for (const spin of [[0, 0, 0, 45], [0, 0, 1, 0], [0, 0, 1], [0, 0, 1, 'fast'], 'round']) {
+      const node = new Group();
+      node.userData = { spin };
+      expect(spinOf(node)).toBeNull();
+    }
+  });
+});
 
 describe('placementOf', () => {
   it('stands a model on its piece’s foot, fitted inside the piece’s box', () => {
@@ -352,5 +533,96 @@ describe('ModelLayer', () => {
 
     layer.set([knight({ ownCopy: true })]);
     expect(triangles()).toEqual([4]);
+  });
+
+  describe('with a model a part of which turns', () => {
+    /** A mill of a body and a wheel, read already, laid as two blocks drawn together. */
+    function mill(): { layer: ModelLayer; wheelAt: (copy?: number) => number[] } {
+      const layer = new ModelLayer(
+        () => undefined,
+        () => undefined,
+        () => ({}) as WebGPURenderer
+      );
+      const body = new Mesh(new BufferGeometry());
+      const wheel = new Mesh(new BufferGeometry());
+      (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+        gltf: { scene: new Group(), animations: [] },
+        size: MADE.size,
+        foot: new Vector3(),
+        animated: false,
+        parts: [
+          { mesh: body, within: new Matrix4() },
+          {
+            mesh: wheel,
+            within: new Matrix4(),
+            spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90 },
+          },
+        ],
+      });
+      layer.set([knight(), knight({ owner: 'second', foot: { x: 300, y: 200, z: 0 } })]);
+      const wheelAt = (copy = 0) => {
+        const drawn = layer.group.children[1] as InstancedMesh;
+        const matrix = new Matrix4();
+        drawn.getMatrixAt(copy, matrix);
+        const point = new Vector3(0.5, 1, 0).applyMatrix4(matrix);
+        return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
+      };
+      return { layer, wheelAt };
+    }
+
+    it('turns the part to where it stands at each moment, asking for a frame now and then, and throws no shadow from it', () => {
+      const { layer, wheelAt } = mill();
+      layer.setTurning(true);
+      layer.takeChanged();
+
+      expect(layer.advance(1000)).toBe('slowly');
+
+      expect(wheelAt()).toEqual([100, 75, 200]);
+      expect(layer.takeChanged()).toBe(true);
+      const [body, wheel] = layer.group.children as InstancedMesh[];
+      expect(body.castShadow).toBe(true);
+      expect(wheel.castShadow).toBe(false);
+      layer.dispose();
+    });
+
+    it('stands the part as it was made for a reader who asks for less motion, and asks for no frame', () => {
+      const { layer, wheelAt } = mill();
+
+      expect(layer.advance(1000)).toBe(false);
+      expect(wheelAt()).toEqual([125, 50, 200]);
+
+      layer.setTurning(true);
+      layer.advance(1000);
+      layer.setTurning(false);
+
+      expect(wheelAt()).toEqual([125, 50, 200]);
+      expect(layer.advance(2000)).toBe(false);
+      layer.dispose();
+    });
+
+    it('turns every copy where its own model stands, and leaves the parts that do not turn as they were laid', () => {
+      const { layer, wheelAt } = mill();
+      layer.setTurning(true);
+      const [body] = layer.group.children as InstancedMesh[];
+      const laid = body.instanceMatrix.version;
+
+      layer.advance(1000);
+
+      expect(wheelAt(0)).toEqual([100, 75, 200]);
+      expect(wheelAt(1)).toEqual([300, 75, 200]);
+      expect(body.instanceMatrix.version).toBe(laid);
+      layer.dispose();
+    });
+
+    it('lays the models again as far turned as they stood', () => {
+      const { layer, wheelAt } = mill();
+      layer.setTurning(true);
+      layer.advance(1000);
+
+      layer.set([knight()]);
+
+      expect(wheelAt()).toEqual([100, 75, 200]);
+      layer.dispose();
+    });
   });
 });

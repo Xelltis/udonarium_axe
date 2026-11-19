@@ -39,7 +39,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
-import { sameFields } from '@axe/core/util/same-fields';
+import { sameEntries, sameFields } from '@axe/core/util/same-fields';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { effectGroundOf } from '@axe/domain/effect/scene/effect-ground';
 import { EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
@@ -56,6 +56,12 @@ import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { blockFootprintOf } from '@axe/domain/tabletop/terrain-footprint';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import {
+  type WaterColumn,
+  waterColumnsOf,
+  waterFallsOf,
+  type WaterSpout,
+} from '@axe/domain/tabletop/water/water-falls';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
@@ -354,8 +360,16 @@ export class Table3dService {
   });
 
   /**
+   * Where the spouts of the models drawn on the table stand, the mouths water pours from, as the
+   * engine last told of them once it had read the models and placed them.
+   */
+  private readonly spouts = signal<readonly WaterSpout[]>([], {
+    equal: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  });
+
+  /**
    * The water on the table in view, as this seat sees it, with the floor of a map the weather puts
-   * under water, moving where things may move.
+   * under water and the water falling over its edges and from the spouts, moving where things may move.
    */
   private readonly water = computed(() => {
     const grid = this.waterCells.grid();
@@ -363,16 +377,34 @@ export class Table3dService {
     const weather = this.ambience.weather();
     const underwater = weather?.kind === 'underwater' ? weather : null;
     const moving = this.motion.enabled();
-    if (!grid || cells.size < 1) return tableWaterOf(grid, cells, [], [], moving, underwater);
+    const columns = this.spoutColumns();
+    if (!grid || (cells.size < 1 && columns.length < 1)) return tableWaterOf(grid, cells, [], [], moving, underwater);
     return tableWaterOf(
       grid,
       cells,
       waterSidesOf(grid, cells, this.waterCells.groundAt),
       waterShoreOf(grid, cells, this.waterCells.bankGroundOf),
       moving,
-      underwater
+      underwater,
+      { falls: waterFallsOf(grid, cells), columns }
     );
   });
+
+  /**
+   * The water pouring from the spouts, down to what it lands on. What it lands on is read from the
+   * blocks over each point, which follows every block of the table; worked out apart and told on only
+   * where a column changes, a block moved anywhere else leaves the rest of the water as it was drawn.
+   */
+  private readonly spoutColumns = computed<readonly WaterColumn[]>(
+    () => {
+      const grid = this.waterCells.grid();
+      const spouts = this.spouts();
+      if (!grid || spouts.length < 1) return [];
+      const cells = this.waterCells.cells();
+      return waterColumnsOf(grid, cells, spouts, (x, y, belowPx) => this.pieces.landingPxAt(x, y, belowPx));
+    },
+    { equal: sameEntries }
+  );
 
   /**
    * The rain, storm or snow falling through the air over the table in view, up to its walls or ten
@@ -448,6 +480,7 @@ export class Table3dService {
   private readonly idleWaiters: (() => void)[] = [];
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
   private motionHeld = false;
+  private sceneHeldAt: number | null = null;
   /** Whether the engine readies the graphics card for a new kind of thing before drawing it; see {@link readyBeforeDrawing}. */
   private readiesFirst = true;
 
@@ -688,6 +721,16 @@ export class Table3dService {
     this.motionHeld = held;
   }
 
+  /**
+   * Holds what moves by itself on the canvas, as water flowing and the sails of a windmill turning,
+   * where it stands at one moment, in milliseconds, whenever a frame is drawn, or moves it by the
+   * clock again given null: for a picture that has to come out the same however long the page took
+   * to get to it.
+   */
+  holdSceneAt(timeMs: number | null): void {
+    this.sceneHeldAt = timeMs;
+  }
+
   /** Settles once the canvas has drawn everything it was told, or at once while it has nothing to draw. */
   whenIdle(): Promise<void> {
     return new Promise((resolve) => {
@@ -749,6 +792,7 @@ export class Table3dService {
         },
         { injector }
       );
+    engine.onSpouts((spouts) => queueMicrotask(() => this.spouts.set(spouts)));
     return [
       told(() => {
         const world = this.world();
@@ -798,6 +842,7 @@ export class Table3dService {
         { injector }
       ),
       told(() => engine.setFogAir(this.tableVeil.fogAir(), this.motion.enabled())),
+      told(() => engine.setModelMotion(this.motion.enabled())),
       told(() => engine.setWeather(this.weatherFall())),
       told(() => engine.setSkyLight(this.skyLight())),
       told(() => engine.setSky(this.sky())),
@@ -869,7 +914,7 @@ export class Table3dService {
    */
   private drawFrame(engine: Table3dEngine, time: number): void {
     this.frame = null;
-    const moving = engine.advance(time);
+    const moving = engine.advance(this.sceneHeldAt ?? time);
     engine.renderIfChanged();
     if (moving && !this.motionHeld) this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : 0);
     this.settleIfIdle();

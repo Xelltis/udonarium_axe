@@ -1,4 +1,5 @@
 import { partFacesOf } from '@axe/domain/character/part-look';
+import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
@@ -70,6 +71,12 @@ interface LoadedModel {
   readonly joined?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
   readonly parts: readonly ModelPart[];
+  /**
+   * The mouths water pours from, measured from the model's foot, each node of the model saying where
+   * its own is in its extras as `{ "spout": [x, y, z] }`: the mouth of a drain in a wall, facing the
+   * way the model's south does.
+   */
+  readonly spouts?: readonly Vector3[];
 }
 
 /**
@@ -81,6 +88,12 @@ interface ModelPart {
   readonly mesh: Mesh;
   readonly within: Matrix4;
   readonly swing?: { readonly hinge: Vector3; readonly deg: number };
+  /**
+   * For a part that turns for as long as it is drawn, as the sails of a windmill do: the point its axis
+   * runs through and the axis, measured from the model's foot as the rest is, and how many degrees a
+   * second it turns about it.
+   */
+  readonly spin?: { readonly at: Vector3; readonly axis: Vector3; readonly degPerSecond: number };
   /** Which part of a building's kit it is, as its node says in its extras as `{ "part": ... }`; a wall if it says none. */
   readonly role?: KitRole;
   /** Whether it is the hub of a joined wall, as its node says in its extras as `{ "part": "hub" }`, rather than its arm. */
@@ -97,7 +110,7 @@ type ModelMeasure = Pick<LoadedModel, 'size'> & {
   readonly tile?: boolean;
   readonly madeHeight?: boolean;
   readonly joined?: boolean;
-  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'role' | 'hub'>[];
+  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'spin' | 'role' | 'hub'>[];
 };
 
 /**
@@ -108,6 +121,11 @@ interface Herd {
   readonly parts: readonly InstancedMesh[];
   readonly capacities: readonly number[];
   copies: number;
+  /**
+   * The copies of its parts that turn, each with which of its part's copies it is, kept to turn them
+   * as time goes without working out again where their models stand; left out where none turns.
+   */
+  turning?: readonly { readonly index: number; readonly spin: SpinPlacement }[];
 }
 
 interface StoodModel {
@@ -128,6 +146,9 @@ interface StoodModel {
 /** How many radians a degree is. */
 const RADIANS = Math.PI / 180;
 
+/** How wide the water pouring from a spout is, in the units its model was made in. */
+const SPOUT_WIDTH = 0.24;
+
 /**
  * How long a model read but no longer laid on the table is kept, in milliseconds, before what it
  * holds is let go of: long enough that a piece the fog hides and shows again, or a table gone to and
@@ -140,7 +161,9 @@ export const UNUSED_MODEL_KEEP_MS = 120_000;
  * materials made over to be lit and veiled as the rest of the scene is, stood with its foot at the
  * piece's, fitted inside the piece's box, and turned as the piece is. A model that plays a walk
  * plays it while its piece is moved, and stands in the first pose of its idle otherwise, so a table
- * standing still is not drawn again. Nothing a model names outside its own bytes is ever fetched,
+ * standing still is not drawn again. A part its model says turns, as the sails of a windmill do, is
+ * turned to where it stands at each moment drawn, where the copies of the model are drawn together
+ * and things may move; it throws no shadow, as the shadows are not drawn again as it turns. Nothing a model names outside its own bytes is ever fetched,
  * and one that draws more triangles than a model may, or cannot be read, is left drawn as its
  * picture. The decoders for compressed meshes and textures are fetched, from the app's own assets,
  * only once a model that needs them comes. The pixels its pictures were read into are let go of once
@@ -161,13 +184,21 @@ export class ModelLayer {
   private laid: readonly TableWorldModel[] = [];
   private changed = false;
   private lastTimeMs: number | null = null;
+  /** The spouts last told of, as one text, so that the same spouts are not told of twice. */
+  private toldSpouts = '[]';
+  /** Whether the parts made to turn do turn: not for a reader who asks for less motion, for whom they stand as they were made. */
+  private turns = false;
+  /** The moment the turning parts were last turned to, in milliseconds, which a herd laid again is turned to as well. */
+  private turnedToMs = 0;
+  private readonly turnedPlace = new Matrix4();
   /** Whether the layer has been let go of, after which a model still being read is let go of as it comes. */
   private disposed = false;
 
   constructor(
     private readonly dress: (material: Material) => void,
     private readonly arrived: () => void,
-    private readonly renderer: () => WebGPURenderer
+    private readonly renderer: () => WebGPURenderer,
+    private readonly spoutsMoved: (spouts: readonly WaterSpout[]) => void = () => undefined
   ) {
     this.reader = new HeldModelReader(() => this.renderer());
   }
@@ -208,8 +239,12 @@ export class ModelLayer {
     return action?.getClip().name ?? null;
   }
 
-  /** Moves the walks on to a moment, in milliseconds; answers whether any model is walking. */
-  advance(timeMs: number): boolean {
+  /**
+   * Moves the walks on to a moment, in milliseconds, and turns the parts made to turn to where they
+   * stand at it; answers whether any model is walking, or `'slowly'` where parts only turn, which a
+   * frame every so often draws well enough.
+   */
+  advance(timeMs: number): boolean | 'slowly' {
     const step = this.lastTimeMs === null ? 0 : Math.min(0.1, (timeMs - this.lastTimeMs) / 1000);
     this.lastTimeMs = timeMs;
     let walking = false;
@@ -220,7 +255,46 @@ export class ModelLayer {
       this.changed = true;
     }
     if (!walking) this.lastTimeMs = null;
-    return walking;
+    const turning = this.turns && this.turnHerdsTo(timeMs);
+    if (walking) return true;
+    return turning ? 'slowly' : false;
+  }
+
+  /**
+   * Lets the parts made to turn turn, or stands them as they were made, as for a reader who asks for
+   * less motion.
+   */
+  setTurning(turns: boolean): void {
+    if (turns === this.turns) return;
+    this.turns = turns;
+    this.turnHerdsTo(turns ? this.turnedToMs : 0);
+    if (!turns) this.turnedToMs = 0;
+  }
+
+  /** Turns every part made to turn to where it stands at a moment; answers whether there is any. */
+  private turnHerdsTo(timeMs: number): boolean {
+    // A herd is laid where its parts stand at the moment last turned to, so one moment is turned to once.
+    const moved = timeMs !== this.turnedToMs;
+    this.turnedToMs = timeMs;
+    let any = false;
+    for (const herd of this.herds.values()) {
+      if (!herd.turning) continue;
+      any = true;
+      // Nothing has turned since they were last placed: the moment stands, and so do the herds.
+      if (!moved) continue;
+      const turned = new Set<InstancedMesh>();
+      for (const { index, spin } of herd.turning) {
+        const part = herd.parts[spin.part];
+        part.setMatrixAt(index, spinPlacedAt(spin, timeMs, this.turnedPlace));
+        turned.add(part);
+      }
+      for (const part of turned) {
+        part.instanceMatrix.needsUpdate = true;
+        part.computeBoundingSphere();
+      }
+    }
+    if (any && moved) this.changed = true;
+    return any;
   }
 
   /** Whether anything was read, stood or moved since this was last asked, which wants drawing. */
@@ -286,7 +360,17 @@ export class ModelLayer {
     }
     for (const [url, flock] of flocks) this.herd(url, this.loaded.get(url)!, flock);
     this.noteUnused();
+    this.tellSpouts();
     this.changed = true;
+  }
+
+  /** Tells where the spouts of the models laid stand on the table, whenever they are not where they were last told. */
+  private tellSpouts(): void {
+    const spouts = this.laid.flatMap((model) => spoutsOf(model, this.loaded.get(model.url) ?? null));
+    const told = JSON.stringify(spouts);
+    if (told === this.toldSpouts) return;
+    this.toldSpouts = told;
+    this.spoutsMoved(spouts);
   }
 
   /**
@@ -343,16 +427,17 @@ export class ModelLayer {
 
   /** Stands the copies of a model that plays no motion where their pieces are, its herd grown where it is too small. */
   private herd(url: string, loaded: LoadedModel, flock: readonly TableWorldModel[]): void {
-    const placements = flock.map((model) => partPlacementsOf(model, loaded));
+    const placed = flock.map((model) => placedPartsOf(model, loaded, this.turns ? this.turnedToMs : 0));
+    const placements = placed.map((copy) => copy.placements);
     const counts = loaded.parts.map((_, part) => placements.reduce((sum, each) => sum + each[part].length, 0));
     let herd = this.herds.get(url);
     if (!herd || counts.some((count, part) => herd!.capacities[part] < count)) {
       if (herd) this.unherd(herd);
       const capacities = counts.map((count) => Math.max(4, 2 ** Math.ceil(Math.log2(Math.max(1, count)))));
       herd = {
-        parts: loaded.parts.map(({ mesh }, index) => {
+        parts: loaded.parts.map(({ mesh, spin }, index) => {
           const part = new InstancedMesh(mesh.geometry, mesh.material, capacities[index]);
-          part.castShadow = true;
+          part.castShadow = !spin;
           part.receiveShadow = true;
           part.matrixAutoUpdate = false;
           this.group.add(part);
@@ -364,6 +449,18 @@ export class ModelLayer {
       this.herds.set(url, herd);
     }
     herd.copies = flock.length;
+    const turning: { index: number; spin: SpinPlacement }[] = [];
+    const laid = loaded.parts.map(() => 0);
+    for (const copy of placed) {
+      for (const spin of copy.spins) turning.push({ index: laid[spin.part], spin });
+      copy.placements.forEach((each, part) => (laid[part] += each.length));
+    }
+    herd.turning = turning.length > 0 ? turning : undefined;
+    this.placeHerd(herd, placements);
+  }
+
+  /** Writes where the copies of a herd's parts are drawn. */
+  private placeHerd(herd: Herd, placements: readonly Matrix4[][][]): void {
     herd.parts.forEach((part, index) => {
       let at = 0;
       for (const each of placements) for (const matrix of each[index]) part.setMatrixAt(at++, matrix);
@@ -454,7 +551,7 @@ export class ModelLayer {
     releaseReadPictures(drawn, undrawn);
     for (const picture of undrawn) picture.dispose();
     gltf.scene.updateMatrixWorld(true);
-    const box = new Box3().setFromObject(gltf.scene);
+    const box = standingBoxOf(gltf.scene);
     const size = box.getSize(new Vector3());
     const middle = box.getCenter(new Vector3());
     const foot = new Vector3(middle.x, box.min.y, middle.z);
@@ -466,7 +563,10 @@ export class ModelLayer {
     const madeHeight = tile && extras.height === 'made';
     const joined = fit === 'joined';
     const parts: ModelPart[] = [];
+    const spouts: Vector3[] = [];
     gltf.scene.traverse((object) => {
+      const spout = facade || tile || joined ? null : spoutOf(object);
+      if (spout) spouts.push(spout.applyMatrix4(object.matrixWorld).applyMatrix4(fromFoot));
       if (!(object instanceof Mesh)) return;
       if (facade || tile || joined) {
         parts.push({
@@ -478,14 +578,36 @@ export class ModelLayer {
         return;
       }
       const swing = swingOf(object);
+      const spin = spinOf(object);
       parts.push({
         mesh: object,
         within: fromFoot.clone().multiply(object.matrixWorld),
         ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
+        ...(spin
+          ? {
+              spin: {
+                at: spin.at.applyMatrix4(spin.node.matrixWorld).applyMatrix4(fromFoot),
+                axis: spin.axis.transformDirection(spin.node.matrixWorld),
+                degPerSecond: spin.degPerSecond,
+              },
+            }
+          : {}),
       });
     });
     const stretch = fit === 'stretch';
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile, madeHeight, joined };
+    return {
+      gltf,
+      size,
+      foot,
+      animated: gltf.animations.length > 0,
+      parts,
+      stretch,
+      facade,
+      tile,
+      madeHeight,
+      joined,
+      ...(spouts.length ? { spouts } : {}),
+    };
   }
 
   private settle(url: string): void {
@@ -585,21 +707,96 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
 }
 
 /**
- * Where each mesh of a model is drawn for a piece or block: placed with the model, and a leaf that swings
- * on a hinge of its own swung open about it while its door stands open.
+ * Where each mesh of a model is drawn for a piece or block at a moment: placed with the model, a leaf
+ * that swings on a hinge of its own swung open about it while its door stands open, and a part made
+ * to turn turned as far as it has by then.
  */
-export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
-  if (loaded.facade && model.boxPx) return facadePlacementsOf(model, loaded);
-  if (loaded.tile && model.boxPx) return tilePlacementsOf(model, loaded);
-  if (loaded.joined && model.boxPx) return joinedPlacementsOf(model, loaded);
+export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure, timeMs = 0): Matrix4[][] {
+  return placedPartsOf(model, loaded, timeMs).placements;
+}
+
+/**
+ * Where each mesh of a model is drawn for a piece or block at a moment, with what of the place of
+ * each part that turns stays while it turns: worked out once for the copy, the frame it stands in
+ * and its scaling with it, for whoever lays the copy and has its parts turn after. A part that turns
+ * is drawn from what is handed back of it, so a copy turned as time goes stands where placing it
+ * afresh at that moment would stand it. None turns in a model laid out of a kit, whose parts are
+ * placed by the block, or while it swings open as a leaf.
+ */
+export function placedPartsOf(
+  model: TableWorldModel,
+  loaded: ModelMeasure,
+  timeMs = 0
+): { readonly placements: Matrix4[][]; readonly spins: SpinPlacement[] } {
+  if (!placedPartByPart(model, loaded)) {
+    const kit = loaded.facade ? facadePlacementsOf : loaded.tile ? tilePlacementsOf : joinedPlacementsOf;
+    return { placements: kit(model, loaded), spins: [] };
+  }
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
-  const open = model.door?.open === true;
-  return (loaded.parts ?? []).map(({ within, swing }) => [
-    open && swing
-      ? frame.clone().multiply(swungAbout(scaling, swing)).multiply(scaling).multiply(within)
-      : placement.clone().multiply(within),
-  ]);
+  const spins: SpinPlacement[] = [];
+  const placements = (loaded.parts ?? []).map((part, index) => {
+    if (swingsOpen(model, part)) {
+      return [frame.clone().multiply(swungAbout(scaling, part.swing!)).multiply(scaling).multiply(part.within)];
+    }
+    if (!part.spin) return [placement.clone().multiply(part.within)];
+    const spin = spinPlacementOf(frame, scaling, part.within, part.spin, index);
+    spins.push(spin);
+    return [spinPlacedAt(spin, timeMs)];
+  });
+  return { placements, spins };
+}
+
+/**
+ * A part made to turn, as one copy of its model draws it: what stays as it is while it turns, on
+ * either side of the turn, so that where it is drawn at a moment is worked out from the moment alone.
+ */
+export interface SpinPlacement {
+  /** Which of its model's parts it is. */
+  readonly part: number;
+  readonly before: Matrix4;
+  readonly axis: Vector3;
+  readonly degPerSecond: number;
+  readonly after: Matrix4;
+}
+
+const TURN = new Matrix4();
+
+/**
+ * Where a part made to turn is drawn at a moment, in milliseconds: so many degrees a second from how
+ * it was made, about its axis, worked out from the moment alone, so that it stands the same whenever
+ * that moment is drawn. Written into the matrix given, where one is.
+ */
+export function spinPlacedAt(spin: SpinPlacement, timeMs: number, into = new Matrix4()): Matrix4 {
+  const turn = (((spin.degPerSecond * timeMs) / 1000) % 360) * RADIANS;
+  return into.copy(spin.before).multiply(TURN.makeRotationAxis(spin.axis, turn)).multiply(spin.after);
+}
+
+/** Whether a model is drawn one mesh to a part where it stands, rather than laid out of a kit over its block. */
+function placedPartByPart(model: TableWorldModel, loaded: ModelMeasure): boolean {
+  return !((loaded.facade || loaded.tile || loaded.joined) && model.boxPx);
+}
+
+function swingsOpen(model: TableWorldModel, part: Pick<ModelPart, 'swing'>): boolean {
+  return model.door?.open === true && part.swing !== undefined;
+}
+
+/** The turn of a part about the point its axis runs through where the scaling puts it, so that it turns unstretched. */
+function spinPlacementOf(
+  frame: Matrix4,
+  scaling: Matrix4,
+  within: Matrix4,
+  spin: NonNullable<ModelPart['spin']>,
+  part: number
+): SpinPlacement {
+  const at = spin.at.clone().applyMatrix4(scaling);
+  return {
+    part,
+    before: frame.clone().multiply(new Matrix4().makeTranslation(at.x, at.y, at.z)),
+    axis: spin.axis,
+    degPerSecond: spin.degPerSecond,
+    after: new Matrix4().makeTranslation(-at.x, -at.y, -at.z).multiply(scaling).multiply(within),
+  };
 }
 
 /** The four sides of a block, each as the turn that faces a part made facing south out of it. */
@@ -816,6 +1013,91 @@ function swingOf(object: Object3D): { hinge: Vector3; deg: number } | null {
     }
   }
   return null;
+}
+
+/**
+ * The box a model stands in, which it is fitted to its piece or block by: round all of it that does
+ * not turn. A part made to turn, as the sails of a windmill are, sweeps past the body it turns on, so
+ * it may reach out of the box, and below the model's foot as a mill wheel dips into its stream. A
+ * model all of which turns stands in the box round all of it.
+ */
+export function standingBoxOf(scene: Object3D): Box3 {
+  const box = new Box3();
+  scene.updateWorldMatrix(true, true);
+  scene.traverse((object) => {
+    if (!(object instanceof Mesh) || spinOf(object)) return;
+    // By the mesh's own shape alone, as its kind keeps it (a mesh on a skeleton keeps the box of its
+    // pose): a part that turns may hang from one that does not, and is not to be counted with it.
+    const posed = object as Mesh & { boundingBox?: Box3 | null; computeBoundingBox?: () => void };
+    if (posed.boundingBox !== undefined) {
+      if (posed.boundingBox === null) posed.computeBoundingBox?.();
+      if (posed.boundingBox) box.union(posed.boundingBox.clone().applyMatrix4(object.matrixWorld));
+      return;
+    }
+    const geometry = object.geometry;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    if (geometry.boundingBox) box.union(geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
+  });
+  return box.isEmpty() ? new Box3().setFromObject(scene) : box;
+}
+
+/**
+ * How a mesh is made to turn, as its node, or one it hangs from, says in its extras: `spin` naming the
+ * axis and how many degrees a second, `[x, y, z, degrees]`, and `spinAt` the point the axis runs
+ * through, the node's own origin where it names none, both as the node was made. The node that says
+ * so is answered with them. Null where none says, or where what is said names no axis or no turning.
+ */
+export function spinOf(object: Object3D): { node: Object3D; at: Vector3; axis: Vector3; degPerSecond: number } | null {
+  for (let node: Object3D | null = object; node; node = node.parent) {
+    const data = node.userData as { spin?: unknown; spinAt?: unknown };
+    if (!Array.isArray(data.spin)) continue;
+    const spin = data.spin as unknown[];
+    if (spin.length !== 4 || !spin.every((value) => Number.isFinite(value))) return null;
+    const [x, y, z, degPerSecond] = spin as number[];
+    const axis = new Vector3(x, y, z);
+    if (axis.lengthSq() <= 0 || degPerSecond === 0) return null;
+    const point = data.spinAt;
+    const named = Array.isArray(point) && point.length === 3 && point.every((value) => Number.isFinite(value));
+    const at = named ? new Vector3(...(point as [number, number, number])) : new Vector3();
+    return { node, at, axis: axis.normalize(), degPerSecond };
+  }
+  return null;
+}
+
+/** The mouth a node of a model says water pours from, where it was made, or null for a node that says none. */
+function spoutOf(object: Object3D): Vector3 | null {
+  const spout = (object.userData as { spout?: unknown }).spout;
+  if (!Array.isArray(spout) || spout.length !== 3 || !spout.every((value) => Number.isFinite(value))) return null;
+  return new Vector3(spout[0] as number, spout[1] as number, spout[2] as number);
+}
+
+/**
+ * Where the spouts of a model stand once it is placed for its piece or block, in table pixels: each
+ * mouth, how high it is, the way it faces across the floor and how wide its water pours. A model not
+ * read yet, or with no spout, has none.
+ */
+export function spoutsOf(
+  model: TableWorldModel,
+  loaded: (ModelMeasure & Pick<LoadedModel, 'spouts'>) | null
+): WaterSpout[] {
+  if (!loaded?.spouts?.length) return [];
+  const placement = placementOf(model, loaded);
+  const facing = new Vector3(0, 0, 1).transformDirection(placement);
+  const across = Math.hypot(facing.x, facing.z) || 1;
+  const widthPx = SPOUT_WIDTH * placement.getMaxScaleOnAxis();
+  const rounded = (value: number) => Math.round(value * 100) / 100;
+  return loaded.spouts.map((spout, index) => {
+    const mouth = spout.clone().applyMatrix4(placement);
+    return {
+      key: `${model.owner}:${index}`,
+      x: rounded(mouth.x),
+      y: rounded(mouth.z),
+      mouthPx: rounded(mouth.y),
+      outX: rounded(facing.x / across),
+      outY: rounded(facing.z / across),
+      widthPx: rounded(widthPx),
+    };
+  });
 }
 
 /** The scale a model is drawn at to stand as large as it may inside its box, keeping its shape. */

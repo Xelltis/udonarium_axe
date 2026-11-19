@@ -59,14 +59,22 @@ describe('CutInStageComponent', () => {
     return [...fixture.nativeElement.querySelectorAll('.origin-top-left > div')] as HTMLElement[];
   }
 
+  /**
+   * Lets the browser animate, with animations that, as a browser's do, say they ended only once
+   * they are: canceling one is what rejects its `finished`.
+   */
   function stubAnimate(): ReturnType<typeof vi.fn> {
-    const animate = vi.fn(() => ({
-      cancel: vi.fn(),
-      pause: vi.fn(),
-      play: vi.fn(),
-      currentTime: 0,
-      finished: Promise.reject(new Error('the animation was canceled')),
-    }));
+    const animate = vi.fn(() => {
+      let abort!: (reason: unknown) => void;
+      const finished = new Promise<never>((_, reject) => (abort = reject));
+      return {
+        cancel: vi.fn(() => abort(new DOMException('The animation was canceled.', 'AbortError'))),
+        pause: vi.fn(),
+        play: vi.fn(),
+        currentTime: 0,
+        finished,
+      };
+    });
     Object.defineProperty(Element.prototype, 'animate', { value: animate, configurable: true, writable: true });
     return animate;
   }

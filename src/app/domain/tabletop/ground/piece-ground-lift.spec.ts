@@ -1,7 +1,7 @@
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { FLAT_GROUND, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
-import { pieceGroundLiftAt } from '@axe/domain/tabletop/ground/piece-ground-lift';
+import { pieceGroundLiftAt, standingTopPxAt } from '@axe/domain/tabletop/ground/piece-ground-lift';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
 const GRID = 50;
@@ -35,5 +35,47 @@ describe('pieceGroundLiftAt', () => {
     const ground = raisedButFor(4, 4);
 
     expect(pieceGroundLiftAt(ground, GRID, GridType.SQUARE, [blockAt(100, 100)], 150, 150, GRID)).toBe(0);
+  });
+});
+
+describe('standingTopPxAt', () => {
+  it('is the ground where no block stands over the point', () => {
+    expect(standingTopPxAt(FLAT_GROUND, GRID, GridType.SQUARE, [blockAt(100, 100)], 50, 50, 500)).toBe(0);
+    expect(standingTopPxAt(raisedButFor(4, 4), GRID, GridType.SQUARE, [], 50, 50, 500)).toBe(GRID);
+  });
+
+  it('is the top of a block over the point that can be stood on, rather than the ground under it', () => {
+    expect(standingTopPxAt(FLAT_GROUND, GRID, GridType.SQUARE, [blockAt(100, 100)], 150, 150, 500)).toBe(GRID);
+  });
+
+  it('is the higher of two blocks standing one on the other', () => {
+    const upper = blockAt(100, 100);
+    upper.posZ = GRID;
+
+    expect(standingTopPxAt(FLAT_GROUND, GRID, GridType.SQUARE, [blockAt(100, 100), upper], 150, 150, 500)).toBe(
+      2 * GRID
+    );
+  });
+
+  it('passes by a block whose top stands over where the thing comes down from', () => {
+    const bridge = blockAt(100, 100);
+    bridge.posZ = 4 * GRID;
+
+    expect(standingTopPxAt(FLAT_GROUND, GRID, GridType.SQUARE, [blockAt(100, 100), bridge], 150, 150, 3 * GRID)).toBe(
+      GRID
+    );
+  });
+
+  it('passes by a block that cannot be stood on', () => {
+    const wall = blockAt(100, 100);
+    wall.blocksClimb = true;
+
+    expect(standingTopPxAt(FLAT_GROUND, GRID, GridType.SQUARE, [wall], 150, 150, 500)).toBe(0);
+  });
+
+  it('stands a block on raised ground as high as the ground lifts it', () => {
+    const ground = raisedButFor(0, 0);
+
+    expect(standingTopPxAt(ground, GRID, GridType.SQUARE, [blockAt(100, 100)], 150, 150, 500)).toBe(2 * GRID);
   });
 });

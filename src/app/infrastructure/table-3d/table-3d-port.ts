@@ -2,6 +2,7 @@ import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import type { EffectLight } from '@axe/domain/effect/effect-light';
 import type { EffectFrame, EffectGround } from '@axe/domain/effect/scene/effect-scene';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
+import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
@@ -204,6 +205,16 @@ export interface Table3dEngine {
   setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void;
   /** Lays the veil over the scene, or takes it away with null. */
   setVeil(veil: Table3dVeil | null): void;
+  /**
+   * Has the engine tell where the spouts of the models it draws stand, the mouths water pours from:
+   * at once as they stand now, and again whenever a model with one is read, laid, moved or taken away.
+   */
+  onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void;
+  /**
+   * Lets the parts of the models made to turn, as the sails of a windmill are, turn, or stands them as
+   * they were made, as for a reader who asks for less motion.
+   */
+  setModelMotion(moving: boolean): void;
   /** Hangs the sheets of fog in the air, drifting where things may move, or takes them away with none. */
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void;
   /**
@@ -328,8 +339,16 @@ export interface EffectStageOptions {
 
 /** A small stage apart from the table that an effect is played on, as an editor previews it. */
 export interface EffectStage {
-  /** Draws what the effect draws at a moment. */
+  /**
+   * Draws what the effect draws at a moment: at once, or, where the effect is of a kind new to the
+   * graphics card, once the card is readied for it.
+   */
   show(frame: EffectFrame): void;
+  /**
+   * Whether what it was last asked to show is still to be drawn, the card being readied for it. What
+   * plays is held meanwhile by whoever keeps its time, so that none of it passes unseen.
+   */
+  waiting(): boolean;
   /** Fits the drawing to the canvas as it is laid out now. */
   resize(): void;
   /** Stands the camera this much further off than to fit the board, for a larger effect to stay in sight. */

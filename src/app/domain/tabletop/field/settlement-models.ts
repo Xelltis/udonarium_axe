@@ -18,6 +18,8 @@ export const SETTLEMENT_MODEL_IDS = [
   'well',
   'cart',
   'hay',
+  'windmill',
+  'watermill',
   'crop_wheat',
   'crop_rice',
   'crop_corn',

@@ -1,6 +1,7 @@
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
+import { waterColumnsOf, waterFallsOf } from '@axe/domain/tabletop/water/water-falls';
 import {
   floorWashAlpha,
   flowStreakOpacity,
@@ -236,5 +237,68 @@ describe('the water on a table as the scene draws it', () => {
 
     expect(none.surface.points.length).toBe(0);
     expect(none.moving).toBe(false);
+  });
+
+  describe('falling water', () => {
+    const wide = cellGridOf(5, 4, G, GridType.SQUARE);
+    const cells = waterCellsOf(wide, [
+      area({ identifier: 'channel', width: G, surfacePx: 40, flowSpeed: 0.5, flowDirection: 90 }),
+      area({ identifier: 'basin', left: 2 * G, width: G, surfacePx: 15 }),
+    ]);
+    const sides = waterSidesOf(wide, cells);
+
+    it('hangs a sheet from the edge the water goes over down to the water below, in place of the side there', () => {
+      const still = tableWaterOf(wide, cells, sides, [], true);
+      const falls = waterFallsOf(wide, cells);
+
+      const water = tableWaterOf(wide, cells, sides, [], true, null, { falls, columns: [] });
+
+      expect(falls).toHaveLength(1);
+      expect(water.falls.points.length / 3).toBe(6);
+      expect([...new Set(heightsOf(water.falls.points))].sort((a, b) => a - b)).toEqual([15, 40]);
+      expect(Math.max(...water.falls.extra)).toBeCloseTo(0.5);
+      expect(
+        [...water.fallAt].filter((_, index) => index % 2 === 1).every((whole) => Math.abs(whole - 0.5) < 1e-6)
+      ).toBe(true);
+      expect(water.sides.points.length).toBe(still.sides.points.length - 6 * 3);
+      expect(still.falls.points.length).toBe(0);
+    });
+
+    it('lands the sheet a little way out from the edge, with foam behind the edge and rings beyond where it lands', () => {
+      const water = tableWaterOf(wide, cells, sides, [], true, null, { falls: waterFallsOf(wide, cells), columns: [] });
+      const xsAt = (points: Float32Array, z: number) =>
+        [...points].filter((_, index) => index % 3 === 0 && Math.abs(points[index + 2] - z) < 0.01);
+
+      expect(new Set(xsAt(water.falls.points, 40))).toEqual(new Set([2 * G]));
+      expect(Math.min(...xsAt(water.falls.points, 15))).toBeGreaterThan(2 * G);
+      expect(Math.min(...[...water.lips.points].filter((_, index) => index % 3 === 0))).toBeLessThan(2 * G);
+      expect(Math.max(...[...water.lips.points].filter((_, index) => index % 3 === 0))).toBe(2 * G);
+      expect(heightsOf(water.lips.points).every((z) => z > 40 && z < 41)).toBe(true);
+      expect(Math.max(...[...water.splashes.points].filter((_, index) => index % 3 === 0))).toBeGreaterThan(2.5 * G);
+      expect(heightsOf(water.splashes.points).every((z) => z > 15 && z < 16)).toBe(true);
+    });
+
+    it('stands a column of four faces from a spout to where its water lands, with rings round that point', () => {
+      const spout = { key: 'pipe', x: 2.5 * G, y: G, mouthPx: 60, outX: 0, outY: 1, widthPx: 10 };
+      const columns = waterColumnsOf(wide, cells, [spout], () => 0);
+
+      const water = tableWaterOf(wide, cells, sides, [], true, null, { falls: [], columns });
+
+      expect(water.falls.points.length / 3).toBe(4 * 6);
+      expect([...new Set(heightsOf(water.falls.points))].sort((a, b) => a - b)).toEqual([15, 60]);
+      expect(water.splashes.points.length / 3).toBe(12 * 3);
+      expect(water.lips.points.length).toBe(0);
+    });
+
+    it('draws a column over a table with no water on it, and keeps it moving', () => {
+      const spout = { key: 'pipe', x: 2.5 * G, y: G, mouthPx: 60, outX: 0, outY: 1, widthPx: 10 };
+      const columns = waterColumnsOf(wide, new Map(), [spout], () => 0);
+
+      const water = tableWaterOf(wide, new Map(), [], [], true, null, { falls: [], columns });
+
+      expect(water.falls.points.length / 3).toBe(4 * 6);
+      expect(water.surface.points.length).toBe(0);
+      expect(water.moving).toBe(true);
+    });
   });
 });

@@ -279,14 +279,14 @@ describe('DiceThrowService', () => {
   });
 
   it('lets the dice come to rest once their recording has played', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
     await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
 
     const result = thrown(line)!.result!;
-    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('settled'), {
-      timeout: (result.frameCount / 60) * 1000 + 2000,
-    });
+    await vi.advanceTimersByTimeAsync((result.frameCount / 60) * 1000 + 2000);
+    expect(thrown(line)?.phase).toBe('settled');
   });
 
   it('carries whether the roll was a critical or a fumble, for the dice to flash', async () => {
@@ -299,16 +299,18 @@ describe('DiceThrowService', () => {
   });
 
   it('comes to rest as long after it began to play on the screen as its dice take, not after it was worked out', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const line = answer();
     callDiceThrow({ messageIdentifier: line.identifier }, 'here');
     await vi.waitFor(() => expect(thrown(line)?.phase).toBe('rolling'));
     const total = ((thrown(line)!.result!.frameCount - 1) / 60) * 1000;
 
     service.played(line.identifier, performance.now() + 1500);
-    await new Promise((resolve) => setTimeout(resolve, total + 300));
+    await vi.advanceTimersByTimeAsync(total + 300);
     expect(thrown(line)?.phase).toBe('rolling');
 
-    await vi.waitFor(() => expect(thrown(line)?.phase).toBe('settled'), { timeout: 3000 });
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(thrown(line)?.phase).toBe('settled');
   });
 
   it('starts the physics in a quiet moment once the room shows its dice, before any roll', async () => {

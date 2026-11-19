@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { AGENT_PROTOCOL_VERSION } from '@axe/core/agent/agent-protocol';
@@ -57,6 +58,7 @@ describe('AiLinkService', () => {
   let role: PeerRole;
   let notices: string[];
   let openPanel: ReturnType<typeof vi.fn>;
+  let panelStands: boolean;
 
   function make(): AiLinkService {
     TestBed.configureTestingModule({
@@ -76,7 +78,7 @@ describe('AiLinkService', () => {
           provide: ChatMessageService,
           useValue: { sendSystemNotice: (_kind: string, text: string) => notices.push(text) },
         },
-        { provide: RoomPanelService, useValue: { open: openPanel } },
+        { provide: RoomPanelService, useValue: { open: openPanel, isOpen: () => panelStands } },
       ],
     });
     return TestBed.inject(AiLinkService);
@@ -86,6 +88,7 @@ describe('AiLinkService', () => {
     sockets.length = 0;
     notices = [];
     openPanel = vi.fn();
+    panelStands = false;
     role = PeerRole.GameMaster;
     localStorage.removeItem(STORAGE_KEYS.aiLink);
     vi.stubGlobal('WebSocket', FakeSocket);
@@ -157,14 +160,73 @@ describe('AiLinkService', () => {
     expect(link.scope()).toBe('write');
   });
 
-  it('does not leave what a game master was lent to a bridge that runs none', () => {
+  it('gives back what a game master was lent once the bridge tells that none runs, with nobody here to hear it', () => {
+    const off = { run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: false, starts: 0 };
     localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
     const link = make();
     link.connect();
     sockets[0].greet('mcp');
+    expect(link.scope()).toBe('write');
 
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: { ...off, run: 'waiting' } }) });
+    expect(link.scope()).toBe('write');
+
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: off }) });
     expect(link.scope()).toBe('read');
     expect(sockets[0].sent.at(-1)).toMatchObject({ type: 'seat', seat: { scope: 'read' } });
+  });
+
+  it('opens the AI GM panel on finding a game master running with nobody here to hand it what happens', () => {
+    const waiting = { run: 'waiting', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: true, starts: 1 };
+    const link = make();
+    link.connect();
+    sockets[0].greet('mcp');
+    expect(openPanel).not.toHaveBeenCalled();
+
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
+    expect(openPanel).toHaveBeenCalledWith('aiLink');
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
+
+    // Once the panel stands, it is not opened again, and once its keeper is here, it is the keeper's to see to.
+    openPanel.mockClear();
+    panelStands = true;
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
+    expect(openPanel).not.toHaveBeenCalled();
+    panelStands = false;
+    const gone = link.keepsGm();
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
+    expect(openPanel).not.toHaveBeenCalled();
+    gone();
+  });
+
+  it('turns an AI link panel standing already to the game master’s half rather than opening it again', () => {
+    panelStands = true;
+    const link = make();
+    link.connect();
+    sockets[0].greet('gm');
+
+    expect(openPanel).not.toHaveBeenCalled();
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
+  });
+
+  it('leaves the giving back to whoever keeps the game master here, and to nobody who merely listens', () => {
+    const off = { run: 'off', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: false, starts: 0 };
+    const tell = () => sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: off }) });
+    localStorage.setItem(STORAGE_KEYS.aiLink, JSON.stringify({ port: 47610, scope: 'write', lentFrom: 'read' }));
+    const link = make();
+    const listening = link.gmHeard.subscribe(() => undefined);
+    const gone = link.keepsGm();
+    link.connect();
+    sockets[0].greet('mcp');
+    tell();
+    expect(link.scope()).toBe('write');
+
+    // The keeper goes; a listener still there keeps nothing, and the link gives back what was lent.
+    gone();
+    gone();
+    tell();
+    expect(link.scope()).toBe('read');
+    listening.unsubscribe();
   });
 
   it('passes on what a game-master bridge tells, keeps its latest status and notebook, and tells it what it is asked to', () => {
@@ -206,7 +268,8 @@ describe('AiLinkService', () => {
 
     link.connect();
     sockets[1].greet('gm');
-    expect(openPanel).toHaveBeenCalledWith('aiGm');
+    expect(openPanel).toHaveBeenCalledWith('aiLink');
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
 
     openPanel.mockClear();
     link.noteGmPanel(true);
@@ -216,7 +279,8 @@ describe('AiLinkService', () => {
     link.noteGmPanel(false);
     link.connect();
     sockets[3].greet('gm');
-    expect(openPanel).toHaveBeenCalledWith('aiGm');
+    expect(openPanel).toHaveBeenCalledWith('aiLink');
+    expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
   });
 
   it('lets a watching seat give the AI reading only, whatever was chosen', () => {

@@ -18,7 +18,7 @@ import {
 import { settlementBlocks } from '@axe/domain/tabletop/field/settlement-blocks';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
-import { areasOver } from '@axe/domain/tabletop/field/water-areas';
+import { watersOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { MapAmbience, MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
@@ -124,9 +124,6 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
   return lights;
 }
 
-/** How thick the water over a band is laid: as the settings of water lay a pond. */
-const FIELD_WATER_DENSITY = 0.6;
-
 /**
  * The water lying over the bands that have any, as few areas as cover each band: the surface at the
  * board, which on raised ground is dug down under it.
@@ -136,15 +133,8 @@ function watersOf(layout: FieldLayout, atmosphere: FieldAtmosphere, gridType: Gr
   atmosphere.bands.forEach((band, index) => {
     if (!band.water) return;
     const { color, turbidity, dirt, leaves, ice } = band.water;
-    for (const rect of areasOver(maskOfBand(layout, index), layout.width, layout.height, gridType)) {
-      waters.push({
-        rect,
-        kind: 'water',
-        density: FIELD_WATER_DENSITY,
-        name: 'water',
-        water: { surface: 0, color, turbidity, dirt, leaves, ice },
-      });
-    }
+    const water = { surface: 0, color, turbidity, dirt, leaves, ice };
+    waters.push(...watersOver(maskOfBand(layout, index), layout.width, layout.height, gridType, water));
   });
   return waters;
 }
@@ -244,7 +234,16 @@ export function fieldToBlocks(
   }
 
   const settled = layout.settlement
-    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models, gridType)
+    ? settlementBlocks(
+        layout.settlement,
+        layout.width,
+        layout.height,
+        span,
+        models,
+        gridType,
+        layout.settlementLevel ?? 0,
+        layout.relief ?? null
+      )
     : null;
   if (settled) {
     blocks.push(...settled.blocks);

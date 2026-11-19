@@ -698,6 +698,7 @@ export class BattleCutInOverlayComponent {
         return;
       }
       const clock = new HeldClock(performance.now());
+      clock.keep([timeline.effectStart, timeline.impact]);
       const leaving = () => {
         if (document.hidden) clock.leftView();
       };

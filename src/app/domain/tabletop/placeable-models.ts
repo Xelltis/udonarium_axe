@@ -94,7 +94,10 @@ const NATURE: readonly Row[] = [
 
 /**
  * The furniture, made a unit to the cell. The doors are left to the terrain's own doors, which open;
- * the shipping containers alone are tall enough to hide behind, and rubble is walked over.
+ * the shipping containers alone are tall enough to hide behind, rubble is walked over, and a drain
+ * pipe or a ladder on the wall at one edge of its cell is walked past. Those two are made as wide and
+ * deep as the whole cell, so that they stay at its edge; so are the parts of a pipe run, each of
+ * which meets the next at the middle of an edge of its cell.
  */
 const FURNISHING: readonly Row[] = [
   ['prop_crate', 1.002, 1.002, 0.78, 1, true, false],
@@ -108,6 +111,13 @@ const FURNISHING: readonly Row[] = [
   ['prop_containerRed', 4.012, 2.004, 1.7, 4, true, true],
   ['prop_containerBlue', 4.012, 2.004, 1.7, 4, true, true],
   ['prop_containerGreen', 4.012, 2.004, 1.7, 4, true, true],
+  ['prop_drainPipe', 1, 1, 2.005, 1, false, false],
+  ['prop_barrel', 0.66, 0.687, 0.9, 0.69, true, false],
+  ['prop_ladder', 1, 1, 2.515, 1, false, false],
+  ['prop_pipe', 1, 1, 0.7, 1, true, false],
+  ['prop_pipeValve', 1, 1, 1.1, 1, true, false],
+  ['prop_pipeElbow', 1, 1, 0.7, 1, true, false],
+  ['prop_pipeEnd', 1, 1, 0.7, 1, true, false],
 ];
 
 /**
@@ -127,6 +137,8 @@ const SETTLEMENT: readonly Row[] = [
   ['stone_tower_round', 3.029, 3.024, 5, 3, true, true],
   ['stone_tower_square', 2.002, 3.002, 5, 3, true, true],
   ['watchtower_wood', 2.488, 2.488, 4.003, 2.5, true, true],
+  ['windmill', 3, 3, 5.6, 3, true, true],
+  ['watermill', 3, 2, 2.8, 3, true, true],
   ['totem', 0.855, 0.4, 2.45, 0.86, true, false],
   ['well', 0.92, 0.84, 1.08, 0.92, true, false],
   ['cart', 1.396, 0.801, 0.56, 1.4, true, false],

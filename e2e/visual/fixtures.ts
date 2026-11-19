@@ -287,6 +287,14 @@ export async function drawCanvasThrough(page: Page) {
 }
 
 /**
+ * Holds what moves by itself on the canvas, as water and whatever turns, where it stands at one
+ * moment, however long the page took to get to the picture.
+ */
+export async function holdSceneAt(page: Page, timeMs: number) {
+  await page.evaluate((at) => window.__axeTable?.holdSceneAt(at), timeMs);
+}
+
+/**
  * Holds the flickering lights of a table drawn on a canvas as they are at a moment, for a scene
  * whose clock stands at a different moment each run by the time it is shot.
  */

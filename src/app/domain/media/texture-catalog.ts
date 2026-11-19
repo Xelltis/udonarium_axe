@@ -173,6 +173,7 @@ export const WALL_TEXTURE_IDS = [
   'container_blue',
   'container_green',
   'cactus_skin',
+  'wall_sewer_brick',
 ] as const;
 
 export type WallTextureId = (typeof WALL_TEXTURE_IDS)[number];
@@ -204,6 +205,7 @@ export const WALL_TEXTURE_ASSET_URLS: Record<WallTextureId, string> = {
   container_blue: 'assets/images/walls/container_blue.webp',
   container_green: 'assets/images/walls/container_green.webp',
   cactus_skin: 'assets/images/walls/cactus_skin.webp',
+  wall_sewer_brick: 'assets/images/walls/wall_sewer_brick.webp',
 };
 
 /** The floor tile a wall shows on its top and bottom, seen from above. */
@@ -234,6 +236,7 @@ export const WALL_TOP_TEXTURE: Record<WallTextureId, TextureId> = {
   container_blue: 'metal_grate',
   container_green: 'metal_grate',
   cactus_skin: 'steppe',
+  wall_sewer_brick: 'moss_stone_floor',
 };
 
 export const WALL_TEXTURE_BASE_COLOR: Record<WallTextureId, string> = {
@@ -263,6 +266,7 @@ export const WALL_TEXTURE_BASE_COLOR: Record<WallTextureId, string> = {
   container_blue: '#224c90',
   container_green: '#2e7241',
   cactus_skin: '#1d6411',
+  wall_sewer_brick: '#2f2110',
 };
 
 /** Whether a stored value names one of the bundled wall textures. */
@@ -296,6 +300,7 @@ export const DUNGEON_PROP_IDS = [
   'door_steel',
   'door_stone',
   'door_wood',
+  'ladder_up',
   'stair_down',
   'stair_spiral',
   'stair_up',
@@ -310,6 +315,7 @@ export const DUNGEON_PROP_ASSET_URLS: Record<DungeonPropId, string> = {
   door_steel: 'assets/images/dungeon/door_steel.webp',
   door_stone: 'assets/images/dungeon/door_stone.webp',
   door_wood: 'assets/images/dungeon/door_wood.webp',
+  ladder_up: 'assets/images/dungeon/ladder_up.webp',
   stair_down: 'assets/images/dungeon/stair_down.webp',
   stair_spiral: 'assets/images/dungeon/stair_spiral.webp',
   stair_up: 'assets/images/dungeon/stair_up.webp',
@@ -322,6 +328,7 @@ export const DUNGEON_PROP_BASE_COLOR: Record<DungeonPropId, string> = {
   door_steel: '#4a4d51',
   door_stone: '#4f4e4c',
   door_wood: '#594532',
+  ladder_up: '#535150',
   stair_down: '#4c4b49',
   stair_spiral: '#5a5856',
   stair_up: '#4c4b49',

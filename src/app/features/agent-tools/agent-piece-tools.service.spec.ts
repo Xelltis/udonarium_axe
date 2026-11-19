@@ -97,7 +97,14 @@ describe('AgentPieceTools', () => {
     });
     expect(say).toHaveBeenCalledWith(':体力-3', goblin.identifier, '', '', signal);
 
-    await call('change_resource', { piece: 'ゴブリン', name: '体力', to: 20, part: 'maximum' });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      const raised = call('change_resource', { piece: 'ゴブリン', name: '体力', to: 20, part: 'maximum' });
+      await vi.runAllTimersAsync();
+      await raised;
+    } finally {
+      vi.useRealTimers();
+    }
     expect(say).toHaveBeenLastCalledWith(':体力^=20', goblin.identifier, '', '', signal);
   });
 

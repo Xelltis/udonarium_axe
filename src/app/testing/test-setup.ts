@@ -19,6 +19,8 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { forgetWithheldTable } from '@axe/domain/peer/withheld-table';
 import { resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { ComponentResources } from '@axe/testing/component-resources';
+import { lowerTimerFlags } from '@axe/testing/timer-flags';
+import { callOffWaitingTimers, keepWaitingTimers } from '@axe/testing/waiting-timers';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -242,31 +244,10 @@ function specUsesTestBed(): boolean {
   }
 }
 
-/**
- * The providers every TestBed module is given: only what the app provides outside the root
- * injector, and the logger quietened. A service provided in the root is found by any module that
- * asks for it, so naming it here would only load it, and all it reaches, into every spec.
- */
+/** The providers every TestBed module is given, loaded for a spec that builds one (`test-bed-providers.ts`). */
 async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
-  const [{ LoggerService }, { PanelService }, { provideTranslocoTesting }] = await Promise.all([
-    import('@axe/application/logging/logger.service'),
-    import('@axe/application/ui/panel.service'),
-    import('@axe/testing/transloco-testing'),
-  ]);
-  return [
-    // The service turns logging up to what the build calls for as it is made, which outside
-    // production is everything. Made for a test, it leaves the level where the setup put it.
-    {
-      provide: LoggerService,
-      useFactory: () => {
-        const service = new LoggerService();
-        Logger.setLevel(LogLevel.NONE);
-        return service;
-      },
-    },
-    PanelService,
-    ...provideTranslocoTesting(),
-  ];
+  const { testBedProviders } = await import('@axe/testing/test-bed-providers');
+  return testBedProviders();
 }
 
 // The wrapper can outlive the file that made it, so it looks the providers up on every call
@@ -305,18 +286,48 @@ function applyConfigureTestingModuleWrapper(): void {
 // test's own thirty; one that names its time keeps it.
 const WAIT_FOR_MS = 10_000;
 
+// vi.waitFor looks again every 50ms unless it is told otherwise, while what a spec waits on is mostly
+// a promise or a timer of the page a moment away, so a wait spent most of its time asleep. A wait
+// that names no interval looks every millisecond, and under a fake clock each look moves the clock on
+// by that millisecond; one that names its interval keeps it. A wait ends the moment what it waits for
+// holds, so a spec that also means to see what follows a moment later waits for that as well.
+const WAIT_FOR_INTERVAL_MS = 1;
+
 function applyWaitForDefault(): void {
   if ((vi.waitFor as unknown as Record<string, unknown>)[WRAPPER_SENTINEL]) return;
   const waitFor = vi.waitFor;
   const wrapped = ((callback, options) =>
     waitFor(
       callback,
-      typeof options === 'number' ? options : { timeout: WAIT_FOR_MS, ...options }
+      typeof options === 'number'
+        ? { timeout: options, interval: WAIT_FOR_INTERVAL_MS }
+        : { timeout: WAIT_FOR_MS, interval: WAIT_FOR_INTERVAL_MS, ...options }
     )) as typeof vi.waitFor;
   (wrapped as unknown as Record<string, unknown>)[WRAPPER_SENTINEL] = true;
   vi.waitFor = wrapped;
 }
 applyWaitForDefault();
+
+// A timer a test set and left - a notice due off the screen in six seconds, a send to be tried again
+// while the line is full, a batch's next tick - goes off in whichever test the worker has reached by
+// then, in another file as often as not, and one that sets itself again goes on through every file
+// after. A page of the file's own would take them with it as it closed, so as each file ends, the
+// timers it still has waiting are called off. A timer called off never takes down the mark its
+// keeper holds of it, so the marks kept by what lives on to the next file are taken down with them.
+keepWaitingTimers();
+afterAll(() => {
+  callOffWaitingTimers();
+  lowerTimerFlags();
+});
+
+// The dice bot starts fetching the dice library as it is first imported and waits for it nowhere, so
+// the library may be evaluated in the middle of whichever test the worker has reached. Evaluated
+// while a test has the clock faked, its Ruby runtime cannot take the stand-in Date for the class it
+// builds Time on and throws; the import stays failed for every file the worker runs after. Each file
+// therefore has the library in, on the real clock, before its first test.
+beforeAll(async () => {
+  await import('@axe/domain/dice/bcdice/bcdice-loader');
+});
 
 // Angular registers the hooks that tear a TestBed module down as @angular/core/testing is first
 // evaluated. A worker that runs file after file without isolation evaluates it once, so every file

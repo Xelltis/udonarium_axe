@@ -9,17 +9,24 @@ import { chooseMenu, closePanels, freeze, prepare, rightClickTable, settle, snap
  * The mask is cut to its hexes by an SVG mask built from the grid, so anything that changes how
  * that mask is built or when shows up here.
  */
+/** A point on the board clear of the sample room's pieces, where the mask is made. */
+const BARE_BOARD = { x: 947, y: 486 };
+
 test('a hex mask covers its cells and opens the ones scratched', async ({ page }) => {
   await prepare(page);
   await closePanels(page);
   await freeze(page);
   await useHexGrid(page);
 
-  const tableMenu = await rightClickTable(page, { x: 947, y: 486 });
+  const tableMenu = await rightClickTable(page, BARE_BOARD);
   await chooseMenu(page, tableMenu, 'マップマスクを作成');
   const mask = page.locator('game-table-mask').last();
   await expect(mask).toBeAttached();
+  // The pointer is left where the menu's entry was, over a piece as often as not, whose card would
+  // come up over the mask or not as the moment has it: it is taken back to the bare board.
+  await page.mouse.move(BARE_BOARD.x, BARE_BOARD.y);
   await settle(page, 400);
+  await expect(page.locator('overview-panel')).toHaveCount(0);
   await snap(page, 'hex-mask');
 
   await sendMenuEvent(mask);

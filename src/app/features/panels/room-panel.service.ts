@@ -1,9 +1,16 @@
 import { inject, Injectable, Injector, Type, ViewContainerRef } from '@angular/core';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { EFFECT_LIBRARY_MIN_SIZE, readEffectLibrarySize } from '@axe/application/effect/effect-library-size';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { browserLocalStorage } from '@axe/core/storage/local-preference';
-import { panelLabelKey, RoomPanelName, STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
+import {
+  panelLabelKey,
+  RoomPanelName,
+  roomPanelNamed,
+  StandingRoomPanelName,
+  STATUS_AILMENT_PANEL,
+} from '@axe/domain/ui/room-panel';
 import { PanelWindowService } from '@axe/features/panels/panel-window.service';
 
 /**
@@ -37,6 +44,7 @@ export class RoomPanelService {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly injector = inject(Injector);
+  private readonly aiLinkView = inject(AiLinkViewService);
 
   private opened = 0;
 
@@ -54,7 +62,28 @@ export class RoomPanelService {
     setup?: (instance: T) => void,
     host?: ViewContainerRef
   ): void {
-    this.openFrom(name, this.panelOf(name).load, extra, setup, host);
+    const panel = this.turnedTo(name);
+    this.openFrom(panel, this.panelOf(panel).load, extra, setup, host);
+  }
+
+  /**
+   * The panel a name asks for, turned to the half of it the name means where it is one the panel used
+   * to go by. From there on the panel goes by its own name: moved into a window of its own and brought
+   * back, it is opened again by that, and keeps the half it was showing.
+   */
+  private turnedTo(name: RoomPanelName): StandingRoomPanelName {
+    const { panel, half } = roomPanelNamed(name);
+    if (half) this.aiLinkView.show(half);
+    return panel;
+  }
+
+  /**
+   * Whether one of the room's panels that stands one at a time is standing now, or on its way to. One
+   * that may stand several at a time is never told of.
+   */
+  isOpen(name: RoomPanelName): boolean {
+    const single = this.panelOf(roomPanelNamed(name).panel).option.single;
+    return single !== undefined && this.panelService.hasSingle(single);
   }
 
   /**
@@ -66,7 +95,8 @@ export class RoomPanelService {
    */
   openInTurn(requests: readonly (readonly [RoomPanelName, PanelOption?])[]): void {
     let ahead: Promise<unknown> = Promise.resolve();
-    for (const [name, extra] of requests) {
+    for (const [asked, extra] of requests) {
+      const name = this.turnedTo(asked);
       const fetched = this.panelOf(name).load();
       fetched.catch(() => undefined);
       const inTurn = ahead.then(() => fetched);
@@ -80,7 +110,7 @@ export class RoomPanelService {
   }
 
   private openFrom<T>(
-    name: RoomPanelName,
+    name: StandingRoomPanelName,
     load: () => Promise<Type<unknown>>,
     extra: PanelOption = {},
     setup?: (instance: T) => void,
@@ -143,7 +173,7 @@ export class RoomPanelService {
     ];
   }
 
-  private panelOf(name: RoomPanelName): RoomPanel {
+  private panelOf(name: StandingRoomPanelName): RoomPanel {
     switch (name) {
       case 'chatWindow':
         return {
@@ -370,12 +400,7 @@ export class RoomPanelService {
         return {
           load: () =>
             import('@axe/features/ai-link/ai-link-panel/ai-link-panel.component').then((m) => m.AiLinkPanelComponent),
-          option: { width: 480, height: 640, minWidth: 360, minHeight: 360, single: 'ai-link' },
-        };
-      case 'aiGm':
-        return {
-          load: () => import('@axe/features/ai-gm/ai-gm-panel/ai-gm-panel.component').then((m) => m.AiGmPanelComponent),
-          option: { width: 500, height: 720, minWidth: 360, minHeight: 400, single: 'ai-gm' },
+          option: { width: 500, height: 720, minWidth: 360, minHeight: 400, single: 'ai-link' },
         };
     }
   }

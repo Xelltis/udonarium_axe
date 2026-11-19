@@ -1,7 +1,7 @@
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import type { MapRect } from '@axe/domain/tabletop/map-blocks';
+import type { MapAmbience, MapRect } from '@axe/domain/tabletop/map-blocks';
 
 /**
  * The fewest areas that cover the cells of a mask and no others, on a board of the grid given. An
@@ -27,4 +27,55 @@ export function areasOver(mask: Uint8Array, width: number, height: number, gridT
     }
   }
   return runs;
+}
+
+/** What a stretch of water a generator lays looks like and does: how high it stands, its look and its run. */
+export type GeneratedWater = NonNullable<MapAmbience['water']>;
+
+/** How thick the water a generator lays is: as the settings of water lay a pond. */
+const GENERATED_WATER_DENSITY = 0.6;
+
+/**
+ * The water a generator lays over the cells of a mask: as few areas as cover them and no others, each
+ * the same water. Every generator lays its water through here, so that all of it is laid alike.
+ */
+export function watersOver(
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  gridType: GridType,
+  water: GeneratedWater
+): MapAmbience[] {
+  return areasOver(mask, width, height, gridType).map((rect) => ({
+    rect,
+    kind: 'water',
+    density: GENERATED_WATER_DENSITY,
+    name: 'water',
+    water,
+  }));
+}
+
+/**
+ * The water a generator lays where cells of it differ, as running water differs by the way it runs:
+ * the cells sorted into lots, one for each kind named, and each lot laid as {@link watersOver} lays a
+ * mask, so that no two areas overlap. The lots are laid in the order their first cells lie on the
+ * board, row by row, however the cells were handed over.
+ */
+export function watersInLots(
+  cells: Iterable<{ readonly index: number; readonly lot: string }>,
+  width: number,
+  height: number,
+  gridType: GridType,
+  waterOf: (lot: string) => GeneratedWater
+): MapAmbience[] {
+  const lots = new Map<string, { first: number; mask: Uint8Array }>();
+  for (const { index, lot } of cells) {
+    let held = lots.get(lot);
+    if (!held) lots.set(lot, (held = { first: index, mask: new Uint8Array(width * height) }));
+    held.first = Math.min(held.first, index);
+    held.mask[index] = 1;
+  }
+  return [...lots]
+    .sort(([, a], [, b]) => a.first - b.first)
+    .flatMap(([lot, { mask }]) => watersOver(mask, width, height, gridType, waterOf(lot)));
 }

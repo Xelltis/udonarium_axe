@@ -38,6 +38,18 @@ function pointerOf(component: MapEditorPanelComponent): MapEditorPointer {
   return (component as unknown as { pointer: MapEditorPointer }).pointer;
 }
 
+/**
+ * A board laid at the top left of the page, which takes the pointer without asking the page and is
+ * a canvas the panel can draw the map on, as the one in its template is.
+ */
+function boardAtTopLeft(): { nativeElement: HTMLCanvasElement } {
+  const canvas = document.createElement('canvas');
+  canvas.getBoundingClientRect = () => ({ left: 0, top: 0 }) as DOMRect;
+  canvas.setPointerCapture = () => {};
+  canvas.releasePointerCapture = () => {};
+  return { nativeElement: canvas };
+}
+
 describe('MapEditorPanelComponent', () => {
   let fixture: ComponentFixture<MapEditorPanelComponent>;
   let component: MapEditorPanelComponent;
@@ -446,9 +458,8 @@ describe('MapEditorPanelComponent', () => {
       editingText: () => { itemId: string | null } | null;
       board: () => { nativeElement: HTMLCanvasElement } | undefined;
     };
-    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => ({
-      nativeElement: { setPointerCapture: () => {}, getBoundingClientRect: () => ({ left: 0, top: 0 }) } as never,
-    });
+    const board = boardAtTopLeft();
+    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => board;
     c.onPointerDown({ button: 0, pointerId: 1, clientX: 64, clientY: 64 } as unknown as PointerEvent);
     expect(c.editingText()).not.toBeNull();
     expect(c.editingText()!.itemId).toBeNull();
@@ -464,13 +475,8 @@ describe('MapEditorPanelComponent', () => {
       board: () => { nativeElement: HTMLCanvasElement } | undefined;
       tools: { tool: string }[];
     };
-    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => ({
-      nativeElement: {
-        setPointerCapture: () => {},
-        releasePointerCapture: () => {},
-        getBoundingClientRect: () => ({ left: 0, top: 0 }),
-      } as never,
-    });
+    const board = boardAtTopLeft();
+    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => board;
     const cellPx = component['state'].current.cellPx;
     const at = (cells: number) => ({ button: 0, pointerId: 1, clientX: cells * cellPx, clientY: 4 * cellPx });
 
@@ -498,9 +504,8 @@ describe('MapEditorPanelComponent', () => {
       cursorCell: () => { col: number; row: number } | null;
       board: () => { nativeElement: HTMLCanvasElement } | undefined;
     };
-    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => ({
-      nativeElement: { getBoundingClientRect: () => ({ left: 0, top: 0 }) } as never,
-    });
+    const board = boardAtTopLeft();
+    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => board;
     const cellPx = component['state'].current.cellPx;
 
     c.onPointerMove({ clientX: 2, clientY: 2 } as unknown as PointerEvent);

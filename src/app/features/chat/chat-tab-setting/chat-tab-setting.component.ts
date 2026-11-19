@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatLogClearReach, ChatLogClearService } from '@axe/application/chat/chat-log-clear.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { SaveProgress } from '@axe/application/file/save-progress';
-import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -16,6 +16,7 @@ import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { identifiersInXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
 import { CHAT_LOG_STYLES, ChatLogStyle } from '@axe/domain/chat/chat-log-style';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -23,6 +24,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
 import { ChatLogStylePreferenceService } from '@axe/features/chat/chat-log-style-preference.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -54,6 +56,7 @@ export class ChatTabSettingComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
   private readonly snackbar = inject(SnackbarService);
+  private readonly logClear = inject(ChatLogClearService);
   /** A tab this seat deleted in a room server's room, which the server may put back, and when. */
   private deletedOnServer: { identifier: string; at: number } | null = null;
 
@@ -189,7 +192,7 @@ export class ChatTabSettingComponent {
    */
   get isKeptToGameMasterByServer(): boolean {
     this.objectChange.trackMyCursor();
-    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+    return heldToGameMasterByServer();
   }
 
   /** Whether the selected tab's name may be changed, which the system tab's may not. */
@@ -262,6 +265,14 @@ export class ChatTabSettingComponent {
   readonly progressPercent = this.saveProgress.percent;
 
   allowDeleteLog = false;
+  /** What is written in the box of the log clearing: a local date and time, or nothing. */
+  readonly clearBefore = signal('');
+  /**
+   * Whether a clearing takes only the lines before the moment in the box. It is turned on as the box
+   * is gone into: a date half written reads as an empty box, and a clearing of the whole log must not
+   * follow from that.
+   */
+  readonly clearOnlyBefore = signal(false);
   allowDeleteTab = false;
 
   constructor() {
@@ -411,66 +422,71 @@ export class ChatTabSettingComponent {
   }
 
   /**
-   * Clears every message from the selected tab for every peer and posts who cleared it.
-   *
-   * Needs the confirmation box ticked and a seat that may change the tabs; the tab's portraits are
-   * reset along with the log. In a room server's room, anyone but the game master leaves the dice
-   * the server rolled where they are, since the server keeps them.
+   * The moment written in the box of the log clearing, in epoch milliseconds; null while the box is
+   * empty or holds no whole date and time.
    */
-  deleteLog() {
-    if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach()) return;
-
-    const tab = this.selectedTab();
-    if (this.isEmpty || !tab) return;
-    this.clearLogOf(tab);
-    tab.portraitReset();
-    const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
-    this.chatMessageService.sendSystemMessageToTab(tab, mess, undefined, this.requesterUserId());
+  get clearBeforeMoment(): number | null {
+    const written = this.clearBefore().trim();
+    if (!written) return null;
+    const moment = new Date(written).getTime();
+    return Number.isFinite(moment) ? moment : null;
   }
 
   /**
-   * Clears the logs of every tab for every peer, posting who cleared them in each; needs the
-   * confirmation box ticked and a seat that may change the tabs. In a room server's room, anyone but
-   * the game master leaves the dice the server rolled where they are, and leaves alone the tabs
-   * they may not read, whose lines never came to them.
+   * Whether a clearing can be done as it is set: always for the whole log, and for the lines before a
+   * moment only once a whole date and time is written.
    */
-  deleteLogALL() {
-    if (!this.allowDeleteLog || !this.canEditTabs) return;
-
-    const mess = encodeI18nMessage('common.chat.logClearedBy', { user: this.resolveRequesterName() });
-
-    const requester = this.requesterUserId();
-    const readsAll = Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster;
-    const tabs = this.chatTabList.chatTabs.filter((tab) => readsAll || canRoleViewTab(tab, PeerCursor.myRole));
-    for (const child of tabs) {
-      this.clearLogOf(child);
-      child.portraitReset();
-      this.chatMessageService.sendSystemMessageToTab(child, mess, undefined, requester);
-    }
+  get canClearAsSet(): boolean {
+    return !this.clearOnlyBefore() || this.clearBeforeMoment !== null;
   }
 
-  private clearLogOf(tab: ChatTab): void {
-    const keepServerRolls = this.isKeptToGameMasterByServer;
-    for (const child of [...tab.children]) {
-      if (keepServerRolls && child instanceof ChatMessage && child.isServerRoll) continue;
-      child.destroy();
-    }
+  /** The moment before which lines are cleared, as the hint under the box names it; empty for none. */
+  get clearBeforeText(): string {
+    const moment = this.clearBeforeMoment;
+    return moment === null ? '' : formatLogMoment(moment);
+  }
+
+  /**
+   * Clears the selected tab's log for every peer and posts who cleared it: all of it, or only the
+   * lines said before the moment written in the box.
+   *
+   * Needs the confirmation box ticked and a seat that may change the tabs; clearing the whole log
+   * resets the tab's portraits along with it. In a room server's room, anyone but the game master
+   * leaves the dice the server rolled where they are, since the server keeps them.
+   */
+  deleteLog() {
+    if (!this.allowDeleteLog || !this.canEditTabs || !this.isSelectionInReach() || !this.canClearAsSet) return;
+
+    const tab = this.selectedTab();
+    if (this.isEmpty || !tab) return;
+    this.logClear.clear(tab, this.clearReach());
+  }
+
+  /**
+   * Clears the logs of every tab for every peer, all of each or only the lines said before the
+   * moment written in the box, posting who cleared them in each; needs the confirmation box ticked
+   * and a seat that may change the tabs. In a room server's room, anyone but the game master leaves
+   * the dice the server rolled where they are, and leaves alone the tabs they may not read, whose
+   * lines never came to them.
+   */
+  deleteLogALL() {
+    if (!this.allowDeleteLog || !this.canEditTabs || !this.canClearAsSet) return;
+
+    const readsAll = Network.authorityPeerId === null || PeerCursor.isMyselfGameMaster;
+    const tabs = this.chatTabList.chatTabs.filter((tab) => readsAll || canRoleViewTab(tab, PeerCursor.myRole));
+    const reach = this.clearReach();
+    for (const child of tabs) this.logClear.clear(child, reach);
+  }
+
+  private clearReach(): ChatLogClearReach | undefined {
+    const moment = this.clearBeforeMoment;
+    return !this.clearOnlyBefore() || moment === null ? undefined : { before: moment };
   }
 
   /** Whether the picked tab is still one this seat is listed, and so may clear or delete. */
   private isSelectionInReach(): boolean {
     const tab = this.selectedTab();
     return tab !== null && this.chatTabs.includes(tab);
-  }
-
-  private requesterUserId(): string {
-    return this.myPeer?.userId ?? '';
-  }
-
-  private resolveRequesterName(): string {
-    const cursor = this.myPeer;
-    const name = cursor?.name?.trim();
-    return name || cursor?.identifier || '';
   }
 
   /**

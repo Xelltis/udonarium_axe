@@ -210,10 +210,17 @@ export class ObjectStore {
     this.deletedVersions = new Map(history?.versions);
   }
 
-  /** Forgets all deletions so those identifiers may be added again, as on joining or reconnecting. */
+  /**
+   * Forgets all deletions so those identifiers may be added again, as on joining or reconnecting.
+   *
+   * The wait before the next sweep goes with them, there being nothing left for a sweep to have
+   * just gone over.
+   */
   clearDeleteHistory() {
     this.garbageMap.clear();
     this.deletedVersions.clear();
+    if (this.garbageSweepCooldown !== null) clearTimeout(this.garbageSweepCooldown);
+    this.garbageSweepCooldown = null;
   }
 
   /**

@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
+import { TurnDesk } from './gm/turn-desk';
 import { MCP_HTTP_PATH, serveMcpOverHttp } from './http';
 import { TabLink } from './tab-link';
 import { TestTab, until } from './test-tab';
@@ -15,13 +16,14 @@ describe('serveMcpOverHttp', () => {
   let url: string;
   const clients: Client[] = [];
 
-  async function serve(token: string | null): Promise<void> {
+  async function serve(token: string | null, desk?: TurnDesk): Promise<void> {
     server = await serveMcpOverHttp(link, {
       port: 0,
       origins: ['http://localhost:4200'],
       token,
       version: '1.80.0',
       log: () => undefined,
+      desk,
     });
     url = `http://127.0.0.1:${(server.address() as AddressInfo).port}${MCP_HTTP_PATH}`;
   }
@@ -97,5 +99,67 @@ describe('serveMcpOverHttp', () => {
 
     const client = await connect({ authorization: 'Bearer secret', origin: 'http://localhost:4200' });
     expect((await client.listPrompts()).prompts).toHaveLength(1);
+  });
+
+  it('hands no turn to a wait whose client went away without a word, and the turn to the client that asks next', async () => {
+    const desk = new TurnDesk({ link, log: () => undefined, quietMs: 20, longestWaitMs: 100 });
+    await serve(null, desk);
+    const axe = new TestTab(tabPort);
+    await axe.welcome({ name: 'GM', role: 'gm', scope: 'write' });
+    await until(() => link.current !== null);
+    const headers = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
+    const opened = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'gone', version: '1' } },
+      }),
+    });
+    const session = opened.headers.get('mcp-session-id')!;
+    await opened.text();
+
+    // The client waits for the turn and is cut off: no word that it gave the call up, as a program that died sends none.
+    const waiting = request(url, { method: 'POST', headers: { ...headers, 'mcp-session-id': session } });
+    waiting.on('error', () => undefined);
+    waiting.end(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'wait_for_turn', arguments: { timeout_seconds: 30 } },
+      })
+    );
+    await until(() => desk.status().attended === true);
+
+    // Another call of the same client, one the tab is slow to answer, is cut off: the wait stays as it was.
+    axe.answer = () => undefined;
+    const other = request(url, { method: 'POST', headers: { ...headers, 'mcp-session-id': session } });
+    other.on('error', () => undefined);
+    other.end(
+      JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_room', arguments: {} } })
+    );
+    await until(() => axe.heard.some((message) => (message as { type?: string })?.type === 'call'));
+    other.destroy();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(desk.status().attended).toBe(true);
+
+    waiting.destroy();
+    await until(() => desk.status().attended === false);
+
+    axe.say({
+      type: 'gm.start',
+      settings: { model: 'claude-opus-5-5', effort: 'medium', budgetUsd: 5 },
+      instructions: '古城の探索',
+      notes: '',
+      fresh: false,
+    });
+    const next = await connect();
+    const turn = await next.callTool({ name: 'wait_for_turn', arguments: { timeout_seconds: 5 } });
+    expect(JSON.stringify(turn.content)).toContain('古城の探索');
+    desk.close();
+    axe.close();
   });
 });

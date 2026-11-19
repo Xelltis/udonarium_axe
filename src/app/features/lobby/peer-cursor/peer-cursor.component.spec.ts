@@ -30,6 +30,7 @@ describe('PeerCursorComponent', () => {
   });
 
   afterEach(() => {
+    fixture.destroy();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
     ObjectStore.instance.clearDeleteHistory();
     PeerCursor.forget();

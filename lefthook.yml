@@ -18,18 +18,19 @@ pre-commit:
         - 'src/app/core/agent/**/*.ts'
       run: npx tsc -p tools/axe-mcp/tsconfig.json && npm run test:mcp
 
+    # No glob: which files reach a spec is the script's to say (scripts/change-reach.mjs). A file it
+    # knows nothing of is left for the push, where every spec runs for it.
     - name: test
-      glob:
-        - 'src/**/*.{ts,html,css}'
-        - 'vitest.config.mts'
-        - 'vitest-base.config.mts'
-        - 'tsconfig.spec.json'
-      run: node scripts/vitest-related.mjs {staged_files}
+      run: node scripts/vitest-related.mjs --told-only {staged_files}
 
 pre-push:
   jobs:
+    # No glob: which files reach a spec is the script's to say (scripts/change-reach.mjs), and a
+    # file it knows nothing of runs every spec.
+    # The files the push sends are read from what git hands the hook, deleted ones among them.
     - name: test
-      run: npx vitest run
+      use_stdin: true
+      run: node scripts/vitest-related.mjs --disk-specs --pushed
 
     - name: test-mcp
       run: npm run test:mcp

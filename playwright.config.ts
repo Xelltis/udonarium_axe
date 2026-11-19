@@ -120,6 +120,13 @@ const VISUAL_USE = {
   reducedMotion: 'no-preference' as const,
 };
 
+/**
+ * The pictures of what the page lays over the table and of nothing the canvas draws: panels, the
+ * toolbars, the rail, a chat line and the novel band. The page draws them the same whichever way the
+ * canvas is drawn, so they are taken once, with the canvas drawn through WebGL2.
+ */
+const PICTURES_OF_THE_PAGE_ALONE = /visual\/(?:chat-ruby|panels-settings|startup-rail|toolbars|vn-overlay)\.spec\.ts/;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -129,7 +136,8 @@ export default defineConfig({
   // afford real parallelism. Each worker's browser takes about half a gigabyte:
   // 6 finish a run some 13% sooner than 4, and 8 hardly sooner than 6.
   workers: isCI ? 2 : 10,
-  reporter: 'html',
+  // What each test asked for of the app is marked as all it asks for once the test passes: see e2e/loads-reporter.ts.
+  reporter: [['html'], ['./e2e/loads-reporter.ts']],
   // A page load off the build settles in well under a second; 60s was sized for
   // the dev server compiling on demand.
   timeout: 30000,
@@ -232,6 +240,7 @@ export default defineConfig({
         actionTimeout: 30000,
       },
       testMatch: /visual\/.*\.spec\.ts/,
+      testIgnore: PICTURES_OF_THE_PAGE_ALONE,
       retries: 0,
       timeout: 120000,
       workers: 3,

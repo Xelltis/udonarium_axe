@@ -23,7 +23,7 @@ import {
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
-const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse'] as const;
+const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse', 'sewer'] as const;
 
 function open(layout: DungeonLayout, x: number, y: number): boolean {
   const cell = cellAt(layout, x, y);
@@ -74,6 +74,27 @@ function touches(piece: DungeonRect, point: DungeonPoint): boolean {
 }
 
 const CONTAINERS = ['containerRed', 'containerBlue', 'containerGreen'];
+const PIPES: readonly FurnishingId[] = ['pipe', 'pipeValve', 'pipeElbow', 'pipeEnd'];
+
+type Way = 'n' | 'e' | 's' | 'w';
+/** The four ways out of a cell, in the order a quarter turn clockwise takes one to the next. */
+const WAYS: readonly (readonly [Way, number, number])[] = [
+  ['n', 0, -1],
+  ['e', 1, 0],
+  ['s', 0, 1],
+  ['w', -1, 0],
+];
+const BACK: Readonly<Record<Way, Way>> = { n: 's', s: 'n', e: 'w', w: 'e' };
+
+/**
+ * The ways a part of a pipe joins on, turned as it is: a length and a valve are made west to east, a
+ * bend west to south and an end to the west, and each is turned clockwise from there.
+ */
+function pipeWays(piece: FurnishingId, spin: number): Way[] {
+  const made: Way[] = piece === 'pipeEnd' ? ['w'] : piece === 'pipeElbow' ? ['w', 's'] : ['w', 'e'];
+  const order = WAYS.map(([name]) => name);
+  return made.map((way) => order[(order.indexOf(way) + spin / 90) % 4]);
+}
 
 describe('furnishRooms()', () => {
   it('leaves every room reachable, going round whatever stands in it', () => {
@@ -153,10 +174,79 @@ describe('furnishRooms()', () => {
     expect(pillars.some((count) => count > 0)).toBe(true);
   });
 
+  it('stands everything in a sewer against a wall, its barrels and crates heaped in the corners', () => {
+    let heaped = 0;
+    for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL]) {
+      for (const seed of SEEDS) {
+        const layout = generateDungeon({ atmosphere: 'sewer', roomCount: 10, seed, gridType });
+        const pieces = layout.furnishings!;
+        const at = new Map(pieces.map((piece) => [piece.y * layout.width + piece.x, piece]));
+        for (const piece of pieces) {
+          expect([piece.w, piece.h]).toEqual([1, 1]);
+          const walls = WAYS.filter(([, dx, dy]) => cellAt(layout, piece.x + dx, piece.y + dy) === DungeonCell.Rock);
+          expect(walls.length, `${piece.piece} at ${piece.x},${piece.y} of seed ${seed}`).toBeGreaterThan(0);
+          if (PIPES.includes(piece.piece)) continue;
+          if (WAYS.some(([, dx, dy]) => at.has((piece.y + dy) * layout.width + piece.x + dx))) heaped++;
+        }
+      }
+    }
+    expect(heaped).toBeGreaterThan(10);
+  });
+
+  it('lays a pipe in a sewer as one run: every part joins the next, bends at the corners and an end at each end', () => {
+    let runs = 0;
+    let bends = 0;
+    let valves = 0;
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'sewer', roomCount: 10, seed });
+      const parts = layout.furnishings!.filter((piece) => PIPES.includes(piece.piece));
+      const at = new Map(parts.map((part) => [part.y * layout.width + part.x, part]));
+      const joins = (part: (typeof parts)[number]) => pipeWays(part.piece, part.spin);
+      for (const part of parts) {
+        const ways = joins(part);
+        expect(ways.length, part.piece).toBe(part.piece === 'pipeEnd' ? 1 : 2);
+        for (const way of ways) {
+          const [, dx, dy] = WAYS.find(([name]) => name === way)!;
+          const next = at.get((part.y + dy) * layout.width + part.x + dx);
+          expect(next, `${part.piece} at ${part.x},${part.y} of seed ${seed} leads ${way} to nothing`).toBeDefined();
+          // The part it leads to leads back to it.
+          expect(joins(next!)).toContain(BACK[way]);
+        }
+      }
+      runs += parts.filter((part) => part.piece === 'pipeEnd').length / 2;
+      bends += parts.filter((part) => part.piece === 'pipeElbow').length;
+      valves += parts.filter((part) => part.piece === 'pipeValve').length;
+    }
+    expect(Number.isInteger(runs)).toBe(true);
+    expect(runs).toBeGreaterThan(3);
+    expect(bends).toBeGreaterThan(0);
+    expect(valves).toBeGreaterThan(0);
+  });
+
+  it('keeps a pipe in a chamber short, and runs one round the walls of the room at the bottom', () => {
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'sewer', roomCount: 10, seed });
+      for (const room of layout.rooms) {
+        const parts = layout.furnishings!.filter(
+          (piece) =>
+            PIPES.includes(piece.piece) &&
+            piece.x >= room.x &&
+            piece.x < room.x + room.w &&
+            piece.y >= room.y &&
+            piece.y < room.y + room.h
+        );
+        if (room.role === DungeonRoomRole.Chamber) expect(parts.length).toBeLessThanOrEqual(6);
+        if (parts.length > 0) expect(parts.length).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
   it('turns only what is shoved about, and each only as far as its shape allows', () => {
     for (const atmosphere of FURNISHED) {
       for (const seed of SEEDS) {
         for (const piece of generateDungeon({ atmosphere, roomCount: 10, seed }).furnishings!) {
+          // A part of a pipe is turned to its run rather than shoved about.
+          if (PIPES.includes(piece.piece)) continue;
           expect(Math.abs(piece.spin)).toBeLessThanOrEqual(FURNISHING_SHAPES[piece.piece].spin ?? 0);
         }
       }

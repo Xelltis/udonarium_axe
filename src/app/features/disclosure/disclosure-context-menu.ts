@@ -12,6 +12,7 @@ import {
 import { mayBeChosen, mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 
@@ -67,7 +68,7 @@ function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   const myCursor = PeerCursor.myCursor;
   if (myCursor) result.push({ userId: myCursor.userId, name: candidateName(myCursor) });
-  const narrowed = Network.instance.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+  const narrowed = heldToGameMasterByServer();
   if (narrowed && ownerRuledByServer(object)) return result;
   for (const context of Network.instance.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);

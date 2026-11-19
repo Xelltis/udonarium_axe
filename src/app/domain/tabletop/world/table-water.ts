@@ -1,8 +1,9 @@
 import { clamp } from '@axe/core/util/clamp';
 import { hexChannels } from '@axe/core/util/hex-color';
 import { type CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
-import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { standsWet, type WaterCell } from '@axe/domain/tabletop/water/water-cells';
 import { depthShadeAlpha } from '@axe/domain/tabletop/water/water-depth';
+import type { FallingWater, WaterColumn, WaterFall } from '@axe/domain/tabletop/water/water-falls';
 import { flowCellsPerSecond, flowVectorOf } from '@axe/domain/tabletop/water/water-flow';
 import {
   causticOpacity,
@@ -37,7 +38,9 @@ export interface WaterPart {
   readonly colours: Float32Array;
   /**
    * For the surface, how strongly the sky glints on it; for the floor, how strongly the net of light
-   * shows; for the shore, how far out from the land, from 0 to 1.
+   * shows; for the shore, how far out from the land, from 0 to 1; for falling water, how far down
+   * from where it leaves, in cells; for the foam where it leaves, how far back from the edge, and for
+   * the rings where it lands, how far out, each from 0 to 1.
    */
   readonly extra: Float32Array;
 }
@@ -70,6 +73,20 @@ export interface TableWorldWater {
   readonly sides: WaterPart;
   /** The strips along the shore the waves break on, reaching out into the water. */
   readonly shore: WaterPart;
+  /**
+   * The water falling: a sheet over each edge it goes over onto lower water, and a column from each
+   * spout, leaning out the way the water is thrown.
+   */
+  readonly falls: WaterPart;
+  /**
+   * Where each point of the falling water is across its sheet and how far the whole of it falls,
+   * both in cells, two to a point.
+   */
+  readonly fallAt: Float32Array;
+  /** The foam on the surface the water leaves, a strip back from each edge it falls over. */
+  readonly lips: WaterPart;
+  /** The foam and the rings spreading where falling water lands, lying on what it lands on. */
+  readonly splashes: WaterPart;
   /**
    * The floor of a table whose whole map is under water, laid over the whole board, or null where
    * the map is not under water.
@@ -112,6 +129,10 @@ export const NO_WATER: TableWorldWater = {
   floor: emptyPart(),
   sides: emptyPart(),
   shore: emptyPart(),
+  falls: emptyPart(),
+  fallAt: new Float32Array(0),
+  lips: emptyPart(),
+  splashes: emptyPart(),
   seaFloor: null,
   cellPx: 50,
   moving: false,
@@ -134,6 +155,28 @@ const SHORE_REACH_CELLS = 0.7;
  * over, so they break where its ground comes up through the surface and hides them.
  */
 const SHORE_LAND_CELLS = 1;
+/** How far out from the edge it leaves a sheet of falling water lands, in cells, thrown as it goes over. */
+const FALL_THROW_CELLS = 0.15;
+/** How far back from the edge the foam gathers on the surface the water leaves, in cells. */
+const LIP_REACH_CELLS = 0.55;
+/** How far out the rings spread from where a sheet lands, and how far back under it they start, in cells. */
+const SPLASH_REACH_CELLS = 1.15;
+const SPLASH_BACK_CELLS = 0.15;
+/** How far out the rings spread round where a column lands on water, and on the ground, in cells. */
+const COLUMN_SPLASH_CELLS = 0.75;
+const COLUMN_PUDDLE_CELLS = 0.38;
+/** How many sides the rings round a column are drawn with. */
+const COLUMN_SPLASH_SIDES = 12;
+/** How much of falling water is white with the air in it, over the colour of the water it left, and how opaque it is. */
+const FALL_WHITE_SHARE = 0.5;
+const FALL_ALPHA = 0.86;
+
+/** Nothing falling. */
+const NOTHING_FALLING: { readonly falls: readonly WaterFall[]; readonly columns: readonly WaterColumn[] } = {
+  falls: [],
+  columns: [],
+};
+
 /**
  * How much fainter the net is on the floor of a map under water than under a pond, laid over every
  * cell of the board at once: half what the page lays, so that it reads as faintly as the page's net
@@ -153,11 +196,15 @@ export function tableWaterOf(
   sides: readonly WaterSide[],
   shores: readonly WaterShore[],
   moving: boolean,
-  underwater: { readonly color: string; readonly density: number } | null = null
+  underwater: { readonly color: string; readonly density: number } | null = null,
+  falling: { readonly falls: readonly WaterFall[]; readonly columns: readonly WaterColumn[] } = NOTHING_FALLING
 ): TableWorldWater {
   const seaFloor = underwater ? seaFloorOf(underwater.color, underwater.density) : null;
-  if (!grid || cells.size < 1) return { ...NO_WATER, seaFloor, cellPx: grid?.sizePx || NO_WATER.cellPx, moving };
-  const stillAsIce = !underwater && [...cells.values()].every((cell) => (cell.ice ?? 0) >= 1);
+  if (!grid || (cells.size < 1 && falling.columns.length < 1)) {
+    return { ...NO_WATER, seaFloor, cellPx: grid?.sizePx || NO_WATER.cellPx, moving };
+  }
+  const stillAsIce =
+    !underwater && falling.columns.length < 1 && [...cells.values()].every((cell) => (cell.ice ?? 0) >= 1);
   const cellPx = Math.max(grid.sizePx, 1);
   const depthAt = depthsAtCorners(grid, cells, cellPx);
   const surface = new PartBuilder();
@@ -169,6 +216,7 @@ export function tableWaterOf(
   const leaves = new Map<number, { part: PartBuilder; flow: number[] }>();
   const floor = new PartBuilder();
   const ashore = shorelandOf(shores, cells);
+  const fallen = new Set(falling.falls.map((fall) => fall.key));
   for (const cell of [...cells.values(), ...ashore.values()]) {
     const land = ashore.get(cell.index) === cell;
     const outline = cellPolygonOf(grid, cell.index);
@@ -176,7 +224,7 @@ export function tableWaterOf(
     const deep = channelsOf(deepWaterColor(tone));
     const wash = channelsOf(tone);
     const murk = channelsOf(murkColorOf(tone));
-    const surfaceZ = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + FLAT_SURFACE_LIFT_PX;
+    const surfaceZ = standsWet(cell) ? cell.surfacePx : cell.floorPx + FLAT_SURFACE_LIFT_PX;
     const frozen = clamp(cell.ice ?? 0, 0, 1);
     const open = 1 - frozen;
     const glint = glintOpacity(cell.density, cell.turbidity, cell.dirt) * open;
@@ -240,11 +288,15 @@ export function tableWaterOf(
       flow: new Float32Array(floating.flow),
     })),
     floor: floor.part(),
-    sides: sidesOf(sides, cells),
+    sides: sidesOf(
+      sides.filter((side) => !fallen.has(side.key)),
+      cells
+    ),
     shore: shoreOf(
       shores.filter((shore) => (cells.get(shore.index)?.ice ?? 0) < 0.5),
       cellPx
     ),
+    ...fallingOf(falling.falls, falling.columns, cellPx),
     seaFloor,
     cellPx,
     moving: moving && !stillAsIce,
@@ -365,6 +417,124 @@ function shoreOf(shores: readonly WaterShore[], cellPx: number): WaterPart {
     }
   }
   return part.part();
+}
+
+/**
+ * The falling water as the scene draws it. A sheet hangs from the edge it goes over down to where
+ * it lands a little way out, with foam on the surface behind the edge and rings spreading from the
+ * line it lands along. A column has four faces round the line from its spout to where it lands, and
+ * rings spreading round that point.
+ */
+function fallingOf(
+  falls: readonly WaterFall[],
+  columns: readonly WaterColumn[],
+  cellPx: number
+): Pick<TableWorldWater, 'falls' | 'fallAt' | 'lips' | 'splashes'> {
+  const sheet = new PartBuilder();
+  const at: number[] = [];
+  const lips = new PartBuilder();
+  const splashes = new PartBuilder();
+  const face = (
+    from: { x: number; y: number; along: number },
+    to: { x: number; y: number; along: number },
+    shift: { x: number; y: number },
+    topPx: number,
+    bottomPx: number,
+    colour: Rgba
+  ) => {
+    const whole = (topPx - bottomPx) / cellPx;
+    const corners = [
+      { x: from.x, y: from.y, z: topPx, along: from.along, down: 0 },
+      { x: to.x, y: to.y, z: topPx, along: to.along, down: 0 },
+      { x: to.x + shift.x, y: to.y + shift.y, z: bottomPx, along: to.along, down: whole },
+      { x: from.x + shift.x, y: from.y + shift.y, z: bottomPx, along: from.along, down: whole },
+    ];
+    for (const index of [0, 1, 2, 0, 2, 3]) {
+      const corner = corners[index];
+      sheet.add(corner.x, corner.y, corner.z, colour, corner.down);
+      at.push(corner.along, whole);
+    }
+  };
+  const strip = (
+    part: PartBuilder,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    near: { x: number; y: number },
+    far: { x: number; y: number },
+    z: number
+  ) => {
+    const corners = [
+      { x: from.x + near.x, y: from.y + near.y, away: 0 },
+      { x: to.x + near.x, y: to.y + near.y, away: 0 },
+      { x: to.x + far.x, y: to.y + far.y, away: 1 },
+      { x: from.x + far.x, y: from.y + far.y, away: 1 },
+    ];
+    for (const index of [0, 1, 2, 0, 2, 3]) {
+      const corner = corners[index];
+      part.add(corner.x, corner.y, z, WHITE, corner.away);
+    }
+  };
+  for (const fall of falls) {
+    const from = { x: fall.x0, y: fall.y0 };
+    const to = { x: fall.x1, y: fall.y1 };
+    const out = (cells: number) => ({ x: fall.outX * cellPx * cells, y: fall.outY * cellPx * cells });
+    const alongOf = (point: { x: number; y: number }) => (point.y * fall.outX - point.x * fall.outY) / cellPx;
+    face(
+      { ...from, along: alongOf(from) },
+      { ...to, along: alongOf(to) },
+      out(FALL_THROW_CELLS),
+      fall.topPx,
+      fall.bottomPx,
+      fallColourOf(fall)
+    );
+    strip(lips, from, to, out(0), out(-LIP_REACH_CELLS), fall.topPx + SHORE_LIFT_PX);
+    strip(
+      splashes,
+      from,
+      to,
+      out(FALL_THROW_CELLS - SPLASH_BACK_CELLS),
+      out(FALL_THROW_CELLS + SPLASH_REACH_CELLS),
+      fall.bottomPx + SHORE_LIFT_PX
+    );
+  }
+  for (const column of columns) {
+    const colour = fallColourOf(column);
+    const shift = { x: column.x - column.fromX, y: column.y - column.fromY };
+    const half = column.halfPx;
+    const ring = [
+      { x: column.fromX - half, y: column.fromY - half },
+      { x: column.fromX + half, y: column.fromY - half },
+      { x: column.fromX + half, y: column.fromY + half },
+      { x: column.fromX - half, y: column.fromY + half },
+    ];
+    const side = (2 * half) / cellPx;
+    ring.forEach((corner, index) => {
+      const next = ring[(index + 1) % ring.length];
+      face(
+        { ...corner, along: index * side },
+        { ...next, along: (index + 1) * side },
+        shift,
+        column.topPx,
+        column.bottomPx,
+        colour
+      );
+    });
+    const reach = (column.onWater ? COLUMN_SPLASH_CELLS : COLUMN_PUDDLE_CELLS) * cellPx;
+    const z = column.bottomPx + SHORE_LIFT_PX;
+    for (let index = 0; index < COLUMN_SPLASH_SIDES; index++) {
+      const turn = (step: number) => ((index + step) / COLUMN_SPLASH_SIDES) * Math.PI * 2;
+      splashes.add(column.x, column.y, z, WHITE, 0);
+      splashes.add(column.x + Math.cos(turn(0)) * reach, column.y + Math.sin(turn(0)) * reach, z, WHITE, 1);
+      splashes.add(column.x + Math.cos(turn(1)) * reach, column.y + Math.sin(turn(1)) * reach, z, WHITE, 1);
+    }
+  }
+  return { falls: sheet.part(), fallAt: new Float32Array(at), lips: lips.part(), splashes: splashes.part() };
+}
+
+/** The colour of falling water: the colour its dirt turns the water it left, whitened by the air in it. */
+function fallColourOf(water: FallingWater): Rgba {
+  const tone = channelsOf(dirtyWaterColor(water.color, water.dirt));
+  return blend([...tone, FALL_ALPHA], [1, 1, 1, FALL_ALPHA], FALL_WHITE_SHARE);
 }
 
 /** Calls back for the points of a cell's outline as triangles fanned from its first corner. */

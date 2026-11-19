@@ -6,6 +6,7 @@ import type { GmApi } from './gm/game-master';
 import { GmHost } from './gm/gm-host';
 import { gmModelOffers, namedModel, useGmModels } from './gm/gm-models';
 import { openAiApi } from './gm/openai-api';
+import { TurnDesk } from './gm/turn-desk';
 import { serveMcpOverHttp } from './http';
 import { createMcpServer } from './mcp-server';
 import { type BridgeOptions, readOptions, USAGE } from './options';
@@ -43,6 +44,7 @@ async function main(): Promise<void> {
   }
 
   const link = new TabLink({ port: options.port, origins: options.origins, bridge: VERSION, log });
+  const desk = new TurnDesk({ link, log });
   const port = await link.listen();
   log(`Axe MCP bridge ${VERSION}: waiting for a tab of Axe at ws://127.0.0.1:${port}${AGENT_BRIDGE_PATH}`);
 
@@ -53,17 +55,21 @@ async function main(): Promise<void> {
       token: options.token,
       version: VERSION,
       log,
+      desk,
     });
   }
 
-  const stop = () => void link.close().then(() => process.exit(0));
+  const stop = () => {
+    desk.close();
+    void link.close().then(() => process.exit(0));
+  };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
 
   if (options.http === null) {
     const transport = new StdioServerTransport();
     transport.onclose = stop;
-    await createMcpServer(link, VERSION).connect(transport);
+    await createMcpServer(link, VERSION, desk).connect(transport);
     // The socket a tab connects on would keep the bridge running after the AI that started it is
     // gone, holding the port from the next one, so it stops once its standard input ends.
     process.stdin.once('end', stop);

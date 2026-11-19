@@ -1,12 +1,18 @@
-import { signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AgentToolRunner } from '@axe/application/agent/agent-tool-runner.service';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import type { AgentLinkState } from '@axe/core/agent/agent-bridge-client';
 import type { AgentScope } from '@axe/core/agent/agent-protocol';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { AiLinkService } from '@axe/features/ai-link/ai-link.service';
 import { AiLinkPanelComponent } from '@axe/features/ai-link/ai-link-panel/ai-link-panel.component';
+import { AiGmPanelComponent } from '@axe/features/ai-link/gm/ai-gm-panel/ai-gm-panel.component';
+
+/** Stands in for the half the game master is run from, which has specs of its own. */
+@Component({ selector: 'ai-gm-panel', template: '', changeDetection: ChangeDetectionStrategy.OnPush })
+class GmHalfStubComponent {}
 
 describe('AiLinkPanelComponent', () => {
   let role: PeerRole;
@@ -34,6 +40,11 @@ describe('AiLinkPanelComponent', () => {
         { provide: RolePermissionService, useValue: { role: () => role } },
       ],
     });
+    TestBed.overrideComponent(AiLinkPanelComponent, {
+      remove: { imports: [AiGmPanelComponent] },
+      add: { imports: [GmHalfStubComponent] },
+    });
+    TestBed.inject(AiLinkViewService).show('link');
   });
 
   async function panel(): Promise<HTMLElement> {
@@ -52,6 +63,46 @@ describe('AiLinkPanelComponent', () => {
 
     host.querySelector<HTMLButtonElement>('[data-testid="ai-link-toggle"]')!.click();
     expect(link.connect).toHaveBeenCalled();
+  });
+
+  it('shows the link and what the AI did, or the running of the game master, whichever half is chosen', async () => {
+    const fixture = TestBed.createComponent(AiLinkPanelComponent);
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const find = (id: string) => host.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+    expect(find('ai-link-tab-link')?.getAttribute('aria-selected')).toBe('true');
+    expect(find('ai-link-history')).not.toBeNull();
+    expect(host.querySelector('ai-gm-panel')).toBeNull();
+
+    find('ai-link-tab-gm')!.click();
+    await fixture.whenStable();
+    expect(find('ai-link-tab-gm')?.getAttribute('aria-selected')).toBe('true');
+    expect(host.querySelector('ai-gm-panel')).not.toBeNull();
+    expect(find('ai-link-history')).toBeNull();
+    // Whether it is linked, and what the AI is let do, stand over both halves.
+    expect(find('ai-link-state')).not.toBeNull();
+    expect(find('ai-link-scope-write')).not.toBeNull();
+
+    TestBed.inject(AiLinkViewService).show('link');
+    await fixture.whenStable();
+    expect(find('ai-link-history')).not.toBeNull();
+  });
+
+  it('opens on the half it was last asked to show', async () => {
+    TestBed.inject(AiLinkViewService).show('gm');
+    const host = await panel();
+    expect(host.querySelector('ai-gm-panel')).not.toBeNull();
+  });
+
+  it('says what the AI is let do under the choice, as it stands', async () => {
+    const fixture = TestBed.createComponent(AiLinkPanelComponent);
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(text(host, 'ai-link-scope-hint')).toContain('何も変えません');
+
+    scope.set('write');
+    await fixture.whenStable();
+    expect(text(host, 'ai-link-scope-hint')).toContain('この席でできることをAIがします');
   });
 
   it('says which bridge it is connected to, and lets go of it at a press', async () => {
@@ -81,6 +132,10 @@ describe('AiLinkPanelComponent', () => {
         { provide: AiLinkService, useValue: link },
         { provide: RolePermissionService, useValue: { role: () => role } },
       ],
+    });
+    TestBed.overrideComponent(AiLinkPanelComponent, {
+      remove: { imports: [AiGmPanelComponent] },
+      add: { imports: [GmHalfStubComponent] },
     });
     host = await panel();
     expect(host.querySelector<HTMLInputElement>('[data-testid="ai-link-scope-write"]')!.disabled).toBe(true);

@@ -30,7 +30,8 @@
     },
     "chat": {
       "systemName": "시스템 메시지",
-      "logClearedBy": "{{user}}님의 요청으로 로그를 지웠습니다."
+      "logClearedBy": "{{user}}님의 요청으로 로그를 지웠습니다.",
+      "logClearedBeforeBy": "{{user}}님의 요청으로 {{time}} 이전의 로그를 지웠습니다."
     },
     "theme": {
       "auto": "테마: 자동",
@@ -152,7 +153,9 @@
       "container_red": "컨테이너(빨강)",
       "container_blue": "컨테이너(파랑)",
       "container_green": "컨테이너(초록)",
-      "door_shutter": "셔터"
+      "door_shutter": "셔터",
+      "wall_sewer_brick": "하수도 벽돌 벽",
+      "ladder_up": "올라가는 사다리"
     },
     "reorder": {
       "toTop": "맨 위로",
@@ -181,19 +184,20 @@
       "state": {
         "unlinked": "브리지에 연결되어 있지 않습니다",
         "linking": "브리지를 찾고 있습니다…",
-        "mcpBridge": "연결된 브리지는 AI GM을 움직이지 않습니다. gm을 붙여 시작한 브리지에 연결하세요",
+        "away": "AI가 차례를 기다리고 있지 않습니다. AI 앱에서 AI GM을 시작하게 하세요",
         "off": "멈춰 있습니다",
         "waiting": "움직이고 있습니다 (다음 차례를 기다리는 중)",
         "thinking": "생각하고 있습니다…",
         "asked": "멈췄습니다",
         "budget": "사용 금액 상한에 도달해 멈췄습니다",
-        "key": "Claude로 움직일 때는 Claude Console에서 API 키를 만듭니다. 사용 금액 상한을 둔 워크스페이스의 키를 권합니다. 키를 채팅이나 이 화면에 붙여 넣지 마세요.",
+        "key": "API 키를 쓸 수 없어 멈췄습니다. 브리지에 넘긴 키를 확인하세요",
         "failed": "실패가 이어져 멈췄습니다",
         "seat": "GM 자리가 아니게 되어 멈췄습니다"
       },
       "spent": "사용 ${{spent}} / 상한 ${{budget}} · 대화 길이 {{tokens}} 토큰 (추정)",
       "spentTokens": "사용 토큰 {{spent}} / 상한 {{budget}} · 대화 길이 {{tokens}} 토큰 (요금은 세지 않습니다)",
       "gameMasterOnly": "AI GM은 GM 자리에서만 시작할 수 있습니다",
+      "mcpHint": "연결된 것은 AI 연동(MCP) 브리지입니다. [시작]을 누르고 AI 앱에서 run_ai_gm 프롬프트를 실행하면 그 AI가 GM을 맡습니다(Claude Code에서는 /mcp__axe__run_ai_gm). 모델과 요금은 AI 앱의 것입니다",
       "start": "시작",
       "resume": "이어서 시작",
       "restart": "처음부터 시작",
@@ -224,7 +228,7 @@
         "callName": "부르는 이름",
         "budget": "사용 금액 상한 (달러)",
         "tabs": "듣는 탭",
-        "tabsHint": "아무것도 고르지 않으면 모든 탭을 듣습니다",
+        "tabsHint": "아무것도 고르지 않으면 모든 탭을 듣습니다. 고르면 다른 탭의 발언은 AI에 닿지 않으며, 부르는 이름을 써도 움직이지 않습니다(AI 자리로의 귓속말은 닿습니다)",
         "pieces": "AI가 움직이는 말",
         "noPieces": "아직 없습니다",
         "piecesHint": "NPC 표시가 있는 말과 이 자리가 주인인 말입니다. NPC 표시는 말의 오른쪽 클릭 메뉴에서 붙입니다"
@@ -249,7 +253,8 @@
         "start": "키를 환경 변수에 넣고 브리지를 시작합니다 (macOS와 Linux)",
         "powerShell": "Windows PowerShell에서는 다음과 같습니다",
         "connect": "이 화면에서 [연결]을 누른 뒤 [시작]을 누릅니다.",
-        "otherProvider": "Claude 이외의 AI로 움직일 때는 시작하는 줄에 gm --provider openai --base-url 주소 --model 모델 이름을 붙이고, 키는 AXE_GM_API_KEY에 넣습니다. OpenAI 호환 API라면 이 컴퓨터에서 돌리는 모델에도 연결할 수 있습니다."
+        "otherProvider": "Claude 이외의 AI로 움직일 때는 시작하는 줄에 gm --provider openai --base-url 주소 --model 모델 이름을 붙이고, 키는 AXE_GM_API_KEY에 넣습니다. OpenAI 호환 API라면 이 컴퓨터에서 돌리는 모델에도 연결할 수 있습니다.",
+        "mcp": "API 키 없이, AI 연동(MCP)으로 연결한 Claude Code 같은 AI에게 GM을 맡길 수도 있습니다. gm 없이 시작한 브리지에 연결하고 [시작]을 누른 뒤 AI 앱에서 run_ai_gm 프롬프트를 실행합니다."
       },
       "notice": {
         "started": "{{name}} 님이 AI GM을 시작했습니다",
@@ -258,6 +263,10 @@
     },
     "aiLink": {
       "title": "AI 연동",
+      "tabs": {
+        "link": "연결과 기록",
+        "gm": "GM 맡기기"
+      },
       "hint": "AI(Claude 등)가 이 자리 그대로 방을 읽거나 조작하게 합니다. AI 쪽에서 실행되는 브리지(axe-mcp)에 이 탭을 연결합니다.",
       "connect": "연결",
       "disconnect": "끊기",
@@ -3216,7 +3225,8 @@
           "sandTomb": "모래 무덤",
           "illegalBar": "불법 바",
           "abandonedBuilding": "폐건물",
-          "containerWarehouse": "컨테이너 창고"
+          "containerWarehouse": "컨테이너 창고",
+          "sewer": "하수도"
         },
         "role": {
           "entrance": "입구의 방",
@@ -3250,6 +3260,14 @@
             "boss": "관리 사무소",
             "deadEnd": "자재 보관소",
             "chamber": "보관 구역"
+          },
+          "sewer": {
+            "entrance": "점검구",
+            "hall": "집수조",
+            "treasure": "밀수품 은닉처",
+            "boss": "펌프실",
+            "deadEnd": "침전조",
+            "chamber": "작업실"
           }
         },
         "piece": {
@@ -3281,6 +3299,13 @@
           "containerRed": "컨테이너",
           "containerBlue": "컨테이너",
           "containerGreen": "컨테이너",
+          "barrel": "나무통",
+          "pipe": "배관",
+          "pipeValve": "밸브 달린 배관",
+          "pipeElbow": "배관 굽은 곳",
+          "pipeEnd": "배관 끝",
+          "drainPipe": "배수관",
+          "sewage": "오수",
           "hiddenDoor": "비밀 문",
           "palisade": "통나무 울타리",
           "watchtower": "망루",
@@ -3295,6 +3320,8 @@
           "cart": "수레",
           "totem": "토템",
           "hearth": "화덕",
+          "windmill": "풍차",
+          "watermill": "물레방앗간",
           "wheat": "밀",
           "corn": "옥수수",
           "rice": "벼",
@@ -4347,6 +4374,9 @@
         "deleteLine": "삭제",
         "deleteLineHint": "삭제 (모두의 화면에서 사라지지만 로그에는 남습니다)",
         "deleteLineConfirm": "이 발언을 삭제할까요? 모두의 화면에서 사라지며 되돌릴 수 없습니다. 로그에는 남습니다.",
+        "clearBefore": "이 발언 이전의 로그 지우기",
+        "clearBeforeConfirm": "이 탭에서 이 발언 이전의 발언 {{count}}건을 지울까요? 방 모두의 화면과 로그에서 사라지며 되돌릴 수 없습니다.",
+        "clearBeforeOk": "지우기",
         "bookmarks": {
           "button": "책갈피",
           "shared": {
@@ -4518,6 +4548,10 @@
         "allowDeleteLog": "삭제 사용",
         "deleteLogThisTab": "이 탭",
         "deleteLogAllTabs": "전체 탭",
+        "clearBefore": "이 일시 이전만",
+        "clearBeforeNone": "체크하면 그 일시 이전의 발언만 지웁니다. 체크하지 않으면 모두 지웁니다",
+        "clearBeforeUnset": "일시를 끝까지 넣어 주세요. 도중인 채로는 지울 수 없습니다",
+        "clearBeforeSet": "{{time}} 이전의 발언만 지웁니다",
         "logKeepsServerRollsOnServer": "방 서버에서는 서버가 굴린 다이스 결과가 지워지지 않고 남습니다(GM은 지울 수 있습니다)",
         "defaultTabName": "탭",
         "noneMark": "—",
@@ -5423,6 +5457,13 @@
         "model_prop_containerRed": "컨테이너(빨강)",
         "model_prop_containerBlue": "컨테이너(파랑)",
         "model_prop_containerGreen": "컨테이너(초록)",
+        "model_prop_drainPipe": "배수관",
+        "model_prop_barrel": "나무통",
+        "model_prop_pipe": "배관(직관)",
+        "model_prop_pipeValve": "배관(밸브)",
+        "model_prop_pipeElbow": "배관(굽은 곳)",
+        "model_prop_pipeEnd": "배관(끝)",
+        "model_prop_ladder": "철 사다리",
         "model_log_wall": "통나무 벽",
         "model_plank_wall": "판자 벽",
         "model_timber_frame_wall": "목골 벽",
@@ -5434,6 +5475,8 @@
         "model_stone_tower_round": "둥근 돌탑",
         "model_stone_tower_square": "네모난 돌탑",
         "model_watchtower_wood": "나무 망루",
+        "model_windmill": "풍차",
+        "model_watermill": "물레방앗간",
         "model_totem": "토템",
         "model_well": "우물",
         "model_cart": "수레",

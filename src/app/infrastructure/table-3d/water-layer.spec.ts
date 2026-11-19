@@ -1,6 +1,8 @@
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
+import { waterFallsOf } from '@axe/domain/tabletop/water/water-falls';
+import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { type Mesh, Texture } from 'three/webgpu';
@@ -69,6 +71,35 @@ describe('the water on a table drawn on a canvas', () => {
     expect(open.geometry.getAttribute('position').count).toBe(2 * 3);
     expect(frozen.renderOrder).toBeLessThan(2);
     expect(open.renderOrder).toBeGreaterThan(3);
+    layer.dispose();
+  });
+
+  it('draws falling water after the surfaces it falls between, its foam and rings over them, each from few attributes', () => {
+    const layer = new WaterLayer(
+      () => undefined,
+      () => new Texture()
+    );
+    const grid = cellGridOf(6, 4, G, GridType.SQUARE);
+    const cells = waterCellsOf(grid, [
+      area({ width: G, surfacePx: 40 }),
+      area({ identifier: 'basin', left: 2 * G, width: G, surfacePx: 15, flowSpeed: 0 }),
+    ]);
+    const falling = { falls: waterFallsOf(grid, cells), columns: [] };
+
+    layer.set(tableWaterOf(grid, cells, waterSidesOf(grid, cells), [], true, null, falling), null, '');
+
+    const meshes = layer.group.children as Mesh[];
+    const fall = meshes.find((mesh) => mesh.geometry.hasAttribute('fallAt'));
+    const surface = meshes.find((mesh) => mesh.geometry.hasAttribute('flow'));
+    expect(fall).toBeDefined();
+    expect(fall!.renderOrder).toBeGreaterThan(surface!.renderOrder);
+    expect(fall!.geometry.getAttribute('fallAt').itemSize).toBe(2);
+    const laidOver = meshes.filter((mesh) => mesh.renderOrder > fall!.renderOrder);
+    expect(laidOver).toHaveLength(2);
+    for (const mesh of meshes) {
+      expect(Object.keys(mesh.geometry.attributes).length).toBeLessThanOrEqual(MOST_ATTRIBUTES);
+    }
+    expect(layer.advance(1000)).toBe(true);
     layer.dispose();
   });
 });

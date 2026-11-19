@@ -106,7 +106,7 @@ describe('how a menu is arranged', () => {
       }
     });
 
-    it('draws the drawer as it has always been drawn, the AI link and the AI GM before the guide to its buttons last', () => {
+    it('draws the drawer as it has always been drawn, the AI link before the guide to its buttons last', () => {
       expect(DEFAULT_MENU_LAYOUTS.fab.nodes.map((node) => node.id)).toEqual([
         'peerMenu',
         'chat',
@@ -118,7 +118,6 @@ describe('how a menu is arranged', () => {
         'widgets',
         'display',
         'aiLink',
-        'aiGm',
         'buttonGuide',
       ]);
     });

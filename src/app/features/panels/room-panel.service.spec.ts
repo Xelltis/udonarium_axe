@@ -1,5 +1,6 @@
 import { ViewContainerRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { AiLinkViewService } from '@axe/application/agent/ai-link-view.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
@@ -28,15 +29,48 @@ describe('RoomPanelService', () => {
   }
 
   /** Takes the pop-out button's word for how the panel is to be opened again. */
-  function popOut(): PanelWindowRequest {
+  function popOut(call = 0): PanelWindowRequest {
     let asked: PanelWindowRequest | null = null;
     vi.spyOn(TestBed.inject(PanelWindowService), 'popOut').mockImplementation((request) => {
       asked = request;
       return true;
     });
-    option().controls![0].press({ close: vi.fn(), windowed: () => false } as unknown as PanelService);
+    option(call).controls![0].press({ close: vi.fn(), windowed: () => false } as unknown as PanelService);
     return asked!;
   }
+
+  it('opens the AI link panel on the game master’s half when asked for by that name, and only then turns it', () => {
+    const view = TestBed.inject(AiLinkViewService);
+    const hasSingle = vi.fn(() => true);
+    (TestBed.inject(PanelService) as unknown as { hasSingle: typeof hasSingle }).hasSingle = hasSingle;
+
+    service.open('aiLink');
+    expect(view.tab()).toBe('link');
+    expect(option().single).toBe('ai-link');
+
+    service.open('aiGm');
+    expect(view.tab()).toBe('gm');
+    expect(option(1).single).toBe('ai-link');
+
+    // Asking whether it stands leaves the half shown alone, and so does moving it to a window of its
+    // own and back: opened by the game master's name, it is the AI link panel by its own from there on.
+    view.show('link');
+    expect(service.isOpen('aiGm')).toBe(true);
+    expect(view.tab()).toBe('link');
+    const moved = popOut(1);
+    moved.open({} as ViewContainerRef);
+    expect(view.tab()).toBe('link');
+    moved.restore();
+    expect(view.tab()).toBe('link');
+  });
+
+  it('turns the AI link panel to the game master’s half too when it is opened by that name among the panels opened in turn', () => {
+    const view = TestBed.inject(AiLinkViewService);
+
+    service.openInTurn([['chatWindow'], ['aiGm']]);
+
+    expect(view.tab()).toBe('gm');
+  });
 
   it('offers to send a panel on the table to a window of its own', () => {
     service.open('cutInList');

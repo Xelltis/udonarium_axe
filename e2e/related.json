@@ -1,0 +1,11 @@
+{
+  "loadsDir": "node_modules/.cache/axe-e2e/loads",
+  "titleMark": "test: ",
+  "titleJoint": " › ",
+  "passedMark": "passed: yes",
+  "projects": {
+    "e2e": ["chromium", "chromium-webgl", "chromium-webgpu", "mobile", "mobile-webgl"],
+    "visual": ["visual-webgl2", "visual-webgpu"]
+  },
+  "apart": ["server", "firefox", "webkit", "mobile-safari"]
+}

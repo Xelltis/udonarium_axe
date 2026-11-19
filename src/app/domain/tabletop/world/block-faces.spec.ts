@@ -181,6 +181,41 @@ describe('the faces of the blocks', () => {
     expect(caps[0]).toMatchObject({ zPx: 130 });
   });
 
+  it('marks the flat top of a block sunk into the floor up to its top as lying on the floor, and no other face', () => {
+    const lying = (terrain: Terrain, liftPx = 0) =>
+      blockFacesOf(
+        [terrain],
+        GRID,
+        GridType.SQUARE,
+        picture,
+        () => null,
+        () => liftPx
+      ).caps.map((cap) => [cap.facing, cap.zPx, cap.onFloor]);
+    const sunk = block();
+    sunk.altitude = -2;
+    const deeper = block();
+    deeper.altitude = -3;
+    const hanging = block();
+    hanging.altitude = 1;
+    const sloped = block();
+    sloped.altitude = -2;
+    sloped.slopeSides = ['e'];
+    const flat = Terrain.create('tile', 2, 1, 0, 'stone', 'grass');
+    flat.location = { name: 'table', x: 100, y: 50 };
+    made.push(flat);
+
+    expect(lying(sunk)).toEqual([['up', 0, true]]);
+    expect(lying(sunk, 30)).toEqual([['up', 30, true]]);
+    expect(lying(block())).toEqual([['up', 100, undefined]]);
+    expect(lying(deeper)).toEqual([['up', -50, undefined]]);
+    expect(lying(hanging)).toEqual([
+      ['up', 150, undefined],
+      ['down', 50, undefined],
+    ]);
+    expect(lying(sloped).every(([, , onFloor]) => onFloor === undefined)).toBe(true);
+    expect(lying(flat)).toEqual([['up', SHEET_LIFT_PX, undefined]]);
+  });
+
   it('turns a block about its middle', () => {
     const turned = block();
     turned.rotate = 90;

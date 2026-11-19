@@ -608,6 +608,63 @@ describe('ChatTabSettingComponent', () => {
       expect(tab.chatMessages).not.toContain(rolled);
     });
 
+    it('clears only the lines said before the moment written in the box, in one tab or in all of them', () => {
+      beSeat(PeerRole.Player);
+      const moment = new Date(2026, 10, 18, 21, 0).getTime();
+      const main = ChatTabList.instance.addChatTab('メイン');
+      const side = ChatTabList.instance.addChatTab('雑談');
+      for (const tab of [main, side]) {
+        tab.addMessage({ from: 'someone', name: '誰か', text: '先週の発言', timestamp: moment - 1000 });
+        tab.addMessage({ from: 'someone', name: '誰か', text: '今日の発言', timestamp: moment + 1000 });
+      }
+      const said = (tab: ChatTab) => tab.chatMessages.filter((line) => !line.isSystemMessage).map((line) => line.text);
+      component.selectedTab.set(main);
+      component.allowDeleteLog = true;
+
+      component.clearOnlyBefore.set(true);
+      component.clearBefore.set('2026-11-18T21:00');
+      expect(component.clearBeforeMoment).toBe(moment);
+      expect(component.clearBeforeText).toBe('2026/11/18 21:00');
+      component.deleteLog();
+      expect(said(main)).toEqual(['今日の発言']);
+      expect(said(side)).toEqual(['先週の発言', '今日の発言']);
+
+      component.deleteLogALL();
+      expect(said(side)).toEqual(['今日の発言']);
+
+      component.clearOnlyBefore.set(false);
+      component.deleteLog();
+      expect(said(main)).toEqual([]);
+    });
+
+    it('clears nothing while only the lines before a moment are to go and the moment is not written whole', () => {
+      beSeat(PeerRole.Player);
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      tab.addMessage({ from: 'someone', name: '誰か', text: '先週の発言', timestamp: 1000 });
+      component.selectedTab.set(tab);
+      component.allowDeleteLog = true;
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const box = host.querySelector<HTMLInputElement>('[data-testid="chat-log-clear-before"]')!;
+
+      // Going into the box is enough: a date half written reads as an empty box.
+      box.dispatchEvent(new Event('focus'));
+      fixture.detectChanges();
+      expect(component.clearOnlyBefore()).toBe(true);
+      expect(component.clearBeforeMoment).toBeNull();
+      expect(component.canClearAsSet).toBe(false);
+      expect(host.querySelector('[data-testid="chat-log-clear-reach"]')?.textContent).toContain('最後まで');
+
+      component.deleteLog();
+      component.deleteLogALL();
+      expect(tab.chatMessages.map((message) => message.text)).toEqual(['先週の発言']);
+
+      component.clearOnlyBefore.set(false);
+      expect(component.canClearAsSet).toBe(true);
+      component.deleteLog();
+      expect(tab.chatMessages.filter((message) => !message.isSystemMessage)).toEqual([]);
+    });
+
     it('clears and deletes no tab picked before the player could no longer read it', () => {
       beSeat(PeerRole.Player);
       const closed = ChatTabList.instance.addChatTab('closed');

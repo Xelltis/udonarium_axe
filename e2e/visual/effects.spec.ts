@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { createCharacter } from '../helpers';
-import { closePanels, freeze, prepare, settle, settleLazy, snap, untilStill } from './fixtures';
+import { closePanels, freeze, prepare, reseedRandom, settle, settleLazy, snap, untilStill } from './fixtures';
 
 /** How many particles and marks on the floor the effects draw in the table's scene now. */
 function effectsDrawn(page: Page): Promise<number> {
@@ -26,7 +26,10 @@ async function castOn(page: Page, preset: string) {
   await expect(page.getByText(/コマを押して対象を選ぶ/).first()).toBeVisible();
   await page.locator('game-character [appmovable]').first().dispatchEvent('mousedown', { button: 0, buttons: 1 });
   await settle(page);
-  // Picking casts nothing: the cast is the Enter, a step of the clock after the pick.
+  // Picking casts nothing: the cast is the Enter, a step of the clock after the pick. How many
+  // numbers the page has drawn by now shifts from one start to the next, and the cast lays its sparks
+  // by the ones it draws, so they start over from the seed here.
+  await reseedRandom(page);
   await page.keyboard.press('Enter');
   await settle(page);
 }
@@ -38,7 +41,10 @@ for (const [preset, name, at, differs] of [
   ['一閃', 'effect-slash', 1700, 0],
   ['極太ビーム', 'effect-beam', 1400, 0.08],
 ] as const) {
-  test(`${name} looks the same ${at}ms into the cast`, async ({ page }) => {
+  test(`${name} looks the same ${at}ms into the cast`, async ({ page }, testInfo) => {
+    // Drawn through WebGPU in software, an effect's scene alone takes over a minute to put together,
+    // and past the two a scene is given once others are drawn beside it.
+    test.slow(testInfo.project.name === 'visual-webgpu');
     await prepare(page);
     await closePanels(page);
     await createCharacter(page);

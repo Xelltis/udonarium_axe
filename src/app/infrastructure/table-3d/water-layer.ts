@@ -25,6 +25,7 @@ import {
   fract,
   length,
   max,
+  min,
   mix,
   positionWorld,
   smoothstep,
@@ -67,6 +68,12 @@ const SURFACE_ORDER = 1000;
 const ICE_ORDER = 1.75;
 const LEAF_ORDER = 1000.5;
 const SHORE_ORDER = 1001;
+/**
+ * Where falling water comes: after the surfaces it falls between, so it is seen in front of both, and
+ * its foam and rings with the waves on the shore, over the surfaces they lie on.
+ */
+const FALL_ORDER = 1000.25;
+const FOAM_ORDER = 1001;
 
 /** How many cells one repeat of the net of light spans on the floor, as the page draws it. */
 const CAUSTIC_CELLS = 2.6;
@@ -108,11 +115,39 @@ const SECOND_NET_SECONDS = 39;
 const SECOND_NET_SCALE = 1.45;
 const SECOND_NET_SHARE = 0.75;
 const GLINT_SECONDS = 57;
+/** How fast falling water runs down, in cells a second, and how many times faster its finer ribbons run. */
+const FALL_CELLS_PER_SECOND = 2.4;
+const FALL_SECOND_SPEED = 1.6;
+/**
+ * How falling water is streaked: by ribbons, the clouds of silt drawn out so many cells long down the
+ * fall and squeezed to so many across, a second set finer and faster over them, and by flecks, the
+ * streaks of a current run down it, repeating every so many cells.
+ */
+const FALL_RIBBON_CELLS = 3.2;
+const FALL_RIBBON_WIDE = 0.42;
+const FALL_FLECK_CELLS = 0.6;
+/**
+ * How white falling water is before anything is drawn on it, how much the ribbons, the finer ribbons
+ * and the flecks each add to that, and how white the spray is where it lands.
+ */
+const FALL_WHITE = 0.3;
+const FALL_RIBBON_SHOWS = 0.65;
+const FALL_SECOND_SHOWS = 0.45;
+const FALL_FLECK_SHOWS = 0.9;
+const FALL_SPRAY_SHOWS = 1;
+/** How far down from its edge falling water is white with foam, and how far up from where it lands with spray, in cells. */
+const FALL_LIP_CELLS = 0.2;
+const FALL_SPRAY_CELLS = 0.4;
+/** How many cells one repeat of the churned foam spans, and how many seconds it takes to drift one repeat. */
+const FOAM_CELLS = 0.9;
+const FOAM_SECONDS = 5;
+/** How many seconds a ring takes to spread out from where falling water lands. */
+const RING_SECONDS = 1.2;
 
 /**
  * The water on the table: its surfaces coloured by the depths under them and glinting, its floors
- * darkened and crossed by a moving net of light, its sides where it stands over lower ground, and the
- * waves breaking on its shore. All of it is built from the triangles the table's water is made into,
+ * darkened and crossed by a moving net of light, its sides where it stands over lower ground, the
+ * waves breaking on its shore, and the sheets and columns of it falling. All of it is built from the triangles the table's water is made into,
  * and built again only when those change; it moves by itself while there is any and it may move.
  */
 export class WaterLayer {
@@ -163,6 +198,14 @@ export class WaterLayer {
     if (water.seaFloor && board) this.addSeaFloor(water.seaFloor, board());
     this.add(water.sides, this.sideMaterial(), SURFACE_ORDER);
     this.add(water.shore, this.shoreMaterial(), SHORE_ORDER);
+    // Made only where water falls: making them builds the pictures they are drawn with as well.
+    if (water.falls.points.length > 0) {
+      this.add(water.falls, this.fallMaterial(), FALL_ORDER, (geometry) =>
+        geometry.setAttribute('fallAt', new Float32BufferAttribute(water.fallAt, 2))
+      );
+    }
+    if (water.lips.points.length > 0) this.add(water.lips, this.lipMaterial(), FOAM_ORDER);
+    if (water.splashes.points.length > 0) this.add(water.splashes, this.splashMaterial(), FOAM_ORDER);
     this.changed = true;
   }
 
@@ -457,6 +500,75 @@ export class WaterLayer {
       .sub(smoothstep(0, 0.35, away))
       .mul(0.55);
     const shown = max(foam, crest.mul(float(1).sub(away)).mul(0.6));
+    material.colorNode = vec4(vec3(1, 1, 1), shown);
+    this.dress(material, 'lit');
+    return material;
+  }
+
+  /**
+   * Falling water: the colour of the water it left, streaked white in ribbons as it runs down, white
+   * with foam where it goes over and with spray where it lands.
+   */
+  private fallMaterial(): MeshLambertNodeMaterial {
+    const material = this.material(true);
+    const { rgb, a } = this.colour();
+    const down = attribute('extra', 'float');
+    const at = attribute('fallAt', 'vec2');
+    const tiles = this.currentTile();
+    const drawnOut = (speed: number, long: number, wide: number, shift: number) =>
+      texture(tiles.silt, vec2(at.x.div(wide).add(shift), down.sub(this.seconds.mul(speed)).div(long))).r;
+    const broad = smoothstep(0.3, 0.62, drawnOut(FALL_CELLS_PER_SECOND, FALL_RIBBON_CELLS, FALL_RIBBON_WIDE, 0));
+    const fine = smoothstep(
+      0.38,
+      0.7,
+      drawnOut(FALL_CELLS_PER_SECOND * FALL_SECOND_SPEED, FALL_RIBBON_CELLS * 0.6, FALL_RIBBON_WIDE * 0.45, 0.37)
+    );
+    const flecksAt = vec2(
+      down.sub(this.seconds.mul(FALL_CELLS_PER_SECOND * 1.3)).div(FALL_FLECK_CELLS),
+      at.x.div(FALL_FLECK_CELLS)
+    );
+    const flecks = texture(tiles.streaks, flecksAt).r;
+    const streak = min(
+      broad.mul(FALL_RIBBON_SHOWS).add(fine.mul(FALL_SECOND_SHOWS)).add(flecks.mul(FALL_FLECK_SHOWS)).add(FALL_WHITE),
+      1
+    );
+    const lip = float(1).sub(smoothstep(0, FALL_LIP_CELLS, down));
+    const spray = smoothstep(at.y.sub(FALL_SPRAY_CELLS), at.y, down);
+    const white = max(max(streak, lip), spray.mul(FALL_SPRAY_SHOWS));
+    const fallen = laidOver({ colour: rgb, alpha: a }, vec3(1, 1, 1), white);
+    material.colorNode = vec4(fallen.colour, fallen.alpha);
+    this.dress(material, 'lit');
+    return material;
+  }
+
+  /** How much of a point the churned foam covers, from 0 to 1, drifting as it is carried about. */
+  private churn(): Node<'float'> {
+    const at = vec2(positionWorld.x, positionWorld.z)
+      .div(this.cellPx.mul(FOAM_CELLS))
+      .add(vec2(this.seconds, this.seconds.negate()).div(FOAM_SECONDS));
+    return texture(this.scumTile().scum, at).r;
+  }
+
+  /** The foam where water goes over a fall: thick at the edge, thinning back over the surface it leaves. */
+  private lipMaterial(): MeshLambertNodeMaterial {
+    const material = this.material(true);
+    const away = attribute('extra', 'float');
+    const shown = float(1).sub(away.mul(away)).mul(this.churn().mul(0.4).add(0.6));
+    material.colorNode = vec4(vec3(1, 1, 1), shown);
+    this.dress(material, 'lit');
+    return material;
+  }
+
+  /** Where falling water lands: foam churning where it strikes, and rings spreading out from it and dying away. */
+  private splashMaterial(): MeshLambertNodeMaterial {
+    const material = this.material(true);
+    const away = attribute('extra', 'float');
+    const ring = fract(away.mul(3).sub(this.seconds.div(RING_SECONDS)));
+    const crest = smoothstep(0.55, 0.8, ring).mul(float(1).sub(smoothstep(0.8, 1, ring)));
+    const foam = float(1)
+      .sub(smoothstep(0.08, 0.55, away))
+      .mul(this.churn().mul(0.35).add(0.65));
+    const shown = max(foam, crest.mul(float(1).sub(away)));
     material.colorNode = vec4(vec3(1, 1, 1), shown);
     this.dress(material, 'lit');
     return material;

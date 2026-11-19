@@ -1,5 +1,5 @@
 import { DungeonPropId } from '@axe/domain/media/texture-catalog';
-import { DungeonAtmosphere } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
+import { DungeonAtmosphere, WaterwayPlan } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import {
   cellAt,
   DungeonCell,
@@ -7,7 +7,9 @@ import {
   DungeonLayout,
   DungeonPoint,
   DungeonRect,
+  DungeonSpout,
   maskOfKind,
+  WaterwayKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import {
   DOOR_KIND_STYLES,
@@ -20,19 +22,33 @@ import {
 } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
+import { awayFrom, reliefOfWaterways } from '@axe/domain/tabletop/dungeon/sewer-channels';
+import { areasOver, watersInLots } from '@axe/domain/tabletop/field/water-areas';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
 import {
   MapAmbience,
   MapBlock,
   MapBlocks,
+  MapHarm,
   MapLight,
   MapLighting,
   MapLightKind,
   MapPaint,
+  MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
 
 /** How thick the look over a pool of dangerous ground is laid. */
 const HAZARD_AMBIENCE_DENSITY = 0.5;
+
+/** How tall a pipe over a basin stands, as a share of the walls of the place. */
+const SPOUT_HEIGHT_SHARE = 0.6;
+
+/** How far a pipe over a basin reaches out from the bank it stands against, in cells. */
+const SPOUT_DEPTH = 0.4;
+/** How tall the bundled model of a pipe was made, in cells, which its block is made as tall as so that the model fills its cell. */
+const SPOUT_MODEL_HEIGHT = 2.005;
 
 export const MAX_MERGE_SPAN = 12;
 
@@ -56,6 +72,8 @@ export interface DungeonBlockOptions {
   models?: boolean;
   /** The kind of door hung in every doorway, in place of the one the place hangs. Left out, the place's own. */
   door?: DoorKind;
+  /** What shape the cells are, which decides how the water is gathered into areas. Left out, squares. */
+  gridType?: GridType;
 }
 
 export const DEFAULT_BLOCK_OPTIONS: DungeonBlockOptions = { placeDoors: true, placeStairs: true };
@@ -179,6 +197,8 @@ function findLights(
  *
  * Where models are asked for, a piece stands as its model when it is one block; a run whose model is
  * one cell of it, as a counter's is, is built of a block to a cell, each standing as that model.
+ * A piece whose model is made to the whole of its cell, as a part of a pipe is, takes the whole cell
+ * as its model, so that it meets the part in the next cell.
  */
 function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
@@ -204,7 +224,7 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
         },
         height: shape.height,
         footprint:
-          shape.fill >= 1
+          shape.fill >= 1 || (model && shape.whole)
             ? undefined
             : !run
               ? { w: shape.fill, d: shape.fill }
@@ -222,6 +242,105 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
   return blocks;
 }
 
+/**
+ * The water run through a place, as areas that never overlap: one lot for each way a channel runs and
+ * for each kind of still water, each gathered into as few areas as cover it on the board's grid. The
+ * floor under water is the board, so its surface stands as high over the board as its kind of water does.
+ */
+function watersOf(layout: DungeonLayout, plan: WaterwayPlan, gridType: GridType): MapAmbience[] {
+  const waterway = layout.waterway;
+  if (!waterway) return [];
+  const wet: { index: number; lot: string }[] = [];
+  for (let index = 0; index < waterway.kinds.length; index++) {
+    const kind = waterway.kinds[index];
+    if (kind === WaterwayKind.Dry || layout.cells[index] !== DungeonCell.Water) continue;
+    wet.push({ index, lot: `${kind}:${kind === WaterwayKind.Basin ? -1 : waterway.flow[index]}` });
+  }
+  return watersInLots(wet, layout.width, layout.height, gridType, (lot) => {
+    const [kind, flow] = lot.split(':').map(Number);
+    const level = kind === WaterwayKind.Channel ? plan.channel : plan.basin;
+    const runs = flow >= 0;
+    return {
+      surface: level.surface,
+      color: plan.look.color,
+      turbidity: plan.look.turbidity,
+      dirt: plan.look.dirt,
+      leaves: 0,
+      ice: 0,
+      flowSpeed: runs ? plan.flowSpeed : 0,
+      flowDirection: runs ? flow : 0,
+    };
+  });
+}
+
+/** What wading the water of a place costs and does, laid over as few areas as cover all of it. */
+function wadingOf(
+  layout: DungeonLayout,
+  plan: WaterwayPlan,
+  gridType: GridType
+): { slows: MapSlowGround[]; harms: MapHarm[] } {
+  const { extraCost, amount, ailment, moment, color, thing } = plan.wading;
+  const slows: MapSlowGround[] = [];
+  const harms: MapHarm[] = [];
+  for (const rect of areasOver(maskOfKind(layout, [DungeonCell.Water]), layout.width, layout.height, gridType)) {
+    if (extraCost > 0) slows.push({ rect, extraCost, color });
+    if (amount.length > 0 || ailment.length > 0) harms.push({ rect, thing, amount, ailment, moment, color });
+  }
+  return { slows, harms };
+}
+
+/**
+ * The pipe that pours into a basin, stood against the wall it comes out of, in nobody's way and
+ * hiding nothing. As the bundled model it fills its cell, its back to the wall and its mouth turned
+ * out over the water. Otherwise it is a box as wide as its cell and a little deep, set back against
+ * the wall, as high as most of the walls.
+ *
+ * The water is let in under it, and what stands on the ground is let down to the lowest of it under
+ * its foot, so the pipe is lifted by as much as that lets it down, to stand as the walkway does:
+ * `liftOf` answers how far, for the foot it stands on.
+ */
+function spoutBlock(
+  spout: DungeonSpout,
+  wallHeight: number,
+  models: boolean,
+  liftOf: ReturnType<typeof blockLiftsTo>
+): MapBlock {
+  const [ax, ay] = awayFrom(spout.facing);
+  const rect = { x: spout.x, y: spout.y, w: 1, h: 1 };
+  const block = {
+    kind: 'prop' as const,
+    rect,
+    blocksSight: false,
+    blocksClimb: false,
+    locked: false,
+    rooms: [],
+    skin: {
+      side: { kind: 'texture' as const, id: 'wall_metal' as const },
+      top: { kind: 'texture' as const, id: 'wall_metal' as const },
+    },
+    thing: 'drainPipe',
+  };
+  if (models) {
+    return {
+      ...block,
+      height: SPOUT_MODEL_HEIGHT,
+      altitude: liftOf(rect),
+      model: 'prop_drainPipe',
+      modelTurn: (spout.facing + 270) % 360,
+    };
+  }
+  const back = (1 - SPOUT_DEPTH) / 2;
+  const footprint = ax === 0 ? { w: 1, d: SPOUT_DEPTH } : { w: SPOUT_DEPTH, d: 1 };
+  const offset = { x: ax === 0 ? 0 : -ax * back, y: ay === 0 ? 0 : -ay * back };
+  return {
+    ...block,
+    height: wallHeight * SPOUT_HEIGHT_SHARE,
+    altitude: liftOf(rect, offset, footprint),
+    footprint,
+    offset,
+  };
+}
+
 function doorPropFor(atmosphere: DungeonAtmosphere): DungeonPropId {
   if (atmosphere.door) return atmosphere.door;
   if (atmosphere.algorithm === 'cave') return 'door_stone';
@@ -237,6 +356,10 @@ function doorPropFor(atmosphere: DungeonAtmosphere): DungeonPropId {
  * tunnel mouth, and no down stair when the exit is the entrance. Furniture stands on the floor it was put
  * on, a pillar made of the walls of the place and anything else of its own stuff. Lights go in rooms up to
  * the atmosphere's torch count, lit the way the atmosphere is lit.
+ *
+ * The floor under water is painted as any other floor is. The water over it is laid as areas of water,
+ * and as ground that costs something to wade and harms whoever is caught in it, both gathered on the
+ * board's grid; a pipe stands over each basin where one pours into it.
  */
 export function layoutToBlocks(
   layout: DungeonLayout,
@@ -264,7 +387,7 @@ export function layoutToBlocks(
 
   // A door stands on the floor rather than instead of it: its slab is a quarter of a cell
   // thick, so leaving its cell unpainted would show bare table beside it and a hole once it opens.
-  const floorMask = maskOfKind(layout, [DungeonCell.Room, DungeonCell.Corridor, DungeonCell.Door]);
+  const floorMask = maskOfKind(layout, [DungeonCell.Room, DungeonCell.Corridor, DungeonCell.Door, DungeonCell.Water]);
   for (const rect of mergeMaskToRects(floorMask, layout.width, layout.height, span)) {
     paint.push({ kind: 'floor', rect });
   }
@@ -317,7 +440,7 @@ export function layoutToBlocks(
         blocksSight: false,
         locked: false,
         rooms: [0],
-        prop: 'stair_up',
+        prop: atmosphere.stairs?.up ?? 'stair_up',
       });
     }
     const sameSpot = layout.exit.x === layout.entrance.x && layout.exit.y === layout.entrance.y;
@@ -328,12 +451,28 @@ export function layoutToBlocks(
         blocksSight: false,
         locked: false,
         rooms: [],
-        prop: 'stair_down',
+        prop: atmosphere.stairs?.down ?? 'stair_down',
       });
     }
   }
 
   for (const piece of layout.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, options));
+
+  const waterways = atmosphere.waterways;
+  const gridType = options.gridType ?? GridType.SQUARE;
+  const wading = waterways ? wadingOf(layout, waterways, gridType) : { slows: [], harms: [] };
+  if (waterways) {
+    ambiences.push(...watersOf(layout, waterways, gridType));
+    const liftOf = blockLiftsTo(
+      waterways.walkway,
+      layout.relief ?? reliefOfWaterways(layout, waterways, gridType),
+      gridType
+    );
+    for (const spout of layout.spouts ?? []) {
+      if (cellAt(layout, spout.x, spout.y) !== DungeonCell.Water) continue;
+      blocks.push(spoutBlock(spout, atmosphere.wallHeight, options.models === true, liftOf));
+    }
+  }
 
   // A light is not terrain. Made one, its picture is painted on all four sides of a box and
   // spills out around it; a light source of its own stands in the cell like a piece does.
@@ -343,6 +482,8 @@ export function layoutToBlocks(
     blocks,
     paint,
     ambiences,
+    ...(wading.slows.length > 0 ? { slows: wading.slows } : {}),
+    ...(wading.harms.length > 0 ? { harms: wading.harms } : {}),
     traps: (layout.traps ?? []).map((trap) => ({ x: trap.x, y: trap.y, kind: trap.kind })),
     torchRooms: lights.map((light) => light.room),
     torchSpots: lights.map((light) => ({ x: light.x, y: light.y })),

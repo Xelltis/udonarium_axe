@@ -59,6 +59,14 @@ export interface WaterCell {
 }
 
 /**
+ * Whether water stands in a cell: its surface lies over its bottom. A cell of an area whose ground
+ * has risen to the surface or past it is land, which no water is drawn on, falls onto or lands in.
+ */
+export function standsWet(cell: Pick<WaterCell, 'surfacePx' | 'floorPx'>): boolean {
+  return cell.surfacePx > cell.floorPx;
+}
+
+/**
  * How far in from the edge of an area a cell's centre has to lie to count, in pixels.
  *
  * An area laid on a hex board by the map editor is a square a cell wide around one hex, and

@@ -44,6 +44,8 @@ composition → features → ui → application → infrastructure → domain �
 - **context-menu**: 各feature配下に`*-context-menu.ts`を純関数で置き、specで固定
 - **ドメインモデルからDIサービスを呼ばない**。サービス側からモデルを操作する向きを保つ
 - **import**: 相対パス禁止（`@axe/*` / `@env/*`）、層境界はESLintでerror化
+- **修正**: 指摘された行だけを塞がない。直す前に、破れている決まり・その決まりを通る経路・決まりを置く1か所を書く。同じ領域で2度指摘が出たら作り直す（[修正の進め方](docs/coding-guidelines.md#修正の進め方)。指摘のレベルの基準と、レビューの報告の形もそこにある）
+- **テストを流す時**: e2eとvisualは毎回流さない。pushの前に`npm run e2e:related`を1回、visualは描画に関わる変更のときだけ。レビューと改修を繰り返している間の各回は流さない（[テストを流す時](docs/coding-guidelines.md#テストを流す時)）
 
 ## パスエイリアス
 
@@ -75,6 +77,7 @@ composition → features → ui → application → infrastructure → domain �
 | `npx vitest run`                              | ユニットテスト（直接Vitest、上記とは別経路）                                                                                 |
 | `npm run e2e`                                 | Playwright E2E                                                                                                               |
 | `npm run e2e:ui`                              | Playwright UIモード                                                                                                          |
+| `npm run e2e:related`                         | 変えた所に届くE2Eだけ（`-- --visual`で演出の比較も。記録は`npm run e2e`を1回流すとできる）                                   |
 | `npx playwright test --project=visual-webgl2` | 演出のスクリーンショット比較（手元のみ・基準画像は`e2e/visual/__screenshots__/webgl2/`。WebGPUは`visual-webgpu`と`webgpu/`） |
 | `npx playwright test --project=server`        | 部屋のサーバーの結合（手元のみ・隣に`udonarium_axe_backend`とビルド済みの`dist`が要る）                                      |
 | `npm run lint`                                | ESLint                                                                                                                       |
@@ -92,7 +95,7 @@ composition → features → ui → application → infrastructure → domain �
 - 複数の論理的変更を1コミットに混ぜない
 - **lefthook迂回は絶対禁止**（`--no-verify` / `LEFTHOOK=0` / `core.hooksPath`変更等）。
   フックが落ちたら原因を直してから再コミットする
-  - `commit-msg`: `commitlint` / `pre-commit`: staged分の`eslint` + `vitest related` / `pre-push`: `npx vitest run` + `npm run build`
+  - `commit-msg`: `commitlint` / `pre-commit`: staged分の`eslint` + `vitest related` / `pre-push`: push分の`vitest related` + `npm run build`
 - mainへのPRでは[.github/workflows/ci.yml](.github/workflows/ci.yml)が
   format / lint / **両テスト経路** / build / websiteビルドを回す（E2Eは所要時間の都合で手元のみ）
 

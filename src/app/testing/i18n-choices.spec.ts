@@ -32,6 +32,7 @@ import {
 import { DUNGEON_ROOM_ROLES, FURNISHING_IDS } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { FIELD_ATMOSPHERE_IDS, FIELD_PROP_IDS } from '@axe/domain/tabletop/field/field-atmosphere';
 import { TOWN_PIECE_IDS } from '@axe/domain/tabletop/field/field-blocks';
+import { MILL_KINDS } from '@axe/domain/tabletop/field/settlement-layout';
 import { MAP_FUNCTION_ROLES } from '@axe/domain/tabletop/function-paint';
 import { HAZARD_KINDS } from '@axe/domain/tabletop/hazard-presets';
 import { MOVE_MODES } from '@axe/domain/tabletop/move/move-mode';
@@ -70,7 +71,13 @@ const CHOICES: Record<string, readonly string[]> = {
   'feature.tabletop.dungeonGenerator.role.': DUNGEON_ROOM_ROLES,
   'feature.tabletop.dungeonGenerator.field.': FIELD_ATMOSPHERE_IDS,
   'feature.tabletop.dungeonGenerator.prop.': [...FIELD_PROP_IDS, 'building'],
-  'feature.tabletop.dungeonGenerator.piece.': [...FIELD_PROP_IDS, ...TOWN_PIECE_IDS, ...FURNISHING_IDS, 'hiddenDoor'],
+  'feature.tabletop.dungeonGenerator.piece.': [
+    ...FIELD_PROP_IDS,
+    ...TOWN_PIECE_IDS,
+    ...FURNISHING_IDS,
+    ...MILL_KINDS,
+    'hiddenDoor',
+  ],
   ...Object.fromEntries(
     DUNGEON_ROLE_NAMINGS.map((naming) => [`feature.tabletop.dungeonGenerator.roleIn.${naming}.`, DUNGEON_ROOM_ROLES])
   ),

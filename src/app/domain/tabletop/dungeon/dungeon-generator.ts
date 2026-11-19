@@ -20,6 +20,7 @@ import { clampCorridorWidth, DungeonLayout } from '@axe/domain/tabletop/dungeon/
 import { furnishRooms } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
 import { fitBoardTo, generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
+import { cutWaterways, reliefOfWaterways } from '@axe/domain/tabletop/dungeon/sewer-channels';
 import { clampTrapCount, placeTraps } from '@axe/domain/tabletop/dungeon/trap-placing';
 import { openTunnelMouth } from '@axe/domain/tabletop/dungeon/tunnel-mouth';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -129,12 +130,15 @@ export function boardSizeFor(
 
 /**
  * Lays out a whole dungeon floor for a request: rooms and mazes or a cave as the atmosphere says, then the
- * tunnel mouth when asked for, the room roles, the doors, and the furniture of a furnished place.
+ * tunnel mouth when asked for, the room roles, the doors, the water of a place with water run through it,
+ * and the furniture of a furnished place.
  *
  * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
  * Furniture is put in last, and only where the place is furnished, so that a place with none comes out
  * of its seed exactly as it always has; on hexes nothing is stacked. A place with hidden doors has
- * the ways out of its first room dressed as wall.
+ * the ways out of its first room dressed as wall. The water is run after the doors are hung, so that no
+ * channel comes up against one, and before the furniture, so that nothing stands in it; it takes nothing
+ * from the seed's chance, and the ground is dug for it once everything that stands on the ground is placed.
  */
 export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
@@ -188,6 +192,7 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   // Hung last, so that widening an opening cannot leave the room a key opens standing ajar.
   hangDoors(layout, { widths: request.doorWidth, doublePercent: request.doubleDoorPercent }, rng);
   if (atmosphere.hiddenDoors) hideDoorsOf(layout, 0);
+  if (atmosphere.waterways) cutWaterways(layout, atmosphere.waterways);
   if (atmosphere.furnishings) {
     const stackable = !isHexGrid(request.gridType ?? GridType.SQUARE);
     layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng, { stackable });
@@ -196,6 +201,9 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   // its seed exactly as it always has - and so that a trap is never set under the furniture.
   const traps = clampTrapCount(request.trapCount);
   if (traps > 0) layout.traps = placeTraps(layout, traps, rng);
+  if (atmosphere.waterways) {
+    layout.relief = reliefOfWaterways(layout, atmosphere.waterways, request.gridType ?? GridType.SQUARE);
+  }
   return layout;
 }
 
@@ -214,5 +222,9 @@ export function planDungeon(
   const layout = generateDungeon(request);
   const grid: MapGrid = { type: request.gridType ?? GridType.SQUARE, sizePx: 1 };
   const span = mergeSpanFor(grid, MAX_MERGE_SPAN);
-  return { layout, atmosphere, blocks: layoutToBlocks(layout, atmosphere, { ...options, mergeSpan: span }) };
+  return {
+    layout,
+    atmosphere,
+    blocks: layoutToBlocks(layout, atmosphere, { ...options, mergeSpan: span, gridType: grid.type }),
+  };
 }

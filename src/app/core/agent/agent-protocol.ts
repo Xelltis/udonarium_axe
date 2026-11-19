@@ -5,11 +5,13 @@
  * version of the talk other than its own, so that a tool is never run on a definition it does not share.
  *
  * A bridge run as the game master (`gm`) talks to Claude itself: the tab starts and stops it, tells it
- * what happens in the room, and hears back how it stands, what it noted and what it said aside.
+ * what happens in the room, and hears back how it stands, what it noted and what it said aside. A
+ * bridge handing an AI app's calls on (`mcp`) is told the same, and hands the game master's turns to
+ * that AI as it asks for them.
  */
 
 /** The version of the talk. Raised on any change to the messages; the tools' definitions are compared by their digest. */
-export const AGENT_PROTOCOL_VERSION = 4;
+export const AGENT_PROTOCOL_VERSION = 5;
 
 /** The port the bridge waits for a tab on, unless told another. */
 export const AGENT_BRIDGE_PORT = 47610;
@@ -56,7 +58,10 @@ export interface AgentError {
 /** Why the bridge turned a tab away. */
 export type AgentRefusal = 'protocol' | 'busy';
 
-/** What a bridge is run as: handing an AI app's tool calls on (`mcp`), or running the game master itself (`gm`). */
+/**
+ * What a bridge is run as: handing an AI app's tool calls on (`mcp`), with the game master's turns for
+ * that AI to take where the tab starts one, or running the game master itself (`gm`).
+ */
 export type BridgeMode = 'mcp' | 'gm';
 
 /** A model a game-master bridge can run, as the panel offers it. */
@@ -117,6 +122,11 @@ export interface GmStatus {
    * tells the answer to its asking, which counts one more, from what the bridge told of itself before.
    */
   readonly starts: number;
+  /**
+   * For a bridge that hands the turns to an AI connected over MCP: whether that AI is there to take
+   * them, waiting for its turn or having called a tool lately. Left out by a bridge that runs the model.
+   */
+  readonly attended?: boolean;
 }
 
 /** The longest the name of a model may be. */
@@ -276,6 +286,8 @@ function statusOf(raw: unknown): GmStatus | null {
   if (problem !== undefined && !isText(problem)) return null;
   const tokens = status['tokens'] === undefined ? undefined : recordOf(status['tokens']);
   if (tokens === null || (tokens && (!isCount(tokens['spent']) || !isCount(tokens['limit'])))) return null;
+  const attended = status['attended'];
+  if (attended !== undefined && typeof attended !== 'boolean') return null;
   return {
     run: status['run'] as GmRun,
     ...(halted === undefined ? {} : { halted: halted as GmHalt }),
@@ -287,6 +299,7 @@ function statusOf(raw: unknown): GmStatus | null {
     ...(problem === undefined ? {} : { problem }),
     ...(tokens ? { tokens: { spent: tokens['spent'] as number, limit: tokens['limit'] as number } } : {}),
     starts: status['starts'],
+    ...(attended === undefined ? {} : { attended }),
   };
 }
 

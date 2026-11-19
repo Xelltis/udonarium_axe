@@ -1,8 +1,9 @@
 import type { GmHalt, GmRun, GmStatus, GmTabMessage } from '@axe/core/agent/agent-protocol';
 
 import type { TabLink } from '../tab-link';
-import { GameMaster, type GmApi, type GmLedger, type TurnEnd, type TurnReason } from './game-master';
+import { GameMaster, type GmApi, type GmLedger, type TurnEnd } from './game-master';
 import { isGmModel, isPriced, noneIsPriced } from './gm-models';
+import { type GatheredTurn, TurnGathering } from './turn-gathering';
 
 export interface GmHostOptions {
   readonly link: TabLink;
@@ -18,12 +19,6 @@ export interface GmHostOptions {
   readonly maxTokens?: number;
 }
 
-/** How long the room must stay quiet, unless told otherwise: long enough for a roll to come back. */
-const QUIET_MS = 4000;
-/** The longest a turn waits, unless told otherwise, however busy the room is. */
-const LONGEST_WAIT_MS = 15_000;
-/** The most events kept for the next turn; the oldest are let go beyond it. */
-const EVENTS_KEPT = 200;
 /** How much of a model's name a tab asked for is told back in a refusal. */
 const MODEL_NAME_SHOWN = 100;
 /** How many turns in a row may fail before the game master is stopped. */
@@ -31,10 +26,9 @@ const FAILURES_TO_STOP = 3;
 
 /**
  * Runs the game master for the tab connected to the bridge. It starts, changes and stops it as the tab
- * asks, keeps what happens in the room until the next turn, and takes a turn once something calls for
- * one and the room has gone quiet for a few seconds (at once when the person at the seat asks). The
- * waiting is timed here rather than in the tab, as a tab out of sight is given few timers. It tells the
- * tab how the game master stands whenever that changes, and the notebook whenever it is written.
+ * asks, and takes a turn once one is due, which {@link TurnGathering} tells: what happens in the room
+ * is gathered there until something calls for a turn and the room has gone quiet. It tells the tab how
+ * the game master stands whenever that changes, and the notebook whenever it is written.
  */
 export class GmHost {
   private master: GameMaster | null = null;
@@ -43,14 +37,10 @@ export class GmHost {
   private problem: string | undefined;
   /** How many askings to start have been answered. */
   private starts = 0;
-  private events: Readonly<Record<string, unknown>>[] = [];
-  private reasons = new Set<TurnReason>();
-  private direction = '';
   private turn: AbortController | null = null;
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private firstReasonAt = 0;
   private failures = 0;
   private readonly ledger: GmLedger;
+  private readonly gathering: TurnGathering;
 
   constructor(private readonly options: GmHostOptions) {
     this.ledger = {
@@ -59,6 +49,12 @@ export class GmHost {
       spentTokens: 0,
       limitTokens: options.maxTokens ?? Infinity,
     };
+    this.gathering = new TurnGathering({
+      quietMs: options.quietMs,
+      longestWaitMs: options.longestWaitMs,
+      mayTake: () => this.run === 'waiting' && this.master !== null && options.link.current !== null,
+      due: () => void this.takeTurn(),
+    });
     options.link.onGm((message) => this.hear(message));
     options.link.onChange((tab) => {
       if (tab && this.run !== 'off' && !this.seatMayRun()) {
@@ -69,7 +65,7 @@ export class GmHost {
       if (tab) {
         this.tell();
         if (this.master) options.link.tellGm({ type: 'gm.notes', notes: this.master.notes });
-        if (this.run === 'waiting' && this.reasons.size > 0) this.schedule(false);
+        this.gathering.lookAgain();
       } else {
         // Nothing can be done at the table without the tab: the turn is given up, to be taken again.
         this.turn?.abort();
@@ -108,20 +104,10 @@ export class GmHost {
         this.update(message);
         return;
       case 'gm.events':
-        if (this.run === 'off') return;
-        for (const entry of message.events) {
-          this.events.push(entry.event);
-          if (entry.wake) this.addReason(entry.wake);
-        }
-        if (this.events.length > EVENTS_KEPT) this.events.splice(0, this.events.length - EVENTS_KEPT);
-        if (this.reasons.size > 0) this.schedule(false);
+        if (this.run !== 'off') this.gathering.heard(message.events);
         return;
       case 'gm.nudge':
-        if (this.run === 'off') return;
-        this.addReason('nudge');
-        if (message.direction.trim())
-          this.direction = [this.direction, message.direction.trim()].filter(Boolean).join('\n');
-        this.schedule(true);
+        if (this.run !== 'off') this.gathering.nudged(message.direction);
         return;
       case 'gm.stop':
         this.halt('asked');
@@ -195,63 +181,35 @@ export class GmHost {
     this.halted = undefined;
     this.problem = undefined;
     this.failures = 0;
-    this.events = [];
-    this.reasons.clear();
-    this.direction = '';
+    this.gathering.clear();
     this.options.log(`The game master started on ${message.settings.model}, up to $${message.settings.budgetUsd}.`);
     this.tell();
     // A new conversation opens at once, the model greeting the table; one kept waits for the room.
-    if (!this.master.kept) {
-      this.addReason('nudge');
-      this.schedule(true);
-    }
+    if (!this.master.kept) this.gathering.nudged();
   }
 
-  private addReason(reason: TurnReason): void {
-    if (this.reasons.size === 0) this.firstReasonAt = Date.now();
-    this.reasons.add(reason);
-  }
-
-  /** Takes the next turn once the room has been quiet long enough, or at once; never two turns at a time. */
-  private schedule(now: boolean): void {
-    if (this.run !== 'waiting' || this.reasons.size === 0) return;
-    if (this.timer) clearTimeout(this.timer);
-    const quiet = this.options.quietMs ?? QUIET_MS;
-    const longest = this.options.longestWaitMs ?? LONGEST_WAIT_MS;
-    const delay = now ? 0 : Math.max(0, Math.min(quiet, this.firstReasonAt + longest - Date.now()));
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      void this.takeTurn();
-    }, delay);
-  }
-
+  /** Takes the turn that is due; never two turns at a time. */
   private async takeTurn(): Promise<void> {
     const master = this.master;
-    if (this.run !== 'waiting' || !master || this.reasons.size === 0) return;
-    if (!this.options.link.current) return;
-    const reasons = [...this.reasons];
-    const events = this.events;
-    const direction = this.direction;
-    this.reasons = new Set();
-    this.events = [];
-    this.direction = '';
+    const gathered = master ? this.gathering.take() : null;
+    if (!master || !gathered) return;
     this.run = 'thinking';
     this.tell();
     const turn = new AbortController();
     this.turn = turn;
     let end: TurnEnd;
     try {
-      end = await master.takeTurn(reasons, events, direction, turn.signal);
+      end = await master.takeTurn(gathered.reasons, gathered.events, gathered.direction, turn.signal);
     } catch (error) {
       end = { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
     }
     // Stopped meanwhile, and perhaps started again: this turn is no longer the one that counts.
     if (this.turn !== turn) return;
     this.turn = null;
-    this.settle(end, reasons, events, direction);
+    this.settle(end, gathered);
   }
 
-  private settle(end: TurnEnd, reasons: TurnReason[], events: Readonly<Record<string, unknown>>[], direction: string) {
+  private settle(end: TurnEnd, gathered: GatheredTurn): void {
     switch (end.kind) {
       case 'done':
         this.failures = 0;
@@ -260,11 +218,7 @@ export class GmHost {
       case 'stopped':
         // Given up as the tab went away: taken again once it is back. What already reached the
         // conversation is not told again, only that the turn is still to be taken.
-        for (const reason of reasons) this.addReason(reason);
-        if (!end.told) {
-          this.events = [...events, ...this.events];
-          this.direction = [direction, this.direction].filter(Boolean).join('\n');
-        }
+        this.gathering.putBack(gathered, end.told);
         break;
       case 'budget':
         if (end.of === 'bridge') this.problem = this.bridgeSpent(this.master?.priced ?? true);
@@ -285,21 +239,17 @@ export class GmHost {
     }
     this.run = 'waiting';
     this.tell();
-    if (this.options.link.current) this.schedule(this.reasons.has('nudge'));
+    this.gathering.lookAgain();
   }
 
   private halt(why: GmHalt): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
     const wasRunning = this.run !== 'off';
     const turn = this.turn;
     this.turn = null;
     turn?.abort();
     this.run = 'off';
     this.halted = wasRunning ? why : this.halted;
-    this.events = [];
-    this.reasons.clear();
-    this.direction = '';
+    this.gathering.clear();
     if (wasRunning) this.options.log(`The game master stopped (${why}).`);
     this.tell();
   }

@@ -71,7 +71,32 @@ describe('MenuEditorPanelComponent', () => {
     fixture.detectChanges();
   }
 
+  /** Opens the mark picker on a row, standing in for the browser's own popover, which happy-dom has none of. */
+  async function openIconPicker(id: string): Promise<HTMLElement> {
+    const picker = query(`menu-editor-icon-${id}`)!;
+    const popover = picker.querySelector<HTMLElement>('[popover]')!;
+    popover.showPopover = () => undefined;
+    popover.hidePopover = () => undefined;
+    picker.querySelector<HTMLButtonElement>('[data-testid="icon-picker-open"]')!.click();
+    await settle();
+    return picker;
+  }
+
+  function marksDrawn(within: HTMLElement = fixture.nativeElement): number {
+    return within.querySelectorAll('[data-testid^="icon-picker-choice-"]').length;
+  }
+
+  /**
+   * Lets the event loop turn once. Whatever a WeakRef points at, as happy-dom's cache of what a query
+   * found does, is kept alive until it turns, so a test started straight from the one before keeps
+   * every panel drawn so far, some 170MB each, for the collector to wade through in the tests after.
+   */
+  function turnOfTheEventLoop(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
   beforeEach(async () => {
+    await turnOfTheEventLoop();
     for (const key of KEYS) localStorage.removeItem(key);
     await TestBed.configureTestingModule({
       imports: [MenuEditorPanelComponent],
@@ -171,7 +196,7 @@ describe('MenuEditorPanelComponent', () => {
   });
 
   it('gives an entry another mark from the ones the picker offers', async () => {
-    const choice = query('menu-editor-icon-chat')!.querySelector<HTMLElement>('[role="option"]')!;
+    const choice = (await openIconPicker('chat')).querySelector<HTMLElement>('[role="option"]')!;
     const mark = choice.title;
 
     choice.click();
@@ -185,7 +210,7 @@ describe('MenuEditorPanelComponent', () => {
   });
 
   it('takes a mark back off an entry, leaving it to wear its own again', async () => {
-    query('menu-editor-icon-chat')!.querySelector<HTMLElement>('[role="option"]')!.click();
+    (await openIconPicker('chat')).querySelector<HTMLElement>('[role="option"]')!.click();
     await settle();
     expect(
       layouts
@@ -193,9 +218,7 @@ describe('MenuEditorPanelComponent', () => {
         .nodes.find((node) => node.id === 'chat')
     ).toHaveProperty('icon');
 
-    query<HTMLButtonElement>('menu-editor-icon-chat')!
-      .querySelector<HTMLElement>('[data-testid="icon-picker-clear"]')!
-      .click();
+    (await openIconPicker('chat')).querySelector<HTMLElement>('[data-testid="icon-picker-clear"]')!.click();
     await settle();
 
     expect(
@@ -203,6 +226,21 @@ describe('MenuEditorPanelComponent', () => {
         .layoutOf('fab')()
         .nodes.find((node) => node.id === 'chat')
     ).not.toHaveProperty('icon');
+  });
+
+  it("draws a row's marks only while its picker stands open", async () => {
+    expect(rowIds().length).toBeGreaterThan(1);
+    expect(marksDrawn()).toBe(0);
+
+    const picker = await openIconPicker('chat');
+
+    expect(marksDrawn(picker)).toBeGreaterThan(0);
+    expect(marksDrawn()).toBe(marksDrawn(picker));
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await settle();
+
+    expect(marksDrawn()).toBe(0);
   });
 
   it('makes an empty small menu, named for now and renamed in its own row', async () => {

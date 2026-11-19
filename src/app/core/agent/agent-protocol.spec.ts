@@ -50,6 +50,12 @@ describe('readBridgeMessage', () => {
       starts: 2,
     };
     expect(readBridgeMessage({ type: 'gm.status', status })).toEqual({ type: 'gm.status', status });
+    const handed = { run: 'waiting', model: '', spentUsd: 0, budgetUsd: 0, contextTokens: 0, kept: true, starts: 1 };
+    expect(readBridgeMessage({ type: 'gm.status', status: { ...handed, attended: false } })).toEqual({
+      type: 'gm.status',
+      status: { ...handed, attended: false },
+    });
+    expect(readBridgeMessage({ type: 'gm.status', status: { ...handed, attended: 'no' } })).toBeNull();
     expect(readBridgeMessage({ type: 'gm.notes', notes: '村に着いた' })).toEqual({
       type: 'gm.notes',
       notes: '村に着いた',

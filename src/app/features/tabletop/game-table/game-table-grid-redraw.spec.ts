@@ -1,4 +1,6 @@
+import { inject, provideAppInitializer } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -7,6 +9,13 @@ import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * Starts the page as one opened with an invitation, as the app's own initializer would, so the table
+ * waits on the room rather than setting out the sample pieces, which the grid has nothing to do with
+ * and which took most of each test to make.
+ */
+const OPENED_WITH_INVITATION = provideAppInitializer(() => inject(StartRoomService).prepare('#join?r=room&n=room'));
 
 describe('drawing the grid over the board', () => {
   let component: GameTableComponent;
@@ -17,7 +26,7 @@ describe('drawing the grid over the board', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [GameTableComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, OPENED_WITH_INVITATION],
     }).compileComponents();
     drawn = vi.spyOn(GridLineRender.prototype, 'render');
     drawnInPart = vi.spyOn(GridLineRender.prototype, 'renderViewport');

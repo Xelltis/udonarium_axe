@@ -30,7 +30,8 @@
     },
     "chat": {
       "systemName": "System",
-      "logClearedBy": "Log cleared at the request of {{user}}."
+      "logClearedBy": "Log cleared at the request of {{user}}.",
+      "logClearedBeforeBy": "Log before {{time}} cleared at the request of {{user}}."
     },
     "theme": {
       "auto": "Theme: Auto",
@@ -152,7 +153,9 @@
       "container_red": "Container (red)",
       "container_blue": "Container (blue)",
       "container_green": "Container (green)",
-      "door_shutter": "Roller shutter"
+      "door_shutter": "Roller shutter",
+      "wall_sewer_brick": "Sewer brick wall",
+      "ladder_up": "Ladder up"
     },
     "reorder": {
       "toTop": "Move to the top",
@@ -181,19 +184,20 @@
       "state": {
         "unlinked": "Not connected to a bridge",
         "linking": "Looking for the bridge…",
-        "mcpBridge": "The bridge connected does not run the AI GM. Connect to a bridge started with gm",
+        "away": "No AI is waiting for its turn. Have the AI app start the AI GM",
         "off": "Stopped",
         "waiting": "Running (waiting for its next turn)",
         "thinking": "Thinking…",
         "asked": "Stopped",
         "budget": "Stopped: the spending limit was reached",
-        "key": "To run it on Claude, create an API key in the Claude Console. A key of a workspace with a spending limit is recommended. Never paste the key into chat or this panel.",
+        "key": "Stopped: the API key was refused. Check the key given to the bridge",
         "failed": "Stopped after failing several times",
         "seat": "Stopped: the seat is no longer the game master's"
       },
       "spent": "Spent ${{spent}} of ${{budget}} · conversation {{tokens}} tokens (estimate)",
       "spentTokens": "Used {{spent}} of {{budget}} tokens · conversation {{tokens}} tokens (the cost is not counted)",
       "gameMasterOnly": "The AI GM can be started only on the game master's seat",
+      "mcpHint": "The bridge connected is the AI link (MCP) one. Press Start and run the run_ai_gm prompt in the AI app, and that AI is the game master (/mcp__axe__run_ai_gm in Claude Code). The model and what it costs are the AI app’s",
       "start": "Start",
       "resume": "Resume",
       "restart": "Start over",
@@ -224,7 +228,7 @@
         "callName": "Call name",
         "budget": "Spending limit (USD)",
         "tabs": "Tabs it listens to",
-        "tabsHint": "With none chosen, it listens to every tab",
+        "tabsHint": "With none chosen, it listens to every tab. Once some are chosen, lines in the other tabs do not reach it, its call name included (a whisper to its seat still does)",
         "pieces": "Pieces the AI runs",
         "noPieces": "None yet",
         "piecesHint": "Pieces marked as NPCs, and pieces this seat owns. Mark a piece as an NPC from its right-click menu"
@@ -249,7 +253,8 @@
         "start": "Start the bridge with the key in an environment variable (macOS and Linux)",
         "powerShell": "In Windows PowerShell",
         "connect": "Press Connect in this panel, then Start.",
-        "otherProvider": "To run it on another AI, start the bridge with gm --provider openai --base-url <address> --model <name>, with the key in AXE_GM_API_KEY. Any API compatible with OpenAI is reached, a model served on this computer among them."
+        "otherProvider": "To run it on another AI, start the bridge with gm --provider openai --base-url <address> --model <name>, with the key in AXE_GM_API_KEY. Any API compatible with OpenAI is reached, a model served on this computer among them.",
+        "mcp": "Without an API key, an AI such as Claude Code connected through the AI link (MCP) can be the game master too: connect to a bridge started without gm, press Start, and run the run_ai_gm prompt in the AI app."
       },
       "notice": {
         "started": "{{name}} started the AI GM",
@@ -258,6 +263,10 @@
     },
     "aiLink": {
       "title": "AI link",
+      "tabs": {
+        "link": "Link and history",
+        "gm": "Game master"
+      },
       "hint": "Lets an AI (such as Claude) read the room, or act in it, as this seat. This tab connects to the bridge (axe-mcp) the AI runs.",
       "connect": "Connect",
       "disconnect": "Disconnect",
@@ -3216,7 +3225,8 @@
           "sandTomb": "Sand tomb",
           "illegalBar": "Illegal bar",
           "abandonedBuilding": "Abandoned building",
-          "containerWarehouse": "Container warehouse"
+          "containerWarehouse": "Container warehouse",
+          "sewer": "Sewer"
         },
         "role": {
           "entrance": "Entrance hall",
@@ -3250,6 +3260,14 @@
             "boss": "Site office",
             "deadEnd": "Supply room",
             "chamber": "Storage bay"
+          },
+          "sewer": {
+            "entrance": "Maintenance hatch",
+            "hall": "Cistern",
+            "treasure": "Smugglers' cache",
+            "boss": "Pump room",
+            "deadEnd": "Settling tank",
+            "chamber": "Workroom"
           }
         },
         "piece": {
@@ -3281,6 +3299,13 @@
           "containerRed": "Container",
           "containerBlue": "Container",
           "containerGreen": "Container",
+          "barrel": "Barrel",
+          "pipe": "Pipe",
+          "pipeValve": "Valved pipe",
+          "pipeElbow": "Pipe bend",
+          "pipeEnd": "Pipe end",
+          "drainPipe": "Drain pipe",
+          "sewage": "Sewage",
           "hiddenDoor": "Hidden door",
           "palisade": "Palisade",
           "watchtower": "Watchtower",
@@ -3295,6 +3320,8 @@
           "cart": "Cart",
           "totem": "Totem",
           "hearth": "Hearth",
+          "windmill": "Windmill",
+          "watermill": "Watermill",
           "wheat": "Wheat",
           "corn": "Maize",
           "rice": "Rice",
@@ -4347,6 +4374,9 @@
         "deleteLine": "Delete",
         "deleteLineHint": "Delete (it leaves everyone’s screen but stays in the log)",
         "deleteLineConfirm": "Delete this line? It leaves everyone’s screen and cannot be brought back. It stays in the log.",
+        "clearBefore": "Clear the log before this line",
+        "clearBeforeConfirm": "Clear the {{count}} lines before this one in this tab? They leave everyone’s screen and the log, and cannot be brought back.",
+        "clearBeforeOk": "Clear",
         "bookmarks": {
           "button": "Bookmark",
           "shared": {
@@ -4518,6 +4548,10 @@
         "allowDeleteLog": "Enable clear",
         "deleteLogThisTab": "This tab",
         "deleteLogAllTabs": "All tabs",
+        "clearBefore": "Only before",
+        "clearBeforeNone": "Ticked, only the lines before the date and time are cleared. Unticked, everything is",
+        "clearBeforeUnset": "Write the date and the time in full. Nothing is cleared while either is missing",
+        "clearBeforeSet": "Only the lines said before {{time}} are cleared",
         "logKeepsServerRollsOnServer": "On a room server, dice the server rolled stay in the log (the GM can clear them)",
         "defaultTabName": "Tab",
         "noneMark": "—",
@@ -5423,6 +5457,13 @@
         "model_prop_containerRed": "Container (red)",
         "model_prop_containerBlue": "Container (blue)",
         "model_prop_containerGreen": "Container (green)",
+        "model_prop_drainPipe": "Drain pipe",
+        "model_prop_barrel": "Barrel",
+        "model_prop_pipe": "Pipe (straight)",
+        "model_prop_pipeValve": "Pipe (with a valve)",
+        "model_prop_pipeElbow": "Pipe (bend)",
+        "model_prop_pipeEnd": "Pipe (end)",
+        "model_prop_ladder": "Iron ladder",
         "model_log_wall": "Log wall",
         "model_plank_wall": "Plank wall",
         "model_timber_frame_wall": "Timber-frame wall",
@@ -5434,6 +5475,8 @@
         "model_stone_tower_round": "Round stone tower",
         "model_stone_tower_square": "Square stone tower",
         "model_watchtower_wood": "Wooden watchtower",
+        "model_windmill": "Windmill",
+        "model_watermill": "Watermill",
         "model_totem": "Totem",
         "model_well": "Well",
         "model_cart": "Cart",

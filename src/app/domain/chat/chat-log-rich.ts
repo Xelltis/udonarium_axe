@@ -129,7 +129,7 @@ export function renderRichChatLog(
   const documentTitle = options.roomName ? `${title} — ${options.roomName}` : title;
   const footer =
     `<footer class="foot">${esc(labels.exportedWith)}` +
-    (options.exportedAt != null ? ` · ${formatDateTime(options.exportedAt)}` : '') +
+    (options.exportedAt != null ? ` · ${formatLogMoment(options.exportedAt)}` : '') +
     '</footer>';
 
   return (
@@ -429,9 +429,9 @@ function rangeOf(entries: readonly ChatLogEntry[]): string {
   if (entries.length < 1) return '';
   const first = entries[0].message.placedAt;
   const last = entries[entries.length - 1].message.placedAt;
-  const from = formatDateTime(first);
+  const from = formatLogMoment(first);
   if (formatLogDate(first) === formatLogDate(last)) return `${from} – ${formatLogTime(last)}`;
-  return `${from} – ${formatDateTime(last)}`;
+  return `${from} – ${formatLogMoment(last)}`;
 }
 
 function pad(value: number): string {
@@ -450,6 +450,10 @@ export function formatLogTime(time: number): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function formatDateTime(time: number): string {
+/**
+ * A moment to the minute in the local time of this seat, as `yyyy/mm/dd hh:mm`: how the log, and
+ * whatever speaks of a moment of it, writes one.
+ */
+export function formatLogMoment(time: number): string {
   return `${formatLogDate(time)} ${formatLogTime(time)}`;
 }

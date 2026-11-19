@@ -34,6 +34,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
+import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
@@ -72,12 +73,15 @@ class FakeEngine implements Table3dEngine {
   effectFrames: EffectFrame[] = [];
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
+  spoutsHeard: (spouts: readonly WaterSpout[]) => void = () => undefined;
+  modelMotions: boolean[] = [];
   weathers: (Table3dWeatherFall | null)[] = [];
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
   moving: boolean | 'slowly' = false;
   advanced = 0;
+  advancedTo: number[] = [];
   flickeredAt: number[] = [];
   drawn = 0;
   disposed = false;
@@ -134,6 +138,14 @@ class FakeEngine implements Table3dEngine {
     this.fogAirSheets.push(sheets);
   }
 
+  setModelMotion(moving: boolean): void {
+    this.modelMotions.push(moving);
+  }
+
+  onSpouts(heard: (spouts: readonly WaterSpout[]) => void): void {
+    this.spoutsHeard = heard;
+  }
+
   setWeather(weather: Table3dWeatherFall | null): void {
     this.weathers.push(weather);
   }
@@ -183,7 +195,8 @@ class FakeEngine implements Table3dEngine {
     this.sizes.push([width, height]);
   }
 
-  advance(): boolean | 'slowly' {
+  advance(timeMs: number): boolean | 'slowly' {
+    this.advancedTo.push(timeMs);
     this.advanced++;
     return this.moving;
   }
@@ -387,6 +400,91 @@ describe('Table3dService', () => {
     await scene.whenIdle();
 
     expect(engines[0].readiesFirst).toEqual([false]);
+  });
+
+  it('draws what moves by itself where it stands at the moment it is held at, and by the clock again once let go', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    scene.holdMotion(true);
+
+    scene.holdSceneAt(5000);
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 40 });
+    TestBed.tick();
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.advancedTo.at(-1)).toBe(5000);
+
+    scene.holdSceneAt(null);
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 60 });
+    TestBed.tick();
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.advancedTo.at(-1)).not.toBe(5000);
+  });
+
+  it('pours water from the spouts the engine tells of, down to the floor of a table with no water on it', async () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    expect(scene.world().water.falls.points.length).toBe(0);
+
+    engines[0].spoutsHeard([{ key: 'pipe:0', x: 125, y: 100, mouthPx: 60, outX: 0, outY: 1, widthPx: 12 }]);
+    await Promise.resolve();
+    TestBed.tick();
+
+    const water = engines[0].worlds.at(-1)!.water;
+    expect(water.falls.points.length / 3).toBe(4 * 6);
+    expect(Math.max(...[...water.falls.points].filter((_, index) => index % 3 === 2))).toBe(60);
+    expect(water.splashes.points.length).toBeGreaterThan(0);
+
+    engines[0].spoutsHeard([]);
+    await Promise.resolve();
+    TestBed.tick();
+
+    expect(engines[0].worlds.at(-1)!.water.falls.points.length).toBe(0);
+  });
+
+  it('lands the water of a spout on the top of a block under it, and on the floor again once the block is moved away', async () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    const block = Terrain.create('台', 1, 1, 0.5, '', '');
+    block.location = { name: 'table', x: 100, y: 100 };
+    table.appendChild(block);
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+    const lowestOf = () =>
+      Math.min(...[...engines[0].worlds.at(-1)!.water.falls.points].filter((_, index) => index % 3 === 2));
+
+    engines[0].spoutsHeard([{ key: 'pipe:0', x: 125, y: 100, mouthPx: 60, outX: 0, outY: 1, widthPx: 12 }]);
+    await Promise.resolve();
+    TestBed.tick();
+    expect(lowestOf()).toBe(25);
+
+    block.location = { name: 'table', x: 300, y: 300 };
+    block.update();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+    expect(lowestOf()).toBe(0);
+
+    // A block moved where no water lands leaves the water as it was worked out, not laid again.
+    const waterOf = () => (scene as unknown as { water: () => unknown }).water();
+    const laid = waterOf();
+    block.location = { name: 'table', x: 400, y: 350 };
+    block.update();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+    expect(waterOf()).toBe(laid);
+    table.destroy();
   });
 
   it('draws the scene and the camera on the frame after it is given a canvas, and once only', async () => {

@@ -94,8 +94,15 @@ describe('settlementMiddleOf', () => {
 describe('terraceSettlement', () => {
   it('levels the site and an apron round it to the height at its middle, and blends out to the country', () => {
     const layout = village();
-    const terraced = terraceSettlement(slopedRaster(), layout, { width: WIDTH, height: HEIGHT }, GridType.SQUARE);
+    const { ground: terraced, level: levelled } = terraceSettlement(
+      slopedRaster(),
+      layout,
+      { width: WIDTH, height: HEIGHT },
+      GridType.SQUARE
+    );
     const level = heightAtCell(slopedRaster(), 4, 4);
+
+    expect(levelled).toBeCloseTo(level, 5);
 
     for (const [x, y] of [
       [3, 3],
@@ -121,6 +128,7 @@ describe('terraceSettlement', () => {
 
     const terraced = terraceSettlement(raster, village(), { width: WIDTH, height: HEIGHT }, GridType.SQUARE);
 
-    expect(heightAtCell(terraced, 4, 4)).toBe(0);
+    expect(heightAtCell(terraced.ground, 4, 4)).toBe(0);
+    expect(terraced.level).toBe(0);
   });
 });

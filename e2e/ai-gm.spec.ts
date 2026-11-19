@@ -2,6 +2,8 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { expect, test } from '@playwright/test';
 
 import { BRIDGE, buildBridgeIfStale } from './ai-bridge';
@@ -196,12 +198,13 @@ test.describe('the AI game master', () => {
       await becomeGm(page);
       await putAwayTutorial(page);
       await openFabMenu(page);
-      await page.getByTestId('fab-ai-gm').click();
+      await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-gm').click();
       const panel = page.locator('ai-gm-panel');
       const state = panel.getByTestId('ai-gm-state');
       await expect(state).toHaveAttribute('data-state', 'unlinked');
 
-      await panel.getByTestId('ai-gm-link-toggle').click();
+      await page.getByTestId('ai-link-toggle').click();
       await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
       await panel.getByTestId('ai-gm-instructions').fill('舞台は港町。口調は穏やかに');
       await panel.getByTestId('ai-gm-instructions').blur();
@@ -236,12 +239,15 @@ test.describe('the AI game master', () => {
       const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
       expect(stored).not.toContain(KEY);
 
-      // Linked again from the AI link panel, the AI GM panel comes back to work the game master from.
+      // Closed, let go of and linked again from the half of the link, the panel turns back to the half the
+      // game master is worked from.
       await page.locator('ui-panel').filter({ has: panel }).getByTestId('panel-close').dispatchEvent('click');
       await expect(panel).toHaveCount(0);
       await openFabMenu(page);
       await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-link').click();
       const link = page.locator('ai-link-panel');
+      await expect(link.getByTestId('ai-link-history')).toBeVisible();
       await link.getByTestId('ai-link-toggle').click();
       await expect(link.getByTestId('ai-link-state')).toHaveAttribute('data-state', 'idle');
       await link.getByTestId('ai-link-toggle').click();
@@ -251,6 +257,74 @@ test.describe('the AI game master', () => {
     } finally {
       bridge?.kill();
       claude.server.close();
+    }
+  });
+
+  test('is taken by an AI app connected over MCP, with no key: started, asked to go on and stopped from the panel', async ({
+    page,
+  }, info) => {
+    const port = 47780 + info.parallelIndex;
+    const client = new Client({ name: 'e2e', version: '1' });
+    await client.connect(
+      new StdioClientTransport({ command: 'node', args: [BRIDGE, '--port', String(port)], stderr: 'ignore' })
+    );
+    const answerOf = (result: Awaited<ReturnType<Client['callTool']>>): Record<string, unknown> => {
+      const [first] = result.content as { type: string; text: string }[];
+      expect(result.isError, first?.text).toBeFalsy();
+      return JSON.parse(first.text) as Record<string, unknown>;
+    };
+    const waitForTurn = () => client.callTool({ name: 'wait_for_turn', arguments: { timeout_seconds: 20 } });
+    try {
+      await page.addInitScript(
+        (linkPort) => localStorage.setItem('axe.ai-link', JSON.stringify({ port: linkPort, scope: 'read' })),
+        port
+      );
+      await waitAppReady(page);
+      await becomeGm(page);
+      await putAwayTutorial(page);
+      await openFabMenu(page);
+      await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-gm').click();
+      const panel = page.locator('ai-gm-panel');
+      const state = panel.getByTestId('ai-gm-state');
+      await page.getByTestId('ai-link-toggle').click();
+      await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
+
+      // The model and the spending are the AI app's: the panel leaves them out, and says how to begin.
+      await expect(panel.getByTestId('ai-gm-mcp-hint')).toBeVisible();
+      await expect(panel.getByTestId('ai-gm-budget')).toHaveCount(0);
+      await panel.getByTestId('ai-gm-instructions').fill('舞台は港町。口調は穏やかに');
+      await panel.getByTestId('ai-gm-instructions').blur();
+
+      // The AI waits for its turn; started, it is handed the opening one with the instructions.
+      const opening = waitForTurn();
+      await panel.getByTestId('ai-gm-start').click();
+      expect(answerOf(await opening)).toMatchObject({ turn: true, instructions: '舞台は港町。口調は穏やかに' });
+      await expect(state).toHaveAttribute('data-state', 'thinking');
+
+      // It speaks for everyone to see, marked as the AI's, and keeps its notebook where the panel shows it.
+      answerOf(await client.callTool({ name: 'send_chat', arguments: { text: 'ようこそ、冒険者たち' } }));
+      const opened = page.locator('chat-tab chat-message').filter({ hasText: 'ようこそ、冒険者たち' });
+      await expect(opened.getByTestId('chat-message-ai')).toBeAttached({ timeout: 15000 });
+      answerOf(await client.callTool({ name: 'update_notes', arguments: { notes: '一行は港に着いた' } }));
+      await expect(panel.getByTestId('ai-gm-notes')).toHaveValue('一行は港に着いた');
+
+      // Waiting again ends its turn. Asked to go on with a word, it is handed the turn with the word.
+      const next = waitForTurn();
+      await expect(state).toHaveAttribute('data-state', 'waiting');
+      await panel.getByTestId('ai-gm-direction').fill('ゴブリンを出して');
+      await panel.getByTestId('ai-gm-nudge').click();
+      const turn = answerOf(await next);
+      expect(turn).toMatchObject({ turn: true, direction: 'ゴブリンを出して' });
+      expect(turn).not.toHaveProperty('instructions');
+
+      // Stopped from the panel, the AI waiting is told so.
+      const last = waitForTurn();
+      await panel.getByTestId('ai-gm-stop').click();
+      expect(answerOf(await last)).toMatchObject({ turn: false, running: false });
+      await expect(state).toHaveAttribute('data-state', 'asked');
+    } finally {
+      await client.close();
     }
   });
 
@@ -285,10 +359,11 @@ test.describe('the AI game master', () => {
       await becomeGm(page);
       await putAwayTutorial(page);
       await openFabMenu(page);
-      await page.getByTestId('fab-ai-gm').click();
+      await page.getByTestId('fab-ai-link').click();
+      await page.getByTestId('ai-link-tab-gm').click();
       const panel = page.locator('ai-gm-panel');
       const state = panel.getByTestId('ai-gm-state');
-      await panel.getByTestId('ai-gm-link-toggle').click();
+      await page.getByTestId('ai-link-toggle').click();
       await expect(state).toHaveAttribute('data-state', 'off', { timeout: 15000 });
 
       // The model kept here is Claude's, which this bridge does not run: it is said so, and another is chosen.

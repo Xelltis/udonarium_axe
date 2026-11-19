@@ -148,6 +148,73 @@ describe('AgentReadTools', () => {
     expect((call('read_chat', { limit: 1 }) as { lines: unknown[] }).lines).toHaveLength(1);
   });
 
+  it('hands a game master kept to some tabs the same lines by every road: as they are said, as it waits, as it reads back', async () => {
+    const chatter = ChatTabList.instance.addChatTab('雑談');
+    const views = TestBed.inject(AgentViews);
+    const events = TestBed.inject(AgentEventLog);
+    views.tabsRead.set(new Set([main.identifier]));
+    events.start();
+    const waiting = call('wait_for_events', { timeout_seconds: 5 }) as Promise<AgentEventBatch>;
+    const beside = (text: string, more: Record<string, unknown> = {}) =>
+      chatter.addMessage({
+        from: 'someone',
+        name: '誰か',
+        text,
+        timestamp: (said += 1000),
+        tag: '',
+        imageIdentifier: '',
+        ...more,
+      });
+
+    const notices = ChatTabList.instance.ensureSystemTab();
+    const lines = [
+      say('扉を開けます', { from: 'someone' }),
+      beside('ここだけの話'),
+      // The answer to a roll made beside is said beside, and is kept from it with the rest of that tab.
+      beside('(2D6) ＞ 7', { tag: 'system', from: 'System-BCDice' }),
+      beside('投票が始まりました', { tag: 'system-message', from: 'System' }),
+      notices.addMessage({
+        from: 'System',
+        name: 'System',
+        text: '罠が作動した',
+        timestamp: (said += 1000),
+        tag: 'system-message',
+        imageIdentifier: '',
+      }),
+      beside('GMにだけ', { to: 'ai-gm-user' }),
+    ];
+    const meant = ['扉を開けます', '罠が作動した', 'GMにだけ'];
+
+    // The rule itself.
+    expect(lines.flatMap((line) => views.lineRead(line)?.text ?? [])).toEqual(meant);
+    // As they are said, which is also what a game master is handed with its turn.
+    const heard = (await waiting).events;
+    const later = (await call('wait_for_events', {
+      after: (await waiting).cursor,
+      timeout_seconds: 1,
+    })) as AgentEventBatch;
+    expect([...heard, ...later.events].map((event) => (event as { text?: string }).text)).toEqual(meant);
+    // As it reads back, from either tab.
+    const read = (tab: string) =>
+      (call('read_chat', { tab }) as { lines: { text: string }[] }).lines.map((line) => line.text);
+    expect([...read('メイン'), ...read(notices.name), ...read('雑談')]).toEqual(meant);
+
+    // What it wrote itself is told back to it whichever tab it wrote it in, and it finds any tab to write in.
+    expect(views.chatLine(lines[1])?.text).toBe('ここだけの話');
+    expect(tools.tab('雑談')).toBe(chatter);
+
+    // Kept to no tab, every line is its to read.
+    views.tabsRead.set(null);
+    expect(lines.flatMap((line) => views.lineRead(line)?.text ?? [])).toEqual([
+      '扉を開けます',
+      'ここだけの話',
+      '(2D6) ＞ 7',
+      '投票が始まりました',
+      '罠が作動した',
+      'GMにだけ',
+    ]);
+  });
+
   it('names the seat a line came from, this seat’s own before its cursor knows its user, and says plainly who sent it', () => {
     PeerCursor.myCursor.userId = '';
     say('こんばんは', { from: 'ai-gm-user' });

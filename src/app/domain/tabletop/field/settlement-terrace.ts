@@ -2,10 +2,13 @@ import { clamp } from '@axe/core/util/clamp';
 import {
   cellOfLayoutPoint,
   layoutPointOfSample,
+  levelUnder,
   sampleOfLayoutPoint,
 } from '@axe/domain/tabletop/field/field-sample-points';
+import { STREAM_DEPTH } from '@axe/domain/tabletop/field/mill-stream';
 import { SETTLEMENT_ZONES, SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
+import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
 
 /** How far round the settlement the ground is kept as level as the settlement itself, in cells. */
@@ -15,7 +18,8 @@ export const TERRACE_BLEND_CELLS = 2;
 
 /**
  * The cells a settlement stands on: everything it laid down (roads, yards, floors, fields and
- * paddies, walls and gates, buildings, crops, things and fires), each as 1.
+ * paddies, walls and gates, buildings, crops, things and fires, and a village's stream and mills),
+ * each as 1.
  */
 export function settlementSiteOf(layout: SettlementLayout, width: number, height: number): Uint8Array {
   const site = new Uint8Array(width * height);
@@ -92,6 +96,12 @@ export function cellDistancesFrom(site: Uint8Array, width: number, height: numbe
   return distance;
 }
 
+/** A settlement's terrace: the ground with its site levelled, and the height the site is levelled to. */
+export interface SettlementTerrace {
+  readonly ground: GroundRaster;
+  readonly level: number;
+}
+
 /**
  * Levels the ground under a settlement into a terrace.
  *
@@ -108,7 +118,7 @@ export function terraceSettlement(
   gridType: GridType,
   apronCells = TERRACE_APRON_CELLS,
   blendCells = TERRACE_BLEND_CELLS
-): GroundRaster {
+): SettlementTerrace {
   const { width, height } = size;
   const site = settlementSiteOf(layout, width, height);
   const distance = cellDistancesFrom(site, width, height);
@@ -123,6 +133,43 @@ export function terraceSettlement(
       const y = clamp(cell.y, 0, height - 1);
       const away = clamp((distance[y * width + x] - apronCells) / blendCells, 0, 1);
       heights[index] = level * (1 - away) + raster.heights[index] * away;
+    }
+  }
+  return { ground: { columns: raster.columns, rows: raster.rows, heights }, level };
+}
+
+/**
+ * The ground with the bed of a settlement's stream dug into it, `STREAM_DEPTH` under the level the
+ * settlement stands at, in every cell of the stream but its bridges. A sample is dug only where every
+ * cell it lies under is the stream's, so the banks slope down inside the stream's own cells and the
+ * ground of every other cell, and of the bridges, is left as it was. A cell off the board counts as
+ * the cell of the board's edge beside it, so the bed runs out to the edge the stream leaves by.
+ */
+export function digStreamBed(
+  raster: GroundRaster,
+  layout: SettlementLayout,
+  size: { width: number; height: number },
+  gridType: GridType,
+  level: number
+): GroundRaster {
+  const { width, height } = size;
+  const wet = new Uint8Array(width * height);
+  for (const cell of layout.stream?.cells ?? []) {
+    if (!cell.bridge) wet[cell.y * width + cell.x] = 1;
+  }
+  const bed = level - STREAM_DEPTH;
+  // Past the edge of the board the stream runs on as the cell it leaves by, so that its bed reaches
+  // the edge and no bank is left standing across it there.
+  const within = (value: number, size: number) => Math.min(size - 1, Math.max(0, value));
+  const bedAt = (x: number, y: number) =>
+    wet[within(y, height) * width + within(x, width)] ? bed : Number.POSITIVE_INFINITY;
+  const heights = Float32Array.from(raster.heights);
+  for (let row = 0; row < raster.rows; row++) {
+    for (let column = 0; column < raster.columns; column++) {
+      const index = row * raster.columns + column;
+      const x = column / GROUND_SAMPLES_PER_CELL;
+      const y = row / GROUND_SAMPLES_PER_CELL;
+      heights[index] = Math.min(heights[index], levelUnder(gridType, x, y, bedAt));
     }
   }
   return { columns: raster.columns, rows: raster.rows, heights };

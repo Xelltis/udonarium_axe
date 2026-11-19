@@ -30,7 +30,8 @@
     },
     "chat": {
       "systemName": "システムメッセージ",
-      "logClearedBy": "{{user}}さんからの依頼でログをクリアしました。"
+      "logClearedBy": "{{user}}さんからの依頼でログをクリアしました。",
+      "logClearedBeforeBy": "{{user}}さんからの依頼で、{{time}}より前のログをクリアしました。"
     },
     "theme": {
       "auto": "テーマ: 自動",
@@ -152,7 +153,9 @@
       "container_red": "コンテナ（赤）",
       "container_blue": "コンテナ（青）",
       "container_green": "コンテナ（緑）",
-      "door_shutter": "シャッター"
+      "door_shutter": "シャッター",
+      "wall_sewer_brick": "下水道のレンガ壁",
+      "ladder_up": "上りはしご"
     },
     "reorder": {
       "toTop": "いちばん上へ",
@@ -181,19 +184,20 @@
       "state": {
         "unlinked": "ブリッジにつないでいません",
         "linking": "ブリッジを探しています…",
-        "mcpBridge": "つながっているブリッジはAI GMを動かしません。gmを付けて起動したブリッジにつないでください",
+        "away": "AIが番を待っていません。AIのアプリでAI GMを始めさせてください",
         "off": "止まっています",
         "waiting": "動いています（次の出番を待っています）",
         "thinking": "考えています…",
         "asked": "止めました",
         "budget": "使用額の上限に届いたので止まりました",
-        "key": "Claudeで動かすときは、Claude ConsoleでAPIキーを作ります。使用額の上限を付けたワークスペースのキーをおすすめします。キーをチャットやこの画面に貼らないでください。",
+        "key": "APIキーが使えないので止まりました。ブリッジに渡したキーを確かめてください",
         "failed": "失敗が続いたので止まりました",
         "seat": "GMの席でなくなったので止まりました"
       },
       "spent": "使った額${{spent}}／上限${{budget}}・会話の長さ{{tokens}}トークン（見積もり）",
       "spentTokens": "使ったトークン{{spent}}／上限{{budget}}・会話の長さ{{tokens}}トークン（料金は数えていません）",
       "gameMasterOnly": "AI GMはGMの席でだけ始められます",
+      "mcpHint": "つないでいるのはAI連携（MCP）のブリッジです。［始める］を押し、AIのアプリでrun_ai_gmのプロンプトを実行すると、そのAIがGMをします（Claude Codeでは /mcp__axe__run_ai_gm）。モデルと料金はAIのアプリのものです",
       "start": "始める",
       "resume": "続きから始める",
       "restart": "最初から始める",
@@ -224,7 +228,7 @@
         "callName": "呼び名",
         "budget": "使用額の上限（ドル）",
         "tabs": "聞くタブ",
-        "tabsHint": "どれも選ばなければ、すべてのタブを聞きます",
+        "tabsHint": "どれも選ばなければ、すべてのタブを聞きます。選ぶと、ほかのタブの発言はAIに届かず、呼び名を書いても動きません（AIの席への秘話は届きます）",
         "pieces": "AIが動かすコマ",
         "noPieces": "まだありません",
         "piecesHint": "NPCの印があるコマと、この席がオーナーのコマです。NPCの印はコマの右クリックの「NPC にする」で付けます"
@@ -249,7 +253,8 @@
         "start": "キーを環境変数に入れてブリッジを起動します（macOSとLinux）",
         "powerShell": "WindowsのPowerShellでは次のとおりです",
         "connect": "この画面で［つなぐ］を押してから［始める］を押します。",
-        "otherProvider": "Claude以外のAIで動かすときは、起動の行にgm --provider openai --base-url アドレス --model モデル名を付け、キーはAXE_GM_API_KEYに入れます。OpenAI互換のAPIなら、手元で動かすモデルにもつなげます。"
+        "otherProvider": "Claude以外のAIで動かすときは、起動の行にgm --provider openai --base-url アドレス --model モデル名を付け、キーはAXE_GM_API_KEYに入れます。OpenAI互換のAPIなら、手元で動かすモデルにもつなげます。",
+        "mcp": "APIキーを使わず、AI連携（MCP）でつないだClaude CodeなどのAIにGMをさせることもできます。gmを付けずに起動したブリッジにつなぎ、［始める］を押して、AIのアプリでrun_ai_gmのプロンプトを実行します。"
       },
       "notice": {
         "started": "{{name}} がAI GMを始めました",
@@ -258,6 +263,10 @@
     },
     "aiLink": {
       "title": "AI連携",
+      "tabs": {
+        "link": "接続と履歴",
+        "gm": "GMを任せる"
+      },
       "hint": "AI（Claudeなど）に、この席のまま部屋を読ませたり操作させたりします。AIの側で動くブリッジ（axe-mcp）に、このタブをつなぎます。",
       "connect": "つなぐ",
       "disconnect": "切る",
@@ -3216,7 +3225,8 @@
           "sandTomb": "砂の墳墓",
           "illegalBar": "違法BAR",
           "abandonedBuilding": "廃ビル",
-          "containerWarehouse": "コンテナ倉庫"
+          "containerWarehouse": "コンテナ倉庫",
+          "sewer": "下水道"
         },
         "role": {
           "entrance": "入口の間",
@@ -3250,6 +3260,14 @@
             "boss": "管理事務所",
             "deadEnd": "資材置き場",
             "chamber": "保管区画"
+          },
+          "sewer": {
+            "entrance": "点検口",
+            "hall": "集水槽",
+            "treasure": "密輸品の隠し場",
+            "boss": "ポンプ室",
+            "deadEnd": "沈殿槽",
+            "chamber": "作業室"
           }
         },
         "piece": {
@@ -3281,6 +3299,13 @@
           "containerRed": "コンテナ",
           "containerBlue": "コンテナ",
           "containerGreen": "コンテナ",
+          "barrel": "樽",
+          "pipe": "配管",
+          "pipeValve": "バルブ付きの配管",
+          "pipeElbow": "配管の曲がり",
+          "pipeEnd": "配管の端",
+          "drainPipe": "排水管",
+          "sewage": "汚水",
           "hiddenDoor": "隠し扉",
           "palisade": "丸太の柵",
           "watchtower": "見張り塔",
@@ -3295,6 +3320,8 @@
           "cart": "荷車",
           "totem": "トーテム",
           "hearth": "炉",
+          "windmill": "風車",
+          "watermill": "水車小屋",
           "wheat": "麦",
           "corn": "とうもろこし",
           "rice": "稲",
@@ -4347,6 +4374,9 @@
         "deleteLine": "削除",
         "deleteLineHint": "削除（全員の画面から消えます。ログには残ります）",
         "deleteLineConfirm": "この発言を削除しますか？全員の画面から消え、元に戻せません。ログには残ります。",
+        "clearBefore": "この発言より前のログを消去",
+        "clearBeforeConfirm": "このタブで、この発言より前の発言 {{count}} 件を消去しますか？部屋の全員の画面とログから消え、元に戻せません。",
+        "clearBeforeOk": "消去する",
         "bookmarks": {
           "button": "しおり",
           "shared": {
@@ -4518,6 +4548,10 @@
         "allowDeleteLog": "消去を有効化",
         "deleteLogThisTab": "このタブ",
         "deleteLogAllTabs": "全タブ",
+        "clearBefore": "この日時より前だけ",
+        "clearBeforeNone": "チェックを入れると、その日時より前の発言だけを消します。入れなければすべて消します",
+        "clearBeforeUnset": "日時を最後まで入れてください。途中のままでは消せません",
+        "clearBeforeSet": "{{time}}より前の発言だけを消します",
         "logKeepsServerRollsOnServer": "部屋のサーバーでは、サーバーで振ったダイスの結果は消えずに残ります（GM は消せます）",
         "defaultTabName": "タブ",
         "noneMark": "—",
@@ -5423,6 +5457,13 @@
         "model_prop_containerRed": "コンテナ（赤）",
         "model_prop_containerBlue": "コンテナ（青）",
         "model_prop_containerGreen": "コンテナ（緑）",
+        "model_prop_drainPipe": "排水管",
+        "model_prop_barrel": "樽",
+        "model_prop_pipe": "配管（直管）",
+        "model_prop_pipeValve": "配管（バルブ付き）",
+        "model_prop_pipeElbow": "配管（曲がり）",
+        "model_prop_pipeEnd": "配管（端）",
+        "model_prop_ladder": "鉄のはしご",
         "model_log_wall": "丸太の壁",
         "model_plank_wall": "板の壁",
         "model_timber_frame_wall": "木骨の壁",
@@ -5434,6 +5475,8 @@
         "model_stone_tower_round": "丸い石の塔",
         "model_stone_tower_square": "四角い石の塔",
         "model_watchtower_wood": "木の物見やぐら",
+        "model_windmill": "風車",
+        "model_watermill": "水車小屋",
         "model_totem": "トーテム",
         "model_well": "井戸",
         "model_cart": "荷車",

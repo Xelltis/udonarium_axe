@@ -26,7 +26,8 @@ async function generate(page: Page, seed: string, mood?: string) {
 }
 
 /**
- * A point of a piece's base a press takes it by, clear of the controls of whatever is laid over it on
+ * A point of a piece's base a press takes it by, on the table where nothing laid over the table covers
+ * it, as a panel or the detail of a piece does, clear of the controls of whatever is laid over it on
  * the screen and of the bars along the top and the left, and whether a block stands in front of it
  * there: a point behind a block where there is one, or else the first the press takes it by.
  */
@@ -39,8 +40,9 @@ function spotBehindOf(page: Page, identifier: string): Promise<{ x: number; y: n
     let first: { x: number; y: number; behind: boolean } | null = null;
     for (let y = Math.max(box.top + 2, 70); y < box.bottom; y += 3) {
       for (let x = Math.max(box.left + 2, 120); x < box.right; x += 3) {
-        const control = document.elementFromPoint(x, y)?.closest('button, input, .rotate-grab');
-        if (control || hooks.pressedAt(x, y) !== id) continue;
+        const top = document.elementFromPoint(x, y);
+        const control = top?.closest('button, input, .rotate-grab');
+        if (control || !top?.closest('game-table') || hooks.pressedAt(x, y) !== id) continue;
         if (hooks.pickAt(x, y) !== id) return { x, y, behind: true };
         first ??= { x, y, behind: false };
       }

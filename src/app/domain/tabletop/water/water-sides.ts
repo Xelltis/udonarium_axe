@@ -7,7 +7,7 @@ import {
   cellPolygonOf,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { standsWet, type WaterCell } from '@axe/domain/tabletop/water/water-cells';
 
 /**
  * One edge of a body of water seen from the side: an upright face along one side of one cell,
@@ -38,7 +38,7 @@ export interface WaterSide {
 }
 
 /** The steps to the cell across each side of a square, in the order its corners are given. */
-const SQUARE_SIDE_STEPS: readonly (readonly [number, number])[] = [
+export const SQUARE_SIDE_STEPS: readonly (readonly [number, number])[] = [
   [0, -1],
   [1, 0],
   [0, 1],
@@ -75,7 +75,7 @@ export function waterSidesOf(
   const sides: WaterSide[] = [];
   const ordered = [...cells.values()].sort((a, b) => a.index - b.index);
   for (const cell of ordered) {
-    if (cell.surfacePx <= cell.floorPx) continue;
+    if (!standsWet(cell)) continue;
     const { col, row } = cellColRow(grid, cell.index);
     const centre = cellCenterOf(grid, cell.index);
     const corners = cellPolygonOf(grid, cell.index);
@@ -118,7 +118,7 @@ export function waterSidesOf(
 }
 
 /** The way square across an edge into its own cell, which reads the ground either side without sliding along it. */
-function inwardOf(
+export function inwardOf(
   from: { x: number; y: number },
   to: { x: number; y: number },
   centre: { x: number; y: number }

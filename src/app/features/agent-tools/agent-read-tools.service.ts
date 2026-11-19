@@ -196,7 +196,7 @@ export class AgentReadTools {
     }
     const lines: AgentChatLine[] = [];
     for (let i = messages.length - 1; i >= 0 && lines.length < limit; i--) {
-      const line = this.views.chatLine(messages[i]);
+      const line = this.views.lineRead(messages[i]);
       if (line) lines.unshift(line);
     }
     return { tab: { id: tab.identifier, name: tab.name }, lines };

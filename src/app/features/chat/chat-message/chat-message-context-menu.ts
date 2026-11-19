@@ -17,6 +17,11 @@ export interface ChatMessageMenuState {
   canUndoAfterWhisper: boolean;
   /** Whether the reader may delete the line from the chat, leaving it in the log. */
   canPseudoDelete: boolean;
+  /**
+   * Whether the reader may clear the tab's log before the line: the lines standing before it in its
+   * tab, gone from the room for good, where there are any and logs are the reader's to clear.
+   */
+  canClearBefore: boolean;
   canShowInTicker: boolean;
   /** The tabs the line may be said again in; empty where it may not be copied. */
   copyTargets: readonly { identifier: string; name: string }[];
@@ -57,6 +62,7 @@ export interface ChatMessageMenuCallbacks {
   whisperTo: (peerIdentifier: string) => void;
   undoAfterWhisper: () => void;
   pseudoDelete: () => void;
+  clearBefore: () => void;
   showInTicker: () => void;
   toggleHistory: () => void;
   jumpToOriginal: () => void;
@@ -70,7 +76,7 @@ export interface ChatMessageMenuCallbacks {
  *
  * The groups run from what is reached for most to what cannot be taken back: answering the line,
  * its words, keeping it and passing it on, reading round it, the speaker's own changes to it, and
- * last, kept apart from the rest, deleting it. The toolbar over the line holds the first few of
+ * last, kept apart from the rest, deleting it and clearing the log before it. The toolbar over the line holds the first few of
  * these and opens this same menu from its last button, and a touch screen reaches it by a press
  * held on the line.
  *
@@ -158,6 +164,9 @@ export function buildChatMessageContextMenu(
   const remove: ContextMenuAction[] = [];
   if (state.canPseudoDelete) {
     remove.push({ name: t('feature.chat.message.deleteLine'), action: () => callbacks.pseudoDelete() });
+  }
+  if (state.canClearBefore) {
+    remove.push({ name: t('feature.chat.message.clearBefore'), action: () => callbacks.clearBefore() });
   }
 
   return [answer, words, keep, read, own, remove]

@@ -16,7 +16,7 @@ import { SETTLEMENT_WALL_HEIGHTS } from '@axe/domain/tabletop/field/settlement-l
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
-import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import { groundLiftOfBlock, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
@@ -302,7 +302,14 @@ describe('DungeonBuildService', () => {
     const waters = table.children.filter(
       (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
     );
-    expect(waters.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+    const still = waters.filter((water) => water.flow === 0);
+    const running = waters.filter((water) => water.flow > 0);
+    expect(still.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+    expect(running.length).toBeGreaterThan(0);
+    expect(running.length).toBe(plan.blocks.ambiences.filter((ambience) => ambience.water?.flowSpeed).length);
+    expect(running.reduce((cells, water) => cells + water.width * water.height, 0)).toBe(
+      plan.layout.settlement!.stream!.cells.filter((cell) => !cell.bridge).length
+    );
 
     const grown = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3, models: true });
     const fields = (await service.build(grown.layout, grown.atmosphere, grown.blocks, options())).table.terrains.filter(
@@ -343,6 +350,62 @@ describe('DungeonBuildService', () => {
     const relief = plan.layout.relief!;
     const deepest = relief.heights.indexOf(Math.min(...relief.heights));
     expect(ground.sampleAt(deepest % relief.columns, Math.floor(deepest / relief.columns))).toBeLessThan(0);
+  });
+
+  it('lays the water of a sewer running the way its channels run, costly and poisonous to wade, over ground dug for it', async () => {
+    const plan = planDungeon({ atmosphere: 'sewer', roomCount: 8, seed: 7 });
+    const water = plan.atmosphere.waterways!;
+
+    const { table } = await service.build(
+      plan.layout,
+      plan.atmosphere,
+      plan.blocks,
+      options({ wallHeight: plan.atmosphere.wallHeight, ground: plan.layout.relief })
+    );
+
+    const waters = table.children.filter(
+      (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
+    );
+    const asked = plan.blocks.ambiences.filter((ambience) => ambience.water);
+    expect(waters.map((each) => [each.surface, each.flow, each.flowHeading])).toEqual(
+      asked.map((each) => [each.water!.surface, each.water!.flowSpeed, each.water!.flowDirection])
+    );
+    expect(waters.some((each) => each.flow > 0 && each.flowHeading > 0)).toBe(true);
+    const dear = table.children.filter((child): child is TableMoveCost => child instanceof TableMoveCost);
+    expect(dear.length).toBe(plan.blocks.slows!.length);
+    expect(dear.every((cost) => cost.charge === water.wading.extraCost)).toBe(true);
+    const harms = table.children.filter((child): child is TableTrigger => child instanceof TableTrigger);
+    expect(harms.length).toBe(plan.blocks.harms!.length);
+    for (const harm of harms) {
+      expect(harm.name).toBe(ja('feature.tabletop.dungeonGenerator.piece.sewage'));
+      expect([harm.open, harm.moment, harm.amount, harm.ailment]).toEqual([
+        true,
+        water.wading.moment,
+        water.wading.amount,
+        water.wading.ailment,
+      ]);
+    }
+  });
+
+  it('lets nothing standing in a sewer down into its water, the pipes that pour into its basins alone', async () => {
+    const plan = planDungeon({ atmosphere: 'sewer', roomCount: 8, seed: 7 });
+    const walkway = plan.atmosphere.waterways!.walkway * GRID;
+
+    const { table } = await service.build(
+      plan.layout,
+      plan.atmosphere,
+      plan.blocks,
+      options({ wallHeight: plan.atmosphere.wallHeight, ground: plan.layout.relief })
+    );
+
+    const ground = groundSurfaceOf(groundFieldOn(table)!.readChunks());
+    const pipe = ja('feature.tabletop.dungeonGenerator.piece.drainPipe');
+    const pipes = table.terrains.filter((terrain) => terrain.name === pipe);
+    const standing = table.terrains.filter((terrain) => terrain.name !== pipe);
+    expect(pipes.length).toBe(plan.layout.spouts!.length);
+    expect(standing.length).toBe(plan.blocks.blocks.length - pipes.length);
+    for (const terrain of standing) expect(groundLiftOfBlock(ground, GRID, terrain)).toBe(walkway);
+    for (const terrain of pipes) expect(groundLiftOfBlock(ground, GRID, terrain)).toBeLessThan(walkway);
   });
 
   it('raises the ground of a field as its layout raises it, and leaves a flat one with none kept', async () => {

@@ -7,26 +7,38 @@ import {
 } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import {
+  MILL_SHAPES,
+  streamSurfaceOver,
+  watermillHouseOf,
+  watermillWheelOf,
+} from '@axe/domain/tabletop/field/mill-stream';
+import {
   type CropKind,
   LOW_WALLS,
   SETTLEMENT_WALL_HEIGHTS,
   SETTLEMENT_WALL_KINDS,
   type SettlementLayout,
+  type SettlementMill,
   type SettlementThing,
   type SettlementWallKind,
   SLOWING_CROPS,
 } from '@axe/domain/tabletop/field/settlement-layout';
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
-import { areasOver } from '@axe/domain/tabletop/field/water-areas';
+import { areasOver, watersInLots, watersOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
+import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
+import { type GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type {
   MapAmbience,
   MapBlock,
   MapLight,
   MapPaint,
+  MapPoint,
   MapRect,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
+import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 
 /** What a settlement comes to on the table: what stands, what is painted, what is slow to cross, the water and the lights. */
 export interface SettlementBlocks {
@@ -158,11 +170,26 @@ const CROP_MODELS: Readonly<Record<CropKind, SettlementModelId>> = {
  */
 const CROP_BLOCK_CELLS = 0.02;
 
-/** What a paddy's water is: shallow over its mud, murky and green. */
+/** What a paddy's water is: shallow over its mud, murky and green, its surface this many cells over the ground it floods. */
 const PADDY_WATER = { surface: 0.08, color: '#6e7448', turbidity: 0.8, dirt: 0.35, leaves: 0, ice: 0 } as const;
 
 /** What crossing a field of a crop that slows costs over plain footing. */
 const CROP_COST = 1;
+
+/** What a stream's water is: clear and running, a little green over its gravel. */
+const STREAM_WATER = { color: '#4a8a96', turbidity: 0.2, dirt: 0, leaves: 0, ice: 0, flowSpeed: 0.5 } as const;
+
+/** What wading a stream costs over plain footing, and the colour its dear ground is drawn in. */
+const STREAM_WADING = { extraCost: 1, color: '#3f7a8a' } as const;
+
+/** What a stream's bed is painted with. */
+const STREAM_BED: TextureId = 'gravel';
+
+/** What a mill built of its blocks is built of: boards on its sides and planks on its top. */
+const MILL_SKIN: Skin = { side: 'wall_timber', top: 'wood_plank' };
+
+/** How tall a watermill's house stands built of its blocks, in cells, without its wheel. */
+const WATERMILL_HOUSE_HEIGHT = 2.2;
 
 /**
  * The runs a fence stands in, each a thin rail down the middle of its cells: along a row wherever two
@@ -215,10 +242,128 @@ function cutUp(rect: MapRect, span: number): MapRect[] {
 }
 
 /**
+ * How far a mill's one block is shifted from where a block of its rectangle is put, in cells, so
+ * that its middle stands on the middle of a hex: a block of several cells on a board of hexes covers
+ * the hexes round the one its middle stands on, and is put by its first cell otherwise. A windmill
+ * stands on the middle cell of its rectangle; a watermill on the cell of its house nearest its wheel,
+ * which brings the wheel over the stream. Nothing on squares, where the rectangle is the block.
+ */
+export function millShiftOn(mill: SettlementMill, gridType: GridType): MapPoint | undefined {
+  if (!isHexGrid(gridType)) return undefined;
+  const grid = { type: gridType, sizePx: 1 };
+  const centresOf = (rect: MapRect): MapPoint[] => {
+    const centres: MapPoint[] = [];
+    for (let dy = 0; dy < rect.h; dy++) {
+      for (let dx = 0; dx < rect.w; dx++) centres.push(cellCentre({ x: rect.x + dx, y: rect.y + dy }, grid));
+    }
+    return centres;
+  };
+  let middle = cellCentre({ x: mill.rect.x + 1, y: mill.rect.y + 1 }, grid);
+  if (mill.kind === 'watermill') {
+    const wheel = centresOf(watermillWheelOf(mill));
+    const hub = {
+      x: wheel.reduce((sum, centre) => sum + centre.x, 0) / wheel.length,
+      y: wheel.reduce((sum, centre) => sum + centre.y, 0) / wheel.length,
+    };
+    const off = (centre: MapPoint) => Math.hypot(centre.x - hub.x, centre.y - hub.y);
+    middle = centresOf(watermillHouseOf(mill)).reduce((nearest, centre) =>
+      off(centre) < off(nearest) ? centre : nearest
+    );
+  }
+  const origin = blockOrigin(mill.rect, grid);
+  return { x: middle.x - origin.x - mill.rect.w / 2, y: middle.y - origin.y - mill.rect.h / 2 };
+}
+
+/**
+ * The blocks a mill stands as: as its model, one block the size of its rectangle wherever it stands,
+ * turned as it is, and on hexes shifted as `millShiftOn` says; built of its blocks, a windmill as a box of its rectangle and a watermill as a box
+ * of its house without its wheel, cut up as `span` cuts every other building. A watermill's wheel
+ * stands over the stream's bed, and a block is let down to the lowest of the ground under it, so each
+ * is lifted as `liftOf` says to stand on the ground beside the stream.
+ */
+function millBlocks(
+  mill: SettlementMill,
+  span: number,
+  models: boolean,
+  liftOf: (rect: MapRect, shift?: MapPoint) => number | undefined,
+  gridType: GridType
+): MapBlock[] {
+  const standing = {
+    kind: 'prop' as const,
+    blocksSight: true,
+    blocksClimb: true,
+    locked: false,
+    rooms: [],
+    skin: {
+      side: { kind: 'texture' as const, id: MILL_SKIN.side },
+      top: { kind: 'texture' as const, id: MILL_SKIN.top },
+    },
+    thing: mill.kind,
+  };
+  if (models) {
+    const offset = millShiftOn(mill, gridType);
+    const altitude = liftOf(mill.rect, offset);
+    return [
+      {
+        ...standing,
+        rect: mill.rect,
+        height: MILL_SHAPES[mill.kind].tall,
+        ...(offset ? { offset } : {}),
+        ...(altitude ? { altitude } : {}),
+        model: mill.kind,
+        modelTurn: mill.turn || undefined,
+      },
+    ];
+  }
+  const watermill = mill.kind === 'watermill';
+  const height = watermill ? WATERMILL_HOUSE_HEIGHT : MILL_SHAPES.windmill.tall;
+  return cutUp(watermill ? watermillHouseOf(mill) : mill.rect, span).map((rect) => {
+    const altitude = liftOf(rect);
+    return { ...standing, rect, height, ...(altitude ? { altitude } : {}) };
+  });
+}
+
+/**
+ * What a stream comes to on the table, but for its bridges: its water, as areas that never overlap,
+ * one lot for each way it runs, its surface over the level the settlement stands at; the dear ground
+ * of wading it; and its bed painted with gravel.
+ */
+function streamOf(
+  settlement: SettlementLayout,
+  width: number,
+  height: number,
+  span: number,
+  gridType: GridType,
+  level: number
+): Pick<SettlementBlocks, 'paint' | 'slows' | 'ambiences'> {
+  const wet = new Uint8Array(width * height);
+  const running = (settlement.stream?.cells ?? [])
+    .filter((cell) => !cell.bridge)
+    .map((cell) => ({ index: cell.y * width + cell.x, lot: String(cell.flow) }));
+  for (const { index } of running) wet[index] = 1;
+  const ambiences = watersInLots(running, width, height, gridType, (flow) => ({
+    surface: streamSurfaceOver(level),
+    ...STREAM_WATER,
+    flowDirection: Number(flow),
+  }));
+  return {
+    ambiences,
+    slows: areasOver(wet, width, height, gridType).map((rect) => ({ rect, ...STREAM_WADING })),
+    paint: mergeMaskToRects(wet, width, height, span).map((rect) => ({
+      kind: 'floor' as const,
+      rect,
+      material: { kind: 'texture' as const, id: STREAM_BED },
+    })),
+  };
+}
+
+/**
  * The blocks, paint, slow ground, water and lights a settlement is built of on the table. Its walls are
  * gathered into as few blocks as `span` lets, every one of them standing on its whole cells; its doors
  * are hung as the doors of a dungeon are, each as tall as the wall it hangs in, as the bundled model
- * of its kind where `models` asks.
+ * of its kind where `models` asks. Its water, a paddy's and a stream's, is laid over `level`, the
+ * height the ground it stands on is levelled to, and its mills are stood at that height on `ground`,
+ * the ground the table is raised and dug to, where it is raised or dug at all.
  */
 export function settlementBlocks(
   settlement: SettlementLayout,
@@ -226,7 +371,9 @@ export function settlementBlocks(
   height: number,
   span: number,
   models: boolean,
-  gridType: GridType = GridType.SQUARE
+  gridType: GridType = GridType.SQUARE,
+  level = 0,
+  ground: GroundRaster | null = null
 ): SettlementBlocks {
   const blocks: MapBlock[] = [];
   SETTLEMENT_WALL_KINDS.forEach((kind, index) => {
@@ -293,6 +440,9 @@ export function settlementBlocks(
       ...(model ? { model } : {}),
     });
   }
+  const mills = settlement.mills ?? [];
+  const liftOf = mills.length > 0 ? blockLiftsTo(level, ground, gridType) : () => undefined;
+  for (const mill of mills) blocks.push(...millBlocks(mill, span, models, liftOf, gridType));
 
   const paint: MapPaint[] = [];
   const slows: MapSlowGround[] = [];
@@ -320,10 +470,14 @@ export function settlementBlocks(
     if (crop === 'rice') {
       const paddy = new Uint8Array(width * height);
       for (let y = rect.y; y < rect.y + rect.h; y++) paddy.fill(1, y * width + rect.x, y * width + rect.x + rect.w);
-      for (const area of areasOver(paddy, width, height, gridType))
-        ambiences.push({ rect: area, kind: 'water', density: 0.6, name: 'water', water: { ...PADDY_WATER } });
+      const water = { ...PADDY_WATER, surface: level + PADDY_WATER.surface };
+      ambiences.push(...watersOver(paddy, width, height, gridType, water));
     }
   }
+  const stream = streamOf(settlement, width, height, span, gridType, level);
+  paint.push(...stream.paint);
+  slows.push(...stream.slows);
+  ambiences.push(...stream.ambiences);
 
   const lights: MapLight[] = settlement.fires.map((fire, room) => ({
     x: fire.x,

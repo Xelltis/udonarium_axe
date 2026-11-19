@@ -1,9 +1,11 @@
 import { clamp } from '@axe/core/util/clamp';
 import { DungeonPropId, TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import type { DungeonRoomRoleValue } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { FurnishingPlan } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { RoomShape } from '@axe/domain/tabletop/dungeon/room-shapes';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
 import { MapLighting } from '@axe/domain/tabletop/map-blocks';
+import type { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
 
 export const DUNGEON_ATMOSPHERE_IDS = [
   'stoneDungeon',
@@ -16,6 +18,7 @@ export const DUNGEON_ATMOSPHERE_IDS = [
   'illegalBar',
   'abandonedBuilding',
   'containerWarehouse',
+  'sewer',
 ] as const;
 
 export type DungeonAtmosphereId = (typeof DUNGEON_ATMOSPHERE_IDS)[number];
@@ -71,9 +74,45 @@ export function clampWallHeight(height: number): number {
  * into, the biggest, the one hardest to get to - but they are a front, a gambling den and the
  * boss's room.
  */
-export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building', 'warehouse'] as const;
+export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building', 'warehouse', 'sewer'] as const;
 
 export type DungeonRoleNaming = (typeof DUNGEON_ROLE_NAMINGS)[number];
+
+/** How deep one kind of water lies: its bed and its surface, both over the board, in cells. */
+export interface WaterLevel {
+  bed: number;
+  surface: number;
+}
+
+/**
+ * Water run through a place: down the middle of each passage wide enough to keep a walkway either
+ * side of it, and into a basin in some of its rooms, with a ledge of floor left round the basin.
+ *
+ * The floor is raised to the walkway so that the water can be dug down into it, since water stands
+ * on the board and no lower.
+ */
+export interface WaterwayPlan {
+  /** The rooms that hold a basin, by the part they play. */
+  basinRoles: readonly DungeonRoomRoleValue[];
+  /** How high the floor stands over the board, in cells: the walkways and the ledges. */
+  walkway: number;
+  channel: WaterLevel;
+  basin: WaterLevel;
+  /**
+   * How many cells of each channel, counted back from where it drains, are cut as deep as a basin, so
+   * that the channel falls into them over a weir. A channel no longer than that is left as it is.
+   */
+  outfallCells: number;
+  /** How fast a channel runs, from 0 to 1. A basin lies still. */
+  flowSpeed: number;
+  /** What the water looks like, as the settings of water name it. */
+  look: { color: string; turbidity: number; dirt: number };
+  /**
+   * What wading it costs over plain footing, what it does to whoever is caught in it, and what that is
+   * called on the table, as one of the pieces the generator names.
+   */
+  wading: { extraCost: number; amount: string; ailment: string; moment: TriggerMoment; color: string; thing: string };
+}
 
 export interface DungeonAtmosphere {
   id: DungeonAtmosphereId;
@@ -94,6 +133,10 @@ export interface DungeonAtmosphere {
   cave?: CaveShape;
   /** What its doors are made of. Left out, stone in a cave, bars in a crypt and wood anywhere else. */
   door?: DungeonPropId;
+  /** What the ways up and down are drawn as. Left out, a stair each. */
+  stairs?: { up: DungeonPropId; down: DungeonPropId };
+  /** The water run through it. Left out, it is dry. */
+  waterways?: WaterwayPlan;
   /** What it is lit by. Left out, brackets on the walls and fires where there is room for one. */
   lighting?: MapLighting;
   /** What stands in its rooms. Left out, they are bare. */
@@ -388,6 +431,60 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
       },
       { piece: 'desk', arrangement: 'scatter', roles: ['deadEnd'], every: 7 },
       { piece: 'crate', arrangement: 'scatter', roles: ['entrance', 'deadEnd'], every: 12 },
+    ],
+  },
+  /**
+   * A city's sewers.
+   *
+   * The party climbs down through a maintenance hatch. Every passage is wide enough for a channel of
+   * foul water down its middle with a walkway either side, and the channels run on into the cisterns
+   * and settling tanks, basins sunk in the floor of the biggest rooms and of those at the ends of
+   * things. Smugglers keep their goods heaped in the corners back here, and the pumps are at the bottom
+   * of it all, a pipe run round its walls with a valve every few lengths. Lanterns
+   * hang on the walls and the gates are iron grates that lift.
+   */
+  sewer: {
+    id: 'sewer',
+    algorithm: 'rooms',
+    defaultWall: 'wall_sewer_brick',
+    defaultFloor: 'stone_paving_wet',
+    wallHeight: 2.5,
+    darkness: 0.92,
+    ambientColor: '#04080a',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 5,
+    entrance: 'stair',
+    doorStyle: 'lift',
+    door: 'door_iron_grate',
+    stairs: { up: 'ladder_up', down: 'stair_down' },
+    lighting: { wall: ['lantern'], open: [] },
+    roleNames: 'sewer',
+    rooms: {
+      minRoom: 5,
+      maxRoom: 11,
+      windingPercent: 15,
+      extraConnectorChance: 0.08,
+      wallBreakChance: 0,
+      shapes: ['rect'],
+      corridor: 3,
+    },
+    waterways: {
+      basinRoles: ['hall', 'deadEnd'],
+      walkway: 1,
+      channel: { bed: 0.4, surface: 0.75 },
+      basin: { bed: 0, surface: 0.3 },
+      outfallCells: 3,
+      flowSpeed: 0.55,
+      look: { color: '#46584a', turbidity: 0.65, dirt: 0.3 },
+      wading: { extraCost: 1, amount: '1d6', ailment: '毒', moment: 'turnStart', color: '#39452a', thing: 'sewage' },
+    },
+    furnishings: [
+      { piece: 'pipe', arrangement: 'pipeRun', roles: ['boss'], every: 3 },
+      { piece: 'crate', arrangement: 'corners', roles: ['treasure'], every: 7, pieces: ['crate', 'crate', 'barrel'] },
+      { piece: 'barrel', arrangement: 'corners', roles: ['entrance', 'chamber'], every: 14 },
+      { piece: 'pipe', arrangement: 'pipeRun', roles: ['chamber'], every: 2, most: 6 },
     ],
   },
 };

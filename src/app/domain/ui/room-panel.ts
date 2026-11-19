@@ -41,11 +41,39 @@ export type CharacterPanelName = (typeof CHARACTER_PANELS)[number];
 export type RoomPanelName = (typeof ROOM_PANELS)[number];
 export type PanelName = CharacterPanelName | RoomPanelName;
 
+/**
+ * The names a panel of the room used to be asked for by, each with the panel that took it over and
+ * the half of that panel the name meant. A menu kept from before still asks by them.
+ */
+const FORMER_ROOM_PANELS = {
+  aiGm: { panel: 'aiLink', half: 'gm' },
+} as const satisfies Partial<Record<RoomPanelName, { panel: RoomPanelName; half: string }>>;
+
+type FormerRoomPanelName = keyof typeof FORMER_ROOM_PANELS;
+/** A panel of the room by the name it goes by now. */
+export type StandingRoomPanelName = Exclude<RoomPanelName, FormerRoomPanelName>;
+/** The half of a panel a name it used to go by meant. */
+export type RoomPanelHalf = (typeof FORMER_ROOM_PANELS)[FormerRoomPanelName]['half'];
+
+/**
+ * The panel a name of the room's panels asks for, and the half of it where the name is one a panel
+ * used to go by. Everything that takes a panel's name reads it through here, so a former name means
+ * the same wherever it is asked by.
+ */
+export function roomPanelNamed(name: RoomPanelName): {
+  readonly panel: StandingRoomPanelName;
+  readonly half?: RoomPanelHalf;
+} {
+  return name in FORMER_ROOM_PANELS
+    ? FORMER_ROOM_PANELS[name as FormerRoomPanelName]
+    : { panel: name as StandingRoomPanelName };
+}
+
 export const DEFAULT_CHARACTER_PANEL: CharacterPanelName = 'chatPalette';
 
 export const STATUS_AILMENT_PANEL = 'status-ailment';
 
-const LABEL_KEYS: Record<PanelName, string> = {
+const LABEL_KEYS: Record<CharacterPanelName | StandingRoomPanelName, string> = {
   chatPalette: 'feature.hotbar.panelName.chatPalette',
   sheet: 'feature.hotbar.panelName.sheet',
   remoteController: 'feature.hotbar.panelName.remoteController',
@@ -80,7 +108,6 @@ const LABEL_KEYS: Record<PanelName, string> = {
   soundSettings: 'common.panel.soundSettings',
   menuEditor: 'feature.menuEditor.title',
   aiLink: 'feature.aiLink.title',
-  aiGm: 'feature.aiGm.title',
 };
 
 /** Anything unknown reads as the chat palette, which is where a panel slot starts. */
@@ -93,5 +120,6 @@ export function toCharacterPanelName(value: unknown): CharacterPanelName {
 
 /** What the panel is called on screen, borrowed from wherever it is already named. */
 export function panelLabelKey(panel: PanelName): string {
-  return LABEL_KEYS[panel];
+  const character = (CHARACTER_PANELS as readonly string[]).includes(panel);
+  return LABEL_KEYS[character ? (panel as CharacterPanelName) : roomPanelNamed(panel as RoomPanelName).panel];
 }

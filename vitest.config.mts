@@ -37,38 +37,52 @@ function filterReaches(filter: string, specFile: string): boolean {
 }
 
 /**
- * The tsconfig the Angular compiler starts from on this run.
+ * The specs a single `vitest run` handed files can reach, or null for a run that may reach any.
  *
- * Before the first test, the compiler analyses everything reachable from the tsconfig, which from
- * every spec is the whole app and some twenty seconds. A single `vitest run` handed files needs
- * only what those specs reach, so it is given a tsconfig listing just them. A run that may pick up
- * a spec outside that set - watch mode, `related`, `--changed`, coverage, or anything not started
- * from the command line - keeps the full one.
+ * A run that may pick up a spec outside the files it was handed - watch mode, `related`,
+ * `--changed`, coverage, or anything not started from the command line - is one that may reach any.
  */
-function specTsconfig(): string {
-  if (!basename(process.argv[1] ?? '').startsWith('vitest')) return SPEC_TSCONFIG;
+function specsHandedToTheRun(): string[] | null {
+  if (!basename(process.argv[1] ?? '').startsWith('vitest')) return null;
   let cli: ReturnType<typeof parseCLI>;
   try {
     cli = parseCLI(['vitest', ...process.argv.slice(2)]);
   } catch {
-    return SPEC_TSCONFIG;
+    return null;
   }
   const { filter, options } = cli;
-  if (!options.run || options.related || options.changed || options.coverage || filter.length === 0) {
-    return SPEC_TSCONFIG;
-  }
+  if (!options.run || options.related || options.changed || options.coverage || filter.length === 0) return null;
   const specs = specFilesUnder(resolve(ROOT, 'src')).filter((spec) => filter.some((f) => filterReaches(f, spec)));
-  if (specs.length === 0) return SPEC_TSCONFIG;
+  return specs.length === 0 ? null : specs;
+}
 
+/**
+ * The tsconfig the Angular compiler starts from on this run, written beside the cache.
+ *
+ * Before the first test, the compiler analyses and emits everything reachable from the tsconfig,
+ * which from every spec is the whole app. A single `vitest run` handed files needs only what those
+ * specs reach, so it is given a tsconfig listing just them.
+ *
+ * TypeScript checks the types of a file in full before it emits it, and of the forty seconds the
+ * whole app took, that was half. This path reports no type errors, only errors of syntax, so the
+ * check is switched off with `noCheck`; `ng test` and the build are where the types are checked.
+ */
+function specTsconfig(): string {
+  const specs = specsHandedToTheRun();
   const fromCache = (path: string) => toPosix(relative(SPEC_TSCONFIG_CACHE, path));
   const tsconfig = JSON.stringify(
     {
       extends: fromCache(SPEC_TSCONFIG),
-      include: [
-        ...specs.map(fromCache),
-        fromCache(resolve(ROOT, 'src')) + '/**/*.d.ts',
-        fromCache(resolve(ROOT, 'src/app/testing/test-setup.ts')),
-      ],
+      compilerOptions: { noCheck: true, isolatedModules: true },
+      ...(specs === null
+        ? {}
+        : {
+            include: [
+              ...specs.map(fromCache),
+              fromCache(resolve(ROOT, 'src')) + '/**/*.d.ts',
+              fromCache(resolve(ROOT, 'src/app/testing/test-setup.ts')),
+            ],
+          }),
     },
     null,
     2

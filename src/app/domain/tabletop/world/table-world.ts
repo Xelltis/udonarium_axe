@@ -141,6 +141,11 @@ export interface TableWorldCap {
   readonly colour?: string;
   /** How the face is drawn where its block has no thickness; see {@link TableWorldSheet}. */
   readonly sheet?: TableWorldSheet;
+  /**
+   * Whether the face lies in the plane of the floor under its block, as the top of a block sunk into
+   * the floor up to its top does, for a renderer to draw it over the floor there.
+   */
+  readonly onFloor?: boolean;
 }
 
 /**

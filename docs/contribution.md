@@ -68,11 +68,11 @@ chore(release): bump version to 1.2.2
 `--no-verify` / `LEFTHOOK=0` / `core.hooksPath`の変更 / lefthook設定の一時無効化、
 **いずれも禁止**。フックが落ちたら原因を直してから再コミットする。
 
-| フック       | 内容                                                            |
-| ------------ | --------------------------------------------------------------- |
-| `commit-msg` | `commitlint`（メッセージ形式検査）                              |
-| `pre-commit` | stagedの`src/`に`eslint` + `vitest related`（関係するspecだけ） |
-| `pre-push`   | `npx vitest run`（全量） + `npm run build`                      |
+| フック       | 内容                                                                             |
+| ------------ | -------------------------------------------------------------------------------- |
+| `commit-msg` | `commitlint`（メッセージ形式検査）                                               |
+| `pre-commit` | stagedの`src/`に`eslint`、stagedのファイルに`vitest related`（関係するspecだけ） |
+| `pre-push`   | pushするコミットのファイルに`vitest related` + `npm run build`                   |
 
 `pre-commit`の`vitest related`はstagedファイルからimportを逆にたどって当たるspecだけを回す
 （[scripts/vitest-related.mjs](../scripts/vitest-related.mjs)。テンプレートは隣の`.ts`に読み替える）。
@@ -80,10 +80,13 @@ chore(release): bump version to 1.2.2
 型だけの変更でspecの結果は変わらない。importはTypeScriptで変換した結果から読み、その結果は
 `node_modules/.cache/axe-vitest/`に置いて次の実行で使い回す。
 
-ただし、ランナーの設定（`vitest.config.mts`など）や、テストのセットアップが静的なimportで読み込むファイル
-（間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
-セットアップが`TestBed`を使うspecのためだけに読み込むサービス（`loadGlobalTestProviders()`の先）に
-当たったときは、本文に`TestBed`を含むspecをすべて足す。全量は`pre-push`とCIが見る。
+ただし、ランナーの設定（`vitest.config.mts`など）や、テストのセットアップが読み込むファイル
+（待たずに読むものと、間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
+セットアップが`TestBed`を使うspecのためだけに読み込むprovider（[src/app/testing/test-bed-providers.ts](../src/app/testing/test-bed-providers.ts)の先）に
+当たったときは、本文に`TestBed`を含むspecをすべて足す。変えたファイルをパスで名指しするspec（ファイルを読んで確かめるもの）は、ファイルの種類にかかわらず回す。`pre-push`は、gitがフックに渡すpushの範囲から、
+消したファイルと名前を変えたファイルも含めて変えたファイルを読む（`--pushed`）。あわせて、ファイルをディスクから読むspec（同梱モデルのハッシュ、ソースの並びを見るものなど）を、何を変えても回す（`--disk-specs`）。これらが見るファイルはimportに現れないため。自分では読まず、ヘルパー越しに読むspecも数える（ページのスタイルシートを読むヘルパーなど）。セットアップが全specに読み込ませるヘルパーは起点にしない。並べるspecが多くてコマンドラインに収まらないとき（Windowsは約8000字まで）は、名前を並べずに全量を回す。この2つの決まりは[scripts/vitest-reach.mjs](../scripts/vitest-reach.mjs)にあり、`src/app/testing/vitest-reach.spec.ts`が固定する。
+
+specを絞るのは、変更がどのspecに届くかを説明できるときだけにする。判定は[scripts/change-reach.mjs](../scripts/change-reach.mjs)の`kindOfChange`の1か所にあり、単体specを選ぶスクリプトもe2eを選ぶスクリプトもここに聞く。届く先を説明できる種類（ソースとその隣のテンプレート・スタイル、文字のないアセット、e2eの一式、AI連携のブリッジ、文書などテストに届かないもの）だけを名指しし、それ以外のファイルは`unknown`として全量を回す。辞書、ページ全体のスタイルシート、JSONの取り決め、`package.json`や`tsconfig*.json`はこの`unknown`に入る。新しい種類のファイルは、種類を決めるまで全量が回る。`pre-commit`と`pre-push`の`test`はどちらもファイルで絞らず、何が届くかをスクリプトに決めさせる。`pre-commit`は`--told-only`を付け、`unknown`のファイルでは全量を回さずに`pre-push`へ任せる（コミットのたびに全量を回さないため）。全量はCIも見る。
 
 設定: [../lefthook.yml](../lefthook.yml)
 
@@ -108,9 +111,16 @@ chore(release): bump version to 1.2.2
 E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定で、Pull Request
 1回に何十分もかかる。手元で`npm run e2e`を回す。
 
+変えた所に届くspecだけを回すなら`npm run e2e:related`を使う（[scripts/e2e-related.mjs](../scripts/e2e-related.mjs)）。
+specはアプリをimportしないので、テストごとに読み込んだ遅延チャンクの名前を`node_modules/.cache/axe-e2e/`へ残し、
+ソースのimportと突き合わせて選ぶ。対象はまだpushしていない変更で、`--since <コミット>`かファイル名で変えられる。
+specを外すのは、変更が届かないと言い切れるときだけにする。起動時に読み込むソース、e2eの共有ヘルパー、importから読み込まれ方が分からないソース、新しく足したか名前を変えた遅延チャンクのどれかを変えたときは全部を回す。ビルドが差し替えるファイル（`environment.prod.ts`）は差し替え元として読む。記録の無いテストが1つでもあるspecは回す。足したテスト、名前を変えたテスト、途中で止めた実行で流れなかったテストがこれにあたる。決まりは[scripts/e2e-reach.mjs](../scripts/e2e-reach.mjs)にあり、`src/app/testing/e2e-reach.spec.ts`が固定する。
+Web Workerは起動する側のファイルと一緒に読み込まれるものとして数え、AI連携のブリッジのソース（`tools/axe-mcp`と`src/app/core/agent`）はブリッジを起動するspecに届くものとする。
+記録は`npm run e2e`を1回流すとできる。記録は実行のたびに足していき、途中で落ちた実行が短い記録で上書きしないようにしてある。記録を信じるのは、そのテストが最後まで通り、アプリの入口（`main`）を読んだときだけにする。通った印は[e2e/loads-reporter.ts](../e2e/loads-reporter.ts)が付けるので、`--reporter`を指定して流した記録には付かない。印のない記録しかないテストのspecは、変更がどこでも回す。演出の比較も含めるなら`npm run e2e:related -- --visual`とし、2つの描き方は1つずつ順に回る。
+
 演出の見た目は`e2e/visual/`のスクリーンショット比較で守る。
 `npx playwright test --project=visual-webgl2`と`--project=visual-webgpu`が、卓をWebGL2とWebGPUで描いて
-`e2e/visual/__screenshots__/webgl2/`と`webgpu/`の基準画像と比べる。2つは順に1つずつ流す。時計を止め、アニメーションを終端まで送ってから撮るので、同じ機械なら同じ絵になる。
+`e2e/visual/__screenshots__/webgl2/`と`webgpu/`の基準画像と比べる。2つは順に1つずつ流す。パネルやツールバーのようにページだけを撮る場面は、卓の描き方で絵が変わらないのでWebGL2側でだけ撮る。時計を止め、アニメーションを終端まで送ってから撮るので、同じ機械なら同じ絵になる。
 基準画像は手元のChromiumで作ってコミットし、CIでは回さない。
 見た目を変えるつもりの変更で差分が出たら`--update-snapshots`で撮り直し、何がどう変わったかを
 コミット本文に書く。差分の理由が言えないなら、それは退行として直す。

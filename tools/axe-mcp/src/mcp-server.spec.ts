@@ -1,3 +1,4 @@
+import { RUN_AI_GM_GUIDE_URI, RUN_AI_GM_PROMPT } from '@axe/core/agent/agent-gm';
 import {
   CHAT_SYNTAX_GUIDE,
   CHAT_SYNTAX_GUIDE_URI,
@@ -9,6 +10,7 @@ import { AGENT_TOOLS } from '@axe/core/agent/agent-tools';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
+import { TurnDesk } from './gm/turn-desk';
 import { createMcpServer } from './mcp-server';
 import { TabLink } from './tab-link';
 import { TestTab, until } from './test-tab';
@@ -122,5 +124,97 @@ describe('createMcpServer', () => {
     const guide = await client.readResource({ uri: RUN_SESSION_GUIDE_URI });
     expect(guide.contents[0]).toMatchObject({ text: RUN_SESSION_PROMPT });
     await expect(client.readResource({ uri: 'axe://other' })).rejects.toThrow();
+  });
+
+  describe('with the desk the game master’s turns are handed at', () => {
+    let desk: TurnDesk;
+    let gm: Client;
+
+    beforeEach(async () => {
+      desk = new TurnDesk({ link, log: () => undefined, quietMs: 20, longestWaitMs: 100 });
+      const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+      await createMcpServer(link, '1.81.0', desk).connect(serverSide);
+      gm = new Client({ name: 'spec', version: '1' });
+      await gm.connect(clientSide);
+    });
+
+    afterEach(async () => {
+      desk.close();
+      await gm.close();
+    });
+
+    function answerOf(result: Awaited<ReturnType<Client['callTool']>>): Record<string, unknown> {
+      const [first] = result.content as { type: string; text: string }[];
+      expect(result.isError, first?.text).toBeFalsy();
+      return JSON.parse(first.text) as Record<string, unknown>;
+    }
+
+    it('lists the tools to wait for a turn and to keep the notebook after the table’s own', async () => {
+      const { tools } = await gm.listTools();
+
+      expect(tools.map((tool) => tool.name)).toEqual([
+        ...AGENT_TOOLS.map((tool) => tool.name),
+        'wait_for_turn',
+        'update_notes',
+      ]);
+    });
+
+    it('hands the AI its turn once the tab has started the game master, and tells the tab what it noted', async () => {
+      const tab = await connectTab();
+      const waiting = gm.callTool({ name: 'wait_for_turn', arguments: { timeout_seconds: 5 } });
+      tab.say({
+        type: 'gm.start',
+        settings: { model: 'claude-opus-5-5', effort: 'medium', budgetUsd: 5 },
+        instructions: '古城の探索',
+        notes: '',
+        fresh: false,
+      });
+
+      expect(answerOf(await waiting)).toMatchObject({ turn: true, instructions: '古城の探索', events: [] });
+
+      expect(answerOf(await gm.callTool({ name: 'update_notes', arguments: { notes: '門を越えた' } }))).toEqual({
+        kept: 5,
+      });
+      await until(() => tab.heard.some((message) => (message as { type?: string })?.type === 'gm.notes'));
+      expect(tab.heard.filter((message) => (message as { type?: string })?.type === 'call')).toEqual([]);
+    });
+
+    it('refuses the notebook to an AI while the game master is not started', async () => {
+      await connectTab();
+
+      expect(await gm.callTool({ name: 'update_notes', arguments: { notes: '勝手なメモ' } })).toMatchObject({
+        isError: true,
+        content: [{ type: 'text', text: expect.stringMatching(/^not_allowed: The game master is not started/) }],
+      });
+    });
+
+    it('counts the AI as there once it waits for the turn, and not for calling a tool alone', async () => {
+      const tab = await connectTab();
+      tab.answer = () => ({ ok: true });
+      expect(desk.status().attended).toBe(false);
+
+      await gm.callTool({ name: 'get_room', arguments: {} });
+      expect(desk.status().attended).toBe(false);
+
+      const waiting = gm.callTool({ name: 'wait_for_turn', arguments: { timeout_seconds: 1 } });
+      await until(() => desk.status().attended === true);
+      await waiting;
+    });
+
+    it('hands the AI the prompt and the guide to being the game master of the panel', async () => {
+      const { prompts } = await gm.listPrompts();
+      expect(prompts.map((prompt) => prompt.name)).toEqual(['run_session', 'run_ai_gm']);
+      const prompt = await gm.getPrompt({ name: 'run_ai_gm' });
+      expect(prompt.messages[0].content).toEqual({ type: 'text', text: RUN_AI_GM_PROMPT });
+
+      const { resources } = await gm.listResources();
+      expect(resources.map((resource) => resource.uri)).toEqual([
+        RUN_SESSION_GUIDE_URI,
+        RUN_AI_GM_GUIDE_URI,
+        CHAT_SYNTAX_GUIDE_URI,
+      ]);
+      const guide = await gm.readResource({ uri: RUN_AI_GM_GUIDE_URI });
+      expect(guide.contents[0]).toMatchObject({ text: RUN_AI_GM_PROMPT });
+    });
   });
 });

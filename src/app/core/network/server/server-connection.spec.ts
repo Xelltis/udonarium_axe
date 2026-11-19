@@ -103,6 +103,25 @@ describe('ServerConnection', () => {
   const latest = () => FakeWebSocket.instances.at(-1)!;
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+  /**
+   * Waits until all the connection has begun to write is on the socket: the sends gathered so far and
+   * its own messages, such as the hello. Not for a load held back for room in the window, which waits
+   * on the clock.
+   */
+  async function writesDone(): Promise<void> {
+    const writes = connection as unknown as { sending: Promise<void>; posting: Promise<void> };
+    await Promise.all([writes.sending, writes.posting]);
+  }
+
+  /**
+   * The frames on a socket once all the connection has begun to write is on it, so that a spec
+   * counting them also sees any written a moment after those it waited for.
+   */
+  async function writtenFrames(socket: FakeWebSocket): Promise<Record<string, unknown>[]> {
+    await writesDone();
+    return socket.frames();
+  }
+
   async function openRoom(password = ''): Promise<FakeWebSocket> {
     connection.open('my-user', 'Ab3', '月夜の卓', password, ROOM_KEY);
     await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBeGreaterThan(0));
@@ -170,7 +189,7 @@ describe('ServerConnection', () => {
   it('connects to the room’s socket on the server and says hello first, with the password', async () => {
     const socket = await openRoom('secret');
     socket.accept();
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBe(1));
+    await vi.waitFor(async () => expect(await writtenFrames(socket)).toHaveLength(1));
 
     expect(socket.url).toBe(`wss://rooms.example/v1/rooms/${ROOM_KEY}/ws`);
     expect((await socket.frames())[0]).toEqual({
@@ -231,11 +250,14 @@ describe('ServerConnection', () => {
 
   it('sends nothing before it is in the room', async () => {
     const socket = await openRoom();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     socket.accept();
     connection.send([event('CHAT')]);
-    await new Promise((resolve) => setTimeout(resolve, SEND_GATHER_MS * 3));
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS * 3);
 
-    expect((await socket.frames()).map((frame) => frame['type'])).toEqual(['hello']);
+    await vi.waitFor(async () =>
+      expect((await writtenFrames(socket)).map((frame) => frame['type'])).toEqual(['hello'])
+    );
   });
 
   it('gathers what is sent within a moment into one frame per destination, each in order', async () => {
@@ -244,7 +266,7 @@ describe('ServerConnection', () => {
     connection.send([event('A')]);
     connection.send([event('B')]);
     connection.send([event('C')], OTHER.peerId);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBe(3));
+    await vi.waitFor(async () => expect(await writtenFrames(socket)).toHaveLength(3));
 
     const sent = (await socket.frames()).slice(1);
     expect(sent).toContainEqual({ type: 'send', events: [event('A'), event('B')] });
@@ -520,7 +542,7 @@ describe('ServerConnection', () => {
     const fakeClock = () =>
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
     const actives = async (socket: FakeWebSocket) =>
-      (await socket.frames()).filter((frame) => frame['type'] === 'active').length;
+      (await writtenFrames(socket)).filter((frame) => frame['type'] === 'active').length;
     const welcomeOn = (socket: FakeWebSocket) =>
       socket.deliver({
         type: 'welcome',
@@ -541,7 +563,7 @@ describe('ServerConnection', () => {
       const socket = await openRoom();
       socket.accept();
 
-      await vi.waitFor(async () => expect((await socket.frames()).length).toBe(1));
+      await vi.waitFor(async () => expect(await writtenFrames(socket)).toHaveLength(1));
       const { idleMs } = (await socket.frames())[0] as { idleMs: number };
       expect(idleMs).toBeGreaterThanOrEqual(20 * MINUTE);
       expect(idleMs).toBeLessThan(21 * MINUTE);
@@ -598,7 +620,7 @@ describe('ServerConnection', () => {
       const again = latest();
       expect(FakeWebSocket.instances.length).toBe(2);
       again.accept();
-      await vi.waitFor(async () => expect((await again.frames()).length).toBe(1));
+      await vi.waitFor(async () => expect(await writtenFrames(again)).toHaveLength(1));
       expect((await again.frames())[0]).toMatchObject({ type: 'hello', peerId: connection.peerId });
       welcomeOn(again);
       await vi.waitFor(() => expect(calls).toContain('reconnect recovered'));
@@ -688,7 +710,7 @@ describe('ServerConnection', () => {
     const again = latest();
     welcomeBack(again);
 
-    await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
+    await vi.waitFor(async () => expect(await writtenFrames(again)).toHaveLength(2));
     expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
   });
 
@@ -705,7 +727,7 @@ describe('ServerConnection', () => {
     const again = latest();
     welcomeBack(again);
 
-    await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
+    await vi.waitFor(async () => expect(await writtenFrames(again)).toHaveLength(2));
     const [, sent] = (await again.frames()) as { type: string; to?: string; events: unknown[] }[];
     expect(sent.type).toBe('send');
     expect(sent.to).toBeUndefined();
@@ -792,8 +814,7 @@ describe('ServerConnection', () => {
     const again = latest();
     welcomeBack(again);
 
-    await vi.waitFor(async () => expect((await again.frames()).length).toBeGreaterThan(1));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await vi.waitFor(async () => expect((await writtenFrames(again)).length).toBeGreaterThan(1));
     const sent = ((await again.frames()) as { type: string; events?: unknown[] }[]).flatMap((frame) =>
       frame.type === 'send' ? (frame.events ?? []) : []
     );
@@ -813,7 +834,7 @@ describe('ServerConnection', () => {
     const again = latest();
     welcomeBack(again);
 
-    await vi.waitFor(async () => expect((await again.frames()).length).toBe(2));
+    await vi.waitFor(async () => expect(await writtenFrames(again)).toHaveLength(2));
     expect((await again.frames())[1]).toEqual({ type: 'send', to: AUTHORITY_PEER_ID, events: [roleRequest] });
     expect(await socket.frames()).not.toContainEqual(expect.objectContaining({ type: 'send' }));
   });
@@ -824,18 +845,21 @@ describe('ServerConnection', () => {
     const before = (await socket.frames()).length;
     connection.send([deletion, event('UPDATE_GAME_OBJECT')]);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBe(before + 1));
+    await vi.waitFor(async () => expect(await writtenFrames(socket)).toHaveLength(before + 1));
     return deletion;
   }
 
-  /** What the seat sends to everybody over the newest link once let back in. */
+  /**
+   * What the seat sends to everybody over the newest link once let back in, on the fake clock: the
+   * link comes back a second after it went, and all it held has gathered and been written.
+   */
   async function sentOnceBack(): Promise<unknown[]> {
     vi.advanceTimersByTime(1000);
-    vi.useRealTimers();
     const again = latest();
     welcomeBack(again);
-    await vi.waitFor(async () => expect((await again.frames()).length).toBeGreaterThan(0));
-    await new Promise((resolve) => setTimeout(resolve, SEND_GATHER_MS + 50));
+    await vi.waitFor(() => expect(connection.authorityOpen).toBe(true));
+    await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
+    await writesDone();
     return eventsWritten(again);
   }
 
@@ -977,7 +1001,7 @@ describe('ServerConnection', () => {
     );
     connection.send([tab, ...deletions]);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
     const kept = `line-${SEND_BUDGET_EVENTS + 5}`;
     const handedBack = (identifier: string, parentIdentifier: string) => ({
       eventName: 'AUTHORITATIVE_OBJECT',
@@ -1043,7 +1067,7 @@ describe('ServerConnection', () => {
     );
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
     const die = `part-${SEND_BUDGET_EVENTS + 5}`;
 
     socket.deliver({
@@ -1068,7 +1092,7 @@ describe('ServerConnection', () => {
     );
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
     const handedBack = (identifier: string) => ({
       eventName: 'AUTHORITATIVE_OBJECT',
       data: { identifier, syncData: { parentIdentifier: 'tab-1' } },
@@ -1094,7 +1118,7 @@ describe('ServerConnection', () => {
     );
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
     const handedBack = (identifier: string) => ({
       eventName: 'AUTHORITATIVE_OBJECT',
       data: { identifier, syncData: { parentIdentifier: 'tab-1' } },
@@ -1127,7 +1151,7 @@ describe('ServerConnection', () => {
     );
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
     const roleRequest = event('ROLE_REQUEST', { peerId: OTHER.peerId, role: 'gm' });
 
     connection.send([roleRequest], AUTHORITY_PEER_ID);
@@ -1156,7 +1180,7 @@ describe('ServerConnection', () => {
     connection.send(deletions);
     await vi.advanceTimersByTimeAsync(SEND_GATHER_MS);
     await vi.waitFor(() => expect(connection.sendsPending).toBe(true));
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
 
     socket.close(1006);
 
@@ -1209,7 +1233,7 @@ describe('ServerConnection', () => {
     vi.advanceTimersByTime(SEND_GATHER_MS);
     expect(connection.sendsPending).toBe(true);
     await vi.advanceTimersByTimeAsync(0);
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBeGreaterThan(1));
+    await vi.waitFor(async () => expect(await eventsWritten(socket)).toHaveLength(SEND_BUDGET_EVENTS), DRAINED);
     expect(connection.sendsPending).toBe(true);
 
     await drained();
@@ -1550,7 +1574,7 @@ describe('ServerConnection', () => {
     const refreshed = connection.refreshAssetAccess();
     const again = connection.refreshAssetAccess();
     await vi.waitFor(async () =>
-      expect((await socket.frames()).filter((frame) => frame['type'] === 'asset-token')).toHaveLength(1)
+      expect((await writtenFrames(socket)).filter((frame) => frame['type'] === 'asset-token')).toHaveLength(1)
     );
     socket.deliver({ type: 'asset-token', assetToken: 'asset-2', expiresAt: Date.now() + 15 * 60_000 });
 
@@ -1706,7 +1730,7 @@ describe('ServerConnection', () => {
       vi.useRealTimers();
 
       await vi.waitFor(async () =>
-        expect((await socket.frames()).at(-1)).toEqual({ type: 'auth', accessToken: 'token-2' })
+        expect((await writtenFrames(socket)).at(-1)).toEqual({ type: 'auth', accessToken: 'token-2' })
       );
     });
 
@@ -1803,7 +1827,7 @@ describe('ServerConnection', () => {
       vi.useRealTimers();
 
       await vi.waitFor(async () =>
-        expect((await socket.frames()).at(-1)).toEqual({ type: 'auth', accessToken: 'token-2' })
+        expect((await writtenFrames(socket)).at(-1)).toEqual({ type: 'auth', accessToken: 'token-2' })
       );
       expect((await socket.frames()).filter((frame) => frame['type'] === 'auth')).toHaveLength(1);
     });
@@ -2067,7 +2091,7 @@ describe('ServerConnection', () => {
     await vi.waitFor(() => expect(FakeWebSocket.instances.length).toBe(1));
     const socket = latest();
     socket.accept();
-    await vi.waitFor(async () => expect((await socket.frames()).length).toBe(1));
+    await vi.waitFor(async () => expect(await writtenFrames(socket)).toHaveLength(1));
 
     const hello = (await socket.frames())[0] as Record<string, unknown>;
     expect(hello['userId']).not.toMatch(/^acct_/);
@@ -2078,7 +2102,7 @@ describe('ServerConnection', () => {
     const socket = await enterRoom();
 
     const answer = connection.requestInvite('pl');
-    await vi.waitFor(async () => expect((await socket.frames()).at(-1)).toEqual({ type: 'invite', role: 'pl' }));
+    await vi.waitFor(async () => expect((await writtenFrames(socket)).at(-1)).toEqual({ type: 'invite', role: 'pl' }));
     socket.deliver({ type: 'invite', role: 'pl', invite: 'signed', expiresAt: 1794592000000 });
 
     expect(await answer).toEqual({ type: 'invite', role: 'pl', invite: 'signed', expiresAt: 1794592000000 });

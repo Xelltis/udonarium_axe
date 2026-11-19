@@ -188,7 +188,7 @@ export class AgentEventLog {
   private heardLine(identifier: string): void {
     const message = this.objectStore.get<ChatMessage>(identifier);
     if (!(message instanceof ChatMessage)) return;
-    const line = this.views.chatLine(message);
+    const line = this.views.lineRead(message);
     if (line) this.push({ kind: 'chat', ...line });
   }
 

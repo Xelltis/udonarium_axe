@@ -3,14 +3,13 @@ import { seededRandom } from '@axe/core/util/seeded-random';
 import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
 import { layoutPointOf } from '@axe/domain/tabletop/field/field-sample-points';
+import { layMillStream } from '@axe/domain/tabletop/field/mill-stream';
 import { laySettlement, type SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
-import { terraceSettlement } from '@axe/domain/tabletop/field/settlement-terrace';
+import { digStreamBed, terraceSettlement } from '@axe/domain/tabletop/field/settlement-terrace';
 import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
-import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
+import { GroundRaster, groundRasterOver } from '@axe/domain/tabletop/ground/ground-raster';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
-import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 export interface FieldLayout {
   width: number;
@@ -29,10 +28,18 @@ export interface FieldLayout {
   relief?: GroundRaster | null;
   /** The village or fort laid out on it, where it is one. */
   settlement?: SettlementLayout | null;
+  /**
+   * How high the ground a village or a fort stands on is levelled, in cells over the board, which the
+   * surface of its water is laid over: 0 where the ground is not raised. Left out where there is none.
+   */
+  settlementLevel?: number;
 }
 
-/** What a cell is taken up by: something standing on it, a patch poured over it, a building, or nothing. */
-export type FieldGroundMark = FieldPropId | 'pool' | 'building' | '';
+/**
+ * What a cell is taken up by: something standing on it, a patch poured over it, a building, a
+ * clearing kept round a mill for nothing to grow in, or nothing.
+ */
+export type FieldGroundMark = FieldPropId | 'pool' | 'building' | 'clearing' | '';
 
 /** A patch of ground that is not merely ground: what it is, and how thick it lies. */
 export interface FieldPool {
@@ -91,6 +98,9 @@ const RAMPS: readonly ((x: number, y: number, w: number, h: number) => number)[]
   (_x, y, _w, h) => y / (h - 1),
   (_x, y, _w, h) => 1 - y / (h - 1),
 ];
+
+/** How many cells round a mill are kept clear of whatever grows, so that it and what turns on it are seen. */
+const MILL_CLEARING = 2;
 
 /** How many neighbours may already be taken before a cell is left clear, so ground stays open. */
 const CROWD_LIMIT = 2;
@@ -318,6 +328,9 @@ function crowded(props: FieldGroundMark[], width: number, height: number, x: num
  * Open country is raised as high as `reliefCells` from its lowest ground to its highest, along the
  * same height the bands are cut from, with open water left level; nothing is raised where it is 0.
  * Raised so, the ground makes its own hills, and none is built of steps of blocks on it.
+ *
+ * A village has a stream run through it and its mills put up after the rest of it is laid, and the
+ * stream's bed is dug into the ground it stands on, raised or not.
  */
 export function generateField(
   atmosphere: FieldAtmosphere,
@@ -344,17 +357,34 @@ export function generateField(
   const buildings: FieldBuilding[] = [];
   let raster: GroundRaster | null = null;
   let settlement: SettlementLayout | null = null;
+  let settlementLevel = 0;
   const heightAt = (x: number, y: number) => raisedAt(atmosphere, x, y, width, height, relief, land, drift, damp, ramp);
   if (atmosphere.settlement) {
     settlement = laySettlement(atmosphere.settlement, width, height, seed, density);
+    if (settlement.kind === 'village') settlement = layMillStream(settlement, width, height, seed, gridType);
     ground.set(settlement.zones);
     for (let index = 0; index < settlement.taken.length; index++) {
       if (settlement.taken[index]) props[index] = 'building';
     }
+    for (const mill of settlement.mills ?? []) {
+      const { rect } = mill;
+      for (let y = rect.y - MILL_CLEARING; y < rect.y + rect.h + MILL_CLEARING; y++) {
+        for (let x = rect.x - MILL_CLEARING; x < rect.x + rect.w + MILL_CLEARING; x++) {
+          if (x < 0 || y < 0 || x >= width || y >= height || props[y * width + x] !== '') continue;
+          props[y * width + x] = 'clearing';
+        }
+      }
+    }
     if (reliefCells > 0) {
       const raised = raiseGround(atmosphere, new Uint8Array(width * height), width, height, heightAt);
       const country = reliefOf(atmosphere, { width, height }, gridType, reliefCells, raised, heightAt);
-      raster = terraceSettlement(country, settlement, { width, height }, gridType);
+      const terrace = terraceSettlement(country, settlement, { width, height }, gridType);
+      raster = terrace.ground;
+      settlementLevel = terrace.level;
+    }
+    if (settlement.stream) {
+      const under = raster ?? groundRasterOver({ width, height }, gridType);
+      raster = digStreamBed(under, settlement, { width, height }, gridType, settlementLevel);
     }
   } else if (atmosphere.town) {
     const town = layTown(atmosphere.town, width, height, seed, density);
@@ -419,7 +449,18 @@ export function generateField(
   }
   pourPools(atmosphere, ground, props, pools, width, height, rng);
 
-  return { width, height, ground, props, objects, pools, buildings, relief: raster, settlement };
+  return {
+    width,
+    height,
+    ground,
+    props,
+    objects,
+    pools,
+    buildings,
+    relief: raster,
+    settlement,
+    ...(settlement ? { settlementLevel } : {}),
+  };
 }
 
 /**
@@ -510,19 +551,11 @@ function reliefOf(
   const dug = Math.min(reliefCells, Math.max(0, ...atmosphere.bands.map((band) => band.water?.depth ?? 0)));
   const fall = shore - lowest || 1;
   const rise = dug > 0 ? Math.min(SHORE_RISE_CELLS, reliefCells) : 0;
-  const extent = boardExtentPx(size, { type: gridType, sizePx: 1 });
-  const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
-  const heights = new Float32Array(columns * rows);
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < columns; i++) {
-      const at = layoutPointOf(gridType, i / GROUND_SAMPLES_PER_CELL, j / GROUND_SAMPLES_PER_CELL);
-      const raisedTo = heightAt(at.x, at.y);
-      heights[j * columns + i] =
-        dug > 0 && raisedTo <= shore
-          ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
-          : rise + (reliefCells - rise) * clamp((raisedTo - shore) / span, 0, 1);
-    }
-  }
-  return { columns, rows, heights };
+  return groundRasterOver(size, gridType, (x, y) => {
+    const at = layoutPointOf(gridType, x, y);
+    const raisedTo = heightAt(at.x, at.y);
+    return dug > 0 && raisedTo <= shore
+      ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
+      : rise + (reliefCells - rise) * clamp((raisedTo - shore) / span, 0, 1);
+  });
 }

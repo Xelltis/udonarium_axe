@@ -14,6 +14,7 @@ import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { EventChannel } from '@axe/core/event/event-channel';
+import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -472,6 +473,32 @@ describe('TooltipDirective', () => {
     const instances = [...panels()];
     expect(instances).toHaveLength(4);
     expect(instances.every((instance) => instance.tabletopObject === host.second)).toBe(true);
+  });
+
+  it('puts the detail beside a piece away once the piece is moved, and keeps it through a change that moves nothing', async () => {
+    table.hoverDetailPlacement = 'piece';
+    await hover('first-piece');
+    const changed = { identifier: host.first.identifier, aliasName: host.first.aliasName, isSendFromSelf: true };
+
+    objectChanged$.emit(changed);
+    fixture.detectChanges();
+    expect(panels()).toHaveLength(1);
+
+    host.first.location.x += 50;
+    objectChanged$.emit(changed);
+    fixture.detectChanges();
+
+    expect(panels()).toHaveLength(0);
+  });
+
+  it('keeps the details along the edges of the screen when their piece is moved', async () => {
+    await hover('first-piece');
+
+    host.first.location.x += 50;
+    objectChanged$.emit({ identifier: host.first.identifier, aliasName: host.first.aliasName, isSendFromSelf: true });
+    fixture.detectChanges();
+
+    expect(panels()).toHaveLength(4);
   });
 
   it('takes the details away when the piece is deleted', async () => {

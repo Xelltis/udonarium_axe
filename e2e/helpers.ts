@@ -1,6 +1,10 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import type { TableTestHooks } from '../src/app/features/tabletop/game-table/table-test-hooks';
+import related from './related.json';
 
 declare global {
   /**
@@ -216,8 +220,53 @@ export async function triesToConnect(page: Page) {
   await page.addInitScript(() => localStorage.removeItem('ui-local-mode'));
 }
 
+/**
+ * Where each test leaves the lazily loaded parts of the app it asked for, as e2e/related.json names
+ * it: `scripts/e2e-related.mjs` reads them from there.
+ */
+const LOADS_DIR = related.loadsDir;
+
+/** A script the build names after the source it loads as it goes, with the hash of what it holds. */
+const LAZY_PART = /\/((?!chunk-)[^/]+)-[A-Za-z0-9_-]{8}\.js$/;
+
+const loadsKept = new WeakSet<object>();
+
+/**
+ * Keeps, for the test that is running, the name of each part of the app its browser asks for as it
+ * goes: a panel's code is loaded when the panel is first opened, so the names tell which panels and
+ * overlays a test went through. `scripts/e2e-related.mjs` picks the specs a change can reach by
+ * them. Call before the page is opened.
+ */
+export function keepLoadedParts(page: Page): void {
+  const context = page.context();
+  if (loadsKept.has(context)) return;
+  loadsKept.add(context);
+  const info = test.info();
+  const dir = join(LOADS_DIR, info.project.name);
+  const kept = join(dir, `${info.testId}.txt`);
+  mkdirSync(dir, { recursive: true });
+  // What an earlier run left is kept and added to: a run that fails or is stopped part of the way asks
+  // for less than the test goes through, and what it leaves alone would tell too little.
+  const spec = relative(process.cwd(), info.file).split('\\').join('/');
+  // The test's name, by the groups it stands in and its own title, which the picker tells it by: what
+  // Playwright files a test under differs from one project to the next.
+  const name = `${related.titleMark}${info.titlePath.slice(1).join(related.titleJoint)}`;
+  // The mark that the test passed is taken off as it starts again: loads-reporter.ts puts it back once it has.
+  const before = existsSync(kept) ? readFileSync(kept, 'utf-8').split('\n').filter(Boolean) : [];
+  const parts = before.slice(1).filter((line) => !line.startsWith(related.titleMark) && line !== related.passedMark);
+  const seen = new Set<string>(before[0] === spec ? parts : []);
+  writeFileSync(kept, [spec, name, ...seen].map((line) => `${line}\n`).join(''));
+  context.on('request', (request) => {
+    const part = LAZY_PART.exec(new URL(request.url()).pathname)?.[1];
+    if (part === undefined || seen.has(part)) return;
+    seen.add(part);
+    appendFileSync(kept, `${part}\n`);
+  });
+}
+
 /** Opens the app afresh and waits for it to be ready, with the camera near the board. */
 export async function waitAppReady(page: Page) {
+  keepLoadedParts(page);
   await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at
   // once a load was seen to take past the default fifteen seconds in Firefox.
@@ -395,6 +444,7 @@ export async function dragAndLeave(
  * where it is.
  */
 export async function waitMobileShell(page: Page): Promise<void> {
+  keepLoadedParts(page);
   await page.goto('/');
   await expect(page.locator('mobile-shell nav')).toBeVisible({ timeout: 20000 });
 }

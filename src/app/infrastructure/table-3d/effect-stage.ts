@@ -8,6 +8,7 @@ import {
   stageLampOf,
 } from '@axe/infrastructure/table-3d/effect-stage-view';
 import { fieldOfViewDeg } from '@axe/infrastructure/table-3d/engine-rules';
+import { ReadiedDrawing } from '@axe/infrastructure/table-3d/readied-drawing';
 import type {
   EffectOverlay,
   EffectOverlayView,
@@ -52,6 +53,7 @@ class SmallStage implements EffectStage {
   private readonly effects = new EffectLayer();
   private readonly lamps = Array.from({ length: MAX_EFFECT_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
   private readonly owned: { dispose(): void }[] = [];
+  private readonly drawing: ReadiedDrawing;
   private zoomOut: number;
 
   constructor(
@@ -67,6 +69,7 @@ class SmallStage implements EffectStage {
     for (const figure of options.figures) this.scene.add(...this.standIn(figure.x, figure.y, cellPx, figure.dim));
     this.effects.seeFromWithin(true);
     this.scene.add(this.effects.group);
+    this.drawing = new ReadiedDrawing(renderer, this.scene, this.camera);
     this.resize();
   }
 
@@ -105,15 +108,10 @@ class SmallStage implements EffectStage {
 
   /**
    * Readies the graphics card to draw the stage's own board and stand-ins, so the frame that first
-   * shows an effect does not stop to build what drawing them asks for. A card that would not build
-   * them ahead builds them on that frame instead.
+   * shows an effect does not stop to build what drawing them asks for.
    */
-  async ready(): Promise<void> {
-    try {
-      await this.renderer.compileAsync(this.scene, this.camera);
-    } catch {
-      // Built on the first frame instead.
-    }
+  ready(): void {
+    this.drawing.ready();
   }
 
   show(frame: EffectFrame): void {
@@ -131,7 +129,12 @@ class SmallStage implements EffectStage {
       lamp.position.set(light.x, light.z, light.y);
       lamp.color.set(light.color);
     });
-    this.renderer.render(this.scene, this.camera);
+    // An effect of a kind new to the card is built before it is drawn, the page left free meanwhile.
+    this.drawing.draw();
+  }
+
+  waiting(): boolean {
+    return this.drawing.waiting;
   }
 
   zoom(out: number): void {
@@ -154,6 +157,7 @@ class SmallStage implements EffectStage {
 
   /** Lets go of the effects, of the board and stand-ins, and of the renderer. */
   dispose(): void {
+    this.drawing.dispose();
     this.effects.dispose();
     for (const thing of this.owned) thing.dispose();
     void letGoOfRenderer(this.renderer);
@@ -255,7 +259,7 @@ export async function createEffectStage(
   try {
     const renderer = await createCanvasRenderer(canvas, { alpha: false, background: STAGE_BACKGROUND });
     const stage = new SmallStage(renderer, canvas, options);
-    void stage.ready();
+    stage.ready();
     return stage;
   } catch {
     return null;

@@ -312,7 +312,7 @@
               <button
                 type="button"
                 class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg hover:text-ui-danger m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[14px]!"
-                [disabled]="!allowDeleteLog"
+                [disabled]="!allowDeleteLog || !canClearAsSet"
                 (click)="deleteLog()"
               >
                 <i class="material-icons">delete_sweep</i>{{ 'feature.chat.tabSetting.deleteLogThisTab' | transloco }}
@@ -320,12 +320,48 @@
               <button
                 type="button"
                 class="rounded-ui-sm border-ui-danger-ring text-ui-danger hover:border-ui-danger hover:bg-ui-danger-bg hover:text-ui-danger m-0 inline-flex shrink-0 cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-2.5 py-1.25 text-[12px] transition-[background,border-color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[14px]!"
-                [disabled]="!allowDeleteLog"
+                [disabled]="!allowDeleteLog || !canClearAsSet"
                 (click)="deleteLogALL()"
               >
                 <i class="material-icons">delete_forever</i>{{ 'feature.chat.tabSetting.deleteLogAllTabs' | transloco }}
               </button>
             </div>
+            <div class="text-ui-muted flex flex-wrap items-center gap-1.5 text-[12px]">
+              <label class="inline-flex cursor-pointer items-center gap-1.25 select-none">
+                <input
+                  type="checkbox"
+                  class="m-0 size-3.25 cursor-pointer [accent-color:var(--ui-accent)]"
+                  name="clear-log-only-before"
+                  data-testid="chat-log-clear-only-before"
+                  [ngModel]="clearOnlyBefore()"
+                  (ngModelChange)="clearOnlyBefore.set($event === true)"
+                />
+                {{ 'feature.chat.tabSetting.clearBefore' | transloco }}
+              </label>
+              <input
+                type="datetime-local"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text m-0 border border-solid px-1.5 py-1 text-[12px]"
+                name="clear-log-before"
+                data-testid="chat-log-clear-before"
+                [attr.aria-label]="'feature.chat.tabSetting.clearBefore' | transloco"
+                [ngModel]="clearBefore()"
+                (ngModelChange)="clearBefore.set($event ?? '')"
+                (focus)="clearOnlyBefore.set(true)"
+              />
+            </div>
+            <span
+              class="text-[11px]"
+              [class.text-ui-dim]="canClearAsSet"
+              [class.text-ui-danger]="!canClearAsSet"
+              data-testid="chat-log-clear-reach"
+              >{{
+                !clearOnlyBefore()
+                  ? ('feature.chat.tabSetting.clearBeforeNone' | transloco)
+                  : clearBeforeText
+                    ? ('feature.chat.tabSetting.clearBeforeSet' | transloco: { time: clearBeforeText })
+                    : ('feature.chat.tabSetting.clearBeforeUnset' | transloco)
+              }}</span
+            >
             @if (isKeptToGameMasterByServer) {
               <span class="text-ui-dim text-[11px]">{{
                 'feature.chat.tabSetting.logKeepsServerRollsOnServer' | transloco
