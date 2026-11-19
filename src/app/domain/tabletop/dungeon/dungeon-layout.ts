@@ -114,6 +114,56 @@ export const FURNISHING_IDS = [
   'pipeValve',
   'pipeElbow',
   'pipeEnd',
+  'neonCocktail',
+  'neonDice',
+  'neonHeart',
+  'backBar',
+  'boothSofa',
+  'lowTable',
+  'jukebox',
+  'slotMachine',
+  'arcadeCabinet',
+  'rouletteTable',
+  'vendingMachine',
+  'goodsShelf',
+  'safe',
+  'executiveDesk',
+  'still',
+  'speaker',
+  'aquarium',
+  'plant',
+  'bookshelf',
+  'lectern',
+  'bookPile',
+  'alchemyTable',
+  'cauldron',
+  'potionShelf',
+  'magicCircle',
+  'crystalPedestal',
+  'orrery',
+  'telescope',
+  'canopyBed',
+  'wardrobe',
+  'treasureChest',
+  'candelabra',
+  'gargoyle',
+  'writingDesk',
+  'storageJars',
+  'bed',
+  'tableWood',
+  'chairWood',
+  'cupboard',
+  'fireplace',
+  'anvil',
+  'forge',
+  'weaponRack',
+  'breadOven',
+  'flourSacks',
+  'pew',
+  'altar',
+  'bunkBed',
+  'chestWood',
+  'shelfGoods',
 ] as const;
 
 export type FurnishingId = (typeof FURNISHING_IDS)[number];
@@ -203,6 +253,11 @@ export interface DungeonLayout {
   spouts?: DungeonSpout[];
   /** How high its ground stands over the board, where the water run through it digs into it. */
   relief?: GroundRaster | null;
+  /**
+   * For a round place, as a tower is, the cells outside it, each as 1: no part of the place at all,
+   * so nothing is built or painted on them. Left out, the place fills the board.
+   */
+  outside?: Uint8Array;
   seed: number;
 }
 

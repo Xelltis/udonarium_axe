@@ -91,6 +91,212 @@ export const FURNISHING_SHAPES: Record<FurnishingId, FurnishingShape> = {
     blocksSight: false,
     whole: true,
   },
+  neonCocktail: {
+    skin: { side: 'wall_neon', top: 'wall_metal' },
+    height: 0.6,
+    fill: 0.3,
+    blocksSight: false,
+    whole: true,
+  },
+  neonDice: { skin: { side: 'wall_neon', top: 'wall_metal' }, height: 0.6, fill: 0.3, blocksSight: false, whole: true },
+  neonHeart: {
+    skin: { side: 'wall_neon', top: 'wall_metal' },
+    height: 0.6,
+    fill: 0.3,
+    blocksSight: false,
+    whole: true,
+  },
+  backBar: { skin: { side: 'wood_plank', top: 'marble' }, height: 1.35, fill: 0.5, blocksSight: false, whole: true },
+  boothSofa: { skin: { side: 'wall_metal', top: 'felt' }, height: 0.65, fill: 0.7, blocksSight: false, whole: true },
+  lowTable: { skin: { side: 'wall_metal', top: 'neon_floor' }, height: 0.3, fill: 0.7, blocksSight: false, spin: 15 },
+  jukebox: { skin: { side: 'wall_neon', top: 'wall_metal' }, height: 1.2, fill: 0.7, blocksSight: false, whole: true },
+  slotMachine: {
+    skin: { side: 'wall_neon', top: 'wall_metal' },
+    height: 1.25,
+    fill: 0.7,
+    blocksSight: false,
+    whole: true,
+  },
+  arcadeCabinet: {
+    skin: { side: 'wall_neon', top: 'wall_metal' },
+    height: 1.35,
+    fill: 0.7,
+    blocksSight: false,
+    whole: true,
+  },
+  rouletteTable: {
+    skin: { side: 'wood_plank', top: 'felt' },
+    height: 0.45,
+    fill: 0.84,
+    blocksSight: false,
+    cells: { w: 2, d: 1 },
+    whole: true,
+  },
+  vendingMachine: {
+    skin: { side: 'wall_neon', top: 'wall_metal' },
+    height: 1.5,
+    fill: 0.7,
+    blocksSight: false,
+    whole: true,
+  },
+  goodsShelf: {
+    skin: { side: 'wall_metal', top: 'wall_metal' },
+    height: 1.4,
+    fill: 0.6,
+    blocksSight: false,
+    whole: true,
+  },
+  safe: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 0.6, fill: 0.55, blocksSight: false },
+  executiveDesk: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 0.42,
+    fill: 0.8,
+    blocksSight: false,
+    cells: { w: 2, d: 1 },
+  },
+  still: { skin: { side: 'wood_plank', top: 'wall_metal' }, height: 0.9, fill: 0.8, blocksSight: false, spin: 20 },
+  speaker: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 1.3, fill: 0.7, blocksSight: false, whole: true },
+  aquarium: {
+    skin: { side: 'wall_metal', top: 'neon_floor' },
+    height: 1.2,
+    fill: 0.6,
+    blocksSight: false,
+    whole: true,
+  },
+  plant: { skin: { side: 'wood_plank', top: 'rock_moss' }, height: 1.1, fill: 0.5, blocksSight: false, spin: 30 },
+  bookshelf: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1.8,
+    fill: 0.5,
+    blocksSight: false,
+    whole: true,
+  },
+  lectern: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.75, fill: 0.5, blocksSight: false, spin: 20 },
+  bookPile: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.45, fill: 0.6, blocksSight: false, spin: 30 },
+  alchemyTable: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 0.95,
+    fill: 0.7,
+    blocksSight: false,
+    whole: true,
+  },
+  cauldron: { skin: { side: 'wall_metal', top: 'poison_pool' }, height: 0.6, fill: 0.8, blocksSight: false },
+  potionShelf: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1.5,
+    fill: 0.5,
+    blocksSight: false,
+    whole: true,
+  },
+  magicCircle: {
+    skin: { side: 'obsidian', top: 'stone_mosaic' },
+    height: 0.03,
+    fill: 1,
+    blocksSight: false,
+    cells: { w: 3, d: 3 },
+    whole: true,
+    floor: true,
+  },
+  crystalPedestal: { skin: { side: 'wall_ashlar', top: 'ice' }, height: 1.1, fill: 0.5, blocksSight: false },
+  orrery: { skin: { side: 'wood_plank', top: 'marble' }, height: 1.1, fill: 0.8, blocksSight: false },
+  telescope: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 1, fill: 0.7, blocksSight: false, spin: 30 },
+  canopyBed: {
+    skin: { side: 'wood_plank', top: 'felt' },
+    height: 1.4,
+    fill: 0.9,
+    blocksSight: false,
+    cells: { w: 1, d: 2 },
+    whole: true,
+  },
+  wardrobe: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1.7,
+    fill: 0.6,
+    blocksSight: false,
+    whole: true,
+  },
+  treasureChest: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 0.55,
+    fill: 0.7,
+    blocksSight: false,
+    spin: 20,
+  },
+  candelabra: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 1.2, fill: 0.4, blocksSight: false },
+  gargoyle: { skin: { side: 'wall_ashlar', top: 'stone_tile' }, height: 1.1, fill: 0.6, blocksSight: false, spin: 30 },
+  writingDesk: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1,
+    fill: 0.7,
+    blocksSight: false,
+    whole: true,
+  },
+  storageJars: {
+    skin: { side: 'wall_earth', top: 'packed_earth' },
+    height: 0.7,
+    fill: 0.8,
+    blocksSight: false,
+    spin: 30,
+  },
+  bed: {
+    skin: { side: 'wood_plank', top: 'felt' },
+    height: 0.6,
+    fill: 0.9,
+    blocksSight: false,
+    cells: { w: 1, d: 2 },
+    whole: true,
+  },
+  tableWood: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.45, fill: 0.8, blocksSight: false, spin: 10 },
+  chairWood: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.55, fill: 0.4, blocksSight: false, spin: 30 },
+  cupboard: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1.5,
+    fill: 0.6,
+    blocksSight: false,
+    whole: true,
+  },
+  fireplace: {
+    skin: { side: 'wall_brick', top: 'wall_brick' },
+    height: 1.6,
+    fill: 0.7,
+    blocksSight: false,
+    whole: true,
+  },
+  anvil: { skin: { side: 'wall_metal', top: 'wall_metal' }, height: 0.45, fill: 0.6, blocksSight: false, spin: 20 },
+  forge: { skin: { side: 'wall_brick', top: 'lava' }, height: 1.5, fill: 0.8, blocksSight: false, whole: true },
+  weaponRack: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1.5,
+    fill: 0.5,
+    blocksSight: false,
+    whole: true,
+  },
+  breadOven: {
+    skin: { side: 'wall_brick', top: 'wall_brick' },
+    height: 1.3,
+    fill: 0.8,
+    blocksSight: false,
+    whole: true,
+  },
+  flourSacks: { skin: { side: 'wall_earth', top: 'sand' }, height: 0.5, fill: 0.8, blocksSight: false, spin: 20 },
+  pew: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.55, fill: 0.8, blocksSight: false },
+  altar: { skin: { side: 'wall_ashlar', top: 'marble' }, height: 1.2, fill: 0.8, blocksSight: false, whole: true },
+  bunkBed: {
+    skin: { side: 'wood_plank', top: 'felt' },
+    height: 1.3,
+    fill: 0.9,
+    blocksSight: false,
+    cells: { w: 1, d: 2 },
+    whole: true,
+  },
+  chestWood: { skin: { side: 'wood_plank', top: 'wood_plank' }, height: 0.45, fill: 0.7, blocksSight: false, spin: 15 },
+  shelfGoods: {
+    skin: { side: 'wood_plank', top: 'wood_plank' },
+    height: 1.5,
+    fill: 0.6,
+    blocksSight: false,
+    whole: true,
+  },
 };
 
 /** How long and how wide a shipping container stands on the floor, in cells. */
@@ -596,21 +802,27 @@ class Furnisher {
 
   /**
    * One piece in the middle of the room, lying along the room's length where it is longer one way
-   * than the other, with open floor all round it.
+   * than the other, with open floor all round it. Where the middle is taken, as by the stair down
+   * in the deepest room, it stands as near the middle as there is room for it.
    */
   centre(plan: FurnishingPlan, room: DungeonRoom): void {
     const pieces = plan.pieces ?? [plan.piece];
     const piece = pieces[Math.floor(this.rng() * pieces.length) % pieces.length];
     const { w, d } = cellsTakenBy(piece);
     const turned = w !== d && room.h > room.w;
-    const rect = {
-      x: room.x + Math.floor((room.w - (turned ? d : w)) / 2),
-      y: room.y + Math.floor((room.h - (turned ? w : d)) / 2),
-      w: turned ? d : w,
-      h: turned ? w : d,
-    };
-    if (!this.clearRect(rect)) return;
-    this.put(piece, rect.x, rect.y, rect.w, rect.h, undefined, 0, turned ? 90 : 0);
+    const across = turned ? d : w;
+    const deep = turned ? w : d;
+    const middle = { x: room.x + room.w / 2, y: room.y + room.h / 2 };
+    const spots: { x: number; y: number; far: number }[] = [];
+    for (let y = room.y; y + deep <= room.y + room.h; y++) {
+      for (let x = room.x; x + across <= room.x + room.w; x++) {
+        spots.push({ x, y, far: Math.abs(x + across / 2 - middle.x) + Math.abs(y + deep / 2 - middle.y) });
+      }
+    }
+    spots.sort((one, other) => one.far - other.far || one.y - other.y || one.x - other.x);
+    const spot = spots.find((at) => this.clearRect({ x: at.x, y: at.y, w: across, h: deep }));
+    if (!spot) return;
+    this.put(piece, spot.x, spot.y, across, deep, undefined, 0, turned ? 90 : 0);
   }
 
   /**

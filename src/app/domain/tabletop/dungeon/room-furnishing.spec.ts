@@ -24,7 +24,7 @@ import { assignRoomSets } from '@axe/domain/tabletop/dungeon/room-roles';
 import { GridType } from '@axe/domain/tabletop/game-table';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
-const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse', 'sewer'] as const;
+const FURNISHED = ['illegalBar', 'abandonedBuilding', 'containerWarehouse', 'sewer', 'wizardTower'] as const;
 
 function open(layout: DungeonLayout, x: number, y: number): boolean {
   const cell = cellAt(layout, x, y);
@@ -449,7 +449,10 @@ describe('a furnished place on the table', () => {
     }
     const pieces = hexed.blocks.blocks.filter((block) => block.thing);
     expect(pieces.every((block) => block.rect.w === 1 && block.rect.h === 1)).toBe(true);
-    const cells = hexed.layout.furnishings!.reduce((sum, piece) => sum + piece.w * piece.h, 0);
+    const cells = hexed.layout.furnishings!.reduce(
+      (sum, piece) => sum + piece.w * piece.h * (1 + (piece.stack?.length ?? 0)),
+      0
+    );
     expect(pieces.length).toBe(cells);
   });
 
@@ -671,17 +674,18 @@ describe('furniture against the walls and in the middle', () => {
     }
   });
 
-  it('stands one piece in the middle of a room with open floor all round it', () => {
+  it('stands one piece in the middle of a room with open floor all round it, beside the stair where that is in the middle', () => {
     let pieces = 0;
     for (const seed of SEEDS) {
       const layout = furnished(seed, [{ piece: 'barrel', arrangement: 'centre', roles: ['hall', 'boss'], every: 1 }]);
+      expect((layout.furnishings ?? []).length, `${seed}`).toBe(2);
       for (const piece of layout.furnishings ?? []) {
         pieces++;
         const room = layout.rooms.find(
           (each) => piece.x >= each.x && piece.y >= each.y && piece.x < each.x + each.w && piece.y < each.y + each.h
         )!;
-        expect(Math.abs(piece.x - (room.x + (room.w - 1) / 2)), `${seed}`).toBeLessThanOrEqual(0.5);
-        expect(Math.abs(piece.y - (room.y + (room.h - 1) / 2)), `${seed}`).toBeLessThanOrEqual(0.5);
+        const off = Math.abs(piece.x - (room.x + (room.w - 1) / 2)) + Math.abs(piece.y - (room.y + (room.h - 1) / 2));
+        expect(off, `${seed}`).toBeLessThanOrEqual(room.role === 'boss' ? 3 : 1);
         for (const [dx, dy] of [
           [1, 0],
           [-1, 0],

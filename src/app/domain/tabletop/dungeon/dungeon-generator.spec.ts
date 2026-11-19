@@ -522,3 +522,31 @@ describe('passages cut to the width the room asked for', () => {
     }
   });
 });
+
+describe('a round tower', () => {
+  it('stands on a square board and builds and paints nothing outside its round, on squares and hexes', () => {
+    for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
+      for (const seed of SEEDS) {
+        const { layout, blocks } = planDungeon({ atmosphere: 'wizardTower', roomCount: 8, seed, gridType });
+        const at = `${gridType} ${seed}`;
+        expect(layout.width, at).toBe(layout.height);
+        const outside = layout.outside!;
+        expect(outside.some(Boolean), at).toBe(true);
+        const covers = (rect: { x: number; y: number; w: number; h: number }) => {
+          for (let y = rect.y; y < rect.y + rect.h; y++) {
+            for (let x = rect.x; x < rect.x + rect.w; x++) if (outside[y * layout.width + x]) return true;
+          }
+          return false;
+        };
+        expect(
+          blocks.blocks.filter((block) => covers(block.rect)),
+          at
+        ).toEqual([]);
+        expect(
+          blocks.paint.filter((paint) => covers(paint.rect)),
+          at
+        ).toEqual([]);
+      }
+    }
+  });
+});

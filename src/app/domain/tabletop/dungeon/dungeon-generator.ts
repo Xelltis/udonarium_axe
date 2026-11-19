@@ -26,7 +26,7 @@ import { openTunnelMouth } from '@axe/domain/tabletop/dungeon/tunnel-mouth';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
-import { boardSizeOn, MapGrid, mergeSpanFor } from '@axe/domain/tabletop/map-grid';
+import { boardSizeOn, cellCentre, MapGrid, mergeSpanFor } from '@axe/domain/tabletop/map-grid';
 
 export const MIN_ROOM_COUNT = 3;
 export const MAX_ROOM_COUNT = 20;
@@ -122,10 +122,14 @@ export function boardSizeFor(
   // passage eats the board faster, so the board is given the room the passages want.
   const wide = clampCorridorWidth(corridorWidth);
   const spread = 1 + (wide - 1) * 0.5;
-  return {
-    width: fitBoardTo(Math.min(MAX_BOARD_WIDTH, Math.round((22 + rooms * 1.8) * spread)), wide),
-    height: fitBoardTo(Math.min(MAX_BOARD_HEIGHT, Math.round((16 + rooms * 1.4) * spread)), wide),
-  };
+  const width = Math.min(MAX_BOARD_WIDTH, Math.round((22 + rooms * 1.8) * spread));
+  const height = Math.min(MAX_BOARD_HEIGHT, Math.round((16 + rooms * 1.4) * spread));
+  if (atmosphere.rooms?.round) {
+    // A round place on a square board, as much floor inside its round as the oblong board would hold.
+    const side = fitBoardTo(Math.min(MAX_BOARD_HEIGHT, Math.round(Math.sqrt((width * height * 4) / Math.PI))), wide);
+    return { width: side, height: side };
+  }
+  return { width: fitBoardTo(width, wide), height: fitBoardTo(height, wide) };
 }
 
 /**
@@ -182,6 +186,12 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
           minCorridor: widths.least,
           maxCorridor: widths.most,
           seed: request.seed,
+          ...(digging.rooms.round
+            ? {
+                round: (x: number, y: number) =>
+                  cellCentre({ x, y }, { type: request.gridType ?? GridType.SQUARE, sizePx: 1 }),
+              }
+            : {}),
         },
         rng
       );

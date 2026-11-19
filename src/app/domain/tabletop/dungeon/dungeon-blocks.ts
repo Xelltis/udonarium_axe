@@ -377,7 +377,11 @@ export function layoutToBlocks(
   const ambiences: MapAmbience[] = [];
   const span = options.mergeSpan ?? MAX_MERGE_SPAN;
 
+  // A round place is no wider than its round: what lies outside it is no part of it, and stands bare.
   const rockMask = maskOfKind(layout, [DungeonCell.Rock]);
+  layout.outside?.forEach((outside, cell) => {
+    if (outside) rockMask[cell] = 0;
+  });
   for (const rect of mergeMaskToRects(rockMask, layout.width, layout.height, span)) {
     // Rock buried behind more rock cannot be seen past, so it need not be tested against.
     const boundary = touchesOpenCell(layout, rect);

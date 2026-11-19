@@ -1,6 +1,6 @@
 import { clamp } from '@axe/core/util/clamp';
 import { DungeonPropId, TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
-import type { DungeonRoomRoleValue } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import type { DungeonRoomRoleValue, FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { FurnishingPlan } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { RoomShape } from '@axe/domain/tabletop/dungeon/room-shapes';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
@@ -19,6 +19,7 @@ export const DUNGEON_ATMOSPHERE_IDS = [
   'abandonedBuilding',
   'containerWarehouse',
   'sewer',
+  'wizardTower',
 ] as const;
 
 export type DungeonAtmosphereId = (typeof DUNGEON_ATMOSPHERE_IDS)[number];
@@ -44,6 +45,8 @@ export interface RoomPlan {
   shapes: readonly RoomShape[];
   /** How wide a passage is cut when the table has not said, in cells. Left out, one. */
   corridor?: number;
+  /** Whether the place is round, as a floor of a tower is, on a square board. Left out, it fills the board. */
+  round?: boolean;
 }
 
 export interface CaveShape {
@@ -74,7 +77,7 @@ export function clampWallHeight(height: number): number {
  * into, the biggest, the one hardest to get to - but they are a front, a gambling den and the
  * boss's room.
  */
-export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building', 'warehouse', 'sewer'] as const;
+export const DUNGEON_ROLE_NAMINGS = ['illegalBar', 'building', 'warehouse', 'sewer', 'wizardTower'] as const;
 
 export type DungeonRoleNaming = (typeof DUNGEON_ROLE_NAMINGS)[number];
 
@@ -156,6 +159,9 @@ export interface DungeonAtmosphere {
    */
   hiddenDoors?: boolean;
 }
+
+/** The neon signs a bar hangs over its booths, its jukebox and its machines, a different one to each run. */
+const NEON_SIGNS: readonly FurnishingId[] = ['neonCocktail', 'neonDice', 'neonHeart'];
 
 export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere> = {
   stoneDungeon: {
@@ -308,12 +314,16 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
     },
   },
   /**
-   * A bar nobody is meant to find, under a shop that is only there to hide it.
+   * A bar nobody is meant to find, under a shop that is only there to hide it, in a city of neon
+   * and rain.
    *
-   * The party comes down the stair into the front, and the ways on out of it are hidden in its
-   * walls. Behind them are the bar with its counter, the back rooms, a gambling den at the end
-   * of the longest walk, a store of bootleg liquor, and the boss's room locked at the bottom
-   * of it all. It is lit low and red, and the doors run aside by themselves.
+   * The party comes down the stair into the front, a corner shop with its shelves and vending
+   * machines, and the ways on out of it are hidden in its walls. Behind them are the bar with its
+   * counter and its shelves of bottles, booths along the walls under the neon, a jukebox; a gambling
+   * den of slot machines and a roulette wheel at the end of the longest walk; a store of bootleg
+   * liquor and the still it comes out of; back rooms kept as lounges or as rooms of arcade games;
+   * and the boss's office locked at the bottom of it all, a big desk, a fish tank and a safe. It is
+   * lit low and red, the signs glow, and the doors run aside by themselves.
    */
   illegalBar: {
     id: 'illegalBar',
@@ -332,6 +342,7 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
     door: 'door_steel',
     lighting: { wall: ['neon'], open: [], colors: ['#ff3b5c', '#ff2bd6', '#b44dff'] },
     roleNames: 'illegalBar',
+    roomSets: { chamber: ['lounge', 'arcade'] },
     hiddenDoors: true,
     rooms: {
       minRoom: 5,
@@ -343,10 +354,45 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
     },
     furnishings: [
       { piece: 'shopCounter', arrangement: 'counter', roles: ['entrance'], every: 0 },
-      { piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool' },
-      { piece: 'gamingTable', arrangement: 'scatter', roles: ['treasure'], every: 6 },
-      { piece: 'table', arrangement: 'scatter', roles: ['hall', 'chamber', 'boss'], every: 9 },
-      { piece: 'crate', arrangement: 'scatter', roles: ['entrance', 'deadEnd'], every: 5 },
+      { piece: 'counter', arrangement: 'counter', roles: ['hall'], every: 0, seat: 'stool', back: 'backBar' },
+      { piece: 'rouletteTable', arrangement: 'centre', roles: ['treasure'], every: 0 },
+      { piece: 'executiveDesk', arrangement: 'centre', roles: ['boss'], every: 0 },
+      { piece: 'goodsShelf', arrangement: 'wall', roles: ['entrance'], every: 5, most: 3 },
+      { piece: 'vendingMachine', arrangement: 'wall', roles: ['entrance'], every: 14, most: 2 },
+      { piece: 'boothSofa', arrangement: 'wall', roles: ['hall'], every: 5, most: 3, above: NEON_SIGNS },
+      { piece: 'jukebox', arrangement: 'wall', roles: ['hall'], every: 40, most: 1, above: NEON_SIGNS },
+      { piece: 'speaker', arrangement: 'wall', roles: ['hall'], every: 40, most: 1 },
+      { piece: 'slotMachine', arrangement: 'wall', roles: ['treasure'], every: 4, most: 4, above: NEON_SIGNS },
+      { piece: 'boothSofa', arrangement: 'wall', roles: ['boss'], every: 12, most: 2 },
+      { piece: 'aquarium', arrangement: 'wall', roles: ['boss'], every: 40, most: 1 },
+      {
+        piece: 'boothSofa',
+        arrangement: 'wall',
+        roles: ['chamber'],
+        every: 5,
+        most: 3,
+        above: NEON_SIGNS,
+        set: 'lounge',
+      },
+      {
+        piece: 'arcadeCabinet',
+        arrangement: 'wall',
+        roles: ['chamber'],
+        every: 4,
+        most: 4,
+        above: NEON_SIGNS,
+        set: 'arcade',
+      },
+      { piece: 'speaker', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'arcade' },
+      { piece: 'table', arrangement: 'scatter', roles: ['hall'], every: 9 },
+      { piece: 'gamingTable', arrangement: 'scatter', roles: ['treasure'], every: 9 },
+      { piece: 'lowTable', arrangement: 'scatter', roles: ['chamber'], every: 9, set: 'lounge' },
+      { piece: 'lowTable', arrangement: 'scatter', roles: ['boss'], every: 20 },
+      { piece: 'still', arrangement: 'scatter', roles: ['deadEnd'], every: 14 },
+      { piece: 'crate', arrangement: 'corners', roles: ['entrance'], every: 8 },
+      { piece: 'barrel', arrangement: 'corners', roles: ['deadEnd'], every: 3, pieces: ['barrel', 'barrel', 'crate'] },
+      { piece: 'safe', arrangement: 'corners', roles: ['boss'], every: 40 },
+      { piece: 'plant', arrangement: 'corners', roles: ['hall', 'boss', 'chamber'], every: 40 },
     ],
   },
   /**
@@ -491,6 +537,75 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
       { piece: 'crate', arrangement: 'corners', roles: ['treasure'], every: 7, pieces: ['crate', 'crate', 'barrel'] },
       { piece: 'barrel', arrangement: 'corners', roles: ['entrance', 'chamber'], every: 14 },
       { piece: 'pipe', arrangement: 'pipeRun', roles: ['chamber'], every: 2, most: 6 },
+    ],
+  },
+  /**
+   * A floor of a wizard's tower: round, walled in stone, its rooms opening off passages that wind
+   * between them, a spiral stair the way up and down.
+   *
+   * The stair comes up in the middle of a room lit by candles, watched over by a gargoyle. The
+   * biggest room is the library, its walls lined with books; the hardest to reach keeps the
+   * wizard's treasures round a crystal floating over its pedestal; and the deepest is the summoning
+   * chamber, a circle of runes glowing on its floor. The dead ends are stores of jars and ingredients,
+   * and the small rooms are the wizard's own: a workshop round a cauldron, an observatory with its
+   * orrery and telescopes, a bedroom, a study. It is dark but for the candles and what glows.
+   */
+  wizardTower: {
+    id: 'wizardTower',
+    algorithm: 'rooms',
+    defaultWall: 'wall_ashlar',
+    defaultFloor: 'wood_plank',
+    wallHeight: 2,
+    darkness: 0.85,
+    ambientColor: '#0d0a1c',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 6,
+    entrance: 'stair',
+    doorStyle: 'swing',
+    door: 'door_wood',
+    stairs: { up: 'stair_spiral', down: 'stair_spiral' },
+    lighting: { wall: ['sconce'], open: ['stand'], colors: ['#b48cff', '#7fd6ff', '#ffcf7a'] },
+    roleNames: 'wizardTower',
+    roomSets: { chamber: ['workshop', 'observatory', 'bedroom', 'study'] },
+    rooms: {
+      minRoom: 5,
+      maxRoom: 9,
+      windingPercent: 30,
+      extraConnectorChance: 0.1,
+      wallBreakChance: 0,
+      shapes: ['rect', 'circle'],
+      round: true,
+    },
+    furnishings: [
+      { piece: 'magicCircle', arrangement: 'centre', roles: ['boss'], every: 0 },
+      { piece: 'crystalPedestal', arrangement: 'centre', roles: ['treasure'], every: 0 },
+      { piece: 'cauldron', arrangement: 'centre', roles: ['chamber'], every: 0, set: 'workshop' },
+      { piece: 'orrery', arrangement: 'centre', roles: ['chamber'], every: 0, set: 'observatory' },
+      { piece: 'bookshelf', arrangement: 'wall', roles: ['hall'], every: 3, most: 4 },
+      { piece: 'potionShelf', arrangement: 'wall', roles: ['deadEnd'], every: 6, most: 2 },
+      { piece: 'alchemyTable', arrangement: 'wall', roles: ['chamber'], every: 6, most: 2, set: 'workshop' },
+      { piece: 'potionShelf', arrangement: 'wall', roles: ['chamber'], every: 8, most: 2, set: 'workshop' },
+      { piece: 'bookshelf', arrangement: 'wall', roles: ['chamber'], every: 10, most: 2, set: 'observatory' },
+      { piece: 'canopyBed', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'bedroom' },
+      { piece: 'wardrobe', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'bedroom' },
+      { piece: 'writingDesk', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'study' },
+      { piece: 'bookshelf', arrangement: 'wall', roles: ['chamber'], every: 5, most: 3, set: 'study' },
+      { piece: 'lectern', arrangement: 'scatter', roles: ['hall'], every: 14 },
+      { piece: 'telescope', arrangement: 'scatter', roles: ['chamber'], every: 14, set: 'observatory' },
+      { piece: 'lectern', arrangement: 'scatter', roles: ['chamber'], every: 20, set: 'study' },
+      { piece: 'treasureChest', arrangement: 'corners', roles: ['treasure'], every: 5 },
+      { piece: 'bookPile', arrangement: 'corners', roles: ['hall', 'chamber'], every: 18 },
+      { piece: 'candelabra', arrangement: 'corners', roles: ['entrance', 'boss', 'chamber'], every: 14 },
+      { piece: 'gargoyle', arrangement: 'corners', roles: ['entrance', 'treasure'], every: 30 },
+      {
+        piece: 'storageJars',
+        arrangement: 'corners',
+        roles: ['deadEnd'],
+        every: 3,
+        pieces: ['storageJars', 'storageJars', 'crate', 'barrel'],
+      },
     ],
   },
 };

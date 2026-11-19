@@ -26,6 +26,7 @@ import {
 import { SWITCH_REFUSALS } from '@axe/domain/tabletop/board-switch/switch-press-rules';
 import {
   DUNGEON_ATMOSPHERE_IDS,
+  DUNGEON_ATMOSPHERES,
   DUNGEON_ENTRANCE_STYLES,
   DUNGEON_ROLE_NAMINGS,
 } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
@@ -79,7 +80,15 @@ const CHOICES: Record<string, readonly string[]> = {
     'hiddenDoor',
   ],
   ...Object.fromEntries(
-    DUNGEON_ROLE_NAMINGS.map((naming) => [`feature.tabletop.dungeonGenerator.roleIn.${naming}.`, DUNGEON_ROOM_ROLES])
+    DUNGEON_ROLE_NAMINGS.map((naming) => [
+      `feature.tabletop.dungeonGenerator.roleIn.${naming}.`,
+      [
+        ...DUNGEON_ROOM_ROLES,
+        ...DUNGEON_ATMOSPHERE_IDS.map((id) => DUNGEON_ATMOSPHERES[id])
+          .filter((atmosphere) => atmosphere.roleNames === naming)
+          .flatMap((atmosphere) => Object.values(atmosphere.roomSets ?? {}).flat()),
+      ],
+    ])
   ),
   'feature.tabletop.dungeonGenerator.kind.': MAP_KINDS,
   'feature.tabletop.dungeonGenerator.trap.': TRAP_KINDS,
