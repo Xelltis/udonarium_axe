@@ -401,14 +401,12 @@ export class StatusAccessor {
   }
 
   /**
-   * Takes away the item a buff made by that name, and the section such items are kept in once it holds
-   * none, as when its last item was moved out into the sheet. Any other item is left.
+   * Takes away the item a buff made by that name, and the group and the section it was kept in once
+   * they hold nothing else (see {@link dropBuffItem}). Any other item is left.
    */
   dropMadeByBuff(name: string): void {
-    if (!this.detailDataElement || !keepsBuffItems(this.detailDataElement)) return;
     const data = this.findData(name);
     if (data) dropBuffItem(data);
-    tidyBuffItems(this.detailDataElement);
   }
 
   private findData(reference: string): DataElement | null {

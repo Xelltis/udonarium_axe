@@ -1605,6 +1605,16 @@ describe('BuffManager', () => {
         expect(aliased.canMakeForBuff('隠密')).toBe(true);
       });
 
+      it('takes away no made item no buff let go of in the change, as one made on another device for a buff yet to come', () => {
+        grant('鼓舞', '気力', '+', '2');
+        const row = sheeted.find('鼓舞')!;
+        row.parent!.removeChild(row);
+
+        sheeted.alter(() => sheeted.decreaseRound());
+
+        expect(status.getValue('気力', 'now')).toBe(2);
+      });
+
       it('takes nothing made away where the buffs cannot be read, as before they reach this device', () => {
         grant('ファイア・ウェポン', '武器属性', '=', '炎');
         const unread = new BuffManager(

@@ -60,6 +60,8 @@ export interface BuffSnapshotEntry {
 export class BuffManager {
   /** How many changes to the buffs are under way, one inside another, so made items are swept once the outermost is done. */
   private changing = 0;
+  /** The items buffs let go of in the change under way, which alone are swept once it is done. */
+  private readonly released = new Set<string>();
 
   /**
    * @param buffElement The piece's buff element, or how to read it as it stands each time: a piece's
@@ -270,6 +272,7 @@ export class BuffManager {
    */
   private revertWords(data: DataElement, words: BuffTextModifier): void {
     clearBuffTextModifier(data);
+    this.released.add(words.target);
     const status = this.status();
     if (!status) return;
     const above = this.nextWordsOn(words.target, words.order, data.identifier);
@@ -294,21 +297,27 @@ export class BuffManager {
   }
 
   /**
-   * Takes away every item a buff made for itself that no buff of the piece moves or writes into any
-   * more, one that leaves what it moved included, and the section such items are kept in once it holds
-   * none. An item the sheet had all along is never taken. Nothing is taken where the buffs cannot be
-   * read, as on a device the piece's buffs have not reached yet: the container they are kept in, made
-   * with the first buff and never taken away, is not there.
+   * Takes away every item a buff made for itself that a buff let go of in the change just done and no
+   * buff of the piece moves or writes into any more, one that leaves what it moved included, and the
+   * section such items are kept in once it holds none. An item the sheet had all along is never taken,
+   * nor one no buff let go of here, as one another device has just made for a buff that has yet to reach
+   * this one. Nothing is taken where the buffs cannot be read, as on a device the piece's buffs have not
+   * reached yet: the container they are kept in, made with the first buff and never taken away, is not
+   * there.
    */
   private sweepMadeItems(): void {
+    const released = new Set(this.released);
+    this.released.clear();
     const status = this.status();
-    if (!this.container || !status?.keepsBuffItems()) return;
+    if (released.size < 1 || !this.container || !status?.keepsBuffItems()) return;
     const used = new Set<string>();
     for (const row of this.list()) {
       const target = readBuffModifier(row)?.target ?? readBuffTextModifier(row)?.target;
       if (target !== undefined) used.add(target);
     }
-    for (const name of status.madeItemNames()) if (!used.has(name)) status.dropMadeByBuff(name);
+    for (const name of status.madeItemNames()) {
+      if (released.has(name) && !used.has(name)) status.dropMadeByBuff(name);
+    }
     status.tidyBuffItems();
   }
 
@@ -407,6 +416,7 @@ export class BuffManager {
     if (!modifier) return;
     if (!modifier.lasting) this.status()?.changeValue(modifier.target, modifier.slot, -modifier.applied);
     clearBuffModifier(data);
+    this.released.add(modifier.target);
   }
 
   /**
