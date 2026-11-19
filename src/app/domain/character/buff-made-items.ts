@@ -47,15 +47,13 @@ export function isBuffMadeItem(item: DataElement): boolean {
   return isGroup(group) && group.parent instanceof DataElement && isBuffItemsSection(group.parent);
 }
 
-/** The names of the items buffs made that the sheet keeps where such items are. */
-export function buffItemNamesIn(detail: DataElement): string[] {
+/** The items buffs made that the sheet keeps where such items are, themselves rather than by name. */
+export function buffItemsIn(detail: DataElement): DataElement[] {
   const section = buffItemsSectionOf(detail);
   if (!section) return [];
   return section.children
     .filter(isGroup)
-    .flatMap((group) =>
-      (group.children as DataElement[]).filter((item) => isBuffMadeItem(item)).map((item) => item.name)
-    );
+    .flatMap((group) => (group.children as DataElement[]).filter((item) => isBuffMadeItem(item)));
 }
 
 /**

@@ -129,6 +129,8 @@ describe('BuffManager', () => {
         landingOf: vi.fn(() => ({ kind: 'number' })),
         madeByBuff: vi.fn(() => false),
         keepsBuffItems: vi.fn(() => false),
+        writtenOtherwise: vi.fn(() => false),
+        noteLeftByBuffs: vi.fn(),
         changeValue: vi.fn(),
       } as unknown as StatusAccessor;
       const withStatus = new BuffManager(buffDataElement, undefined, () => status);
@@ -1314,7 +1316,7 @@ describe('BuffManager', () => {
       writeBuffTextModifier(lower, { ...below, before: '無属性' });
       writeBuffTextModifier(upper, { ...readBuffTextModifier(upper)!, before: below.text, order: below.order });
       status.setText('属性', readBuffTextModifier(upper)!.text);
-      status.noteWordsLeft('属性', readBuffTextModifier(upper)!.text);
+      status.noteLeftByBuffs('属性');
 
       sheeted.removeWhole(lower);
       expect(status.getText('属性')).toBe(readBuffTextModifier(upper)!.text);
@@ -1617,6 +1619,34 @@ describe('BuffManager', () => {
 
         expect(ours.children).toHaveLength(0);
         expect((detail.getFirstElementByName('武器属性')!.parent as DataElement).fieldRole).toBe('group');
+      });
+
+      it('keeps an item it made for a number as the sheet’s own where the number was written into it by hand', () => {
+        grant('鼓舞', '気力', '+', '2', 1);
+        const made = detail.getFirstElementByName('気力')!;
+        made.value = 10;
+
+        sheeted.expireOneRound();
+
+        expect(status.getValue('気力', 'now')).toBe(8);
+        expect(status.madeByBuff('気力')).toBe(false);
+      });
+
+      it('takes an item it made away as itself, though the sheet holds another of its name above it', () => {
+        grant('鼓舞', '気力', '+', '2');
+        const made = detail.getFirstElementByName('気力')!;
+        const group = detail.getFirstElementByName('属性')!.parent as DataElement;
+        group.insertBefore(
+          DataElement.create('気力', 5, {
+            [DataElementAttribute.ROLE]: 'field',
+            [DataElementAttribute.FIELD_TYPE]: 'number',
+          }),
+          group.children[0]
+        );
+
+        sheeted.delete('鼓舞');
+
+        expect(made.parent).toBeNull();
       });
 
       it('keeps an item it made as the sheet’s own where words were written into it by hand', () => {

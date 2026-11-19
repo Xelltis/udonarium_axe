@@ -1,5 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
-import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { evalCalcFormula } from '@axe/domain/data/data-element-calc';
 import {
   asResourceSlot,
@@ -348,19 +348,26 @@ export function writeBuffTextModifier(element: DataElement, modifier: BuffTextMo
   element.setAttribute(DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
 }
 
-/**
- * The words the buffs writing into an item last left in it, as `writeWordsLeft` noted them on the item;
- * null where none were noted. Written after a `>`, so words of nothing are told from none being noted.
- */
-export function readWordsLeft(item: DataElement): string | null {
-  const noted = item.getAttribute(DataElementAttribute.BUFF_WORDS_LEFT) ?? '';
-  return noted.startsWith('>') ? noted.slice(1) : null;
+/** What an item holds, as text: a resource's amount left, anything else's value. */
+export function heldTextOf(item: DataElement): string {
+  return `${item.type === DataElementType.NUMBER_RESOURCE ? item.currentValue : item.value}`;
 }
 
-/** Notes on an item the words the buffs writing into it leave there, or, for null, that none does any more. */
-export function writeWordsLeft(item: DataElement, words: string | null): void {
-  if (words === null) item.removeAttribute(DataElementAttribute.BUFF_WORDS_LEFT);
-  else item.setAttribute(DataElementAttribute.BUFF_WORDS_LEFT, `>${words}`);
+/**
+ * Notes on an item what it holds now as what the buffs writing into it or moving it left there.
+ * Written after a `>`, so a note of nothing is told from none being noted.
+ */
+export function noteLeftByBuffs(item: DataElement): void {
+  item.setAttribute(DataElementAttribute.BUFF_LEFT, `>${heldTextOf(item)}`);
+}
+
+/**
+ * Whether an item was written into otherwise, by hand or by a command, since buffs last left what
+ * they did in it: it holds anything but what was noted then. Never for one no buff has touched.
+ */
+export function isWrittenOtherwise(item: DataElement): boolean {
+  const noted = item.getAttribute(DataElementAttribute.BUFF_LEFT) ?? '';
+  return noted.startsWith('>') && heldTextOf(item) !== noted.slice(1);
 }
 
 /** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */

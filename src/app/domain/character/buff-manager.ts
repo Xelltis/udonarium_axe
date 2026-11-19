@@ -2,6 +2,7 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
 import { buffKindMarkOf, writeBuffKindMark } from '@axe/domain/character/buff-kind';
+import { adoptBuffItem, dropBuffItem } from '@axe/domain/character/buff-made-items';
 import {
   BuffModifier,
   BuffTextModifier,
@@ -9,6 +10,7 @@ import {
   clearBuffTextModifier,
   describeStandingModifier,
   holdsRequestedStatus,
+  isWrittenOtherwise,
   movesSameStatus,
   ParsedBuffModifierRequest,
   readBuffModifier,
@@ -31,6 +33,7 @@ import {
 import { landingOfRequest } from '@axe/domain/character/item-landing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 /** The attribute of a piece's buffs that keeps the latest order words were written at. */
 const WORDS_WRITTEN = 'cs-buff-words-written';
@@ -245,7 +248,7 @@ export class BuffManager {
   private recordWords(data: DataElement, target: string, words: string, before: string): BuffTextModifier {
     const modifier: BuffTextModifier = { target, text: words, before, order: this.nextWordsOrder() };
     writeBuffTextModifier(data, modifier);
-    this.status()?.noteWordsLeft(target, words);
+    this.status()?.noteLeftByBuffs(target);
     return modifier;
   }
 
@@ -282,25 +285,37 @@ export class BuffManager {
     }
     if (this.writtenByHand(words.target)) return;
     status.setText(words.target, words.before);
-    status.noteWordsLeft(words.target, words.before);
+    status.noteLeftByBuffs(words.target);
   }
 
   /**
-   * Whether someone wrote into an item by hand since buffs last wrote into it: it holds other words
-   * than those the buffs last left there, as noted on the item. What was written by hand stays as it
-   * is, whichever of the buffs goes or comes back, until a buff writes into the item again.
+   * Whether someone wrote into an item by hand, or by a command, since buffs last left what they did
+   * in it, as noted on the item (see {@link isWrittenOtherwise}). Words written so stay as they are,
+   * whichever of the buffs goes or comes back, until a buff writes into the item again; a number
+   * written so is moved back by what a buff moved as it goes, and stays noted as written by hand.
    */
   private writtenByHand(target: string): boolean {
+    return this.status()?.writtenOtherwise(target) ?? false;
+  }
+
+  /**
+   * Changes a number a buff moves, and notes what it leaves in the item, unless someone had written
+   * into the item otherwise, which stays noted so.
+   */
+  private changeByBuff(target: string, slot: ResourceSlot, by: number): void {
     const status = this.status();
-    const left = status?.wordsLeftIn(target) ?? null;
-    return left !== null && status?.getText(target) !== left;
+    if (!status) return;
+    const byHand = this.writtenByHand(target);
+    status.changeValue(target, slot, by);
+    if (!byHand) status.noteLeftByBuffs(target);
   }
 
   /**
    * Takes away every item a buff made for itself that a buff let go of in the change just done and no
    * buff of the piece moves or writes into any more, one that leaves what it moved included, and the
-   * section such items are kept in once it holds none. One someone wrote words into by hand is kept, as
-   * the sheet's own, with them (see {@link writtenByHand}). An item the sheet had all along is never taken,
+   * section such items are kept in once it holds none. One written into otherwise since the buffs
+   * left what they did in it, by hand or by a command, is kept as the sheet's own (see
+   * `isWrittenOtherwise`). Each is taken as itself, not by name. An item the sheet had all along is never taken,
    * nor one no buff let go of here, as one another device has just made for a buff that has yet to reach
    * this one. Nothing is taken where the buffs cannot be read, as on a device the piece's buffs have not
    * reached yet: the container they are kept in, made with the first buff and never taken away, is not
@@ -316,10 +331,10 @@ export class BuffManager {
       const target = readBuffModifier(row)?.target ?? readBuffTextModifier(row)?.target;
       if (target !== undefined) used.add(target);
     }
-    for (const name of status.madeItemNames()) {
-      if (!released.has(name) || used.has(name)) continue;
-      if (this.writtenByHand(name)) status.adoptMadeByBuff(name);
-      else status.dropMadeByBuff(name);
+    for (const item of status.madeItems()) {
+      if (!released.has(item.name) || used.has(item.name)) continue;
+      if (isWrittenOtherwise(item)) adoptBuffItem(item);
+      else dropBuffItem(item);
     }
     status.tidyBuffItems();
   }
@@ -363,7 +378,7 @@ export class BuffManager {
     if (before == null) return null;
 
     const wanted = request.operator === 'set' ? request.amount - before : request.amount;
-    status.changeValue(request.target, request.slot, wanted);
+    this.changeByBuff(request.target, request.slot, wanted);
     const after = status.getValue(request.target, request.slot);
     return (after ?? before) - before;
   }
@@ -417,7 +432,7 @@ export class BuffManager {
     if (words) this.revertWords(data, words);
     const modifier = readBuffModifier(data);
     if (!modifier) return;
-    if (!modifier.lasting) this.status()?.changeValue(modifier.target, modifier.slot, -modifier.applied);
+    if (!modifier.lasting) this.changeByBuff(modifier.target, modifier.slot, -modifier.applied);
     clearBuffModifier(data);
     this.released.add(modifier.target);
   }
@@ -678,7 +693,7 @@ export class BuffManager {
     const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
     const applied = readBuffModifier(data)?.applied ?? left;
     if (applied !== wanted.applied) {
-      this.status()?.changeValue(wanted.target, wanted.slot, wanted.applied - applied);
+      this.changeByBuff(wanted.target, wanted.slot, wanted.applied - applied);
     }
     writeBuffModifier(data, wanted);
   }
@@ -720,7 +735,7 @@ export class BuffManager {
     const status = this.status();
     if (!status || this.writtenByHand(target)) return;
     if (status.getText(target) !== below) status.setText(target, below);
-    status.noteWordsLeft(target, below);
+    status.noteLeftByBuffs(target);
   }
 
   /**

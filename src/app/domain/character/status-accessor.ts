@@ -1,14 +1,13 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import {
-  adoptBuffItem,
-  buffItemNamesIn,
+  buffItemsIn,
   dropBuffItem,
   isBuffMadeItem,
   keepsBuffItems,
   makeBuffItem,
   tidyBuffItems,
 } from '@axe/domain/character/buff-made-items';
-import { readWordsLeft, writeWordsLeft } from '@axe/domain/character/buff-modifier';
+import { heldTextOf, isWrittenOtherwise, noteLeftByBuffs } from '@axe/domain/character/buff-modifier';
 import { type ItemLanding, type ItemTakes, landingOn, type WrittenAs } from '@axe/domain/character/item-landing';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import {
@@ -340,20 +339,19 @@ export class StatusAccessor {
   /** What the item holds, as text: a resource's amount left, anything else's value. Null where there is none. */
   getText(name: string): string | null {
     const data = this.findData(name);
-    if (!data) return null;
-    return `${data.type === DataElementType.NUMBER_RESOURCE ? data.currentValue : data.value}`;
+    return data ? heldTextOf(data) : null;
   }
 
-  /** The words the buffs writing into an item last left in it, or null where none are noted (see {@link readWordsLeft}). */
-  wordsLeftIn(name: string): string | null {
+  /** Whether an item was written into otherwise since buffs last left what they did in it (see {@link isWrittenOtherwise}). */
+  writtenOtherwise(name: string): boolean {
     const item = this.findData(name);
-    return item ? readWordsLeft(item) : null;
+    return item !== null && isWrittenOtherwise(item);
   }
 
-  /** Notes on an item the words the buffs writing into it leave there, or, for null, that none does any more. */
-  noteWordsLeft(name: string, words: string | null): void {
+  /** Notes on an item what it holds now as what the buffs left there (see {@link noteLeftByBuffs}). */
+  noteLeftByBuffs(name: string): void {
     const item = this.findData(name);
-    if (item) writeWordsLeft(item, words);
+    if (item) noteLeftByBuffs(item);
   }
 
   /**
@@ -389,9 +387,9 @@ export class StatusAccessor {
     if (this.detailDataElement) tidyBuffItems(this.detailDataElement);
   }
 
-  /** The names of the items buffs made for themselves that the sheet keeps. */
-  madeItemNames(): string[] {
-    return this.detailDataElement ? buffItemNamesIn(this.detailDataElement) : [];
+  /** The items buffs made for themselves that the sheet keeps, themselves rather than by name. */
+  madeItems(): DataElement[] {
+    return this.detailDataElement ? buffItemsIn(this.detailDataElement) : [];
   }
 
   /** Whether the item that goes by the name was made by a buff for itself, and is the buff's still. */
@@ -399,21 +397,6 @@ export class StatusAccessor {
     if (!this.detailDataElement || !keepsBuffItems(this.detailDataElement)) return false;
     const data = this.findData(name);
     return data != null && isBuffMadeItem(data);
-  }
-
-  /**
-   * Takes away the item a buff made by that name, and the group and the section it was kept in once
-   * they hold nothing else (see {@link dropBuffItem}). Any other item is left.
-   */
-  dropMadeByBuff(name: string): void {
-    const data = this.findData(name);
-    if (data) dropBuffItem(data);
-  }
-
-  /** Makes the item a buff made by that name the sheet's own, where it is (see {@link adoptBuffItem}). */
-  adoptMadeByBuff(name: string): void {
-    const data = this.findData(name);
-    if (data && isBuffMadeItem(data)) adoptBuffItem(data);
   }
 
   private findData(reference: string): DataElement | null {
