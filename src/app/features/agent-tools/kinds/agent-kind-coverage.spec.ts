@@ -32,25 +32,9 @@ function syncedKinds(): string[] {
   return [...new Set(named)].sort();
 }
 
-/** The kinds the AI link does not reach yet, which the coming stages of its work take one by one. */
-const NOT_YET = [
-  'asset-owner',
-  'asset-removal',
-  'audio-tag',
-  'character',
-  'data',
-  'image-tag',
-  'image-tag-lock',
-  'model-tag',
-  'range',
-];
-
 describe('AGENT_KIND_COVERAGE', () => {
   it('says how the AI link reaches every kind of synced thing, or why it does not', () => {
-    const covered = Object.keys(AGENT_KIND_COVERAGE);
-
-    expect([...covered, ...NOT_YET].sort()).toEqual(syncedKinds());
-    expect(covered.filter((kind) => NOT_YET.includes(kind))).toEqual([]);
+    expect(Object.keys(AGENT_KIND_COVERAGE).sort()).toEqual(syncedKinds());
   });
 
   it('offers every kind it says the generic tools reach, and names only tools there are', () => {
