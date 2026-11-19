@@ -1,6 +1,6 @@
 import type { DungeonPropId } from '@axe/domain/media/texture-catalog';
 import type { DungeonDoorStyle } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
-import type { FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { FURNISHING_IDS, type FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 
 /** The 3D models bundled with the app that the furniture and the doors of a dungeon can be stood as. */
 export const FURNISHING_MODEL_IDS = [
@@ -95,79 +95,23 @@ export function furnishingModelUrl(id: FurnishingModelId): string {
 }
 
 /**
- * The model each piece of furniture is stood as. A pillar has none: it is of the walls' own stone and
- * as tall as they are, both of which the generator lets be chosen, so it is built of its blocks as ever.
+ * The pieces of furniture stood as a model named otherwise than `prop_` and the piece's own name, as
+ * the bar's table is stood as the model it was made as.
  */
-export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = {
-  counter: 'prop_counter',
-  shopCounter: 'prop_shopCounter',
-  table: 'prop_barTable',
-  crate: 'prop_crate',
-  stool: 'prop_stool',
-  desk: 'prop_desk',
-  gamingTable: 'prop_gamingTable',
-  rubble: 'prop_rubble',
-  containerRed: 'prop_containerRed',
-  containerBlue: 'prop_containerBlue',
-  containerGreen: 'prop_containerGreen',
-  barrel: 'prop_barrel',
-  pipe: 'prop_pipe',
-  pipeValve: 'prop_pipeValve',
-  pipeElbow: 'prop_pipeElbow',
-  pipeEnd: 'prop_pipeEnd',
-  neonCocktail: 'prop_neonCocktail',
-  neonDice: 'prop_neonDice',
-  neonHeart: 'prop_neonHeart',
-  backBar: 'prop_backBar',
-  boothSofa: 'prop_boothSofa',
-  lowTable: 'prop_lowTable',
-  jukebox: 'prop_jukebox',
-  slotMachine: 'prop_slotMachine',
-  arcadeCabinet: 'prop_arcadeCabinet',
-  rouletteTable: 'prop_rouletteTable',
-  vendingMachine: 'prop_vendingMachine',
-  goodsShelf: 'prop_goodsShelf',
-  safe: 'prop_safe',
-  executiveDesk: 'prop_executiveDesk',
-  still: 'prop_still',
-  speaker: 'prop_speaker',
-  aquarium: 'prop_aquarium',
-  plant: 'prop_plant',
-  bookshelf: 'prop_bookshelf',
-  lectern: 'prop_lectern',
-  bookPile: 'prop_bookPile',
-  alchemyTable: 'prop_alchemyTable',
-  cauldron: 'prop_cauldron',
-  potionShelf: 'prop_potionShelf',
-  magicCircle: 'prop_magicCircle',
-  crystalPedestal: 'prop_crystalPedestal',
-  orrery: 'prop_orrery',
-  telescope: 'prop_telescope',
-  canopyBed: 'prop_canopyBed',
-  wardrobe: 'prop_wardrobe',
-  treasureChest: 'prop_treasureChest',
-  candelabra: 'prop_candelabra',
-  gargoyle: 'prop_gargoyle',
-  writingDesk: 'prop_writingDesk',
-  storageJars: 'prop_storageJars',
-  bed: 'prop_bed',
-  tableWood: 'prop_tableWood',
-  chairWood: 'prop_chairWood',
-  cupboard: 'prop_cupboard',
-  fireplace: 'prop_fireplace',
-  anvil: 'prop_anvil',
-  forge: 'prop_forge',
-  weaponRack: 'prop_weaponRack',
-  breadOven: 'prop_breadOven',
-  flourSacks: 'prop_flourSacks',
-  pew: 'prop_pew',
-  altar: 'prop_altar',
-  bunkBed: 'prop_bunkBed',
-  chestWood: 'prop_chestWood',
-  shelfGoods: 'prop_shelfGoods',
-  barCounter: 'prop_barCounter',
-  tavernCounter: 'prop_tavernCounter',
-};
+const MODELS_NAMED_OTHERWISE: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = { table: 'prop_barTable' };
+
+/**
+ * The model each piece of furniture is stood as: the bundled one named `prop_` and the piece's name,
+ * or as `MODELS_NAMED_OTHERWISE` says. A piece no bundled model is named for has none, as a pillar,
+ * which is of the walls' own stone and as tall as they are, both of which the generator lets be
+ * chosen, so it is built of its blocks as ever.
+ */
+export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = Object.fromEntries(
+  FURNISHING_IDS.flatMap((piece) => {
+    const named = MODELS_NAMED_OTHERWISE[piece] ?? `prop_${piece}`;
+    return isFurnishingModel(named) ? [[piece, named]] : [];
+  })
+);
 
 /** The pieces whose model is one cell of a run: a counter of any length is a row of them, ends meeting. */
 export const FURNISHING_SEGMENT_MODELS: readonly FurnishingId[] = [
