@@ -4832,12 +4832,15 @@
           "noOperator": "증감 기호(+・-・=・>)가 없으므로 효과가 없습니다",
           "noAmount": "양이 없으므로 효과가 없습니다",
           "unknownStatus": "{{piece}}에 \"{{name}}\"이(가) 없으므로 효과가 없습니다",
-          "badOption": "양 뒤에 읽을 수 없는 문자가 있으므로 효과가 없습니다"
+          "badOption": "양 뒤에 읽을 수 없는 문자가 있으므로 효과가 없습니다",
+          "notAChoice": "\"{{name}}\"의 선택지에 없으므로 효과가 없습니다 ({{choices}})"
         },
         "buff": {
           "noName": "버프 이름이 없으므로 효과가 없습니다",
           "unreadable": "스테이터스・조작・양을 읽을 수 없으므로 버프가 붙지 않습니다",
           "missingStatus": "\"{{name}}\"이(가) 없으므로 그 스테이터스는 움직이지 않습니다",
+          "makesStatus": "\"{{name}}\"이(가) 없으므로 시트 끝의 \"バフの項目\"에 만들고, 버프가 사라지면 지웁니다",
+          "notAChoice": "\"{{name}}\"의 선택지에 없으므로 그 항목은 바뀌지 않습니다 ({{choices}})",
           "notFound": "{{piece}}에는 \"{{name}}\" 버프가 없습니다",
           "roundsDefault": "남은 라운드가 숫자가 아니므로 3라운드가 됩니다",
           "badEffectTiming": "발생 시점을 읽을 수 없어, 적지 않은 것으로 부여됩니다(tick:roundEnd・tick:turnStart・tick:turnEnd)",

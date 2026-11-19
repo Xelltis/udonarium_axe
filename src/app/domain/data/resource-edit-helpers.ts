@@ -17,12 +17,14 @@ import {
   removedBuffName,
   splitBuffRounds,
 } from '@axe/domain/character/buff-command';
+import { BUFF_ITEMS_SECTION } from '@axe/domain/character/buff-made-items';
 import {
   describeBuffModifier,
   describeBuffModifierTarget,
   holdsRequestedStatus,
   parseBuffModifierRequest,
   ParsedBuffModifierRequest,
+  readBuffAmount,
   readBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
@@ -208,6 +210,15 @@ export function convertCommandToResourceEdit(
     oneResourceEdit.replace = parts.amount;
     return true;
   }
+  if (
+    oneResourceEdit.operator === '=' &&
+    named.slot === 'now' &&
+    writesWordsInto(object, oneResourceEdit.target, parts.amount)
+  ) {
+    oneResourceEdit.operator = '>';
+    oneResourceEdit.replace = parts.amount;
+    return true;
+  }
 
   const reg3 = splitOptionLetters(toHalfWidth(parts.amount)).amount;
   const commandPrefix = oneResourceEdit.operator === '-' ? '-' : '';
@@ -225,8 +236,29 @@ export function convertCommandToResourceEdit(
   return true;
 }
 
-/** Writes a `>` command's text into the character's status and returns the chat text reporting it. */
+/**
+ * Whether `=` writes words into the item rather than a number: an item holding a choice always takes
+ * the words, and a line of text or a note takes them where they are no sum or roll to work out. A
+ * resource and a number field take only numbers.
+ */
+export function writesWordsInto(object: GameCharacter, target: string, amount: string): boolean {
+  if (object.status.choicesOf(target)) return true;
+  if (!object.status.holdsText(target)) return false;
+  const written = toHalfWidth(amount).trim();
+  if (/\d\s*[dD]|[dD]\s*\d/.test(written)) return false;
+  return !Number.isFinite(readBuffAmount(splitOptionLetters(written).amount));
+}
+
+/**
+ * Writes a `>` command's text into the character's status, or a `=` one's words, and returns the chat
+ * text reporting it. An item holding a choice takes only one of its choices; anything else is left
+ * as it was and the report names the choices.
+ */
 export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): string {
+  const choices = character.status.choicesOf(edit.target);
+  if (choices && !choices.includes(edit.replace)) {
+    return `${edit.target}に「${edit.replace}」はありません: ${choices.join('・')}    `;
+  }
   character.status.setText(edit.target, edit.replace);
   return `${edit.target}＞${edit.replace}    `;
 }
@@ -454,6 +486,8 @@ function grantCalculatedBuff(
   const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
 
   const missing: string[] = [];
+  const made: string[] = [];
+  const unchosen: string[] = [];
   const effects: string[] = [];
   requests.forEach((request, index) => {
     const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
@@ -469,10 +503,15 @@ function grantCalculatedBuff(
     if (!data) return;
     // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
     if (!isAimedAtStatus(request.target)) {
+      const existed = character.status.getText(request.target) != null;
+      const choices = character.status.choicesOf(request.target);
       const applied = rowStacking
         ? character.buffs.stackModifier(data, request)
         : character.buffs.applyModifier(data, request);
-      if (!applied) missing.push(request.target);
+      if (applied && !existed) made.push(request.target);
+      else if (!applied && choices && request.text !== undefined && !choices.includes(request.text)) {
+        unchosen.push(`${request.target}に「${request.text}」はありません: ${choices.join('・')}`);
+      } else if (!applied) missing.push(request.target);
     }
     effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
   });
@@ -480,7 +519,10 @@ function grantCalculatedBuff(
   const data = character.buffs.find(name);
   if (!data) return '';
   const verb = stacking ? '加算' : '付与';
-  const lack = missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '';
+  const lack =
+    (missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '') +
+    (made.length > 0 ? ` (${made.join('・')}を${BUFF_ITEMS_SECTION}に作りました)` : '') +
+    unchosen.map((said) => ` (${said})`).join('');
   const left = buffExpires(data) ? `/${data.value}R` : '';
   return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
 }

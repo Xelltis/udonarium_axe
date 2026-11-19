@@ -4,14 +4,18 @@ import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group
 import { buffKindMarkOf, writeBuffKindMark } from '@axe/domain/character/buff-kind';
 import {
   BuffModifier,
+  BuffTextModifier,
   clearBuffModifier,
+  clearBuffTextModifier,
   describeStandingModifier,
   holdsRequestedStatus,
   movesSameStatus,
   ParsedBuffModifierRequest,
   readBuffModifier,
+  readBuffTextModifier,
   speaksOnlyOfHeldStatus,
   writeBuffModifier,
+  writeBuffTextModifier,
 } from '@axe/domain/character/buff-modifier';
 import { stackBuffEffect } from '@axe/domain/character/buff-stack';
 import {
@@ -34,6 +38,8 @@ export interface BuffSnapshotEntry {
   info: string;
   appearance: BuffAppearance;
   modifier: BuffModifier | null;
+  /** The words the buff wrote into an item while it stands, and what the item held before; none where it wrote none. */
+  words?: BuffTextModifier | null;
   /**
    * For a buff that leaves its status moved and has run out since this was taken: how far it moved
    * the status between then and going, which putting it back gives back. None where nothing says,
@@ -138,13 +144,92 @@ export class BuffManager {
 
   /**
    * Moves a status by what the buff asks for and writes down how far it moved, so the
-   * same distance goes back when the buff runs out. Null where the sheet has no such
-   * status, which leaves the buff a plain note.
+   * same distance goes back when the buff runs out, or writes the words it asks for into an item and
+   * writes down what the item held, so that goes back. A value held at a number in an item that holds
+   * words is written as words.
+   *
+   * Where the sheet has no such item, one is made at its foot for the buff, holding nothing and then
+   * moved, or holding the words, and it goes again once no buff needs it. Not for a buff that leaves
+   * its status moved, nor for the far side of a resource, which a made item has none of. Null where
+   * there is no such item and none is made, or the words are not among a choice's, which leaves the
+   * buff a plain note.
    */
-  applyModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | null {
+  applyModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | BuffTextModifier | null {
+    const status = this.status();
+    if (!status) return null;
+    const wordy =
+      request.text !== undefined ||
+      (request.operator === 'set' &&
+        request.slot === 'now' &&
+        status.holdsText(request.target) &&
+        status.getValue(request.target, request.slot) == null);
+    if (wordy) return this.writeWords(data, request.target, request.text ?? String(request.amount));
+    if (status.getText(request.target) == null) {
+      if (request.lasting || request.slot !== 'now' || !status.makeForBuff(request.target, 0)) return null;
+    }
     const moved = this.moveStatus(request);
     if (moved == null) return null;
     return this.writeModifier(data, request, moved);
+  }
+
+  /**
+   * Writes words into an item for the buff and records what the item held, making the item where
+   * there is none. Null where the item is a choice and the words are not among its choices.
+   */
+  private writeWords(data: DataElement, target: string, text: string): BuffTextModifier | null {
+    const status = this.status();
+    if (!status) return null;
+    const choices = status.choicesOf(target);
+    if (choices && !choices.includes(text)) return null;
+    let before = status.getText(target);
+    if (before == null) {
+      if (!status.makeForBuff(target, text)) return null;
+      before = '';
+    } else {
+      status.setText(target, text);
+    }
+    const modifier: BuffTextModifier = { target, text, before, order: this.lastWordsOrder() + 1 };
+    writeBuffTextModifier(data, modifier);
+    return modifier;
+  }
+
+  /** How late the latest buff of the piece that writes words wrote them, or 0 where none does. */
+  private lastWordsOrder(): number {
+    return this.list().reduce((latest, row) => Math.max(latest, readBuffTextModifier(row)?.order ?? 0), 0);
+  }
+
+  /**
+   * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
+   * now stands on what this one found there, so it puts that back when it goes. Where none did, the item
+   * goes back to what it held, unless it holds other words now, which someone wrote by hand and are
+   * left.
+   */
+  private revertWords(data: DataElement, words: BuffTextModifier): void {
+    clearBuffTextModifier(data);
+    const status = this.status();
+    if (!status) return;
+    const above = this.list()
+      .map((row) => ({ row, written: readBuffTextModifier(row) }))
+      .filter(({ written }) => written?.target === words.target && written.order > words.order)
+      .sort((a, b) => a.written!.order - b.written!.order)[0];
+    if (above) {
+      writeBuffTextModifier(above.row, { ...above.written!, before: words.before });
+      return;
+    }
+    if (status.getText(words.target) === words.text) status.setText(words.target, words.before);
+  }
+
+  /**
+   * Takes away the item a buff made for itself, once no buff of the piece moves it or writes into it
+   * any more. An item the sheet had all along is left.
+   */
+  private dropWhenUnused(target: string): void {
+    const status = this.status();
+    if (!status?.madeByBuff(target)) return;
+    const used = this.list().some(
+      (row) => readBuffModifier(row)?.target === target || readBuffTextModifier(row)?.target === target
+    );
+    if (!used) status.dropMadeByBuff(target);
   }
 
   /**
@@ -157,7 +242,7 @@ export class BuffManager {
    * holding the same status at a value keeps holding it there, and nothing is moved. Null where the
    * sheet has no such status, as for a buff laid fresh.
    */
-  stackModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | null {
+  stackModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | BuffTextModifier | null {
     const standing = readBuffModifier(data);
     if (!standing || !movesSameStatus(standing, request)) {
       this.revertModifier(data);
@@ -224,12 +309,21 @@ export class BuffManager {
     return moved;
   }
 
-  /** Lets go of what the buff moved, moving it back unless the buff leaves it moved. */
+  /**
+   * Lets go of what the buff moved, moving it back unless the buff leaves it moved, and of the words
+   * it wrote, putting back what the item held. An item made for the buff goes once no buff needs it.
+   */
   private revertModifier(data: DataElement): void {
+    const words = readBuffTextModifier(data);
+    if (words) {
+      this.revertWords(data, words);
+      this.dropWhenUnused(words.target);
+    }
     const modifier = readBuffModifier(data);
     if (!modifier) return;
     if (!modifier.lasting) this.status()?.changeValue(modifier.target, modifier.slot, -modifier.applied);
     clearBuffModifier(data);
+    if (!modifier.lasting) this.dropWhenUnused(modifier.target);
   }
 
   /**
@@ -370,6 +464,7 @@ export class BuffManager {
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
       this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
+      this.restoreWords(data, entry.words ?? null);
     }
   }
 
@@ -390,6 +485,7 @@ export class BuffManager {
       info: `${data.currentValue ?? ''}`,
       appearance: readAppearance(data),
       modifier: readBuffModifier(data),
+      words: readBuffTextModifier(data),
     }));
   }
 
@@ -419,6 +515,7 @@ export class BuffManager {
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
       this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
+      this.restoreWords(data, entry.words ?? null);
       restored.push(data);
     }
     this.reorder(restored);
@@ -461,12 +558,41 @@ export class BuffManager {
       this.revertModifier(data);
     }
     if (!wanted) return;
+    const status = this.status();
+    if (status && !wanted.lasting && wanted.slot === 'now' && status.getText(wanted.target) == null) {
+      status.makeForBuff(wanted.target, 0);
+    }
     const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
     const applied = readBuffModifier(data)?.applied ?? left;
     if (applied !== wanted.applied) {
       this.status()?.changeValue(wanted.target, wanted.slot, wanted.applied - applied);
     }
     writeBuffModifier(data, wanted);
+  }
+
+  /**
+   * Writes the words a buff wrote back into the item as they stood, with what the item held before
+   * them, which is nothing to do where they stand already. Words it no longer writes are let go of.
+   */
+  private restoreWords(data: DataElement, wanted: BuffTextModifier | null): void {
+    const standing = readBuffTextModifier(data);
+    if (standing && wanted && standing.target === wanted.target && standing.text === wanted.text) {
+      writeBuffTextModifier(data, wanted);
+      return;
+    }
+    if (standing) {
+      this.revertWords(data, standing);
+      this.dropWhenUnused(standing.target);
+    }
+    if (!wanted) return;
+    const status = this.status();
+    if (!status) return;
+    if (status.getText(wanted.target) == null) {
+      if (!status.makeForBuff(wanted.target, wanted.text)) return;
+    } else {
+      status.setText(wanted.target, wanted.text);
+    }
+    writeBuffTextModifier(data, wanted);
   }
 
   private ensureContainer(): DataElement | null {

@@ -57,6 +57,28 @@ export interface ParsedBuffModifierRequest {
   step?: number;
   /** Whether it is left where it is moved once the buff goes, asked for by a `:` before the status. */
   lasting?: true;
+  /**
+   * The words to hold an item at while the buff stands, where what follows `=` is no number:
+   * `属性=炎`. The amount is then nothing.
+   */
+  text?: string;
+}
+
+/**
+ * What a buff that writes words into an item while it stands wrote, and what the item held before,
+ * so that taking it away can put that back.
+ */
+export interface BuffTextModifier {
+  target: string;
+  /** The words the buff wrote. */
+  text: string;
+  /** What the item held before the buff wrote them. */
+  before: string;
+  /**
+   * How late the buff wrote them, among the buffs of the piece that write words: the one written last
+   * is the one whose words the item shows, and the one above another is the one next written after it.
+   */
+  order: number;
 }
 
 const LASTING_MARK = /^[:：]/;
@@ -113,7 +135,11 @@ export function parseBuffModifierRequest(
 
   const [amountText, stepText] = (amount ?? '').split(/[~～〜]/, 2);
   const value = readBuffAmount(amountText);
-  if (!Number.isFinite(value)) return null;
+  if (!Number.isFinite(value)) {
+    const words = (amount ?? '').trim();
+    if (resolved.operator !== 'set' || lasting || words.length < 1) return null;
+    return { target: readNamedResourceSlot(name).name, slot: 'now', operator: 'set', amount: 0, text: words };
+  }
   const moved = resolved.operator === 'add' ? value * resolved.sign : value;
   const step = resolved.repeats ? moved : stepText === undefined ? 0 : readBuffAmount(stepText);
   if (!Number.isFinite(step)) return null;
@@ -224,7 +250,7 @@ export function describeBuffModifierTarget(request: Pick<ParsedBuffModifierReque
 /** How the buff reads on the badge and in the chat line that granted it. */
 export function describeBuffModifier(request: ParsedBuffModifierRequest): string {
   const status = `${request.lasting ? ':' : ''}${resourceSlotBadgePrefix(request.slot)}${request.target}`;
-  if (request.operator === 'set') return `${status}=${request.amount}`;
+  if (request.operator === 'set') return `${status}=${request.text ?? request.amount}`;
   return `${status}${signed(request.amount)}${describeStep(request.step)}`;
 }
 
@@ -297,6 +323,35 @@ export function writeBuffModifier(element: DataElement, modifier: BuffModifier):
 function writeOrRemove(element: DataElement, name: string, amount: number | undefined): void {
   if (amount) element.setAttribute(name, String(amount));
   else element.removeAttribute(name);
+}
+
+/** What a buff that writes words into an item wrote there, as `writeBuffTextModifier` recorded it; null for any other buff. */
+export function readBuffTextModifier(element: DataElement): BuffTextModifier | null {
+  const target = (element.getAttribute(DataElementAttribute.BUFF_TEXT_TARGET) ?? '').trim();
+  if (target.length < 1) return null;
+  const order = Number(element.getAttribute(DataElementAttribute.BUFF_TEXT_ORDER) ?? '');
+  return {
+    target,
+    text: element.getAttribute(DataElementAttribute.BUFF_TEXT_SET) ?? '',
+    before: element.getAttribute(DataElementAttribute.BUFF_TEXT_BEFORE) ?? '',
+    order: Number.isFinite(order) ? order : 0,
+  };
+}
+
+/** Records on the buff the words it wrote into an item and what the item held before. */
+export function writeBuffTextModifier(element: DataElement, modifier: BuffTextModifier): void {
+  element.setAttribute(DataElementAttribute.BUFF_TEXT_TARGET, modifier.target);
+  element.setAttribute(DataElementAttribute.BUFF_TEXT_SET, modifier.text);
+  element.setAttribute(DataElementAttribute.BUFF_TEXT_BEFORE, modifier.before);
+  element.setAttribute(DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
+}
+
+/** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */
+export function clearBuffTextModifier(element: DataElement): void {
+  element.removeAttribute(DataElementAttribute.BUFF_TEXT_TARGET);
+  element.removeAttribute(DataElementAttribute.BUFF_TEXT_SET);
+  element.removeAttribute(DataElementAttribute.BUFF_TEXT_BEFORE);
+  element.removeAttribute(DataElementAttribute.BUFF_TEXT_ORDER);
 }
 
 /**

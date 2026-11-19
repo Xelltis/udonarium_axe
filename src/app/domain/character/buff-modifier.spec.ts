@@ -56,6 +56,23 @@ describe('buff-modifier', () => {
       expect(parseBuffModifierRequest('防護点', '=', '10')).toMatchObject({ operator: 'set', amount: 10 });
     });
 
+    it('holds an item at words where what follows `=` is no number, and moves nothing by words', () => {
+      expect(parseBuffModifierRequest('属性', '=', '炎')).toEqual({
+        target: '属性',
+        slot: 'now',
+        operator: 'set',
+        amount: 0,
+        text: '炎',
+      });
+      expect(parseBuffModifierItems('物理D増加+2,属性=炎')).toEqual([
+        expect.objectContaining({ target: '物理D増加', amount: 2 }),
+        expect.objectContaining({ target: '属性', text: '炎' }),
+      ]);
+      expect(describeBuffModifier(parseBuffModifierRequest('属性', '=', '炎')!)).toBe('属性=炎');
+      expect(parseBuffModifierRequest('属性', '+', '炎')).toBeNull();
+      expect(parseBuffModifierRequest(':属性', '=', '炎')).toBeNull();
+    });
+
     it('refuses what it cannot read', () => {
       expect(parseBuffModifierRequest('', '+', '2')).toBeNull();
       expect(parseBuffModifierRequest('命中', '?', '2')).toBeNull();

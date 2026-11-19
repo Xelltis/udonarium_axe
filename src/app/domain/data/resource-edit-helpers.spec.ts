@@ -1008,4 +1008,97 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getValue('HP', 'now')).toBe(before + 2);
     });
   });
+
+  describe('words written into an item', () => {
+    let character: GameCharacter;
+
+    beforeEach(() => {
+      character = GameCharacter.create('テスト戦士', 1, '');
+      const section = DataElement.create('戦闘', '', { [DataElementAttribute.ROLE]: 'section' });
+      const group = DataElement.create('戦闘', '', { [DataElementAttribute.ROLE]: 'group' });
+      character.detailDataElement!.appendChild(section);
+      section.appendChild(group);
+      group.appendChild(DataElement.create('属性', '無属性', { [DataElementAttribute.ROLE]: 'field' }));
+      group.appendChild(DataElement.create('物理D増加', 0, { [DataElementAttribute.ROLE]: 'field' }));
+      group.appendChild(
+        DataElement.create('構え', '通常', {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'select',
+          [DataElementAttribute.CHOICES]: '通常,攻勢,守勢',
+        })
+      );
+      group.appendChild(
+        DataElement.create('ランク', 2, {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'number',
+        })
+      );
+    });
+
+    function said(command: string): { ok: boolean; edit: ResourceEdit } {
+      const edit = createDefaultResourceEdit();
+      return { ok: convertCommandToResourceEdit(edit, command, character, false), edit };
+    }
+
+    it('reads `=` with words for a line of text as writing them, and with a sum or a roll as a number', () => {
+      expect(said(':属性=炎').edit).toMatchObject({ operator: '>', replace: '炎', target: '属性' });
+      expect(said(':属性=3').edit).toMatchObject({ operator: '=', amount: '3' });
+      expect(said(':属性=1d6').edit).toMatchObject({ operator: '=', isDiceRoll: true });
+      expect(said(':ランク=炎').edit.operator).toBe('=');
+      expect(said(':HP=炎').edit.operator).toBe('=');
+    });
+
+    it('writes the words, and writes into an item holding a choice only one of its choices', () => {
+      expect(applyTextEdit(said(':属性=炎').edit, character)).toBe('属性＞炎    ');
+      expect(character.status.getText('属性')).toBe('炎');
+
+      expect(said(':構え=攻勢').edit).toMatchObject({ operator: '>', replace: '攻勢' });
+      expect(applyTextEdit(said(':構え=攻勢').edit, character)).toBe('構え＞攻勢    ');
+      expect(character.status.getText('構え')).toBe('攻勢');
+
+      expect(applyTextEdit(said(':構え>突撃').edit, character)).toBe(
+        '構えに「突撃」はありません: 通常・攻勢・守勢    '
+      );
+      expect(character.status.getText('構え')).toBe('攻勢');
+    });
+
+    it('lays a buff that writes words into an item and moves a number, putting both back as it goes', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      const text = edit('&!ファイア・ウェポン/物理D増加+2,属性=炎/18');
+
+      expect(text).toBe('ファイア・ウェポンを付与 物理D増加+2,属性=炎/18R    ');
+      expect(character.status.getText('属性')).toBe('炎');
+      expect(character.status.getValue('物理D増加', 'now')).toBe(2);
+      expect(character.buffs.find('ファイア・ウェポン（属性）')).not.toBeNull();
+
+      edit('&ファイア・ウェポン-');
+
+      expect(character.status.getText('属性')).toBe('無属性');
+      expect(character.status.getValue('物理D増加', 'now')).toBe(0);
+    });
+
+    it('makes an item the piece lacks at the foot of its sheet, says so, and takes it away with the buff', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      const text = edit('&!フィールドレジスト/炎D軽減+3,結界=炎/18');
+
+      expect(text).toBe('フィールドレジストを付与 炎D軽減+3,結界=炎/18R (炎D軽減・結界をバフの項目に作りました)    ');
+      expect(character.status.getValue('炎D軽減', 'now')).toBe(3);
+      expect(character.status.getText('結界')).toBe('炎');
+
+      edit('&フィールドレジスト-');
+
+      expect(character.status.getText('炎D軽減')).toBeNull();
+      expect(character.status.getText('結界')).toBeNull();
+      expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
+    });
+
+    it('says which choices an item takes where a buff writes another into it', () => {
+      const text = applyBuffEdit({ command: '&!構え直し/構え=突撃/3', object: character, targeted: false }, character);
+
+      expect(text).toBe('構え直しを付与 構え=突撃/3R (構えに「突撃」はありません: 通常・攻勢・守勢)    ');
+      expect(character.status.getText('構え')).toBe('通常');
+    });
+  });
 });

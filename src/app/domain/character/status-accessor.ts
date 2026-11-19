@@ -1,9 +1,16 @@
 import { GameObject } from '@axe/core/sync/game-object';
+import { dropBuffItem, isBuffMadeItem, makeBuffItem } from '@axe/domain/character/buff-made-items';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
-import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import {
+  DataElement,
+  DataElementAttribute,
+  DataElementFieldType,
+  DataElementType,
+} from '@axe/domain/data/data-element';
 import type { ElementAliasTable } from '@axe/domain/data/element-alias';
 import { findReferencedElements } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
+import { parseSelectChoices } from '@axe/domain/data/table-layout';
 
 type SlotType = 'value' | 'currentValue' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
 
@@ -23,6 +30,13 @@ const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
   minBase: DataElementAttribute.MIN_BASE,
   minCorrection: DataElementAttribute.MIN_CORRECTION,
 };
+
+/** The kinds of field on a line of text that hold words rather than a number. */
+const TEXT_FIELD_TYPES: ReadonlySet<string> = new Set([
+  DataElementFieldType.TEXT,
+  DataElementFieldType.LONG_TEXT,
+  DataElementFieldType.SELECT,
+]);
 
 const CHANGEABLE_TYPES: ReadonlySet<string> = new Set([
   DataElementType.NUMBER_RESOURCE,
@@ -279,6 +293,54 @@ export class StatusAccessor {
       suffix = finalValue > oldNum + addValue ? '(最小)' : '(最大)';
     }
     return `[${this.characterName()} ${oldNum}>${finalValue}${suffix}] `;
+  }
+
+  /**
+   * Whether the item holds words rather than a number: a line of text, prose, a choice or a note.
+   * A resource and a number field hold numbers, whatever they happen to hold now.
+   */
+  holdsText(name: string): boolean {
+    const data = this.findData(name);
+    if (!data) return false;
+    if (data.type === DataElementType.NOTE) return true;
+    return data.type === DataElementType.TEXT && TEXT_FIELD_TYPES.has(data.fieldType);
+  }
+
+  /** What the item holds, as text: a resource's amount left, anything else's value. Null where there is none. */
+  getText(name: string): string | null {
+    const data = this.findData(name);
+    if (!data) return null;
+    return `${data.type === DataElementType.NUMBER_RESOURCE ? data.currentValue : data.value}`;
+  }
+
+  /** The choices a select item offers, or null where the item is not a select. */
+  choicesOf(name: string): readonly string[] | null {
+    const data = this.findData(name);
+    if (!data || data.fieldType !== DataElementFieldType.SELECT) return null;
+    return parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '');
+  }
+
+  /**
+   * Makes an item at the foot of the sheet for a buff to move, there being none by that name: a line
+   * of text holding the words, or a number field holding the number. False where the sheet is not
+   * there to make it in, or an item by that name is there already.
+   */
+  makeForBuff(name: string, value: string | number): boolean {
+    if (!this.detailDataElement || this.findData(name)) return false;
+    makeBuffItem(this.detailDataElement, name, value);
+    return true;
+  }
+
+  /** Whether the item that goes by the name was made by a buff for itself. */
+  madeByBuff(name: string): boolean {
+    const data = this.findData(name);
+    return data != null && isBuffMadeItem(data);
+  }
+
+  /** Takes away the item a buff made by that name, and its section once empty. Any other item is left. */
+  dropMadeByBuff(name: string): void {
+    const data = this.findData(name);
+    if (data) dropBuffItem(data);
   }
 
   private findData(reference: string): DataElement | null {

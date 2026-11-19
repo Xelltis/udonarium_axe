@@ -4832,12 +4832,15 @@
           "noOperator": "No + - = or > after the name, so this does nothing",
           "noAmount": "No amount, so this does nothing",
           "unknownStatus": "{{piece}} has no \"{{name}}\", so this does nothing",
-          "badOption": "Letters after the amount cannot be read, so this does nothing"
+          "badOption": "Letters after the amount cannot be read, so this does nothing",
+          "notAChoice": "Not one of the choices of \"{{name}}\", so this does nothing ({{choices}})"
         },
         "buff": {
           "noName": "The buff has no name, so this does nothing",
           "unreadable": "The status, operation or amount cannot be read, so no buff is laid",
           "missingStatus": "There is no \"{{name}}\", so that status does not move",
+          "makesStatus": "There is no \"{{name}}\", so it is made under \"バフの項目\" at the foot of the sheet and goes when the buff does",
+          "notAChoice": "Not one of the choices of \"{{name}}\", so that item does not change ({{choices}})",
           "notFound": "{{piece}} has no buff \"{{name}}\"",
           "roundsDefault": "The rounds are no number, so it lasts 3 rounds",
           "badEffectTiming": "The effect's timing cannot be read, so the buff is laid without it (tick:roundEnd, tick:turnStart, tick:turnEnd)",

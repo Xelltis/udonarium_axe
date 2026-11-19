@@ -8,6 +8,7 @@ import {
   removedBuffName,
   splitBuffRounds,
 } from '@axe/domain/character/buff-command';
+import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -30,7 +31,7 @@ import {
   resourceCommandParts,
   resourceCommandSites,
 } from '@axe/domain/data/resource-command-words';
-import { parseResourceEditOption, readModifierLayout } from '@axe/domain/data/resource-edit-helpers';
+import { parseResourceEditOption, readModifierLayout, writesWordsInto } from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
 import {
   firstWordOf,
@@ -67,9 +68,12 @@ export const CHAT_LINT_CODES = [
   'res.noAmount',
   'res.unknownStatus',
   'res.badOption',
+  'res.notAChoice',
   'buff.noName',
   'buff.unreadable',
   'buff.missingStatus',
+  'buff.makesStatus',
+  'buff.notAChoice',
   'buff.notFound',
   'buff.roundsDefault',
   'buff.badEffectTiming',
@@ -479,7 +483,54 @@ function lintResource(
       params: { name, piece: missing.map(nameOf).join('・') },
     });
   }
-  if (parts.operator !== '>' && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
+  const takesWords = (piece: GameCharacter) =>
+    parts.operator === '>' || (parts.operator === '=' && writesWordsInto(piece, name, parts.amount));
+  const unchosen = pieces.find((piece) => {
+    const choices = piece.status.choicesOf(name);
+    return choices !== null && takesWords(piece) && !choices.includes(parts.amount);
+  });
+  if (unchosen) {
+    return add(span, 'error', 'res.notAChoice', {
+      params: { name, choices: unchosen.status.choicesOf(name)!.join('・') },
+    });
+  }
+  if (!pieces.every(takesWords) && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
+}
+
+/**
+ * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at: a missing item
+ * is made for the buff where one can be, words go only into an item that holds words or among a
+ * choice's choices, and a number moves only an item that holds one.
+ */
+function lintBuffStatus(
+  request: ParsedBuffModifierRequest,
+  span: TextRange,
+  pieces: readonly GameCharacter[],
+  add: Report
+): void {
+  const name = request.target;
+  if (pieces.some((piece) => piece.status.getText(name) == null)) {
+    if (request.lasting || request.slot !== 'now') add(span, 'warning', 'buff.missingStatus', { params: { name } });
+    else add(span, 'info', 'buff.makesStatus', { params: { name } });
+    return;
+  }
+  const words = (piece: GameCharacter) =>
+    request.text ??
+    (request.operator === 'set' && piece.status.holdsText(name) && piece.status.getValue(name, request.slot) == null
+      ? String(request.amount)
+      : undefined);
+  const unchosen = pieces.find((piece) => {
+    const choices = piece.status.choicesOf(name);
+    const written = words(piece);
+    return choices !== null && written !== undefined && !choices.includes(written);
+  });
+  if (unchosen) {
+    add(span, 'error', 'buff.notAChoice', { params: { name, choices: unchosen.status.choicesOf(name)!.join('・') } });
+    return;
+  }
+  if (pieces.some((piece) => words(piece) === undefined && piece.status.getValue(name, request.slot) == null)) {
+    add(span, 'warning', 'buff.missingStatus', { params: { name } });
+  }
 }
 
 /**
@@ -510,9 +561,7 @@ function lintBuff(
     if (!read.requests) return add(span, 'error', 'buff.unreadable');
     for (const request of read.requests) {
       if (isAimedAtStatus(request.target)) continue;
-      if (pieces.some((piece) => piece.status.getValue(request.target, request.slot) == null)) {
-        add(span, 'warning', 'buff.missingStatus', { params: { name: request.target } });
-      }
+      lintBuffStatus(request, span, pieces, add);
     }
     const movesAtCounts = read.requests.some((request) => request.step !== undefined);
     lintEffectTiming(read.rest, movesAtCounts, span, add);
