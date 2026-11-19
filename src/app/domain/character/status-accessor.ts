@@ -1,5 +1,11 @@
 import { GameObject } from '@axe/core/sync/game-object';
-import { dropBuffItem, isBuffMadeItem, makeBuffItem } from '@axe/domain/character/buff-made-items';
+import {
+  dropBuffItem,
+  isBuffMadeItem,
+  keepsBuffItems,
+  makeBuffItem,
+  tidyBuffItems,
+} from '@axe/domain/character/buff-made-items';
 import { type ItemLanding, type ItemTakes, landingOn, type WrittenAs } from '@axe/domain/character/item-landing';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import {
@@ -327,25 +333,40 @@ export class StatusAccessor {
 
   /**
    * Makes an item at the foot of the sheet for a buff to move, there being none by that name: a line
-   * of text holding the words, or a number field holding the number. False where the sheet is not
-   * there to make it in, or an item by that name is there already.
+   * of text holding the words, or a number field holding the number. An item is made only where the
+   * name finds it once made: not where the name is the room's alias for items the sheet has none of,
+   * nor where it is shared by items it cannot tell apart, which would leave one made again at every
+   * buff. False where nothing is made.
    */
   makeForBuff(name: string, value: string | number): boolean {
-    if (!this.detailDataElement || this.findData(name)) return false;
-    makeBuffItem(this.detailDataElement, name, value);
-    return true;
+    if (!this.detailDataElement || this.findAll(name).length > 0) return false;
+    const made = makeBuffItem(this.detailDataElement, name, value);
+    if (this.findData(name) === made) return true;
+    dropBuffItem(made);
+    return false;
   }
 
-  /** Whether the item that goes by the name was made by a buff for itself. */
+  /** Whether the sheet keeps any item a buff made for itself, which a sheet seldom does. */
+  keepsBuffItems(): boolean {
+    return this.detailDataElement !== null && keepsBuffItems(this.detailDataElement);
+  }
+
+  /** Whether the item that goes by the name was made by a buff for itself, and is the buff's still. */
   madeByBuff(name: string): boolean {
+    if (!this.detailDataElement || !keepsBuffItems(this.detailDataElement)) return false;
     const data = this.findData(name);
     return data != null && isBuffMadeItem(data);
   }
 
-  /** Takes away the item a buff made by that name, and its section once empty. Any other item is left. */
+  /**
+   * Takes away the item a buff made by that name, and the section such items are kept in once it holds
+   * none, as when its last item was moved out into the sheet. Any other item is left.
+   */
   dropMadeByBuff(name: string): void {
+    if (!this.detailDataElement || !keepsBuffItems(this.detailDataElement)) return;
     const data = this.findData(name);
     if (data) dropBuffItem(data);
+    tidyBuffItems(this.detailDataElement);
   }
 
   private findData(reference: string): DataElement | null {

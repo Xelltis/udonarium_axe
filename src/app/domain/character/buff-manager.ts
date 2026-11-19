@@ -42,6 +42,11 @@ export interface BuffSnapshotEntry {
   /** The words the buff wrote into an item while it stands, and what the item held before; none where it wrote none. */
   words?: BuffTextModifier | null;
   /**
+   * Whether the item the buff moves or writes into was made by a buff for itself, which putting the
+   * buff back makes again where it has gone. No other item is made again.
+   */
+  made?: boolean;
+  /**
    * For a buff that leaves its status moved and has run out since this was taken: how far it moved
    * the status between then and going, which putting it back gives back. None where nothing says,
    * which gives back nothing, as a buff gone some other way moved nothing as it went.
@@ -211,12 +216,9 @@ export class BuffManager {
     clearBuffTextModifier(data);
     const status = this.status();
     if (!status) return;
-    const above = this.list()
-      .map((row) => ({ row, written: readBuffTextModifier(row) }))
-      .filter(({ written }) => written?.target === words.target && written.order > words.order)
-      .sort((a, b) => a.written!.order - b.written!.order)[0];
+    const above = this.nextWordsOn(words.target, words.order);
     if (above) {
-      writeBuffTextModifier(above.row, { ...above.written!, before: words.before });
+      writeBuffTextModifier(above.row, { ...above.written, before: words.before });
       return;
     }
     if (status.getText(words.target) === words.text) status.setText(words.target, words.before);
@@ -224,11 +226,12 @@ export class BuffManager {
 
   /**
    * Takes away the item a buff made for itself, once no buff of the piece moves it or writes into it
-   * any more. An item the sheet had all along is left.
+   * any more, and the section such items are kept in once it holds none. An item the sheet had all
+   * along is left.
    */
   private dropWhenUnused(target: string): void {
     const status = this.status();
-    if (!status?.madeByBuff(target)) return;
+    if (!status?.keepsBuffItems()) return;
     const used = this.list().some(
       (row) => readBuffModifier(row)?.target === target || readBuffTextModifier(row)?.target === target
     );
@@ -470,8 +473,8 @@ export class BuffManager {
       data.value = entry.value;
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
-      this.restoreWords(data, entry.words ?? null);
+      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
+      this.restoreWords(data, entry.words ?? null, entry.made ?? false);
     }
   }
 
@@ -493,6 +496,7 @@ export class BuffManager {
       appearance: readAppearance(data),
       modifier: readBuffModifier(data),
       words: readBuffTextModifier(data),
+      made: this.makesItsItem(data),
     }));
   }
 
@@ -521,8 +525,8 @@ export class BuffManager {
       data.value = entry.value;
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
-      this.restoreWords(data, entry.words ?? null);
+      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
+      this.restoreWords(data, entry.words ?? null, entry.made ?? false);
       restored.push(data);
     }
     this.reorder(restored);
@@ -559,16 +563,18 @@ export class BuffManager {
    * to stand where it last moved it. One that comes back after going, `cameBackMoving` being how far
    * the count it ran out at moved the status, has that given back as well.
    */
-  private restoreModifier(data: DataElement, wanted: BuffModifier | null, cameBackMoving: number | null): void {
+  private restoreModifier(
+    data: DataElement,
+    wanted: BuffModifier | null,
+    cameBackMoving: number | null,
+    made: boolean
+  ): void {
     const standing = readBuffModifier(data);
     if (standing && (!wanted || !movesSameStatus(standing, wanted))) {
       this.revertModifier(data);
     }
     if (!wanted) return;
-    const status = this.status();
-    if (status && !wanted.lasting && wanted.slot === 'now' && status.getText(wanted.target) == null) {
-      status.makeForBuff(wanted.target, 0);
-    }
+    if (made) this.status()?.makeForBuff(wanted.target, 0);
     const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
     const applied = readBuffModifier(data)?.applied ?? left;
     if (applied !== wanted.applied) {
@@ -578,10 +584,13 @@ export class BuffManager {
   }
 
   /**
-   * Writes the words a buff wrote back into the item as they stood, with what the item held before
-   * them, which is nothing to do where they stand already. Words it no longer writes are let go of.
+   * Writes the words a buff wrote back as they stood, with what the item held before them, which is
+   * nothing to do where they stand already. Words it no longer writes are let go of. A buff that wrote
+   * before one standing comes back under it: the item keeps the later buff's words, and the later buff
+   * now stands on these, as it did before this one went. An item made by a buff for these words is made
+   * again where it has gone; any other gone stays gone, and the words with it.
    */
-  private restoreWords(data: DataElement, wanted: BuffTextModifier | null): void {
+  private restoreWords(data: DataElement, wanted: BuffTextModifier | null, made: boolean): void {
     const standing = readBuffTextModifier(data);
     if (standing && wanted && standing.target === wanted.target && standing.text === wanted.text) {
       writeBuffTextModifier(data, wanted);
@@ -594,12 +603,34 @@ export class BuffManager {
     if (!wanted) return;
     const status = this.status();
     if (!status) return;
-    if (status.getText(wanted.target) == null) {
-      if (!status.makeForBuff(wanted.target, wanted.text)) return;
-    } else {
-      status.setText(wanted.target, wanted.text);
+    if (status.getText(wanted.target) == null && !(made && status.makeForBuff(wanted.target, wanted.text))) return;
+    const later = this.nextWordsOn(wanted.target, wanted.order);
+    if (later) {
+      writeBuffTextModifier(data, { ...wanted, before: later.written.before });
+      writeBuffTextModifier(later.row, { ...later.written, before: wanted.text });
+      return;
     }
+    status.setText(wanted.target, wanted.text);
     writeBuffTextModifier(data, wanted);
+  }
+
+  /** The buff that wrote words into the item next after an order, with what it wrote; none where none did. */
+  private nextWordsOn(target: string, order: number): { row: DataElement; written: BuffTextModifier } | null {
+    return (
+      this.list()
+        .map((row) => ({ row, written: readBuffTextModifier(row) }))
+        .filter(
+          (each): each is { row: DataElement; written: BuffTextModifier } =>
+            each.written?.target === target && each.written.order > order
+        )
+        .sort((a, b) => a.written.order - b.written.order)[0] ?? null
+    );
+  }
+
+  /** Whether the item a buff moves or writes into was made by a buff for itself. */
+  private makesItsItem(data: DataElement): boolean {
+    const target = readBuffModifier(data)?.target ?? readBuffTextModifier(data)?.target;
+    return target !== undefined && (this.status()?.madeByBuff(target) ?? false);
   }
 
   private ensureContainer(): DataElement | null {

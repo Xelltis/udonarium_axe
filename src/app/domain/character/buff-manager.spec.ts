@@ -122,6 +122,8 @@ describe('BuffManager', () => {
         getValue: vi.fn(() => 10),
         getText: vi.fn(() => '10'),
         landingOf: vi.fn(() => ({ kind: 'number' })),
+        madeByBuff: vi.fn(() => false),
+        keepsBuffItems: vi.fn(() => false),
         changeValue: vi.fn(),
       } as unknown as StatusAccessor;
       const withStatus = new BuffManager(buffDataElement, undefined, () => status);
@@ -1292,6 +1294,44 @@ describe('BuffManager', () => {
       expect(status.getText('属性')).toBe('無属性');
     });
 
+    describe('as a step is undone', () => {
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+
+      it('brings back one that wrote under a later one standing without its words, and each puts back what it found', () => {
+        grant('ファイア・ウェポン', '属性', '=', '炎', 1);
+        grant('アイス・ウェポン', '属性', '=', '氷', 5);
+        const before = sheeted.snapshot();
+        sheeted.expireOneRound();
+        expect(status.getText('属性')).toBe('氷');
+
+        sheeted.restore(before);
+        expect(status.getText('属性')).toBe('氷');
+
+        sheeted.delete('ファイア・ウェポン');
+        expect(status.getText('属性')).toBe('氷');
+        sheeted.delete('アイス・ウェポン');
+        expect(status.getText('属性')).toBe('無属性');
+      });
+
+      it('brings one back alone under a later one standing, and the later one then puts back its words', () => {
+        sheeted.addRound('ファイア・ウェポン', '', 1);
+        sheeted.applyModifier(sheeted.find('ファイア・ウェポン')!, parseBuffModifierRequest('属性', '=', '炎')!);
+        sheeted.addRound('アイス・ウェポン', '', 5, { timing: 'turnStart' });
+        sheeted.applyModifier(sheeted.find('アイス・ウェポン')!, parseBuffModifierRequest('属性', '=', '氷')!);
+        const due = sheeted.dueAt('roundEnd', owner);
+        expect(due.map((entry) => entry.name)).toEqual(['ファイア・ウェポン']);
+        sheeted.expireAt('roundEnd', owner);
+
+        sheeted.putBack(due);
+        expect(status.getText('属性')).toBe('氷');
+
+        sheeted.delete('アイス・ウェポン');
+        expect(status.getText('属性')).toBe('炎');
+        sheeted.delete('ファイア・ウェポン');
+        expect(status.getText('属性')).toBe('無属性');
+      });
+    });
+
     it('keeps what it wrote and what the item held through a save and a load, and puts that back after', () => {
       grant('ファイア・ウェポン', '属性', '=', '炎');
       grant('物理強化', '物理D増加', '+', '2');
@@ -1373,6 +1413,59 @@ describe('BuffManager', () => {
         expect(
           sheeted.applyModifier(sheeted.find('麻痺')!, parseBuffModifierRequest('構えの名', '=', '伏せ')!)
         ).toBeNull();
+        expect(madeSection()).toBeUndefined();
+      });
+
+      it('makes none where the name is shared by items it cannot tell apart, however often the buff is laid', () => {
+        const group = detail.getFirstElementByName('命中')!.parent as DataElement;
+        group.appendChild(DataElement.create('命中', 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: '5' }));
+
+        expect(grant('猛攻撃', '命中', '+', '2')).toBeNull();
+        expect(grant('猛攻撃', '命中', '+', '2')).toBeNull();
+        expect(madeSection()).toBeUndefined();
+      });
+
+      it('makes none where the name is the room’s alias for items the sheet lacks', () => {
+        const aliased = new StatusAccessor(
+          detail,
+          () => 'テストキャラ',
+          () => [{ name: '回避', candidates: ['回避力'] }]
+        );
+        const buffs = new BuffManager(
+          buffDataElement,
+          () => ({ identifier: 'owner', name: 'テストキャラ' }),
+          () => aliased
+        );
+        buffs.addRound('身かわし', '', 2);
+
+        expect(
+          buffs.applyModifier(buffs.find('身かわし')!, parseBuffModifierRequest('回避', '+', '2')!, true)
+        ).toBeNull();
+        expect(madeSection()).toBeUndefined();
+      });
+
+      it('makes again only an item a buff made, as a step is undone', () => {
+        sheeted.addRound('猛攻撃', '', 2);
+        sheeted.applyModifier(sheeted.find('猛攻撃')!, parseBuffModifierRequest('命中', '+', '2')!);
+        const standing = sheeted.snapshot();
+        detail.getFirstElementByName('命中')!.destroy();
+
+        sheeted.restore(standing);
+
+        expect(status.getText('命中')).toBeNull();
+        expect(madeSection()).toBeUndefined();
+      });
+
+      it('leaves an item moved out of where made items are kept, as the sheet’s own, with what held it', () => {
+        grant('物理強化', '物理D増加', '+', '2');
+        const ours = DataElement.create('強化', '', { [DataElementAttribute.ROLE]: 'group' });
+        (detail.getFirstElementByName('能力') as DataElement).appendChild(ours);
+        ours.appendChild(detail.getFirstElementByName('物理D増加')!);
+
+        sheeted.delete('物理強化');
+
+        expect(status.getValue('物理D増加', 'now')).toBe(0);
+        expect(ours.parent).not.toBeNull();
         expect(madeSection()).toBeUndefined();
       });
 
