@@ -691,13 +691,14 @@ describe('ModelLayer', () => {
 });
 
 describe('sceneMaterialOf', () => {
-  it('keeps the glow a part gives off, with the picture it glows in, and notes that picture as drawn', () => {
+  it('keeps the glow a part gives off, as strong as it was made, with the picture it glows in, and notes that picture as drawn', () => {
     const picture = new Texture();
     const shine = new Texture();
     const neon = new MeshStandardMaterial({
       map: picture,
       emissive: '#ff2bd6',
       emissiveMap: picture,
+      emissiveIntensity: 3,
       roughnessMap: shine,
     });
     const drawn = new Set<Texture>();
@@ -707,6 +708,7 @@ describe('sceneMaterialOf', () => {
 
     expect(made.emissive.getHexString()).toBe('ff2bd6');
     expect(made.emissiveMap).toBe(picture);
+    expect(made.emissiveIntensity).toBe(3);
     expect([...drawn]).toEqual([picture]);
     expect([...undrawn]).toEqual([shine]);
   });

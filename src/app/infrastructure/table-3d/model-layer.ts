@@ -613,7 +613,7 @@ export class ModelLayer {
 /**
  * A material of a model made over as the scene's own, lit as the board is: its colour, its picture
  * and how it lets light through kept, and the glow it gives off, a neon tube's or a potion's, kept
- * with the picture of that glow. The pictures it is drawn with are noted as drawn, and the rest it
+ * as strong as it was made, with the picture of that glow. The pictures it is drawn with are noted as drawn, and the rest it
  * wore, as its bumps and its shine, as not drawn.
  */
 export function sceneMaterialOf(
@@ -635,7 +635,7 @@ export function sceneMaterialOf(
     alphaTest: was.alphaTest,
     side: was.side,
     vertexColors: was.vertexColors,
-    ...(glows ? { emissive: was.emissive, emissiveMap: glowMap } : {}),
+    ...(glows ? { emissive: was.emissive, emissiveMap: glowMap, emissiveIntensity: was.emissiveIntensity ?? 1 } : {}),
   });
 }
 
