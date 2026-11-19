@@ -234,6 +234,20 @@ describe('a part made to turn', () => {
     expect(placedPartsOf(flowing(0, 1), wheel).spins[0].degPerSecond).toBe(90);
   });
 
+  it('reaches as deep as it is stretched upright, however wide it is stretched', () => {
+    const model = knight({
+      boxPx: { widthPx: 150, depthPx: 50 },
+      heightPx: 100,
+      current: { towardX: -1, towardY: 0, surfacePx: 20 },
+    });
+
+    expect(placedPartsOf(model, { ...wheel, stretch: true }).spins[0].degPerSecond).toBe(90);
+    expect(
+      placedPartsOf({ ...model, current: { ...model.current!, surfacePx: 30 } }, { ...wheel, stretch: true }).spins[0]
+        .degPerSecond
+    ).toBe(-90);
+  });
+
   it('turns with the water whichever way its model is turned', () => {
     const current = { towardX: 1, towardY: 0, surfacePx: 30 };
     for (const turnDeg of [0, 180]) {

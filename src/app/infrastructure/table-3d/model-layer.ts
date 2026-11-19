@@ -793,7 +793,7 @@ function spinPlacementOf(
         current,
         at.clone().applyMatrix4(frame),
         spin.axis.clone().transformDirection(frame),
-        spin.reach * scaling.getMaxScaleOnAxis(),
+        spin.reach * new Vector3().setFromMatrixColumn(scaling, 1).length(),
         spin.degPerSecond
       )
     : 1;
