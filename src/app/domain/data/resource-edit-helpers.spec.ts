@@ -1231,6 +1231,16 @@ describe('resource-edit-helpers', () => {
       expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
     });
 
+    it('finds the half-width item a value can be written into before a full-width one it cannot', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('ＨＰ', '', { type: 'check' }));
+      const hp = character.status.getValue('HP', 'now')!;
+
+      expect(said(':ＨＰ-1').edit.target).toBe('HP');
+      expect(applyResourceEdit({ ...said(':ＨＰ-1').edit, calcAns: -1 }, character)).toContain('HP:');
+      expect(character.status.getValue('HP', 'now')).toBe(hp - 1);
+    });
+
     it('finds the status a command names in half-width characters as well', () => {
       expect(said(':ＰＬ名=山田').edit).toMatchObject({ operator: '>', replace: '山田', target: 'PL名' });
     });

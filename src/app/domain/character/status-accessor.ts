@@ -425,14 +425,17 @@ export class StatusAccessor {
   }
 
   /**
-   * The name an item is found by, as written or else in half-width characters (see {@link findAll}),
-   * which is what a command or a buff that names it records; null where neither finds one.
+   * The name an item is found by, as written or in half-width characters (see {@link findAll}), which
+   * is what a command or a buff that names it records: of the two, the one finding an item a value can
+   * be written into, else the one finding any item, as written first; null where neither finds one. A
+   * check box named in full-width beside a resource of the half-width name leaves the resource found.
    */
   nameOf(reference: string): string | null {
-    if (!this.detailDataElement) return null;
-    if (findReferencedElements(this.detailDataElement, reference, this.aliases?.()).length > 0) return reference;
-    const halfWidth = toHalfWidth(reference);
-    return this.findAll(halfWidth).length > 0 ? halfWidth : null;
+    const detail = this.detailDataElement;
+    if (!detail) return null;
+    const names = [...new Set([reference, toHalfWidth(reference)])];
+    const finding = names.filter((name) => findReferencedElements(detail, name, this.aliases?.()).length > 0);
+    return finding.find((name) => this.canChangeName(name)) ?? finding[0] ?? null;
   }
 
   /** Whether any item of the sheet goes by a name, as written or in half-width, found by it or not, as one of two by one name is not. */
