@@ -31,6 +31,7 @@ import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
@@ -1132,6 +1133,46 @@ describe('Table3dService', () => {
     ]);
     expect([...world.walls, ...world.caps].filter((face) => face.id.startsWith(block.identifier))).toEqual([]);
     table.destroy();
+  });
+
+  it('hands a block drawn as a model the current of the water flowing under it, and none to one on dry ground', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
+      (identifier: string) => ({ isReady: true, url: `blob:${identifier}` }) as never
+    );
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    const stream = TableAmbience.create('小川', 'water', 1, 4);
+    stream.location = { name: 'table', x: 100, y: 0 };
+    stream.surfaceHeight = 0.5;
+    stream.flowSpeed = 0.5;
+    stream.flowDirection = 180;
+    table.appendChild(stream);
+    const mill = Terrain.create('水車小屋', 3, 2, 3, '', '');
+    mill.location = { name: 'table', x: 0, y: 50 };
+    mill.modelIdentifier = 'watermill';
+    mill.blocksClimb = true;
+    const tower = Terrain.create('風車', 1, 1, 3, '', '');
+    tower.location = { name: 'table', x: 250, y: 250 };
+    tower.modelIdentifier = 'windmill';
+    table.appendChild(mill);
+    table.appendChild(tower);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const currentOf = (block: Terrain) =>
+      scene.world().models.find((model) => model.owner === block.identifier)!.current;
+
+    try {
+      expect(currentOf(mill)).toEqual({ towardX: 0, towardY: 1, surfacePx: 25 });
+      expect(currentOf(tower)).toBeUndefined();
+
+      stream.flowDirection = 0;
+      TestBed.inject(ObjectChangeService).notifyChanged(stream.identifier);
+
+      expect(currentOf(mill)).toEqual({ towardX: 0, towardY: -1, surfacePx: 25 });
+    } finally {
+      table.destroy();
+    }
   });
 
   it('tells a block drawn as a joined wall the arms it reaches out to the walls and the door beside it with', async () => {

@@ -24,7 +24,11 @@ import { FLAT_GROUND, groundLiftOfBlock, groundSurfaceOf } from '@axe/domain/tab
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MAP_MAX_TERRAINS, type MapAmbience, type MapBlock, type MapRect } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
-import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
+import type { Terrain } from '@axe/domain/tabletop/terrain';
+import { forEachCellUnder } from '@axe/domain/tabletop/terrain-box';
+import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
+import { currentOf } from '@axe/domain/tabletop/water/water-current';
+import { flowVectorOf } from '@axe/domain/tabletop/water/water-flow';
 
 /** The boards a village is laid on, the smallest the panel makes on squares and on hexes among them. */
 const BOARDS: readonly { readonly width: number; readonly height: number; readonly gridType: GridType }[] = [
@@ -261,7 +265,7 @@ describe('layMillStream()', () => {
     }
   });
 
-  it('turns a watermill so the foot of its wheel runs the way it is turned, its wheel on the right of that way and its house on the left', () => {
+  it('turns a watermill with its wheel on the right of the way it is turned and its house on the left', () => {
     for (const turn of [0, 90, 180, 270]) {
       const rect = turn % 180 === 0 ? { x: 5, y: 5, w: 3, h: 2 } : { x: 5, y: 5, w: 2, h: 3 };
       const mill: SettlementMill = { kind: 'watermill', rect, turn };
@@ -278,7 +282,7 @@ describe('layMillStream()', () => {
   });
 
   it('stands a watermill with its wheel in two cells of the stream running straight, and its house on open ground on the bank', () => {
-    let along = 0;
+    let onLeft = 0;
     let watermills = 0;
     for (const { before, after, width, height, at } of LAID) {
       const mill = after.mills?.find((each) => each.kind === 'watermill');
@@ -295,7 +299,7 @@ describe('layMillStream()', () => {
       const flow = cells[Math.min(...course)].flow;
       expect(cells[Math.max(...course)].flow, at).toBe(flow);
       expect([flow, (flow + 180) % 360], at).toContain(mill.turn);
-      if (mill.turn === flow) along++;
+      if (mill.turn === flow) onLeft++;
 
       const wet = wetOf(after, width);
       const doorsteps = doorstepsOf(before, width, height);
@@ -313,10 +317,11 @@ describe('layMillStream()', () => {
       }
     }
     expect(watermills).toBeGreaterThan(LAID.length * 0.75);
-    expect(along).toBeGreaterThan(watermills * 0.75);
+    expect(onLeft).toBeGreaterThan(watermills * 0.75);
+    expect(onLeft).toBeLessThan(watermills);
   });
 
-  it('stands a watermill on the far bank only where the near bank has no room', () => {
+  it('stands a watermill on the left bank looking the way the water runs, and on the right only where the left has no room', () => {
     const width = 16;
     const height = 20;
     const seed = 5;
@@ -327,10 +332,10 @@ describe('layMillStream()', () => {
       seed
     );
     const column = open.stream!.cells[0].x;
-    expect(open.stream!.cells.every((cell) => cell.x === column)).toBe(true);
-    const near = open.mills!.find((mill) => mill.kind === 'watermill')!;
-    expect(near.turn).toBe(180);
-    expect(watermillHouseOf(near).x).toBe(column + 1);
+    expect(open.stream!.cells.every((cell) => cell.x === column && cell.flow === 180)).toBe(true);
+    const left = open.mills!.find((mill) => mill.kind === 'watermill')!;
+    expect(left.turn).toBe(180);
+    expect(watermillHouseOf(left).x).toBe(column + 1);
 
     const crowded = layMillStream(
       openVillage(width, height, 9, (x) => x > column),
@@ -339,10 +344,10 @@ describe('layMillStream()', () => {
       seed
     );
     expect(crowded.stream!.cells.every((cell) => cell.x === column)).toBe(true);
-    const far = crowded.mills!.find((mill) => mill.kind === 'watermill')!;
-    expect(far.turn).toBe(0);
-    expect(watermillHouseOf(far).x).toBe(column - 2);
-    expect(watermillWheelOf(far).x).toBe(column);
+    const right = crowded.mills!.find((mill) => mill.kind === 'watermill')!;
+    expect(right.turn).toBe(0);
+    expect(watermillHouseOf(right).x).toBe(column - 2);
+    expect(watermillWheelOf(right).x).toBe(column);
   });
 
   it('goes round the doorstep of a door rather than straight over it', () => {
@@ -635,6 +640,56 @@ describe('a village with a stream and mills on the table', () => {
         expect(fromHub(middle)).toBeLessThan(1.3);
       }
     }
+  });
+
+  it('stands a watermill’s block over the stream past its wheel, the water under it running the way the stream runs there', () => {
+    const size = 50;
+    let checked = 0;
+    for (const gridType of GRIDS) {
+      for (const seed of [1, 2, 3, 5, 7, 42]) {
+        const plan = planField({
+          atmosphere: 'village',
+          size: 40,
+          density: 50,
+          seed,
+          relief: 2,
+          gridType,
+          models: true,
+        });
+        const { layout } = plan;
+        const mill = layout.settlement!.mills?.find((each) => each.kind === 'watermill');
+        if (!mill) continue;
+        const at = `grid ${gridType} seed ${seed}`;
+        const grid = cellGridOf(layout.width, layout.height, size, gridType);
+        const ground = groundOf(layout.relief!);
+        const cells = waterCellsOf(grid, watersOf(plan.blocks.ambiences, gridType, size), (index) => {
+          const centre = cellCenterOf(grid, index);
+          return ground.heightAt(centre.x / size, centre.y / size) * size;
+        });
+        const block = plan.blocks.blocks.find((each) => each.thing === 'watermill')!;
+        const origin = blockOrigin(block.rect, { type: gridType, sizePx: size });
+        const box = {
+          location: { x: origin.x + (block.offset?.x ?? 0) * size, y: origin.y + (block.offset?.y ?? 0) * size },
+          width: block.rect.w,
+          depth: block.rect.h,
+          rotate: 0,
+        } as unknown as Terrain;
+        const under: WaterCell[] = [];
+        forEachCellUnder(grid, box, (index) => {
+          const cell = cells.get(index);
+          if (cell) under.push(cell);
+        });
+        const wheel = cellsOf(watermillWheelOf(mill), layout.width)[0];
+        const flow = layout.settlement!.stream!.cells.find((cell) => cell.y * layout.width + cell.x === wheel)!.flow;
+        const current = currentOf(under);
+        const way = flowVectorOf(flow);
+        expect(current, at).not.toBeNull();
+        expect(current!.towardX, at).toBeCloseTo(way.x, 6);
+        expect(current!.towardY, at).toBeCloseTo(way.y, 6);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(GRIDS.length * 4);
   });
 
   it('builds a mill of boxes where models are not asked for, a windmill as its whole rectangle and a watermill as its house without its wheel', () => {

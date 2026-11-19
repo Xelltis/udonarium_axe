@@ -1,4 +1,5 @@
 import { partFacesOf } from '@axe/domain/character/part-look';
+import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
@@ -90,10 +91,16 @@ interface ModelPart {
   readonly swing?: { readonly hinge: Vector3; readonly deg: number };
   /**
    * For a part that turns for as long as it is drawn, as the sails of a windmill do: the point its axis
-   * runs through and the axis, measured from the model's foot as the rest is, and how many degrees a
-   * second it turns about it.
+   * runs through and the axis, measured from the model's foot as the rest is, how many degrees a
+   * second it turns about it, and how far it and every part turning with it reach out from the axis,
+   * measured the same way.
    */
-  readonly spin?: { readonly at: Vector3; readonly axis: Vector3; readonly degPerSecond: number };
+  readonly spin?: {
+    readonly at: Vector3;
+    readonly axis: Vector3;
+    readonly degPerSecond: number;
+    readonly reach: number;
+  };
   /** Which part of a building's kit it is, as its node says in its extras as `{ "part": ... }`; a wall if it says none. */
   readonly role?: KitRole;
   /** Whether it is the hub of a joined wall, as its node says in its extras as `{ "part": "hub" }`, rather than its arm. */
@@ -562,38 +569,7 @@ export class ModelLayer {
     const tile = fit === 'tile';
     const madeHeight = tile && extras.height === 'made';
     const joined = fit === 'joined';
-    const parts: ModelPart[] = [];
-    const spouts: Vector3[] = [];
-    gltf.scene.traverse((object) => {
-      const spout = facade || tile || joined ? null : spoutOf(object);
-      if (spout) spouts.push(spout.applyMatrix4(object.matrixWorld).applyMatrix4(fromFoot));
-      if (!(object instanceof Mesh)) return;
-      if (facade || tile || joined) {
-        parts.push({
-          mesh: object,
-          within: object.matrixWorld.clone(),
-          ...(facade ? { role: kitRoleOf(object) } : {}),
-          ...(joined && isHub(object) ? { hub: true } : {}),
-        });
-        return;
-      }
-      const swing = swingOf(object);
-      const spin = spinOf(object);
-      parts.push({
-        mesh: object,
-        within: fromFoot.clone().multiply(object.matrixWorld),
-        ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
-        ...(spin
-          ? {
-              spin: {
-                at: spin.at.applyMatrix4(spin.node.matrixWorld).applyMatrix4(fromFoot),
-                axis: spin.axis.transformDirection(spin.node.matrixWorld),
-                degPerSecond: spin.degPerSecond,
-              },
-            }
-          : {}),
-      });
-    });
+    const { parts, spouts } = modelPartsOf(gltf.scene, fromFoot, fit);
     const stretch = fit === 'stretch';
     return {
       gltf,
@@ -740,7 +716,7 @@ export function placedPartsOf(
       return [frame.clone().multiply(swungAbout(scaling, part.swing!)).multiply(scaling).multiply(part.within)];
     }
     if (!part.spin) return [placement.clone().multiply(part.within)];
-    const spin = spinPlacementOf(frame, scaling, part.within, part.spin, index);
+    const spin = spinPlacementOf(frame, scaling, part.within, part.spin, index, model.current);
     spins.push(spin);
     return [spinPlacedAt(spin, timeMs)];
   });
@@ -781,22 +757,61 @@ function swingsOpen(model: TableWorldModel, part: Pick<ModelPart, 'swing'>): boo
   return model.door?.open === true && part.swing !== undefined;
 }
 
-/** The turn of a part about the point its axis runs through where the scaling puts it, so that it turns unstretched. */
+/**
+ * The turn of a part about the point its axis runs through where the scaling puts it, so that it
+ * turns unstretched, the way `senseInCurrent` says the water flowing under its model turns it.
+ */
 function spinPlacementOf(
   frame: Matrix4,
   scaling: Matrix4,
   within: Matrix4,
   spin: NonNullable<ModelPart['spin']>,
-  part: number
+  part: number,
+  current: WaterCurrent | undefined
 ): SpinPlacement {
   const at = spin.at.clone().applyMatrix4(scaling);
+  const sense = current
+    ? senseInCurrent(
+        current,
+        at.clone().applyMatrix4(frame),
+        spin.axis.clone().transformDirection(frame),
+        spin.reach * scaling.getMaxScaleOnAxis(),
+        spin.degPerSecond
+      )
+    : 1;
   return {
     part,
     before: frame.clone().multiply(new Matrix4().makeTranslation(at.x, at.y, at.z)),
     axis: spin.axis,
-    degPerSecond: spin.degPerSecond,
+    degPerSecond: spin.degPerSecond * sense,
     after: new Matrix4().makeTranslation(-at.x, -at.y, -at.z).multiply(scaling).multiply(within),
   };
+}
+
+/** How squarely the water has to run across the way a part turns, from 0 to 1, to turn it one way rather than the other. */
+const LEAST_DRIVE = 0.05;
+
+/**
+ * Which way a part made to turn turns in the water flowing under its model: 1 the way it was made,
+ * -1 the other way round, so that where it dips into the water its lowest point runs the way the
+ * water runs, as a watermill's wheel does on whichever bank it stands. A part whose lowest point
+ * stays over the surface, that turns about an upright, or about an axis the water runs along, turns
+ * as it was made. The point its axis runs through and the axis are as placed on the table (x east, y
+ * up and z south, in table pixels), with how far the part reaches out from the axis. Its lowest
+ * point runs along the axis crossed with the way down as it turns the way the axis points, which
+ * across the table is the axis's own z and minus its x, over how level it lies.
+ */
+export function senseInCurrent(
+  current: WaterCurrent,
+  at: Vector3,
+  axis: Vector3,
+  reach: number,
+  degPerSecond: number
+): 1 | -1 {
+  const level = Math.sqrt(Math.max(0, 1 - axis.y * axis.y));
+  if (level < LEAST_DRIVE || at.y - reach * level >= current.surfacePx) return 1;
+  const along = (axis.z * current.towardX - axis.x * current.towardY) / level;
+  return Math.sign(degPerSecond) * along < -LEAST_DRIVE ? -1 : 1;
 }
 
 /** The four sides of a block, each as the turn that faces a part made facing south out of it. */
@@ -1062,6 +1077,95 @@ export function spinOf(object: Object3D): { node: Object3D; at: Vector3; axis: V
     return { node, at, axis: axis.normalize(), degPerSecond };
   }
   return null;
+}
+
+/**
+ * The meshes of a model's scene, its matrices worked out, as its parts, and the mouths its nodes say
+ * water pours from, both measured from its foot. The parts of a building's kit, as `fit` names one,
+ * are placed as they were made, by the block, and pour nothing; the parts of any other model are
+ * placed from its foot, with the hinges they swing on and the axes they turn about.
+ */
+export function modelPartsOf(
+  scene: Object3D,
+  fromFoot: Matrix4,
+  fit: unknown
+): { readonly parts: ModelPart[]; readonly spouts: Vector3[] } {
+  const facade = fit === 'facade';
+  const joined = fit === 'joined';
+  const kit = facade || joined || fit === 'tile';
+  const parts: ModelPart[] = [];
+  const spouts: Vector3[] = [];
+  const turningWith = new Map<number, Object3D>();
+  scene.traverse((object) => {
+    const spout = kit ? null : spoutOf(object);
+    if (spout) spouts.push(spout.applyMatrix4(object.matrixWorld).applyMatrix4(fromFoot));
+    if (!(object instanceof Mesh)) return;
+    if (kit) {
+      parts.push({
+        mesh: object,
+        within: object.matrixWorld.clone(),
+        ...(facade ? { role: kitRoleOf(object) } : {}),
+        ...(joined && isHub(object) ? { hub: true } : {}),
+      });
+      return;
+    }
+    const swing = swingOf(object);
+    const spin = spinOf(object);
+    const within = fromFoot.clone().multiply(object.matrixWorld);
+    if (spin) turningWith.set(parts.length, spin.node);
+    parts.push({
+      mesh: object,
+      within,
+      ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
+      ...(spin ? { spin: turnOf(object, within, spin, fromFoot) } : {}),
+    });
+  });
+  reachTogether(parts, turningWith);
+  return { parts, spouts };
+}
+
+/**
+ * How a mesh of a model turns, measured from the model's foot: about the point and the axis its node
+ * says, as far as the mesh reaches out from the axis. Where other meshes hang from the same node,
+ * `reachTogether` makes the reach theirs too.
+ */
+function turnOf(
+  mesh: Mesh,
+  within: Matrix4,
+  spin: NonNullable<ReturnType<typeof spinOf>>,
+  fromFoot: Matrix4
+): NonNullable<ModelPart['spin']> {
+  const at = spin.at.applyMatrix4(spin.node.matrixWorld).applyMatrix4(fromFoot);
+  const axis = spin.axis.transformDirection(spin.node.matrixWorld);
+  return { at, axis, degPerSecond: spin.degPerSecond, reach: reachFromAxis(mesh, within, at, axis) };
+}
+
+/** How far the farthest point of a mesh, placed within its model, lies from an axis through a point. */
+function reachFromAxis(mesh: Mesh, within: Matrix4, at: Vector3, axis: Vector3): number {
+  const points = mesh.geometry.getAttribute('position');
+  if (!points) return 0;
+  const point = new Vector3();
+  let reach = 0;
+  for (let index = 0; index < points.count; index++) {
+    point.fromBufferAttribute(points, index).applyMatrix4(within).sub(at);
+    reach = Math.max(reach, point.addScaledVector(axis, -point.dot(axis)).length());
+  }
+  return reach;
+}
+
+/**
+ * Gives every part turning with others, hung from the same node, the reach of the farthest of them,
+ * so that the parts of a wheel are all turned the same way by the water it dips into.
+ */
+function reachTogether(parts: ModelPart[], turningWith: ReadonlyMap<number, Object3D>): void {
+  const reaches = new Map<Object3D, number>();
+  for (const [index, node] of turningWith) {
+    reaches.set(node, Math.max(reaches.get(node) ?? 0, parts[index].spin?.reach ?? 0));
+  }
+  for (const [index, node] of turningWith) {
+    const part = parts[index];
+    if (part.spin) parts[index] = { ...part, spin: { ...part.spin, reach: reaches.get(node) ?? 0 } };
+  }
 }
 
 /** The mouth a node of a model says water pours from, where it was made, or null for a node that says none. */

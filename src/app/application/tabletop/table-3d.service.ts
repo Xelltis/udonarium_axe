@@ -56,6 +56,8 @@ import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { blockFootprintOf } from '@axe/domain/tabletop/terrain-footprint';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { currentOf, type WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import {
   type WaterColumn,
   waterColumnsOf,
@@ -266,7 +268,7 @@ export class Table3dService {
         layers: this.layers(),
         water: this.water(),
         backdrops: this.backdrops(),
-        models: seen([...this.pieces.models(), ...this.terrainModels()]),
+        models: seen([...this.pieces.models(), ...this.terrainModelsInWater()]),
         solids: this.solidRanges.solids(),
         guides: [...this.solidRanges.guides(), ...this.ruler.guides(), ...this.placedRulers.guides()],
       };
@@ -357,6 +359,35 @@ export class Table3dService {
       });
     }
     return models;
+  });
+
+  /**
+   * The blocks drawn as models, each standing in flowing water handed the current in the cells under
+   * it, which turns the parts of its model that dip into it. Worked out again as the water changes,
+   * without the blocks' models being worked out again with it.
+   */
+  private readonly terrainModelsInWater = computed<readonly TableWorldModel[]>(() => {
+    const models = this.terrainModels();
+    const grid = this.waterCells.grid();
+    const cells = this.waterCells.cells();
+    if (!grid || cells.size < 1 || models.length < 1) return models;
+    const drawn = new Set(models.map((model) => model.owner));
+    const currents = new Map<string, WaterCurrent>();
+    for (const terrain of this.tabletop.terrains) {
+      if (!drawn.has(terrain.identifier)) continue;
+      const under: WaterCell[] = [];
+      forEachCellUnder(grid, terrain, (index) => {
+        const cell = cells.get(index);
+        if (cell) under.push(cell);
+      });
+      const current = currentOf(under);
+      if (current) currents.set(terrain.identifier, current);
+    }
+    if (currents.size < 1) return models;
+    return models.map((model) => {
+      const current = currents.get(model.owner);
+      return current ? { ...model, current } : model;
+    });
   });
 
   /**

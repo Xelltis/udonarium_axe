@@ -1,9 +1,11 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
   ModelLayer,
+  modelPartsOf,
   partPlacementsOf,
   placedPartsOf,
   placementOf,
+  senseInCurrent,
   spinOf,
   spinPlacedAt,
   spoutsOf,
@@ -79,7 +81,10 @@ describe('a part made to turn', () => {
     ...MADE,
     parts: [
       { within: new Matrix4() },
-      { within: new Matrix4(), spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90 } },
+      {
+        within: new Matrix4(),
+        spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90, reach: 0.5 },
+      },
     ],
   };
   const drawn = (matrix: Matrix4, x: number, y: number, z: number) => {
@@ -209,6 +214,61 @@ describe('a part made to turn', () => {
     mill.add(tower);
     expect(rounded(standingBoxOf(mill).min.toArray())).toEqual([-1.5, 0, -1.5]);
     expect(rounded(standingBoxOf(mill).max.toArray())).toEqual([1.5, 5.6, 1.5]);
+  });
+
+  it('turns the other way round where its lowest point dips into water running against the way it turns as made', () => {
+    /** The water under the knight: running so, its surface 30 up, over the wheel's lowest point 25 up. */
+    const flowing = (towardX: number, towardY: number, surfacePx = 30) =>
+      knight({ current: { towardX, towardY, surfacePx } });
+
+    expect(placedPartsOf(flowing(1, 0), wheel).spins[0].degPerSecond).toBe(90);
+    expect(placedPartsOf(flowing(-1, 0), wheel).spins[0].degPerSecond).toBe(-90);
+    const [, [turned]] = partPlacementsOf(flowing(-1, 0), wheel, 1000);
+    expect(drawn(turned, 0.5, 1, 0)).toEqual([100, 25, 200]);
+    expect(drawn(turned, 0, 0.5, 0)).toEqual([75, 50, 200]);
+
+    expect(placedPartsOf(flowing(-1, 0, 20), wheel).spins[0].degPerSecond).toBe(90);
+    expect(placedPartsOf(flowing(0, 1), wheel).spins[0].degPerSecond).toBe(90);
+  });
+
+  it('turns with the water whichever way its model is turned', () => {
+    const current = { towardX: 1, towardY: 0, surfacePx: 30 };
+    for (const turnDeg of [0, 180]) {
+      const model = knight({ current, model: { ...knight().model, turnDeg } });
+      const [, [turned]] = partPlacementsOf(model, wheel, 1000);
+      const [, [still]] = partPlacementsOf(model, wheel, 0);
+      const lowest = (matrix: Matrix4) => new Vector3(0, 0.5, 0).applyMatrix4(matrix);
+      expect(lowest(still).y, `${turnDeg}`).toBeCloseTo(25);
+      expect(lowest(turned).x - lowest(still).x, `${turnDeg}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('is turned by no water about an upright axis', () => {
+    const current = { towardX: 1, towardY: 0, surfacePx: 1000 };
+    expect(senseInCurrent(current, new Vector3(0, 50, 0), new Vector3(0, 1, 0), 25, 90)).toBe(1);
+    expect(senseInCurrent(current, new Vector3(0, 50, 0), new Vector3(0, 0, -1), 25, 90)).toBe(-1);
+    expect(senseInCurrent(current, new Vector3(0, 50, 0), new Vector3(0, 0, -1), 25, -90)).toBe(1);
+  });
+
+  it('reaches out from its axis as far as the farthest of the meshes turning with it', () => {
+    const shaped = (points: number[]) => {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(new Float32Array(points), 3));
+      return new Mesh(geometry);
+    };
+    const scene = new Group();
+    scene.add(shaped([-1, 0, -1, 1, 2, 1]));
+    const wheel = new Group();
+    wheel.userData = { spin: [1, 0, 0, 30], spinAt: [1, 1, 0] };
+    wheel.add(shaped([1, 1, 1.2, 1, -0.2, 0, 1.2, 1, 0]));
+    wheel.add(shaped([0.9, 1.1, 0, 1.1, 0.9, 0]));
+    scene.add(wheel);
+    scene.updateMatrixWorld(true);
+
+    const { parts } = modelPartsOf(scene, new Matrix4(), undefined);
+
+    expect(parts[0].spin).toBeUndefined();
+    for (const part of parts.slice(1)) expect(part.spin!.reach).toBeCloseTo(1.2, 6);
   });
 
   it('reads nothing that names no axis, no turning, or anything but four figures', () => {
@@ -555,7 +615,7 @@ describe('ModelLayer', () => {
           {
             mesh: wheel,
             within: new Matrix4(),
-            spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90 },
+            spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90, reach: 0.5 },
           },
         ],
       });
