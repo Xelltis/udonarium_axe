@@ -203,7 +203,11 @@ function findLights(
  * way has its model turned that way; a run lying down the board has its model turned a quarter. A
  * piece that lies on the floor as a picture is built as its top alone, walked over.
  */
-function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
+export function furnishingBlocks(
+  piece: DungeonFurnishing,
+  span: number,
+  options: Pick<DungeonBlockOptions, 'models' | 'sheerWalls'>
+): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;
   const segmented = options.models === true && span > 1 && run && FURNISHING_SEGMENT_MODELS.includes(piece.piece);

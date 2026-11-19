@@ -322,9 +322,11 @@ export const CONTAINER_WIDTH = 2;
  * - `wall`: runs of pieces standing with their backs to the walls and facing into the room, the way
  *   shelves, cabinets and benches are lined up along a wall, some with a sign hung over them.
  * - `centre`: one piece in the middle of the room, lying along its length.
+ * - `rows`: rows of seats facing the far end of the room from its way in, an aisle down the middle,
+ *   the way pews face an altar, with the plan's back piece against that far wall facing them.
  */
 export type FurnishingArrangement =
-  'counter' | 'grid' | 'scatter' | 'stacks' | 'corners' | 'pipeRun' | 'wall' | 'centre';
+  'counter' | 'grid' | 'scatter' | 'stacks' | 'corners' | 'pipeRun' | 'wall' | 'centre' | 'rows';
 
 export interface FurnishingPlan {
   piece: FurnishingId;
@@ -826,6 +828,50 @@ class Furnisher {
     const spot = spots.find((at) => this.clearRect({ x: at.x, y: at.y, w: across, h: deep }));
     if (!spot) return;
     this.put(piece, spot.x, spot.y, across, deep, undefined, 0, turned ? 90 : 0);
+  }
+
+  /**
+   * Rows of seats facing the far end of the room from the side of it with the most ways in, as pews
+   * face an altar: the plan's back piece stands against the middle of that far wall facing the room,
+   * and the rows run across the room every other cell from the second in front of it to the second
+   * short of the way in, an aisle left down the middle. A seat stands only clear of every way through
+   * the edge of the room, and only where the room's floor stays one piece.
+   */
+  rows(plan: FurnishingPlan, room: DungeonRoom): void {
+    const ways = (['n', 'e', 's', 'w'] as const).map((side) => ({ side, count: this.waysOnSide(room, side) }));
+    const near = ways.reduce((best, way) => (way.count > best.count ? way : best)).side;
+    const far = OPPOSITE[near];
+    const across = far === 'n' || far === 's';
+    const depth = across ? room.h : room.w;
+    const breadth = across ? room.w : room.h;
+    const cellAtDepth = (fromFar: number, along: number) => {
+      const row = far === 'n' || far === 'w' ? fromFar : depth - 1 - fromFar;
+      return across ? { x: room.x + along, y: room.y + row } : { x: room.x + row, y: room.y + along };
+    };
+    if (plan.back) {
+      const altar = { ...cellAtDepth(0, Math.floor(breadth / 2)), w: 1, h: 1 };
+      if (this.standsClear(altar)) this.putRect(room, plan.back, altar, BACK_TO[far]);
+    }
+    const aisle = Math.floor(breadth / 2);
+    for (let fromFar = 2; fromFar <= depth - 3; fromFar += 2) {
+      for (let along = 0; along < breadth; along++) {
+        if (along === aisle || (breadth % 2 === 0 && along === aisle - 1)) continue;
+        const seat = { ...cellAtDepth(fromFar, along), w: 1, h: 1 };
+        if (this.standsClear(seat)) this.putRect(room, plan.piece, seat, BACK_TO[near]);
+      }
+    }
+  }
+
+  /** How many ways through the edge of a room open on one side of it. */
+  private waysOnSide(room: DungeonRoom, side: Way): number {
+    let ways = 0;
+    const span = side === 'n' || side === 's' ? room.w : room.h;
+    for (let offset = 0; offset < span; offset++) {
+      const x = side === 'n' || side === 's' ? room.x + offset : side === 'w' ? room.x - 1 : room.x + room.w;
+      const y = side === 'e' || side === 'w' ? room.y + offset : side === 'n' ? room.y - 1 : room.y + room.h;
+      if (this.opens(x, y)) ways++;
+    }
+    return ways;
   }
 
   /**

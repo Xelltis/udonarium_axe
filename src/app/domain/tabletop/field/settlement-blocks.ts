@@ -1,4 +1,5 @@
 import type { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import { furnishingBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import {
   DOOR_KIND_STYLES,
   DOOR_MODELS,
@@ -14,6 +15,7 @@ import {
 } from '@axe/domain/tabletop/field/mill-stream';
 import {
   type CropKind,
+  HUNG_FIXTURES,
   LOW_WALLS,
   SETTLEMENT_WALL_HEIGHTS,
   SETTLEMENT_WALL_KINDS,
@@ -22,6 +24,7 @@ import {
   type SettlementThing,
   type SettlementWallKind,
   SLOWING_CROPS,
+  type TownFixtureKind,
 } from '@axe/domain/tabletop/field/settlement-layout';
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
 import { areasOver, watersInLots, watersOver } from '@axe/domain/tabletop/field/water-areas';
@@ -92,7 +95,7 @@ function wallModelOf(
     case 'watchtower':
       return span > 1 && rect.w === 2 && rect.h === 2 ? { model: 'watchtower_wood', turn: 0 } : null;
     case 'timberWall':
-      return { model: settlement.kind === 'village' ? 'timber_frame_wall' : 'log_wall', turn: alongTurn(rect) };
+      return { model: settlement.kind === 'barbarianFort' ? 'log_wall' : 'timber_frame_wall', turn: alongTurn(rect) };
     case 'fence':
       return { model: 'rail_fence', turn: alongTurn(rect) };
     case 'boardWall':
@@ -103,6 +106,63 @@ function wallModelOf(
       return null;
   }
 }
+
+/** What a market stall is built of where it is drawn as a block: its boards and its canvas. */
+const STALL_SKIN: Skin = { side: 'wall_timber', top: 'felt' };
+
+/** What a shop's sign is built of, where it is drawn at all: the wall it hangs on. */
+const SIGN_SKIN: Skin = { side: 'wall_timber', top: 'wood_plank' };
+
+/**
+ * What each fixture of a town is drawn as and built of: its model, and where it is drawn without one,
+ * a block of its skin as tall as it stands filling so much of its cells; whether a piece may climb
+ * onto it, as onto a bench, or not, as onto a fountain or a lamp post. A fixture that hangs on a wall
+ * is drawn only as its model, over the wall's own cell.
+ */
+const FIXTURES: Readonly<
+  Record<
+    TownFixtureKind,
+    {
+      readonly model: SettlementModelId;
+      readonly skin: Skin;
+      readonly height: number;
+      readonly fill: number;
+      readonly climbed: boolean;
+    }
+  >
+> = {
+  fountain: {
+    model: 'fountain',
+    skin: { side: 'wall_ashlar', top: 'shallows' },
+    height: 1.62,
+    fill: 0.9,
+    climbed: false,
+  },
+  marketStallFruit: { model: 'market_stall_fruit', skin: STALL_SKIN, height: 1.4, fill: 0.9, climbed: false },
+  marketStallCloth: { model: 'market_stall_cloth', skin: STALL_SKIN, height: 1.4, fill: 0.9, climbed: false },
+  marketStallPottery: { model: 'market_stall_pottery', skin: STALL_SKIN, height: 1.4, fill: 0.9, climbed: false },
+  lampPost: {
+    model: 'lamp_post',
+    skin: { side: 'wall_metal', top: 'wall_metal' },
+    height: 2,
+    fill: 0.35,
+    climbed: false,
+  },
+  bench: { model: 'bench', skin: { side: 'wall_timber', top: 'wood_plank' }, height: 0.47, fill: 0.8, climbed: true },
+  planter: { model: 'planter', skin: { side: 'wall_timber', top: 'forest' }, height: 0.46, fill: 0.8, climbed: true },
+  banner: {
+    model: 'banner',
+    skin: { side: 'wall_ashlar', top: 'stone_paving_big' },
+    height: 3.5,
+    fill: 1,
+    climbed: false,
+  },
+  signInn: { model: 'sign_inn', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
+  signTavern: { model: 'sign_tavern', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
+  signSmithy: { model: 'sign_smithy', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
+  signBakery: { model: 'sign_bakery', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
+  signShop: { model: 'sign_shop', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
+};
 
 /** The model each small thing is drawn as, kept to its own shape within its cell. */
 const THING_MODELS: Readonly<Record<SettlementThing['thing'], SettlementModelId>> = {
@@ -440,6 +500,26 @@ export function settlementBlocks(
       ...(model ? { model } : {}),
     });
   }
+  for (const fixture of settlement.fixtures ?? []) {
+    const shape = FIXTURES[fixture.kind];
+    const hung = HUNG_FIXTURES.includes(fixture.kind);
+    if (hung && !models) continue;
+    const filled = models ? 1 : shape.fill;
+    blocks.push({
+      kind: 'prop',
+      rect: fixture.rect,
+      blocksSight: false,
+      blocksClimb: !shape.climbed,
+      locked: false,
+      rooms: [],
+      skin: { side: { kind: 'texture', id: shape.skin.side }, top: { kind: 'texture', id: shape.skin.top } },
+      height: shape.height,
+      ...(filled < 1 ? { footprint: { w: fixture.rect.w * filled, d: fixture.rect.h * filled } } : {}),
+      thing: fixture.kind,
+      ...(models ? { model: shape.model, modelTurn: fixture.turn || undefined } : {}),
+    });
+  }
+  for (const piece of settlement.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, { models }));
   const mills = settlement.mills ?? [];
   const liftOf = mills.length > 0 ? blockLiftsTo(level, ground, gridType) : () => undefined;
   for (const mill of mills) blocks.push(...millBlocks(mill, span, models, liftOf, gridType));

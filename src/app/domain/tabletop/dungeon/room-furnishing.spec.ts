@@ -766,3 +766,39 @@ describe('furniture against the walls and in the middle', () => {
 function touchesCell(piece: DungeonRect, cell: DungeonPoint): boolean {
   return cell.x >= piece.x && cell.y >= piece.y && cell.x < piece.x + piece.w && cell.y < piece.y + piece.h;
 }
+
+describe('rows of seats facing the far end of a room', () => {
+  it('stands the back piece against the wall across from the way in facing the room, and rows of seats facing it with an aisle', () => {
+    let rooms = 0;
+    for (const seed of SEEDS) {
+      const layout = generateDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed });
+      const placed = furnishRooms(
+        layout,
+        [{ piece: 'barrel', arrangement: 'rows', roles: ['hall'], every: 0, back: 'crate' }],
+        seededRandom(seed)
+      );
+      const altar = placed.find((piece) => piece.piece === 'crate');
+      const pews = placed.filter((piece) => piece.piece === 'barrel');
+      if (!altar || pews.length === 0) continue;
+      rooms++;
+      const back: Readonly<Record<number, readonly [number, number]>> = {
+        0: [0, -1],
+        90: [1, 0],
+        180: [0, 1],
+        270: [-1, 0],
+      };
+      const [bx, by] = back[altar.facing!];
+      expect(cellAt(layout, altar.x + bx, altar.y + by), `${seed}`).toBe(DungeonCell.Rock);
+      for (const pew of pews) {
+        expect((pew.facing! + 180) % 360, `${seed}`).toBe(altar.facing);
+        const towards = bx !== 0 ? Math.sign(altar.x - pew.x) : Math.sign(altar.y - pew.y);
+        expect(towards, `${seed}`).toBe(bx !== 0 ? bx : by);
+      }
+      const hall = layout.rooms.find((room) => room.role === 'hall')!;
+      const across = bx === 0;
+      const middle = across ? hall.x + Math.floor(hall.w / 2) : hall.y + Math.floor(hall.h / 2);
+      expect(pews.some((pew) => (across ? pew.x : pew.y) === middle)).toBe(false);
+    }
+    expect(rooms).toBeGreaterThan(2);
+  });
+});
