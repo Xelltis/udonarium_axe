@@ -686,8 +686,9 @@ export class BuffManager {
    *
    * A buff that leaves its status moved left it moved when it went, so a record of it gone is taken
    * to stand where it last moved it. One that comes back after going, `cameBackMoving` being how far
-   * the count it ran out at moved the status, has that given back as well. What the row moved that the
-   * record does not is let go of first (see {@link letGoOfStale}).
+   * the count it ran out at moved the status, has that given back as well. An item a buff made, made
+   * again here as it has gone, has had nothing moved on it yet, whatever the row says it moved. What
+   * the row moved that the record does not is let go of first (see {@link letGoOfStale}).
    */
   private restoreModifier(
     data: DataElement,
@@ -696,9 +697,9 @@ export class BuffManager {
     made: boolean
   ): void {
     if (!wanted) return;
-    if (made) this.status()?.makeForBuff(wanted.target, 0);
+    const remade = made && (this.status()?.makeForBuff(wanted.target, 0) ?? false);
     const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
-    const applied = readBuffModifier(data)?.applied ?? left;
+    const applied = remade ? left : (readBuffModifier(data)?.applied ?? left);
     if (applied !== wanted.applied) {
       this.changeByBuff(wanted.target, wanted.slot, wanted.applied - applied);
     }

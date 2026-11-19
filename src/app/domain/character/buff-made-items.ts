@@ -1,3 +1,4 @@
+import { noteLeftByBuffs } from '@axe/domain/character/buff-modifier';
 import {
   DataElement,
   DataElementAttribute,
@@ -17,7 +18,9 @@ const MADE_BY_BUFF = 'cs-buff-made';
 /**
  * Makes an item at the foot of the sheet for a buff to move: a line of text holding the words, or a
  * number field holding the number, marked as made by a buff, in the group of the section such items
- * are kept in, which is made too where the sheet has none yet.
+ * are kept in, which is made too where the sheet has none yet. What it holds is noted as the buffs'
+ * from the first (see `noteLeftByBuffs`), so anything written into it otherwise after, by hand or by a
+ * command, is told apart and kept, however the buff that made it came to make it.
  */
 export function makeBuffItem(detail: DataElement, name: string, value: string | number): DataElement {
   const section = buffItemsSectionOf(detail) ?? makeBuffItemsSection(detail);
@@ -28,6 +31,7 @@ export function makeBuffItem(detail: DataElement, name: string, value: string | 
       typeof value === 'number' ? DataElementFieldType.NUMBER : DataElementFieldType.TEXT,
     [MADE_BY_BUFF]: '1',
   });
+  noteLeftByBuffs(item);
   group.appendChild(item);
   return item;
 }

@@ -1790,6 +1790,32 @@ describe('BuffManager', () => {
         expect(status.getText('武器属性')).toBe('炎');
       });
 
+      it('keeps what was written by hand into an item a buff made again as a step was undone', () => {
+        grant('鼓舞', '気力', '=', '0', 1);
+        const standing = sheeted.snapshot();
+        sheeted.expireOneRound();
+        expect(status.getText('気力')).toBeNull();
+
+        sheeted.restore(standing);
+        detail.getFirstElementByName('気力')!.value = 5;
+        sheeted.delete('鼓舞');
+
+        expect(status.getValue('気力', 'now')).toBe(5);
+        expect(status.madeByBuff('気力')).toBe(false);
+      });
+
+      it('moves an item a buff made, made again as a step is undone, from nothing, though its row stayed', () => {
+        grant('物理強化', '物理D増加', '+', '2');
+        const standing = sheeted.snapshot();
+        detail.getFirstElementByName('物理D増加')!.destroy();
+
+        sheeted.restore(standing);
+        expect(status.getValue('物理D増加', 'now')).toBe(2);
+        sheeted.delete('物理強化');
+
+        expect(status.getText('物理D増加')).toBeNull();
+      });
+
       it('makes again only an item a buff made, as a step is undone', () => {
         sheeted.addRound('猛攻撃', '', 2);
         sheeted.applyModifier(sheeted.find('猛攻撃')!, parseBuffModifierRequest('命中', '+', '2')!);
