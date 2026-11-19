@@ -62,6 +62,7 @@ describe('AGENT_TOOLS', () => {
       'list_assets',
       'read_scenario_text',
       'wait_for_events',
+      'list_music',
       'describe_kinds',
       'list_objects',
       'get_object',

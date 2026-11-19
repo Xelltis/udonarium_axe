@@ -4,6 +4,7 @@ import { AgentToolRunner } from '@axe/application/agent/agent-tool-runner.servic
 import { AgentChatTools } from '@axe/features/agent-tools/agent-chat-tools.service';
 import { AgentGmTools } from '@axe/features/agent-tools/agent-gm-tools.service';
 import { AgentKindTools } from '@axe/features/agent-tools/agent-kind-tools.service';
+import { AgentMusicTools } from '@axe/features/agent-tools/agent-music-tools.service';
 import { AgentPieceTools } from '@axe/features/agent-tools/agent-piece-tools.service';
 import { AgentReadTools } from '@axe/features/agent-tools/agent-read-tools.service';
 
@@ -21,6 +22,7 @@ export class AgentToolsSetup {
   private readonly pieces = inject(AgentPieceTools);
   private readonly gm = inject(AgentGmTools);
   private readonly kinds = inject(AgentKindTools);
+  private readonly music = inject(AgentMusicTools);
   private done = false;
 
   /** Makes every tool runnable, once, and keeps what happens from now. */
@@ -33,6 +35,7 @@ export class AgentToolsSetup {
     this.runner.provide(this.pieces.handlers);
     this.runner.provide(this.gm.handlers);
     this.runner.provide(this.kinds.handlers);
+    this.runner.provide(this.music.handlers);
   }
 
   /** Stops keeping what happens. */

@@ -192,6 +192,14 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     }),
   },
   {
+    name: 'list_music',
+    title: 'List the music',
+    access: 'read',
+    description:
+      'List what plays now, every track that can be played as music (with its tag, the playlists that hold it, and its length, tempo and loudness where known), the playlists, and for the game master the scenes that put music on.',
+    input: input({}),
+  },
+  {
     name: 'describe_kinds',
     title: 'Describe the kinds of things',
     access: 'read',
@@ -489,6 +497,18 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
       },
       ['kind', 'sound']
     ),
+  },
+  {
+    name: 'play_music',
+    title: 'Put music on',
+    access: 'write',
+    description:
+      'Put on the room\'s music for everyone: a track or a playlist by name or id, or whatever suits a mood written in a few words (as "battle tense" or "静か 夜"), matched against the tracks\' names and tags, the playlists\' names and, for the game master, the names and folders of the scenes that put music on. A playlist found by as many words as a track is chosen before it. Answers what was put on, the words that found it and the other candidates. Name the music the room holds after the moods it suits for mood to find it.',
+    input: input({
+      track: { type: 'string', description: 'A track, by name or id.' },
+      playlist: { type: 'string', description: 'A playlist, by name or id.' },
+      mood: { type: 'string', description: 'A mood in a few words, parted by spaces or commas.' },
+    }),
   },
   {
     name: 'stop_sound',
