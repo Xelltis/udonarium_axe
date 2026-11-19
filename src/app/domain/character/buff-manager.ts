@@ -583,18 +583,27 @@ export class BuffManager {
   putBack(entries: readonly BuffSnapshotEntry[]): void {
     this.alter(() => {
       this.gather();
-      for (const entry of entries) {
-        const found = this.find(entry.name);
-        const data = found ?? this.append(entry.name, entry.value, entry.info);
-        if (!data) continue;
-        data.value = entry.value;
-        data.currentValue = entry.info;
-        applyAppearance(data, entry.appearance);
-        this.letGoOfStale(data, entry);
-        this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
-        this.restoreWords(data, entry.words ?? null, entry.made ?? false);
-      }
+      for (const entry of entries) this.putEntryBack(entry);
     });
+  }
+
+  /**
+   * Puts one buff back as the entry found it, by {@link putBack} and {@link restore} alike: its row,
+   * made again where it has gone, gets its rounds, its note and its look back, lets go of what it holds
+   * that the entry does not (see {@link letGoOfStale}), and moves and writes on the sheet what the entry
+   * did, by the difference alone. Null where the piece has no buff element to hold the row.
+   */
+  private putEntryBack(entry: BuffSnapshotEntry): DataElement | null {
+    const found = this.find(entry.name);
+    const data = found ?? this.append(entry.name, entry.value, entry.info);
+    if (!data) return null;
+    data.value = entry.value;
+    data.currentValue = entry.info;
+    applyAppearance(data, entry.appearance);
+    this.letGoOfStale(data, entry);
+    this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
+    this.restoreWords(data, entry.words ?? null, entry.made ?? false);
+    return data;
   }
 
   /**
@@ -639,16 +648,8 @@ export class BuffManager {
       }
       const restored: DataElement[] = [];
       for (const entry of entries) {
-        const found = this.find(entry.name);
-        const data = found ?? this.append(entry.name, entry.value, entry.info);
-        if (!data) continue;
-        data.value = entry.value;
-        data.currentValue = entry.info;
-        applyAppearance(data, entry.appearance);
-        this.letGoOfStale(data, entry);
-        this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
-        this.restoreWords(data, entry.words ?? null, entry.made ?? false);
-        restored.push(data);
+        const data = this.putEntryBack(entry);
+        if (data) restored.push(data);
       }
       this.reorder(restored);
     });

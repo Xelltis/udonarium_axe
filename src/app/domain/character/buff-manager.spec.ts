@@ -1,7 +1,7 @@
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
-import { BuffManager } from '@axe/domain/character/buff-manager';
+import { BuffManager, type BuffSnapshotEntry } from '@axe/domain/character/buff-manager';
 import {
   parseBuffModifierRequest,
   readBuffModifier,
@@ -1212,6 +1212,32 @@ describe('BuffManager', () => {
       sheeted.addRound(name, '', round);
       return sheeted.applyModifier(sheeted.find(name)!, parseBuffModifierRequest(target, operator, amount)!, true);
     }
+
+    it('puts each buff back the same way, put back one by one or the whole state restored', () => {
+      const sheet = () => ({
+        words: status.getText('属性'),
+        hit: status.getValue('命中', 'now'),
+        made: status.getValue('気力', 'now'),
+        rows: sheeted.list().map((row) => [row.name, row.value, readBuffModifier(row), readBuffTextModifier(row)]),
+      });
+      grant('ファイア・ウェポン', '属性', '=', '炎', 3);
+      grant('猛攻撃', '命中', '+', '2', 3);
+      grant('鼓舞', '気力', '+', '1', 3);
+      const standing = sheeted.snapshot();
+      const laid = sheet();
+      expect(laid).toMatchObject({ words: '炎', hit: 12, made: 1 });
+      const ways = [
+        (entries: BuffSnapshotEntry[]) => sheeted.putBack(entries),
+        (entries: BuffSnapshotEntry[]) => sheeted.restore(entries),
+      ];
+
+      for (const putBack of ways) {
+        sheeted.removeWhere(() => true);
+        expect(status.getText('属性')).toBe('無属性');
+        putBack(standing);
+        expect(sheet()).toEqual(laid);
+      }
+    });
 
     it('holds the item at the words while it stands and puts back what it held as it runs out', () => {
       grant('ファイア・ウェポン', '属性', '=', '炎', 1);
