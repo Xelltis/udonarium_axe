@@ -1,4 +1,5 @@
 import { DungeonPropId } from '@axe/domain/media/texture-catalog';
+import { type Side, SIDE_STEPS, TURN_TO_FACE } from '@axe/domain/tabletop/cell-steps';
 import { DungeonAtmosphere, WaterwayPlan } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import {
   cellAt,
@@ -36,6 +37,7 @@ import {
   MapLighting,
   MapLightKind,
   MapPaint,
+  MapPoint,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
 
@@ -189,6 +191,31 @@ function findLights(
 }
 
 /**
+ * The cell a piece of several cells that faces one way stands its middle on, on a board of hexes (see
+ * `blockCorner`): of the cells of its rectangle, those farthest out the way it faces, and of those the
+ * one nearest its middle, so a piece with its back to a wall reaches no further into the wall than its
+ * rectangle does, and stands out into the room instead. None for a piece facing no way of the four.
+ */
+function frontCellOf(piece: DungeonFurnishing): MapPoint | undefined {
+  const side = SIDES.find((each) => TURN_TO_FACE[each] === (((piece.facing ?? -1) % 360) + 360) % 360);
+  if (!side) return undefined;
+  const { dx, dy } = SIDE_STEPS[side];
+  const cells = Array.from({ length: piece.w * piece.h }, (_, at) => ({
+    x: piece.x + (at % piece.w),
+    y: piece.y + Math.floor(at / piece.w),
+  }));
+  const reach = Math.max(...cells.map(({ x, y }) => x * dx + y * dy));
+  const front = cells.filter(({ x, y }) => x * dx + y * dy === reach);
+  const middle = { x: piece.x + (piece.w - 1) / 2, y: piece.y + (piece.h - 1) / 2 };
+  return front.reduce((best, cell) =>
+    Math.hypot(cell.x - middle.x, cell.y - middle.y) < Math.hypot(best.x - middle.x, best.y - middle.y) ? cell : best
+  );
+}
+
+/** The four sides a piece may face. */
+const SIDES: readonly Side[] = ['n', 'e', 's', 'w'];
+
+/**
  * The blocks one piece of furniture is built of: one for the whole of it, or one to a cell on a
  * board whose cells will not gather into rectangles, and again for whatever is stacked on it.
  *
@@ -201,7 +228,8 @@ function findLights(
  * as its model, so that it meets the part in the next cell. A piece made to take several cells, as a
  * bed is, is one block on every board, standing as its model over all of them. A piece that faces a
  * way has its model turned that way; a run lying down the board has its model turned a quarter. A
- * piece that lies on the floor as a picture is built as its top alone, walked over.
+ * piece that lies on the floor as a picture is built as its top alone, walked over. On hexes, a piece
+ * of several cells that faces a way stands on the cell it faces out of (see {@link frontCellOf}).
  */
 export function furnishingBlocks(
   piece: DungeonFurnishing,
@@ -214,6 +242,7 @@ export function furnishingBlocks(
   const made = options.models === true && FURNISHING_SHAPES[piece.piece].cells !== undefined;
   const rects = (span > 1 && !segmented) || made ? [piece] : cellsOf(piece);
   const turn = piece.facing ?? ((segmented ? !lying : piece.h > piece.w) ? 90 : 0);
+  const standsOn = made && run ? frontCellOf(piece) : undefined;
   const blocks: MapBlock[] = [];
   let altitude = 0;
   for (const level of [piece.piece, ...(piece.stack ?? [])]) {
@@ -243,6 +272,7 @@ export function furnishingBlocks(
         altitude: altitude || undefined,
         rotate: piece.spin || undefined,
         thing: level,
+        ...(standsOn ? { standsOn } : {}),
         ...(shape.floor ? { floorOnly: true } : {}),
         ...(model ? { model, ...(turn ? { modelTurn: turn } : {}) } : {}),
       });

@@ -34,6 +34,21 @@ describe('a piece of furniture of several cells drawn as its model', () => {
     }
   });
 
+  it('stands a piece facing a way on the cell it faces out of, reaching no further into the wall at its back', () => {
+    for (const gridType of HEXES) {
+      for (const [facing, cell] of [
+        [0, { x: 5, y: 3 }],
+        [180, { x: 5, y: 2 }],
+      ] as const) {
+        const piece: DungeonFurnishing = { piece: 'bed', x: 5, y: 2, w: 1, h: 2, spin: 0, facing };
+        const [block] = furnishingBlocks(piece, 1, { models: true, gridType });
+        const middle = middleOf(block, gridType);
+        const centre = cellCentre(cell, { type: gridType, sizePx: 1 });
+        expect(Math.hypot(centre.x - middle.x, centre.y - middle.y), `${gridType} ${facing}`).toBeLessThan(1e-9);
+      }
+    }
+  });
+
   it('stands as its rectangle on squares', () => {
     for (const piece of pieces) {
       const [block] = furnishingBlocks(piece, 12, { models: true, gridType: GridType.SQUARE });
