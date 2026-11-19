@@ -222,10 +222,10 @@ export class BuffManager {
   /**
    * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
    * now stands on what this one found there, so it puts that back when it goes. Where none did, the item
-   * goes back to what it held, unless it holds other words now, which someone wrote by hand and are
-   * left.
+   * goes back to what it held, unless someone wrote into it by hand (see {@link writtenByHand}).
    */
   private revertWords(data: DataElement, words: BuffTextModifier): void {
+    const chain = this.wordsOn(words.target);
     clearBuffTextModifier(data);
     const status = this.status();
     if (!status) return;
@@ -234,7 +234,18 @@ export class BuffManager {
       writeBuffTextModifier(above.row, { ...above.written, before: words.before });
       return;
     }
-    if (status.getText(words.target) === words.text) status.setText(words.target, words.before);
+    if (!this.writtenByHand(words.target, chain)) status.setText(words.target, words.before);
+  }
+
+  /**
+   * Whether someone wrote into an item by hand while buffs wrote into it: it holds neither the words
+   * one of those buffs, `chain`, wrote, nor what it held before the first of them. What was written by
+   * hand stays as it is, whichever of the buffs goes or comes back.
+   */
+  private writtenByHand(target: string, chain: readonly { written: BuffTextModifier }[]): boolean {
+    const held = this.status()?.getText(target);
+    if (held == null || chain.length < 1) return false;
+    return held !== chain[0].written.before && !chain.some(({ written }) => written.text === held);
   }
 
   /**
@@ -622,7 +633,8 @@ export class BuffManager {
   /**
    * Lays the buffs that write into an item in the order they wrote: the first stands on what the item
    * held before any of them, each later one on the words of the one before it, and the item shows the
-   * words of the last. Run as buffs are put back, whichever of them were and in whatever order.
+   * words of the last, unless someone wrote into it by hand (see {@link writtenByHand}). Run as buffs
+   * are put back, whichever of them were and in whatever order.
    */
   private relinkWords(target: string): void {
     const chain = this.wordsOn(target);
@@ -633,7 +645,9 @@ export class BuffManager {
       below = written.text;
     }
     const status = this.status();
-    if (status && status.getText(target) !== below) status.setText(target, below);
+    if (status && status.getText(target) !== below && !this.writtenByHand(target, chain)) {
+      status.setText(target, below);
+    }
   }
 
   /** The buffs that write into an item, in the order they wrote, with what each wrote. */

@@ -1232,6 +1232,25 @@ describe('BuffManager', () => {
       expect(status.getText('属性')).toBe('雷');
     });
 
+    it('leaves words written into the item by hand as the buff comes back, as it does as it goes', () => {
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      grant('ファイア・ウェポン', '属性', '=', '炎', 1);
+      const standing = sheeted.snapshot();
+      status.setText('属性', '雷');
+
+      sheeted.restore(standing);
+      expect(status.getText('属性')).toBe('雷');
+
+      const due = sheeted.dueAt('roundEnd', owner);
+      sheeted.expireAt('roundEnd', owner);
+      expect(status.getText('属性')).toBe('雷');
+      sheeted.putBack(due);
+      expect(status.getText('属性')).toBe('雷');
+
+      sheeted.delete('ファイア・ウェポン');
+      expect(status.getText('属性')).toBe('雷');
+    });
+
     it('puts back what each buff found there, whichever of two on the same item goes first', () => {
       grant('ファイア・ウェポン', '属性', '=', '炎');
       grant('アイス・ウェポン', '属性', '=', '氷');
