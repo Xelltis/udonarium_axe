@@ -767,6 +767,45 @@ function touchesCell(piece: DungeonRect, cell: DungeonPoint): boolean {
   return cell.x >= piece.x && cell.y >= piece.y && cell.x < piece.x + piece.w && cell.y < piece.y + piece.h;
 }
 
+describe('one piece in the middle of a room', () => {
+  it('lies along the room’s length, whichever way the piece was made longer', () => {
+    for (const [roomW, roomH] of [
+      [8, 4],
+      [4, 8],
+    ]) {
+      const width = roomW + 4;
+      const height = roomH + 4;
+      const cells = new Uint8Array(width * height).fill(DungeonCell.Rock);
+      const room = { x: 2, y: 2, w: roomW, h: roomH, index: 0, role: DungeonRoomRole.Hall };
+      for (let y = room.y; y < room.y + room.h; y++) {
+        for (let x = room.x; x < room.x + room.w; x++) cells[y * width + x] = DungeonCell.Room;
+      }
+      const layout = {
+        width,
+        height,
+        cells,
+        rooms: [room],
+        doors: [],
+        doorLeaves: [],
+        links: [],
+        entrance: { x: 0, y: 0 },
+        exit: { x: 0, y: 0 },
+        mouth: null,
+        keyRoomIndex: -1,
+        seed: 1,
+      } as DungeonLayout;
+      for (const piece of ['bed', 'rouletteTable'] as const) {
+        const [placed] = furnishRooms(
+          layout,
+          [{ piece, arrangement: 'centre', roles: ['hall'], every: 0 }],
+          seededRandom(1)
+        );
+        expect(placed.w > placed.h, `${piece} in ${roomW}x${roomH}`).toBe(roomW > roomH);
+      }
+    }
+  });
+});
+
 describe('rows of seats facing the far end of a room', () => {
   it('faces away from the way in out of the rooms, though a way into a room next door opens on another side', () => {
     const width = 16;

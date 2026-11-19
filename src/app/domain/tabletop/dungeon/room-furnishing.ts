@@ -817,7 +817,7 @@ class Furnisher {
     const pieces = plan.pieces ?? [plan.piece];
     const piece = pieces[Math.floor(this.rng() * pieces.length) % pieces.length];
     const { w, d } = cellsTakenBy(piece);
-    const turned = w !== d && room.h > room.w;
+    const turned = w !== d && room.w !== room.h && w > d !== room.w > room.h;
     const across = turned ? d : w;
     const deep = turned ? w : d;
     const middle = { x: room.x + room.w / 2, y: room.y + room.h / 2 };
