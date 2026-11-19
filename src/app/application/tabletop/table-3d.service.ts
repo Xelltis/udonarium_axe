@@ -390,7 +390,7 @@ export class Table3dService {
   private readonly terrainModelsInWater = computed<readonly TableWorldModel[]>(() => {
     const models = this.terrainModels();
     const grid = this.waterCells.grid();
-    const cells = this.waterCells.cells();
+    const cells = this.waterCells.everyCell();
     if (!grid || cells.size < 1 || models.length < 1) return models;
     const currents = new Map<string, WaterCurrent>();
     for (const { terrain } of this.terrainsDrawnAsModels()) {

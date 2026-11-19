@@ -188,14 +188,25 @@ export class WaterService {
    */
   readonly cells = computed<ReadonlyMap<number, WaterCell>>(
     () => {
-      const grid = this.grid();
-      const areas = this.areas();
-      if (!grid || areas.length < 1) return NO_CELLS;
-      const cells = waterCellsOf(grid, areas, this.groundOf);
+      const cells = new Map(this.everyCell());
       for (const [index, cell] of cells) {
         if (this.vision.isHiddenByFog(cell.cx, cell.cy)) cells.delete(index);
       }
       return cells;
+    },
+    { equal: sameWaterCells }
+  );
+
+  /**
+   * Every cell of water, fog or no fog: the water as it is, which the way it runs under what stands
+   * in it is read from, whether or not this seat has seen all of it.
+   */
+  readonly everyCell = computed<ReadonlyMap<number, WaterCell>>(
+    () => {
+      const grid = this.grid();
+      const areas = this.areas();
+      if (!grid || areas.length < 1) return NO_CELLS;
+      return waterCellsOf(grid, areas, this.groundOf);
     },
     { equal: sameWaterCells }
   );

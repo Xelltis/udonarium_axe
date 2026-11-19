@@ -14,6 +14,7 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -1173,6 +1174,11 @@ describe('Table3dService', () => {
       TestBed.inject(ObjectChangeService).notifyChanged(stream.identifier);
 
       expect(currentOf(mill)).toEqual({ towardX: 0, towardY: -1, surfacePx: 25 });
+
+      vi.spyOn(TestBed.inject(VisionService), 'isHiddenByFog').mockReturnValue(true);
+      stream.flowDirection = 180;
+      TestBed.inject(ObjectChangeService).notifyChanged(stream.identifier);
+      expect(currentOf(mill)).toEqual({ towardX: 0, towardY: 1, surfacePx: 25 });
     } finally {
       table.destroy();
     }
