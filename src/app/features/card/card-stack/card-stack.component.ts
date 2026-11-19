@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -36,7 +37,6 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CardDrawCountDialogComponent } from '@axe/features/card/card-draw-count-dialog/card-draw-count-dialog.component';
 import { CardDropService } from '@axe/features/card/card-drop.service';
-import { CardGameService } from '@axe/features/card/card-game.service';
 import { buildCardStackContextMenu } from '@axe/features/card/card-stack/card-stack-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CardFaceTextComponent } from '@axe/ui/components/card-face-text/card-face-text.component';

@@ -45,5 +45,5 @@
 ## コイン
 
 - **コイン** — `Coin`（`domain/coin/coin`、`@SyncObject('coin')`）。SyncVarは`face`（`front`か`back`、既定`front`）・`isLock`・`rotate`・`zindex`で、大きさ（未設定は1マス）は共通データに、表と裏の画像は画像データに持つ。卓の右クリック「コインを作成」で置き、コインの右クリックの「コインを投げる」、今の面に応じた「表にする」か「裏にする」、「コインを編集」で扱う
-- **投げる** — `CoinFlipService.flip`（`features/coin/coin-flip.service`）が表と裏を1/2ずつの確率で選ぶので、前と同じ面が出ることもある。`callFlipCoin`で全員の画面のコインを回し、自分の画面ではネットワークの往復を待たずに回し始める（`ObjectChangeService.notifyCoinFlipped`）。900ms後、投げた人が読んでいるチャットタブへ「{{who}} が {{name}} を投げました → {{face}}」をシステムメッセージとして送り、その時点でコインが消えていれば送らない。表か裏かは2面のダイスと同じなので、ダイスと同じく読んでいるタブに出す
+- **投げる** — `CoinFlipService.flip`（`application/coin/coin-flip.service`）が表と裏を1/2ずつの確率で選ぶので、前と同じ面が出ることもある。`callFlipCoin`で全員の画面のコインを回し、自分の画面ではネットワークの往復を待たずに回し始める（`ObjectChangeService.notifyCoinFlipped`）。900ms後、投げた人が読んでいるチャットタブへ「{{who}} が {{name}} を投げました → {{face}}」をシステムメッセージとして送り、その時点でコインが消えていれば送らない。表か裏かは2面のダイスと同じなので、ダイスと同じく読んでいるタブに出す
 - **絵のない面** — 画像を設定しない面は金色のコインとして描き、表には星と光の筋を、裏には月桂樹の葉を刻む（`domain/coin/coin-emblem`。描くのは`infrastructure/table-3d/coin-sides`）

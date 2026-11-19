@@ -1,6 +1,7 @@
 import { ApplicationRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
@@ -14,7 +15,6 @@ import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
-import { CardGameService } from '@axe/features/card/card-game.service';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';

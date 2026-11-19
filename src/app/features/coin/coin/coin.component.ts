@@ -9,6 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { CoinFlipService } from '@axe/application/coin/coin-flip.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -26,7 +27,6 @@ import { isInStore } from '@axe/core/sync/object-store';
 import { Coin, CoinFace } from '@axe/domain/coin/coin';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { buildCoinContextMenu } from '@axe/features/coin/coin/coin-context-menu';
-import { CoinFlipService } from '@axe/features/coin/coin-flip.service';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';

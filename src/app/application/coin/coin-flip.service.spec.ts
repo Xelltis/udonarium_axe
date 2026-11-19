@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { CoinFlipService } from '@axe/application/coin/coin-flip.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -9,7 +10,6 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { Coin } from '@axe/domain/coin/coin';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { CoinFlipService } from '@axe/features/coin/coin-flip.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CoinFlipService', () => {

@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { CardFlipCutInService } from '@axe/application/card/card-flip-cut-in.service';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -30,7 +31,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { buildCardContextMenu } from '@axe/features/card/card/card-context-menu';
 import { selectOverlappingCards } from '@axe/features/card/card/overlapping-cards';
 import { CardDropService } from '@axe/features/card/card-drop.service';
-import { CardFlipCutInService } from '@axe/features/card/card-flip-cut-in.service';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
 import { HandDragService } from '@axe/features/card/hand-rail/hand-drag.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
