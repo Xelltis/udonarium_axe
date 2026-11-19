@@ -86,15 +86,22 @@ export class BuffManager {
    * Makes a change to the piece's buffs, and once it is done, with every change it is part of, takes
    * away every item a buff made that no buff uses any more (see {@link sweepMadeItems}). Every change
    * to the buffs is made in one; a change made of several, as a buff the chat lays again is taken off
-   * and laid, is made whole in one, so the item it stands on is not swept halfway.
+   * and laid, is made whole in one, so the item it stands on is not swept halfway. A change that fails
+   * partway sweeps nothing, and its error is the one thrown.
    */
   alter<T>(change: () => T): T {
     this.changing++;
+    let done = false;
     try {
-      return change();
+      const made = change();
+      done = true;
+      return made;
     } finally {
       this.changing--;
-      if (this.changing === 0) this.sweepMadeItems();
+      if (this.changing === 0) {
+        if (done) this.sweepMadeItems();
+        else this.released.clear();
+      }
     }
   }
 
@@ -300,15 +307,16 @@ export class BuffManager {
   }
 
   /**
-   * Changes a number a buff moves, and notes what it leaves in the item, unless someone had written
-   * into the item otherwise, which stays noted so.
+   * Changes a number a buff moves, and notes what it leaves in the item where a buff made the item,
+   * which alone the note of a number is read for (see {@link sweepMadeItems}); unless someone had
+   * written into the item otherwise, which stays noted so.
    */
   private changeByBuff(target: string, slot: ResourceSlot, by: number): void {
     const status = this.status();
     if (!status) return;
     const byHand = this.writtenByHand(target);
     status.changeValue(target, slot, by);
-    if (!byHand) status.noteLeftByBuffs(target);
+    if (!byHand && status.madeByBuff(target)) status.noteLeftByBuffs(target);
   }
 
   /**
@@ -586,6 +594,7 @@ export class BuffManager {
         data.value = entry.value;
         data.currentValue = entry.info;
         applyAppearance(data, entry.appearance);
+        this.letGoOfStale(data, entry);
         this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
         this.restoreWords(data, entry.words ?? null, entry.made ?? false);
       }
@@ -640,6 +649,7 @@ export class BuffManager {
         data.value = entry.value;
         data.currentValue = entry.info;
         applyAppearance(data, entry.appearance);
+        this.letGoOfStale(data, entry);
         this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
         this.restoreWords(data, entry.words ?? null, entry.made ?? false);
         restored.push(data);
@@ -699,6 +709,18 @@ export class BuffManager {
       this.changeByBuff(wanted.target, wanted.slot, wanted.applied - applied);
     }
     writeBuffModifier(data, wanted);
+  }
+
+  /**
+   * Lets go of what a row holds now that the record it is put back to does not, before either is laid
+   * again: words it no longer writes, or a number it no longer moves, as a buff laid again under the
+   * same name with other words or a move holds. Each goes back as it would as the buff goes.
+   */
+  private letGoOfStale(data: DataElement, entry: BuffSnapshotEntry): void {
+    const words = readBuffTextModifier(data);
+    if (words && (!entry.words || words.target !== entry.words.target)) this.revertWords(data, words);
+    const modifier = readBuffModifier(data);
+    if (modifier && (!entry.modifier || !movesSameStatus(modifier, entry.modifier))) this.revertModifier(data);
   }
 
   /**

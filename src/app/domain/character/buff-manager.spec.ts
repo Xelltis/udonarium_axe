@@ -1292,6 +1292,50 @@ describe('BuffManager', () => {
       expect(status.getText('属性')).toBe('無属性');
     });
 
+    it('puts a number back where the buff was laid again with words on the same item since, as a step is undone', () => {
+      const group = detail.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(
+        DataElement.create('段位', '1', {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'select',
+          [DataElementAttribute.CHOICES]: '1,2,3',
+        })
+      );
+      sheeted.addRound('昇格', '', 3);
+      sheeted.applyModifier(sheeted.find('昇格')!, parseBuffModifierRequest('段位', '+', '1')!);
+      expect(status.getText('段位')).toBe('2');
+      const step = sheeted.snapshot();
+      sheeted.alter(() => {
+        sheeted.addRound('昇格', '', 3);
+        sheeted.applyModifier(sheeted.find('昇格')!, parseBuffModifierRequest('段位', '=', '3')!);
+      });
+      expect(status.getText('段位')).toBe('3');
+
+      sheeted.restore(step);
+      expect(status.getText('段位')).toBe('2');
+      sheeted.delete('昇格');
+      expect(status.getText('段位')).toBe('1');
+    });
+
+    it('sweeps nothing after a change that failed partway, and throws its own error', () => {
+      grant('炎の剣', '武器属性', '=', '炎');
+
+      expect(() =>
+        sheeted.alter(() => {
+          sheeted.delete('炎の剣');
+          throw new Error('partway');
+        })
+      ).toThrow('partway');
+
+      expect(status.madeByBuff('武器属性')).toBe(true);
+    });
+
+    it('notes what buffs leave in a number only on an item a buff made', () => {
+      grant('猛攻撃', '命中', '+', '2');
+
+      expect(detail.getFirstElementByName('命中')!.getAttribute(DataElementAttribute.BUFF_LEFT)).toBe('');
+    });
+
     it('keeps words written by hand after the buffs went, as one of them is put back', () => {
       const owner = { identifier: 'owner', name: 'テストキャラ' };
       grant('A', '属性', '=', '炎', 1);
