@@ -301,23 +301,36 @@ export class Table3dService {
   });
 
   /**
+   * The blocks this seat may see that are drawn as 3D models, each with its model and where the model
+   * is fetched from: all the table's blocks are read through once here, and what is worked out of the
+   * models afterwards reads these alone.
+   */
+  private readonly terrainsDrawnAsModels = computed<readonly { terrain: Terrain; model: PieceModel; url: string }[]>(
+    () => {
+      this.objectChange.fileVersion();
+      this.objectChange.collectionOf(Terrain.aliasName)();
+      this.tabletop.currentTableVersion();
+      const drawn: { terrain: Terrain; model: PieceModel; url: string }[] = [];
+      for (const terrain of this.tabletop.terrains) {
+        this.objectChange.versionOf(terrain.identifier)();
+        const model = pieceModelOf(terrain);
+        const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
+        if (model && url && !this.hiddenByFog(terrain)) drawn.push({ terrain, model, url });
+      }
+      return drawn;
+    }
+  );
+
+  /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
    * middle of its box, at the foot of the block, as wide as the box is wide or deep, and a block drawn
    * as a model made as a joined wall with the arms it reaches out to the walls and doors beside it with.
    */
   private readonly terrainModels = computed<readonly TableWorldModel[]>(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf(Terrain.aliasName)();
     const table = this.tabletop.currentTableVersion();
     const gridSize = table.gridSize;
     const ground = this.standing.surface();
-    const drawn: { terrain: Terrain; model: PieceModel; url: string }[] = [];
-    for (const terrain of this.tabletop.terrains) {
-      this.objectChange.versionOf(terrain.identifier)();
-      const model = pieceModelOf(terrain);
-      const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
-      if (model && url && !this.hiddenByFog(terrain)) drawn.push({ terrain, model, url });
-    }
+    const drawn = this.terrainsDrawnAsModels();
     const walls = drawn.filter(({ url }) => this.modelFits.isJoined(url)).map(({ terrain }) => terrain);
     let joins = new Map<string, WallJoinCell[]>();
     if (walls.length > 0) {
@@ -376,10 +389,8 @@ export class Table3dService {
     const grid = this.waterCells.grid();
     const cells = this.waterCells.cells();
     if (!grid || cells.size < 1 || models.length < 1) return models;
-    const drawn = new Set(models.map((model) => model.owner));
     const currents = new Map<string, WaterCurrent>();
-    for (const terrain of this.tabletop.terrains) {
-      if (!drawn.has(terrain.identifier)) continue;
+    for (const { terrain } of this.terrainsDrawnAsModels()) {
       const under: WaterCell[] = [];
       forEachCellUnder(grid, terrain, (index) => {
         const cell = cells.get(index);
