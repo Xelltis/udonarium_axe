@@ -144,6 +144,7 @@
       "sf_walkway": "빛나는 보도",
       "sf_rooftop": "미래형 옥상",
       "tar_roof": "타르 지붕",
+      "bar_terrazzo": "검은 테라초 바닥",
       "wall_facade_concrete": "콘크리트 빌딩 외벽",
       "wall_sf_glass": "빛줄기 흑유리",
       "wall_sf_panel": "빛나는 이음새 흰 패널",
@@ -155,6 +156,7 @@
       "container_green": "컨테이너(초록)",
       "door_shutter": "셔터",
       "wall_sewer_brick": "하수도 벽돌 벽",
+      "wall_bar_brick": "술집 벽돌 벽",
       "ladder_up": "올라가는 사다리"
     },
     "reorder": {

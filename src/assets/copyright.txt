@@ -18,6 +18,8 @@ Comment: 本プロジェクトで作成した素材です。作り方は次の�
  ローカルのComfyUIによる生成で、繰り返しても継ぎ目が出ないよう切り出したもの。
  ただしimages/walls/wall_sewer_brick.webpは、同じフォルダのwall_brick.webpを暗く緑がかった
  色に変え、苔・ぬめり・水垢を作図で重ねたもので、継ぎ目のなさはもとの絵のまま。
+ images/walls/wall_bar_brick.webpとimages/tiles/bar_terrazzo.webpはAdobe Fireflyによる
+ 生成で、焼き込まれた照り返しと色むらを均し、繰り返しても継ぎ目が出ないよう切り出したもの。
  images/tiles/metal_grate.webpとimages/dungeon/*.webpは作図。
  images/lights/*.webpはローカルのComfyUIによる生成で、背景を抜いたもの。
  images/tiles/poison_pool.webpとimages/walls/cactus_skin.webpもローカルの

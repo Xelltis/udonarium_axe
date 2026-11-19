@@ -328,8 +328,8 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
   illegalBar: {
     id: 'illegalBar',
     algorithm: 'rooms',
-    defaultWall: 'wall_neon',
-    defaultFloor: 'neon_floor',
+    defaultWall: 'wall_bar_brick',
+    defaultFloor: 'bar_terrazzo',
     wallHeight: 2,
     darkness: 0.85,
     ambientColor: '#16040c',

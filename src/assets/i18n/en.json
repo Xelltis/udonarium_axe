@@ -144,6 +144,7 @@
       "sf_walkway": "Lit walkway",
       "sf_rooftop": "Future rooftop",
       "tar_roof": "Tar roof",
+      "bar_terrazzo": "Black terrazzo",
       "wall_facade_concrete": "Concrete office facade",
       "wall_sf_glass": "Light-banded black glass",
       "wall_sf_panel": "Glowing white panels",
@@ -155,6 +156,7 @@
       "container_green": "Container (green)",
       "door_shutter": "Roller shutter",
       "wall_sewer_brick": "Sewer brick wall",
+      "wall_bar_brick": "Bar brick wall",
       "ladder_up": "Ladder up"
     },
     "reorder": {
