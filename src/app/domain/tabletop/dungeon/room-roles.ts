@@ -206,8 +206,8 @@ function lockTheDeepestRoom(layout: DungeonLayout, boss: number): void {
 
 /**
  * Gives the rooms playing each part one of the kinds of room the place keeps for that part, in turn
- * by the order the rooms were dug in: a tower's small rooms a workshop, an observatory, a bedroom
- * and a study, and round again. It draws nothing from the seed, so the rest of the place comes out
+ * by the order the rooms were dug in: a tower's small rooms a library, a workshop, an observatory and
+ * a bedroom, and round again. It draws nothing from the seed, so the rest of the place comes out
  * of its seed as it would without them.
  */
 export function assignRoomSets(

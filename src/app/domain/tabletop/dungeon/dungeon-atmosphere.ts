@@ -148,8 +148,8 @@ export interface DungeonAtmosphere {
   roleNames?: DungeonRoleNaming;
   /**
    * The kinds of room it keeps for the rooms playing a part, given to them in turn, each furnished as
-   * the plans for that kind say and called by its name: a tower's small rooms are a workshop, an
-   * observatory, a bedroom and a study. Left out, every room playing a part is the same kind.
+   * the plans for that kind say and called by its name: a tower's small rooms are a library, a workshop, an
+   * observatory and a bedroom. Left out, every room playing a part is the same kind.
    */
   roomSets?: Readonly<Partial<Record<DungeonRoomRoleValue, readonly string[]>>>;
   /**
