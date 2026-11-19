@@ -34,29 +34,15 @@ function syncedKinds(): string[] {
 
 /** The kinds the AI link does not reach yet, which the coming stages of its work take one by one. */
 const NOT_YET = [
-  'Alarm',
-  'Vote',
   'asset-owner',
   'asset-removal',
   'audio-tag',
-  'board-scene',
-  'buff-palette',
   'character',
-  'chat-palette',
-  'chat-reaction',
-  'chat-tab',
-  'chat-tab-list',
-  'config',
   'data',
   'image-tag',
   'image-tag-lock',
   'model-tag',
-  'party',
   'range',
-  'scenario-text',
-  'stamp-pack',
-  'status-ailment-catalog',
-  'summary-setting',
 ];
 
 describe('AGENT_KIND_COVERAGE', () => {
