@@ -1,4 +1,4 @@
-import { mixHex } from '@axe/domain/tabletop/world/sky-dome';
+import { mixHex, MOON_HIGHEST_DEG, skyTwilightAt, SUN_HIGHEST_DEG } from '@axe/domain/tabletop/world/sky-dome';
 
 /**
  * The light the sky throws on the table at an hour of the story's day: the sun by day and the moon by
@@ -26,17 +26,12 @@ export interface SkyLight {
   readonly moonlit: number;
 }
 
-/** How high the sun climbs at noon, and the moon at midnight, in degrees. */
-const SUN_HIGHEST_DEG = 60;
-const MOON_HIGHEST_DEG = 45;
-/** How strong the light straight from each is, beside the sky's. */
+/** How strong the light straight from the sun and from the moon is, beside the sky's. */
 const SUN_STRENGTH = 0.6;
 const MOON_STRENGTH = 0.3;
 /** How low the sun is before its light is the warm light of dawn or dusk, in degrees. */
 const LOW_SUN_DEG = 15;
 
-/** How far below the horizon the sun is when the twilight is over, in degrees, as the sky drawn has it. */
-const TWILIGHT_DEG = 12;
 /** How far the night under the sky drawn over a table is drawn as by moonlight. */
 const MOONLIT = 0.6;
 
@@ -120,8 +115,7 @@ export function skyLightAt(dayFraction: number, underSky = false): SkyLight {
       moonlit: 0,
     };
   }
-  const sunBelow = -Math.sin((Math.PI * (time - 0.25)) / 0.5) * SUN_HIGHEST_DEG;
-  const night = underSky ? Math.min(1, Math.max(0, sunBelow / TWILIGHT_DEG)) : 1;
+  const night = underSky ? 1 - skyTwilightAt(time).fromNight : 1;
   return {
     direction,
     strength,

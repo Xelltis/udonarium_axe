@@ -1,3 +1,4 @@
+import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 
 describe('the light of the sky over the table', () => {
@@ -81,6 +82,14 @@ describe('the light of the sky over the table', () => {
       expect(skyLightAt(0.5, true).moonlit).toBe(0);
       expect(skyLightAt(0.75, true).moonlit).toBe(0);
       expect(skyLightAt(0).moonlit).toBe(0);
+    });
+
+    it('brings the moonlight on as the sky drawn brings its stars out, at every hour', () => {
+      const full = skyLightAt(0, true).moonlit;
+      for (let step = 0; step < 200; step++) {
+        const time = step / 200;
+        expect(skyLightAt(time, true).moonlit).toBeCloseTo(skyDomeAt(time).stars * full, 2);
+      }
     });
   });
 
