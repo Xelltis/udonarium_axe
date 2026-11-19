@@ -5,6 +5,7 @@ import {
   partPlacementsOf,
   placedPartsOf,
   placementOf,
+  sceneMaterialOf,
   senseInCurrent,
   spinOf,
   spinPlacedAt,
@@ -20,6 +21,8 @@ import {
   type InstancedMesh,
   Matrix4,
   Mesh,
+  MeshStandardMaterial,
+  Texture,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
@@ -684,5 +687,41 @@ describe('ModelLayer', () => {
       expect(wheelAt()).toEqual([100, 75, 200]);
       layer.dispose();
     });
+  });
+});
+
+describe('sceneMaterialOf', () => {
+  it('keeps the glow a part gives off, with the picture it glows in, and notes that picture as drawn', () => {
+    const picture = new Texture();
+    const shine = new Texture();
+    const neon = new MeshStandardMaterial({
+      map: picture,
+      emissive: '#ff2bd6',
+      emissiveMap: picture,
+      roughnessMap: shine,
+    });
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+
+    const made = sceneMaterialOf(neon, drawn, undrawn);
+
+    expect(made.emissive.getHexString()).toBe('ff2bd6');
+    expect(made.emissiveMap).toBe(picture);
+    expect([...drawn]).toEqual([picture]);
+    expect([...undrawn]).toEqual([shine]);
+  });
+
+  it('gives a part that gives off no glow none, and draws no picture of a glow it does not give off', () => {
+    const picture = new Texture();
+    const glowless = new MeshStandardMaterial({ map: picture, emissiveMap: new Texture() });
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+
+    const made = sceneMaterialOf(glowless, drawn, undrawn);
+
+    expect(made.emissive.getHex()).toBe(0);
+    expect(made.emissiveMap).toBeNull();
+    expect([...drawn]).toEqual([picture]);
+    expect(undrawn.size).toBe(1);
   });
 });

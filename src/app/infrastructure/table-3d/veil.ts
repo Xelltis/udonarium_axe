@@ -12,6 +12,7 @@ import {
   diffuseColor,
   float,
   length,
+  materialEmissive,
   max,
   mix,
   output,
@@ -139,13 +140,19 @@ export class SceneVeil {
     return srgbToLinear(1 - this.darkness.value);
   }
 
-  /** Lays the veil and the darkness over a material, taken in its light or on its colour. */
+  /**
+   * Lays the veil and the darkness over a material, taken in its light or on its colour. A lit
+   * material that gives off a glow of its own, as a neon tube or a potion does, keeps it however
+   * dark the table is; the veil still hides it.
+   */
   cover(material: Material, taking: DarknessTaking = 'unlit'): void {
     const node = material as NodeMaterial;
     if (taking === 'lit') {
       litByLamps(material);
-      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial)
-        material.emissiveNode = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
+      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial) {
+        const lifted = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
+        material.emissiveNode = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
+      }
       node.outputNode = this.fogged(vec4(output.rgb.add(this.glowing), output.a));
     } else {
       node.outputNode = this.fogged(

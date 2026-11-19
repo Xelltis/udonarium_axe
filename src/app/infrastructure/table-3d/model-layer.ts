@@ -593,32 +593,50 @@ export class ModelLayer {
   }
 
   /**
-   * Makes a mesh's material over as the scene's own: lit as the board is, veiled and darkened with
-   * it, throwing shadows. The picture of its colour is drawn with, and noted so; the rest of the
-   * pictures it wore, as its bumps and its shine, are noted as not drawn.
+   * Makes a mesh's material over as the scene's own, as `sceneMaterialOf` makes it: lit as the board
+   * is, veiled and darkened with it, throwing shadows.
    */
   private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>): void {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
     object.receiveShadow = true;
     const madeOver = (material: Material) => {
-      const was = material as MeshStandardMaterial;
-      for (const picture of picturesOf(material)) (picture === was.map ? drawn : undrawn).add(picture);
-      const lit = new MeshLambertNodeMaterial({
-        color: was.color,
-        map: was.map ?? null,
-        transparent: was.transparent,
-        opacity: was.opacity,
-        alphaTest: was.alphaTest,
-        side: was.side,
-        vertexColors: was.vertexColors,
-      });
+      const lit = sceneMaterialOf(material, drawn, undrawn);
       this.dress(lit);
       material.dispose();
       return lit;
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
+}
+
+/**
+ * A material of a model made over as the scene's own, lit as the board is: its colour, its picture
+ * and how it lets light through kept, and the glow it gives off, a neon tube's or a potion's, kept
+ * with the picture of that glow. The pictures it is drawn with are noted as drawn, and the rest it
+ * wore, as its bumps and its shine, as not drawn.
+ */
+export function sceneMaterialOf(
+  material: Material,
+  drawn: Set<Texture>,
+  undrawn: Set<Texture>
+): MeshLambertNodeMaterial {
+  const was = material as MeshStandardMaterial;
+  const glows = was.emissive !== undefined && was.emissive.getHex() !== 0;
+  const glowMap = glows ? (was.emissiveMap ?? null) : null;
+  for (const picture of picturesOf(material)) {
+    (picture === was.map || picture === glowMap ? drawn : undrawn).add(picture);
+  }
+  return new MeshLambertNodeMaterial({
+    color: was.color,
+    map: was.map ?? null,
+    transparent: was.transparent,
+    opacity: was.opacity,
+    alphaTest: was.alphaTest,
+    side: was.side,
+    vertexColors: was.vertexColors,
+    ...(glows ? { emissive: was.emissive, emissiveMap: glowMap } : {}),
+  });
 }
 
 /**
