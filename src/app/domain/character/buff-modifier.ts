@@ -325,19 +325,32 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
  * moves nothing, so such a version neither gives the damage back nor counts it into what it would.
  */
 export function writeBuffModifier(element: DataElement, modifier: BuffModifier): void {
-  element.setAttribute(DataElementAttribute.BUFF_MOD_TARGET, modifier.target);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_SLOT, modifier.slot);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_OPERATOR, modifier.operator);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.lasting ? 0 : modifier.applied));
-  writeOrRemove(element, DataElementAttribute.BUFF_MOD_STEP, modifier.lasting ? 0 : modifier.step);
-  if (modifier.lasting) element.setAttribute(DataElementAttribute.BUFF_MOD_KEPT, String(modifier.applied));
-  else element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT);
-  writeOrRemove(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, modifier.lasting ? modifier.step : 0);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_TARGET, modifier.target);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_SLOT, modifier.slot);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_OPERATOR, modifier.operator);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.lasting ? 0 : modifier.applied));
+  keepAmount(element, DataElementAttribute.BUFF_MOD_STEP, modifier.lasting ? 0 : modifier.step);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT, modifier.lasting ? String(modifier.applied) : null);
+  keepAmount(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, modifier.lasting ? modifier.step : 0);
 }
 
-function writeOrRemove(element: DataElement, name: string, amount: number | undefined): void {
-  if (amount) element.setAttribute(name, String(amount));
-  else element.removeAttribute(name);
+/**
+ * Writes one field of a record a buff keeps, on itself or on an item, or wipes it for null, only where
+ * that changes what the field holds. Every record here is written and wiped through it, so one written
+ * again as it stands, as a count or a change to the sheet does, sends nothing to the room.
+ */
+function keepRecord(element: DataElement, name: string, value: string | null): void {
+  const held = `${element.getAttribute(name)}`;
+  if (value === null) {
+    if (held !== '') element.removeAttribute(name);
+  } else if (held !== value) {
+    element.setAttribute(name, value);
+  }
+}
+
+/** Writes an amount into a field of a buff's record, or wipes the field where the amount is none (see {@link keepRecord}). */
+function keepAmount(element: DataElement, name: string, amount: number | undefined): void {
+  keepRecord(element, name, amount ? String(amount) : null);
 }
 
 /** What a buff that writes words into an item wrote there, as `writeBuffTextModifier` recorded it; null for any other buff. */
@@ -355,10 +368,10 @@ export function readBuffTextModifier(element: DataElement): BuffTextModifier | n
 
 /** Records on the buff the words it wrote into an item and what the item held before. */
 export function writeBuffTextModifier(element: DataElement, modifier: BuffTextModifier): void {
-  element.setAttribute(DataElementAttribute.BUFF_TEXT_TARGET, modifier.target);
-  element.setAttribute(DataElementAttribute.BUFF_TEXT_SET, modifier.text);
-  element.setAttribute(DataElementAttribute.BUFF_TEXT_BEFORE, modifier.before);
-  element.setAttribute(DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_TARGET, modifier.target);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, modifier.text);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_BEFORE, modifier.before);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
 }
 
 /** What an item holds, as text: a resource's amount left, anything else's value. */
@@ -371,7 +384,7 @@ export function heldTextOf(item: DataElement): string {
  * Written after a `>`, so a note of nothing is told from none being noted.
  */
 export function noteLeftByBuffs(item: DataElement): void {
-  item.setAttribute(DataElementAttribute.BUFF_LEFT, `>${heldTextOf(item)}`);
+  keepRecord(item, DataElementAttribute.BUFF_LEFT, `>${heldTextOf(item)}`);
 }
 
 /**
@@ -390,21 +403,21 @@ export function isNotedByBuffs(item: DataElement): boolean {
 
 /** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */
 export function clearBuffTextModifier(element: DataElement): void {
-  element.removeAttribute(DataElementAttribute.BUFF_TEXT_TARGET);
-  element.removeAttribute(DataElementAttribute.BUFF_TEXT_SET);
-  element.removeAttribute(DataElementAttribute.BUFF_TEXT_BEFORE);
-  element.removeAttribute(DataElementAttribute.BUFF_TEXT_ORDER);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_TARGET, null);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, null);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_BEFORE, null);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, null);
 }
 
 /**
  * Wipes the record of what a buff moved, leaving it a plain note. The sheet itself is not touched.
  */
 export function clearBuffModifier(element: DataElement): void {
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_TARGET);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_SLOT);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_OPERATOR);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_APPLIED);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_STEP);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT_STEP);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_TARGET, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_SLOT, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_OPERATOR, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_APPLIED, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_STEP, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, null);
 }

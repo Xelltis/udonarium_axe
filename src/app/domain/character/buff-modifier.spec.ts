@@ -1,13 +1,16 @@
 import {
   clearBuffModifier,
+  clearBuffTextModifier,
   describeBuffModifier,
   describeBuffModifierTarget,
   describeStandingModifier,
+  noteLeftByBuffs,
   parseBuffModifierItems,
   parseBuffModifierRequest,
   readBuffAmount,
   readBuffModifier,
   writeBuffModifier,
+  writeBuffTextModifier,
 } from '@axe/domain/character/buff-modifier';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 
@@ -294,6 +297,35 @@ describe('buff-modifier', () => {
       buff.setAttribute('cs-buff-mod-slot', 'sideways');
 
       expect(readBuffModifier(buff)?.slot).toBe('now');
+    });
+  });
+
+  describe('a record written again as it stands', () => {
+    it('sends nothing to the room, by any record a buff keeps on itself or notes on an item', () => {
+      const buff = makeBuff();
+      const item = DataElement.create('属性', '炎');
+      const lasting = { target: 'HP', slot: 'now', operator: 'add', applied: -3, step: -3, lasting: true } as const;
+      const words = { target: '属性', text: '炎', before: '無属性', order: 2 };
+      const writes = [
+        () => writeBuffModifier(buff, { target: '命中', slot: 'now', operator: 'add', applied: 2, step: 1 }),
+        () => writeBuffModifier(buff, lasting),
+        () => clearBuffModifier(buff),
+        () => writeBuffTextModifier(buff, words),
+        () => clearBuffTextModifier(buff),
+        () => noteLeftByBuffs(item),
+      ];
+
+      for (const write of writes) {
+        write();
+        const sent = vi.spyOn(buff, 'update');
+        const noted = vi.spyOn(item, 'update');
+        write();
+        expect(sent).not.toHaveBeenCalled();
+        expect(noted).not.toHaveBeenCalled();
+        sent.mockRestore();
+        noted.mockRestore();
+      }
+      expect(readBuffModifier(buff)).toBeNull();
     });
   });
 });
