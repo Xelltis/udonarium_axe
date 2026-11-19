@@ -691,7 +691,8 @@ export class BuffManager {
    *
    * A buff that leaves its status moved left it moved when it went, so a record of it gone is taken
    * to stand where it last moved it. One that comes back after going, `cameBackMoving` being how far
-   * the count it ran out at moved the status, has that given back as well.
+   * the count it ran out at moved the status, has that given back as well. What the row moved that the
+   * record does not is let go of first (see {@link letGoOfStale}).
    */
   private restoreModifier(
     data: DataElement,
@@ -699,10 +700,6 @@ export class BuffManager {
     cameBackMoving: number | null,
     made: boolean
   ): void {
-    const standing = readBuffModifier(data);
-    if (standing && (!wanted || !movesSameStatus(standing, wanted))) {
-      this.revertModifier(data);
-    }
     if (!wanted) return;
     if (made) this.status()?.makeForBuff(wanted.target, 0);
     const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
@@ -727,13 +724,11 @@ export class BuffManager {
 
   /**
    * Writes the words a buff wrote back as they stood, and lays the buffs that write into that item in
-   * the order they wrote again (see {@link relinkWords}). Words it no longer writes are let go of. An
-   * item made by a buff for these words is made again where it has gone; any other gone stays gone,
-   * and the words with it.
+   * the order they wrote again (see {@link relinkWords}). Words it no longer writes were let go of first
+   * (see {@link letGoOfStale}). An item made by a buff for these words is made again where it has gone;
+   * any other gone stays gone, and the words with it.
    */
   private restoreWords(data: DataElement, wanted: BuffTextModifier | null, made: boolean): void {
-    const standing = readBuffTextModifier(data);
-    if (standing && (!wanted || standing.target !== wanted.target)) this.revertWords(data, standing);
     if (!wanted) return;
     const status = this.status();
     if (!status) return;
