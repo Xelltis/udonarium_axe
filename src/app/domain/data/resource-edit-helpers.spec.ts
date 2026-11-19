@@ -1067,8 +1067,8 @@ describe('resource-edit-helpers', () => {
       buff('&昇格-');
       expect(character.status.getText('段位')).toBe('1');
       const five = said(':段位=5').edit;
-      expect(five.operator).toBe('=');
-      expect(applyResourceEdit({ ...five, calcAns: 5 }, character)).toBe('段位に「5」はありません: 1・2・3    ');
+      expect(five).toMatchObject({ operator: '>', replace: '5' });
+      expect(applyTextEdit(five, character).full).toBe('段位に「5」はありません: 1・2・3    ');
       expect(said(':段位=1+1').edit.operator).toBe('=');
       expect(applyResourceEdit({ ...said(':段位=1+1').edit, calcAns: 2 }, character)).toBe('段位＞2    ');
       expect(character.status.getText('段位')).toBe('2');
@@ -1133,7 +1133,10 @@ describe('resource-edit-helpers', () => {
           full: '構えに「突撃」はありません: 通常・攻勢・守勢    ',
           shown: '構え＞？    ',
         });
-        expect(applyResourceEditReport({ ...said(':段位=5').edit, calcAns: 5 }, character).shown).toBe('段位＞？    ');
+        expect(applyTextEdit(said(':段位=5').edit, character).shown).toBe('段位＞？    ');
+        expect(applyResourceEditReport({ ...said(':段位=1+3').edit, calcAns: 4 }, character).shown).toBe(
+          '段位＞？    '
+        );
       });
 
       it('tells everyone a buff laid on it but nothing of what it found of its items', () => {
@@ -1171,8 +1174,9 @@ describe('resource-edit-helpers', () => {
     });
 
     it('holds an item of words no number is read from at an amount as words, by the chat as by a buff', () => {
-      expect(applyResourceEditReport({ ...said(':属性=1').edit, calcAns: 1 }, character).full).toBe('属性＞1    ');
+      expect(applyTextEdit(said(':属性=1').edit, character).full).toBe('属性＞1    ');
       expect(character.status.getText('属性')).toBe('1');
+      character.status.setText('属性', '炎');
       applyResourceEditReport({ ...said(':属性=1+1').edit, calcAns: 2 }, character);
       expect(character.status.getText('属性')).toBe('2');
       character.status.setText('属性', '炎');
@@ -1191,7 +1195,8 @@ describe('resource-edit-helpers', () => {
 
     it('reads `=` with words for a line of text as writing them, and with a sum or a roll as a number', () => {
       expect(said(':属性=炎').edit).toMatchObject({ operator: '>', replace: '炎', target: '属性' });
-      expect(said(':属性=3').edit).toMatchObject({ operator: '=', amount: '3' });
+      expect(said(':属性=3').edit).toMatchObject({ operator: '>', replace: '3' });
+      expect(said(':属性=1+2').edit).toMatchObject({ operator: '=', amount: '1+2' });
       expect(said(':属性=1d6').edit).toMatchObject({ operator: '=', isDiceRoll: true });
       expect(said(':ランク=炎').edit.operator).toBe('=');
       expect(said(':HP=炎').edit.operator).toBe('=');

@@ -176,6 +176,8 @@ describe('lintChatSyntax', () => {
       expect(codes(':名前メモ=OK')).toEqual([]);
       expect(codes(':役割+1')).not.toContain('res.notAChoice');
       expect(lint(':役割_MAX=交渉役')[0]).toMatchObject({ severity: 'error', code: 'res.noSlot' });
+      expect(lint(':役割=5')[0]).toMatchObject({ severity: 'error', code: 'res.notAChoice' });
+      expect(codes(':役割=1d3')).toEqual([]);
       expect(codes(':役割^=交渉役')).toEqual([]);
       expect(lint(':役割=勇者')[0]).toMatchObject({
         severity: 'error',

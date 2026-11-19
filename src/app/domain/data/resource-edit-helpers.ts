@@ -265,8 +265,9 @@ export function readsOptions(landing: ItemLanding): boolean {
 /**
  * Where a `:` command's value lands on the status it names (see {@link landingOn}), in the slot it
  * reaches (see {@link slotWrittenTo}): `>` writes words wherever it is told to, `=` writes words into
- * an item that takes words or a choice and works an amount out to hold the item at, and the other
- * operators move the number by it.
+ * an item that takes words or a choice and works an amount out to hold the item at, a plain number
+ * being one worked out already, held to a choice's choices as it is, and the other operators move
+ * the number by it.
  */
 export function commandLanding(
   object: GameCharacter,
@@ -278,7 +279,11 @@ export function commandLanding(
   if (operator === '>') return object.status.landingOf(target, 'now', amount, 'wordsAnywhere');
   const reached = slotWrittenTo(object, target, slot);
   if (operator !== '=') return object.status.landingOf(target, reached, amount, 'moveBy');
-  return object.status.landingOf(target, reached, amount, isAmountWritten(amount) ? 'formula' : 'words');
+  if (!isAmountWritten(amount)) return object.status.landingOf(target, reached, amount, 'words');
+  const plain = toHalfWidth(amount).trim();
+  return Number.isFinite(Number(plain))
+    ? object.status.landingOf(target, reached, plain, 'amount')
+    : object.status.landingOf(target, reached, amount, 'formula');
 }
 
 /**
