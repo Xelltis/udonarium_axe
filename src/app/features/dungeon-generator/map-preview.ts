@@ -8,7 +8,7 @@ import {
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MapBlock, MapBlocks, MapPaint, MapRect, MapSize, MapWater } from '@axe/domain/tabletop/map-blocks';
-import { blockOrigin, MapGrid } from '@axe/domain/tabletop/map-grid';
+import { blockCorner, blockOrigin, MapGrid } from '@axe/domain/tabletop/map-grid';
 
 export interface PreviewRect {
   x: number;
@@ -120,7 +120,7 @@ export function buildMapPreview(
     ...blocks.ambiences.flatMap((ambience) =>
       ambience.water ? [{ ...laidOut(ambience.rect, grid), fill: waterFill(ambience.water) }] : []
     ),
-    ...blocks.blocks.map((block) => ({ ...laidOut(block.rect, grid), fill: fillFor(block, colors) })),
+    ...blocks.blocks.map((block) => ({ ...placed(block, grid), fill: fillFor(block, colors) })),
     ...blocks.torchSpots.map((light) => ({
       ...laidOut({ x: light.x, y: light.y, w: 1, h: 1 }, grid),
       fill: TORCH_FILL,
@@ -133,6 +133,12 @@ export function buildMapPreview(
 function laidOut(rect: MapRect, grid: MapGrid): MapRect {
   const at = blockOrigin(rect, grid);
   return { x: at.x, y: at.y, w: rect.w, h: rect.h };
+}
+
+/** Where a block sits on the board, as the table puts it (see `blockCorner`). */
+function placed(block: MapBlock, grid: MapGrid): MapRect {
+  const at = blockCorner(block, grid);
+  return { x: at.x, y: at.y, w: block.rect.w, h: block.rect.h };
 }
 
 /**

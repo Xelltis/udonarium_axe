@@ -37,7 +37,7 @@ import {
   MapSlowGround,
   MapTrap,
 } from '@axe/domain/tabletop/map-blocks';
-import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
+import { blockCorner, blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { isBundledModelName } from '@axe/domain/tabletop/placeable-models';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
@@ -343,13 +343,9 @@ export class DungeonBuildService {
       offsetX = ((rect.w - block.footprint.w) / 2) * GRID_SIZE;
       offsetY = ((rect.h - block.footprint.d) / 2) * GRID_SIZE;
     }
-    if (block.offset) {
-      offsetX += block.offset.x * GRID_SIZE;
-      offsetY += block.offset.y * GRID_SIZE;
-    }
 
     // Writing the whole location goes through setAttribute, which syncs; touching location.x does not.
-    const at = blockOrigin(rect, grid);
+    const at = blockCorner(block, grid);
     terrain.location = { name: 'table', x: at.x + offsetX, y: at.y + offsetY };
     terrain.posZ = 0;
     return terrain;

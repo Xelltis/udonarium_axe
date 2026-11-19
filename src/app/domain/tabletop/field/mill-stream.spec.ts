@@ -23,7 +23,7 @@ import { groundChunksOfRaster, type GroundRaster } from '@axe/domain/tabletop/gr
 import { FLAT_GROUND, groundLiftOfBlock, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { MAP_MAX_TERRAINS, type MapAmbience, type MapBlock, type MapRect } from '@axe/domain/tabletop/map-blocks';
-import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
+import { blockCorner, blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 import type { Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder } from '@axe/domain/tabletop/terrain-box';
 import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
@@ -613,15 +613,12 @@ describe('a village with a stream and mills on the table', () => {
       const grid = { type: gridType, sizePx: 1 };
       for (const mill of plan.layout.settlement!.mills!) {
         const block = plan.blocks.blocks.find((each) => each.thing === mill.kind)!;
+        const corner = blockCorner(block, grid);
         if (!isHexGrid(gridType)) {
-          expect(block.offset).toBeUndefined();
+          expect(corner).toEqual(blockOrigin(mill.rect, grid));
           continue;
         }
-        const origin = blockOrigin(mill.rect, grid);
-        const middle = {
-          x: origin.x + block.offset!.x + mill.rect.w / 2,
-          y: origin.y + block.offset!.y + mill.rect.h / 2,
-        };
+        const middle = { x: corner.x + mill.rect.w / 2, y: corner.y + mill.rect.h / 2 };
         const centresOf = (rect: MapRect) =>
           cellsOf(rect, plan.layout.width).map((cell) =>
             cellCentre({ x: cell % plan.layout.width, y: Math.floor(cell / plan.layout.width) }, grid)
@@ -667,9 +664,8 @@ describe('a village with a stream and mills on the table', () => {
           return ground.heightAt(centre.x / size, centre.y / size) * size;
         });
         const block = plan.blocks.blocks.find((each) => each.thing === 'watermill')!;
-        const origin = blockOrigin(block.rect, { type: gridType, sizePx: size });
         const box = {
-          location: { x: origin.x + (block.offset?.x ?? 0) * size, y: origin.y + (block.offset?.y ?? 0) * size },
+          location: blockCorner(block, { type: gridType, sizePx: size }),
           width: block.rect.w,
           depth: block.rect.h,
           rotate: 0,
@@ -721,10 +717,7 @@ describe('a village with a stream and mills on the table', () => {
             const stood = Math.round(plan.layout.settlementLevel! / GROUND_HEIGHT_STEP) * GROUND_HEIGHT_STEP;
             for (const block of plan.blocks.blocks.filter((each) => ['windmill', 'watermill'].includes(each.thing!))) {
               const box = boxOf(block.rect, gridType);
-              const location = {
-                x: box.location.x + (block.offset?.x ?? 0),
-                y: box.location.y + (block.offset?.y ?? 0),
-              };
+              const location = blockCorner(block, { type: gridType, sizePx: 1 });
               const lift = groundLiftOfBlock(ground, 1, { ...box, location });
               expect(lift + (block.altitude ?? 0), `grid ${gridType} relief ${relief} seed ${seed}`).toBeCloseTo(
                 stood,

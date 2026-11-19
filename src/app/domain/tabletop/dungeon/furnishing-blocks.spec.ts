@@ -1,17 +1,14 @@
 import { furnishingBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import type { DungeonFurnishing } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
+import { blockCorner, blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 
 const HEXES = [GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL];
 
 /** Where the middle of the block stands, on a board of cells a unit across. */
 function middleOf(block: ReturnType<typeof furnishingBlocks>[number], gridType: GridType) {
-  const origin = blockOrigin(block.rect, { type: gridType, sizePx: 1 });
-  return {
-    x: origin.x + (block.offset?.x ?? 0) + block.rect.w / 2,
-    y: origin.y + (block.offset?.y ?? 0) + block.rect.h / 2,
-  };
+  const corner = blockCorner(block, { type: gridType, sizePx: 1 });
+  return { x: corner.x + block.rect.w / 2, y: corner.y + block.rect.h / 2 };
 }
 
 describe('a piece of furniture of several cells drawn as its model', () => {
@@ -39,7 +36,9 @@ describe('a piece of furniture of several cells drawn as its model', () => {
 
   it('stands as its rectangle on squares', () => {
     for (const piece of pieces) {
-      expect(furnishingBlocks(piece, 12, { models: true, gridType: GridType.SQUARE })[0].offset).toBeUndefined();
+      const [block] = furnishingBlocks(piece, 12, { models: true, gridType: GridType.SQUARE });
+      const grid = { type: GridType.SQUARE, sizePx: 1 };
+      expect(blockCorner(block, grid)).toEqual(blockOrigin(block.rect, grid));
     }
   });
 });

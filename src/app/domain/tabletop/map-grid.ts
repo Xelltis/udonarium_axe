@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { hexCellCenter, hexLayoutOf, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { MapPoint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
+import type { MapBlock, MapPoint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
 
 /** The board a generated map is laid out on: what shape its cells are and how big they are. */
 export interface MapGrid {
@@ -33,15 +33,33 @@ export function blockOrigin(rect: MapRect, grid: MapGrid): MapPoint {
 }
 
 /**
- * How far a block of several cells on a board of hexes is shifted from where a block of its rectangle
- * is put, in cells, so that its middle stands on the middle of one cell: a block of several cells on
- * hexes covers the hexes round the one its middle stands on, and is put by its first cell otherwise.
- * Nothing on squares, where the rectangle is the block.
+ * Where a block goes, in table pixels: the top left corner of its rectangle, before it is put in the
+ * middle of its footprint, and shifted as it says.
+ *
+ * A block of several cells on a board of hexes covers the hexes round the one its middle stands on,
+ * so it is shifted to stand its middle on the middle of a cell of its rectangle: the one it names
+ * (`standsOn`), or else the one whose middle lies nearest the middle of all of them. Every block a
+ * generator lays is put here, so none of several cells stands between hexes.
  */
-export function shiftOntoCell(rect: MapRect, cell: MapPoint, gridType: GridType): MapPoint | undefined {
-  if (!isHexGrid(gridType)) return undefined;
+export function blockCorner(block: Pick<MapBlock, 'rect' | 'offset' | 'standsOn'>, grid: MapGrid): MapPoint {
+  const origin = blockOrigin(block.rect, grid);
+  const shift = hexStandShift(block.rect, grid.type, block.standsOn);
+  return {
+    x: origin.x + ((shift?.x ?? 0) + (block.offset?.x ?? 0)) * grid.sizePx,
+    y: origin.y + ((shift?.y ?? 0) + (block.offset?.y ?? 0)) * grid.sizePx,
+  };
+}
+
+/**
+ * How far a block of several cells on a board of hexes is shifted from where a block of its rectangle
+ * is put, in cells, to stand its middle on the middle of a cell: the one named, or the cell of the
+ * rectangle nearest its middle. Nothing for a block of one cell, nor on squares, where the rectangle is
+ * the block.
+ */
+function hexStandShift(rect: MapRect, gridType: GridType, standsOn?: MapPoint): MapPoint | undefined {
+  if (!isHexGrid(gridType) || (rect.w < 2 && rect.h < 2)) return undefined;
   const grid = { type: gridType, sizePx: 1 };
-  const middle = cellCentre(cell, grid);
+  const middle = cellCentre(standsOn ?? cellNearest(rect, middleOfCells(rect, gridType), gridType), grid);
   const origin = blockOrigin(rect, grid);
   return { x: middle.x - origin.x - rect.w / 2, y: middle.y - origin.y - rect.h / 2 };
 }

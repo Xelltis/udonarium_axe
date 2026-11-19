@@ -32,7 +32,6 @@ import { areasOver, watersInLots, watersOver } from '@axe/domain/tabletop/field/
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
 import { type GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type {
   MapAmbience,
   MapBlock,
@@ -42,7 +41,7 @@ import type {
   MapRect,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
-import { cellNearest, middleOfCells, shiftOntoCell } from '@axe/domain/tabletop/map-grid';
+import { cellNearest, middleOfCells } from '@axe/domain/tabletop/map-grid';
 
 /** What a settlement comes to on the table: what stands, what is painted, what is slow to cross, the water and the lights. */
 export interface SettlementBlocks {
@@ -315,24 +314,19 @@ function hungFootprint(fixture: SettlementFixture): { w: number; d: number } {
 }
 
 /**
- * How far a mill's one block is shifted from where a block of its rectangle is put, in cells, so
- * that its middle stands on the middle of a hex: a block of several cells on a board of hexes covers
- * the hexes round the one its middle stands on, and is put by its first cell otherwise. A windmill
- * stands on the middle cell of its rectangle; a watermill on the cell of its house nearest its wheel,
- * which brings the wheel over the stream. Nothing on squares, where the rectangle is the block.
+ * The cell a mill's one block stands its middle on, on a board of hexes (see `blockCorner`): a
+ * windmill the middle cell of its rectangle, and a watermill the cell of its house nearest its wheel,
+ * which brings the wheel over the stream.
  */
-export function millShiftOn(mill: SettlementMill, gridType: GridType): MapPoint | undefined {
-  if (!isHexGrid(gridType)) return undefined;
-  const cell =
-    mill.kind === 'watermill'
-      ? cellNearest(watermillHouseOf(mill), middleOfCells(watermillWheelOf(mill), gridType), gridType)
-      : { x: mill.rect.x + 1, y: mill.rect.y + 1 };
-  return shiftOntoCell(mill.rect, cell, gridType);
+export function millStandsOn(mill: SettlementMill, gridType: GridType): MapPoint {
+  return mill.kind === 'watermill'
+    ? cellNearest(watermillHouseOf(mill), middleOfCells(watermillWheelOf(mill), gridType), gridType)
+    : { x: mill.rect.x + 1, y: mill.rect.y + 1 };
 }
 
 /**
  * The blocks a mill stands as: as its model, one block the size of its rectangle wherever it stands,
- * turned as it is, and on hexes shifted as `millShiftOn` says; built of its blocks, a windmill as a box of its rectangle and a watermill as a box
+ * turned as it is, and on hexes standing on the cell `millStandsOn` says; built of its blocks, a windmill as a box of its rectangle and a watermill as a box
  * of its house without its wheel, cut up as `span` cuts every other building. A watermill's wheel
  * stands over the stream's bed, and a block is let down to the lowest of the ground under it, so each
  * is lifted as `liftOf` says to stand on the ground beside the stream.
@@ -341,7 +335,7 @@ function millBlocks(
   mill: SettlementMill,
   span: number,
   models: boolean,
-  liftOf: (rect: MapRect, shift?: MapPoint) => number | undefined,
+  liftOf: ReturnType<typeof blockLiftsTo>,
   gridType: GridType
 ): MapBlock[] {
   const standing = {
@@ -357,14 +351,14 @@ function millBlocks(
     thing: mill.kind,
   };
   if (models) {
-    const offset = millShiftOn(mill, gridType);
-    const altitude = liftOf(mill.rect, offset);
+    const standsOn = millStandsOn(mill, gridType);
+    const altitude = liftOf({ rect: mill.rect, standsOn });
     return [
       {
         ...standing,
         rect: mill.rect,
         height: MILL_SHAPES[mill.kind].tall,
-        ...(offset ? { offset } : {}),
+        standsOn,
         ...(altitude ? { altitude } : {}),
         model: mill.kind,
         modelTurn: mill.turn || undefined,
@@ -374,7 +368,7 @@ function millBlocks(
   const watermill = mill.kind === 'watermill';
   const height = watermill ? WATERMILL_HOUSE_HEIGHT : MILL_SHAPES.windmill.tall;
   return cutUp(watermill ? watermillHouseOf(mill) : mill.rect, span).map((rect) => {
-    const altitude = liftOf(rect);
+    const altitude = liftOf({ rect });
     return { ...standing, rect, height, ...(altitude ? { altitude } : {}) };
   });
 }
