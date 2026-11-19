@@ -85,7 +85,7 @@ describe('generateDungeon()', () => {
   });
 
   it('breaks the outer wall in exactly one place for a tunnel mouth', () => {
-    for (const id of DUNGEON_ATMOSPHERE_IDS) {
+    for (const id of DUNGEON_ATMOSPHERE_IDS.filter((each) => !atmosphereById(each).rooms?.round)) {
       for (const seed of SEEDS) {
         const layout = generateDungeon({ atmosphere: id, roomCount: 8, seed, entrance: 'tunnel' });
         expect(layout.mouth).not.toBeNull();
@@ -524,6 +524,33 @@ describe('passages cut to the width the room asked for', () => {
 });
 
 describe('a round tower', () => {
+  it('opens a tunnel mouth in the wall round it, digging nothing outside its round', () => {
+    for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL]) {
+      for (const seed of SEEDS) {
+        const layout = generateDungeon({ atmosphere: 'wizardTower', roomCount: 8, seed, gridType, entrance: 'tunnel' });
+        const at = `${gridType} ${seed}`;
+        const outside = layout.outside!;
+        const dug = Array.from(outside.keys()).filter(
+          (cell) => outside[cell] && layout.cells[cell] !== DungeonCell.Rock
+        );
+        expect(dug, at).toEqual([]);
+        const mouth = layout.mouth!;
+        const past = [
+          [0, -1],
+          [0, 1],
+          [-1, 0],
+          [1, 0],
+        ].some(([dx, dy]) => {
+          const x = mouth.x + dx;
+          const y = mouth.y + dy;
+          return x < 0 || y < 0 || x >= layout.width || y >= layout.height || outside[y * layout.width + x] === 1;
+        });
+        expect(past, at).toBe(true);
+        expect(reachableCells(layout, layout.entrance).size, at).toBe(countOpenCells(layout));
+      }
+    }
+  });
+
   it('stands on a square board and builds and paints nothing outside its round, on squares and hexes', () => {
     for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
       for (const seed of SEEDS) {
