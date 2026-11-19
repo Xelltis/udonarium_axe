@@ -39,3 +39,22 @@ export function fitsCommandLine(specs, platform) {
   const room = platform === 'win32' ? COMMAND_LINE_ROOM.win32 : COMMAND_LINE_ROOM.other;
   return specs.reduce((length, spec) => length + spec.length + 1, 0) <= room;
 }
+
+/**
+ * The module the test setup loads the providers every TestBed module is given from, which it loads
+ * only for a spec that builds a module. Whatever else the setup loads, waited on or not, it loads into
+ * every spec.
+ */
+export const TEST_BED_PROVIDERS = 'src/app/testing/test-bed-providers.ts';
+
+/**
+ * The specs that name a changed file by its path, as one that reads it off the disk does: a change to
+ * it reaches them, whatever kind of file it is and whatever imports say.
+ */
+export function specsNaming(files, specTexts) {
+  const named = (text, file) => ["'", '"', '`'].some((quote) => text.includes(`${quote}${file}${quote}`));
+  return [...specTexts]
+    .filter(([, text]) => files.some((file) => named(text, file)))
+    .map(([spec]) => spec)
+    .sort();
+}

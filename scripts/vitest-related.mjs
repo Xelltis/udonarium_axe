@@ -16,24 +16,27 @@
  * run reads again only the files changed since the last.
  *
  * Every spec runs when the files handed include a runner config, a setup file, or anything a setup
- * file imports at any depth without waiting, since setup loads those into every spec. With
- * `--disk-specs`, as before a push, the specs that read files off the disk run as well whatever was
- * changed: a model or a source one of them checks is reached by no import.
+ * file imports at any depth, waited on or not, since setup loads those into every spec; only the
+ * providers of a TestBed module it loads for some (`TEST_BED_PROVIDERS`). A spec that names a changed
+ * file by its path runs too, as one reading it off the disk does. With `--disk-specs`, as before a
+ * push, the specs that read files off the disk run as well whatever was changed: a model or a source
+ * one of them checks is reached by no import. With `--pushed`, the files are those the push sends,
+ * read from what git hands the hook, deleted and renamed ones among them.
  *
  * Specs are picked only for changes whose reach can be told, which `change-reach.mjs` decides for
  * this picker and the e2e one alike. A file it knows nothing of (a dictionary, a stylesheet of the
  * whole page, an agreement kept as JSON, what is installed, how the sources are compiled) runs every
  * spec; one it knows to reach none, as writing about the app does, runs none. What setup
- * imports only for a spec that builds a TestBed module, the providers every module is given, adds
- * every spec that names TestBed, as setup tells such a spec by that word.
+ * imports only for a spec that builds a TestBed module, through the providers every module is given,
+ * adds every spec that names TestBed, as setup tells such a spec by that word.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 
-import { kindOfChange } from './change-reach.mjs';
+import { kindOfChange, pushedChanges } from './change-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
-import { fitsCommandLine, specsReadingDisk } from './vitest-reach.mjs';
+import { fitsCommandLine, specsNaming, specsReadingDisk, TEST_BED_PROVIDERS } from './vitest-reach.mjs';
 
 const VITEST_CONFIG = 'vitest.config.mts';
 const ANGULAR_WORKSPACE = 'angular.json';
@@ -87,10 +90,26 @@ const withDiskSpecs = process.argv.includes('--disk-specs');
  * left for the push, where every spec runs for it, rather than running every spec on each commit.
  */
 const toldOnly = process.argv.includes('--told-only');
-const stagedPaths = process.argv
-  .slice(2)
-  .filter((arg) => !arg.startsWith('--'))
-  .map((f) => posix.normalize(f.replaceAll('\\', '/')));
+/**
+ * Whether the files are those a push sends, as git hands the hook before a push on standard input,
+ * rather than named: the deleted and renamed ones among them, which no name handed in could tell.
+ */
+const pushed = process.argv.includes('--pushed');
+const pushedFiles = pushed ? pushedChanges(readFileSync(0, 'utf-8')) : [];
+if (pushedFiles === null) {
+  console.log('[vitest-related] what the push sends cannot be told; running every spec');
+  run([]);
+}
+const stagedPaths = (
+  pushed ? pushedFiles.map((change) => change.file) : process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
+).map((f) => posix.normalize(f.replaceAll('\\', '/')));
+const specTexts = new Map(
+  sourcesUnder('src')
+    .filter((file) => file.endsWith('.spec.ts'))
+    .map((file) => [file, readFileSync(file, 'utf-8')])
+);
+/** The specs that name a changed file by its path, which run whatever kind of file it is. */
+const naming = specsNaming(stagedPaths, specTexts);
 
 const stagedConfig = stagedPaths.find((file) => configs.has(file));
 if (stagedConfig !== undefined) {
@@ -99,8 +118,9 @@ if (stagedConfig !== undefined) {
 }
 
 const staged = new Set();
+const removed = new Set(stagedPaths.filter((file) => !existsSync(file)));
 for (const file of stagedPaths) {
-  const change = kindOfChange(file);
+  const change = kindOfChange(file, existsSync, removed);
   if (change.kind === 'source') staged.add(change.source);
   // A file whose reach nobody can tell may be read by any spec, through a helper, the setup or an
   // import of the file itself: nothing is picked for it, and every spec runs.
@@ -114,8 +134,12 @@ for (const file of stagedPaths) {
   }
 }
 if (staged.size === 0 && !(withDiskSpecs && stagedPaths.length > 0)) {
-  console.log('[vitest-related] no changed sources touch a spec; nothing to run');
-  process.exit(0);
+  if (naming.length === 0) {
+    console.log('[vitest-related] no changed sources touch a spec; nothing to run');
+    process.exit(0);
+  }
+  console.log(`[vitest-related] ${naming.length} spec(s) name a changed file`);
+  run(naming);
 }
 if (setupFiles.size === 0) {
   console.log(`[vitest-related] no setup files found in ${VITEST_CONFIG} or ${ANGULAR_WORKSPACE}; running every spec`);
@@ -136,18 +160,15 @@ for (const file of files) {
   if (file.endsWith('.spec.ts') && source.includes(TEST_BED_WORD)) testBedSpecs.push(file);
   const { waited, dynamic } = runtimeImports.of(source);
   const dependencies = new Set();
-  for (const [specifiers, fromSetup] of [
-    [waited, setupWaitsOn],
-    [dynamic, setupImportsForTestBed],
-  ]) {
-    for (const specifier of specifiers) {
-      const dependency = resolveSpecifier(specifier, file, files);
-      if (dependency === null || dependency === file) continue;
-      dependencies.add(dependency);
-      if (!importers.has(dependency)) importers.set(dependency, new Set());
-      importers.get(dependency).add(file);
-      if (setupFiles.has(file)) fromSetup.add(dependency);
-    }
+  for (const specifier of [...waited, ...dynamic]) {
+    const dependency = resolveSpecifier(specifier, file, files);
+    if (dependency === null || dependency === file) continue;
+    dependencies.add(dependency);
+    if (!importers.has(dependency)) importers.set(dependency, new Set());
+    importers.get(dependency).add(file);
+    // What setup loads it loads into every spec, waited on or not, but for the providers of a TestBed module.
+    if (setupFiles.has(file))
+      (dependency === TEST_BED_PROVIDERS ? setupImportsForTestBed : setupWaitsOn).add(dependency);
   }
   imports.set(file, dependencies);
 }
@@ -173,6 +194,7 @@ if (stagedProvider !== undefined) {
 const ofSetup = new Set([...loadedBySetup, ...loadedForTestBed]);
 const fromDisk = withDiskSpecs && stagedPaths.length > 0 ? specsReadingDisk(texts, importers, ofSetup) : [];
 for (const spec of fromDisk) specs.add(spec);
+for (const spec of naming) specs.add(spec);
 if (specs.size === 0) {
   console.log('[vitest-related] no spec reaches the changed sources; nothing to run');
   process.exit(0);

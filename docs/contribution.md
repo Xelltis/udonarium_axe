@@ -80,11 +80,11 @@ chore(release): bump version to 1.2.2
 型だけの変更でspecの結果は変わらない。importはTypeScriptで変換した結果から読み、その結果は
 `node_modules/.cache/axe-vitest/`に置いて次の実行で使い回す。
 
-ただし、ランナーの設定（`vitest.config.mts`など）や、テストのセットアップが静的なimportで読み込むファイル
-（間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
-セットアップが`TestBed`を使うspecのためだけに読み込むサービス（`loadGlobalTestProviders()`の先）に
-当たったときは、本文に`TestBed`を含むspecをすべて足す。`pre-push`は、まだpushしていないコミットが
-変えたファイルをまとめて同じスクリプトに渡す。あわせて、ファイルをディスクから読むspec（同梱モデルのハッシュ、ソースの並びを見るものなど）を、何を変えても回す（`--disk-specs`）。これらが見るファイルはimportに現れないため。自分では読まず、ヘルパー越しに読むspecも数える（ページのスタイルシートを読むヘルパーなど）。セットアップが全specに読み込ませるヘルパーは起点にしない。並べるspecが多くてコマンドラインに収まらないとき（Windowsは約8000字まで）は、名前を並べずに全量を回す。この2つの決まりは[scripts/vitest-reach.mjs](../scripts/vitest-reach.mjs)にあり、`src/app/testing/vitest-reach.spec.ts`が固定する。
+ただし、ランナーの設定（`vitest.config.mts`など）や、テストのセットアップが読み込むファイル
+（待たずに読むものと、間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
+セットアップが`TestBed`を使うspecのためだけに読み込むprovider（[src/app/testing/test-bed-providers.ts](../src/app/testing/test-bed-providers.ts)の先）に
+当たったときは、本文に`TestBed`を含むspecをすべて足す。変えたファイルをパスで名指しするspec（ファイルを読んで確かめるもの）は、ファイルの種類にかかわらず回す。`pre-push`は、gitがフックに渡すpushの範囲から、
+消したファイルと名前を変えたファイルも含めて変えたファイルを読む（`--pushed`）。あわせて、ファイルをディスクから読むspec（同梱モデルのハッシュ、ソースの並びを見るものなど）を、何を変えても回す（`--disk-specs`）。これらが見るファイルはimportに現れないため。自分では読まず、ヘルパー越しに読むspecも数える（ページのスタイルシートを読むヘルパーなど）。セットアップが全specに読み込ませるヘルパーは起点にしない。並べるspecが多くてコマンドラインに収まらないとき（Windowsは約8000字まで）は、名前を並べずに全量を回す。この2つの決まりは[scripts/vitest-reach.mjs](../scripts/vitest-reach.mjs)にあり、`src/app/testing/vitest-reach.spec.ts`が固定する。
 
 specを絞るのは、変更がどのspecに届くかを説明できるときだけにする。判定は[scripts/change-reach.mjs](../scripts/change-reach.mjs)の`kindOfChange`の1か所にあり、単体specを選ぶスクリプトもe2eを選ぶスクリプトもここに聞く。届く先を説明できる種類（ソースとその隣のテンプレート・スタイル、文字のないアセット、e2eの一式、AI連携のブリッジ、文書などテストに届かないもの）だけを名指しし、それ以外のファイルは`unknown`として全量を回す。辞書、ページ全体のスタイルシート、JSONの取り決め、`package.json`や`tsconfig*.json`はこの`unknown`に入る。新しい種類のファイルは、種類を決めるまで全量が回る。`pre-commit`と`pre-push`の`test`はどちらもファイルで絞らず、何が届くかをスクリプトに決めさせる。`pre-commit`は`--told-only`を付け、`unknown`のファイルでは全量を回さずに`pre-push`へ任せる（コミットのたびに全量を回さないため）。全量はCIも見る。
 

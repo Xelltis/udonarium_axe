@@ -29,7 +29,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 
-import { kindOfChange } from './change-reach.mjs';
+import { kindOfChange, unpushedChanges } from './change-reach.mjs';
 import { partNameOf, reachOfSource, reasonsOf, recordOf, specsReachedThroughParts } from './e2e-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
@@ -64,28 +64,6 @@ const BASELINE = /^e2e\/visual\/__screenshots__\/[^/]+\/(.+)\.png$/;
 function git(...args) {
   const result = spawnSync('git', args, { encoding: 'utf-8' });
   return result.status === 0 ? result.stdout.split('\n').filter(Boolean) : null;
-}
-
-/**
- * The files changed and not yet pushed, in the commits the remote lacks and in the working tree, each
- * with whether it is new under its name: added, renamed or copied, rather than changed where it stood.
- */
-function changedFiles(since) {
-  const base =
-    since ??
-    git('rev-parse', '--verify', '--quiet', '@{push}')?.[0] ??
-    git('merge-base', 'HEAD', 'origin/main')?.[0] ??
-    'HEAD';
-  const fresh = new Map();
-  const note = (file, isFresh) => fresh.set(file, isFresh || fresh.get(file) === true);
-  for (const line of git('diff', '--name-status', `${base}...HEAD`) ?? []) {
-    const [status, ...paths] = line.split('\t');
-    note(paths.at(-1), /^[ARC]/.test(status));
-  }
-  for (const line of git('status', '--porcelain', '--untracked-files=all') ?? []) {
-    note(line.slice(3).split(' -> ').pop(), /[ARC?]/.test(line.slice(0, 2)));
-  }
-  return [...fresh].map(([file, isFresh]) => ({ file, fresh: isFresh }));
 }
 
 /** The files the build swaps in for others, by any of its configurations: each with the file it stands in for. */
@@ -227,13 +205,13 @@ for (const args = process.argv.slice(2); args.length > 0;) {
 // A file named by hand is new under its name where it was added or renamed and is not pushed yet, or
 // where git does not know it; one that stands as git has it has stood all along.
 function standingOf(files) {
-  const unpushed = new Map(changedFiles(since).map(({ file, fresh }) => [file, fresh]));
+  const unpushed = new Map(unpushedChanges(since).map(({ file, fresh }) => [file, fresh]));
   const tracked = new Set(git('ls-files', '--', ...files) ?? []);
   return files.map((file) => ({ file, fresh: unpushed.get(file) ?? !tracked.has(file) }));
 }
-const changed = (named.length > 0 ? standingOf(named.map((file) => posix.normalize(file))) : changedFiles(since)).map(
-  ({ file, fresh }) => ({ file: posix.normalize(file), fresh })
-);
+const changed = (
+  named.length > 0 ? standingOf(named.map((file) => posix.normalize(file))) : unpushedChanges(since)
+).map(({ file, fresh }) => ({ file: posix.normalize(file), fresh }));
 
 const allSpecs = specsUnder('e2e');
 const isPicture = (spec) => spec.startsWith('e2e/visual/');
@@ -278,8 +256,9 @@ function pickForSuiteFile(file) {
 const how = howSourcesLoad();
 const lazyPartNames = new Map([...how.lazyParts].map((part) => [part, partNameOf(part)]));
 const partsChanged = new Map();
+const removed = new Set(changed.filter((change) => !existsSync(change.file)).map((change) => change.file));
 for (const { file, fresh } of changed) {
-  const change = kindOfChange(file);
+  const change = kindOfChange(file, existsSync, removed);
   if (change.kind === 'apart') continue;
   if (change.kind === 'bridge' || SHARED_WITH_BRIDGE.test(file)) {
     pickEvery((spec) => STARTS_BRIDGE.test(textOf(spec)), `${file} is built into the bridge it starts`);

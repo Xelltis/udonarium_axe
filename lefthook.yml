@@ -27,8 +27,10 @@ pre-push:
   jobs:
     # No glob: which files reach a spec is the script's to say (scripts/change-reach.mjs), and a
     # file it knows nothing of runs every spec.
+    # The files the push sends are read from what git hands the hook, deleted ones among them.
     - name: test
-      run: node scripts/vitest-related.mjs --disk-specs {push_files}
+      use_stdin: true
+      run: node scripts/vitest-related.mjs --disk-specs --pushed
 
     - name: test-mcp
       run: npm run test:mcp

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -13,13 +13,17 @@ describe('which unit specs run beside the ones the imports reach', () => {
     ofSetup: Set<string>
   ) => string[];
   let fitsCommandLine: (specs: string[], platform: string) => boolean;
+  let specsNaming: (files: string[], texts: Map<string, string>) => string[];
+  let TEST_BED_PROVIDERS: string;
 
   beforeAll(async () => {
     const module = (await import(/* @vite-ignore */ pathToFileURL(resolve('scripts/vitest-reach.mjs')).href)) as {
       specsReadingDisk: typeof specsReadingDisk;
       fitsCommandLine: typeof fitsCommandLine;
+      specsNaming: typeof specsNaming;
+      TEST_BED_PROVIDERS: string;
     };
-    ({ specsReadingDisk, fitsCommandLine } = module);
+    ({ specsReadingDisk, fitsCommandLine, specsNaming, TEST_BED_PROVIDERS } = module);
   });
 
   describe('the specs that read files off the disk', () => {
@@ -102,5 +106,35 @@ describe('which unit specs run beside the ones the imports reach', () => {
     expect(jobs).toHaveLength(2);
     for (const job of jobs) expect(job).not.toMatch(/^\s+glob:/m);
     expect(jobs.map((job) => /--told-only/.test(job))).toEqual([true, false]);
+    // Before a push the files are read from what git hands the hook, deleted ones among them, not named.
+    expect(jobs[1]).toMatch(/--pushed/);
+    expect(jobs[1]).toMatch(/^\s+use_stdin: true$/m);
+    expect(jobs[1]).not.toMatch(/\{push_files\}/);
+  });
+
+  it('names a spec that names a changed file by its path, whatever quotes it uses, and no other', () => {
+    const texts = new Map([
+      ['hooks.spec.ts', "readFileSync('lefthook.yml', 'utf-8')"],
+      ['related.spec.ts', 'readFileSync("e2e/related.json")'],
+      ['picker.spec.ts', 'resolve(`scripts/e2e-reach.mjs`)'],
+      ['near.spec.ts', "readFileSync('e2e/related.json.bak')"],
+    ]);
+
+    expect(specsNaming(['lefthook.yml', 'e2e/related.json', 'scripts/e2e-reach.mjs'], texts)).toEqual([
+      'hooks.spec.ts',
+      'picker.spec.ts',
+      'related.spec.ts',
+    ]);
+    expect(specsNaming(['docs/x.md'], texts)).toEqual([]);
+  });
+
+  it('has the setup load the providers of a TestBed module from the one module the picker names as such', () => {
+    const setup = readFileSync('src/app/testing/test-setup.ts', 'utf-8');
+
+    expect(existsSync(TEST_BED_PROVIDERS)).toBe(true);
+    expect(setup).toContain(`await import('${TEST_BED_PROVIDERS.replace('src/app/', '@axe/').replace(/\.ts$/, '')}')`);
+    // Anything else the setup loads as it goes, it loads into every spec.
+    const loaded = [...setup.matchAll(/\bimport\(\s*'([^']+)'\s*\)/g)].map((match) => match[1]);
+    expect(loaded).toContain('@axe/domain/dice/bcdice/bcdice-loader');
   });
 });

@@ -244,31 +244,10 @@ function specUsesTestBed(): boolean {
   }
 }
 
-/**
- * The providers every TestBed module is given: only what the app provides outside the root
- * injector, and the logger quietened. A service provided in the root is found by any module that
- * asks for it, so naming it here would only load it, and all it reaches, into every spec.
- */
+/** The providers every TestBed module is given, loaded for a spec that builds one (`test-bed-providers.ts`). */
 async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
-  const [{ LoggerService }, { PanelService }, { provideTranslocoTesting }] = await Promise.all([
-    import('@axe/application/logging/logger.service'),
-    import('@axe/application/ui/panel.service'),
-    import('@axe/testing/transloco-testing'),
-  ]);
-  return [
-    // The service turns logging up to what the build calls for as it is made, which outside
-    // production is everything. Made for a test, it leaves the level where the setup put it.
-    {
-      provide: LoggerService,
-      useFactory: () => {
-        const service = new LoggerService();
-        Logger.setLevel(LogLevel.NONE);
-        return service;
-      },
-    },
-    PanelService,
-    ...provideTranslocoTesting(),
-  ];
+  const { testBedProviders } = await import('@axe/testing/test-bed-providers');
+  return testBedProviders();
 }
 
 // The wrapper can outlive the file that made it, so it looks the providers up on every call
