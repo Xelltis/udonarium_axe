@@ -8,8 +8,7 @@ export interface SkyWay {
 
 /**
  * The sky drawn over a table at an hour of the story's day: its colour overhead and at the horizon,
- * the warm glow round a sun near the horizon, the sun and the moon where they stand, the stars, and
- * the colour of the ground running out to the horizon beyond the board.
+ * the warm glow round a sun near the horizon, the sun and the moon where they stand, and the stars.
  */
 export interface SkyDome {
   readonly zenith: string;
@@ -21,7 +20,6 @@ export interface SkyDome {
   readonly moon: SkyWay;
   /** How brightly the stars show, from 0 by day to 1 at night. */
   readonly stars: number;
-  readonly ground: string;
 }
 
 /** How high the sun climbs at noon, and the moon at midnight, in degrees, as the light of the sky has them. */
@@ -33,13 +31,13 @@ const TWILIGHT_DEG = 12;
 
 /**
  * The colours of the sky by night, at the sun's rising, at its setting and by day: overhead, at the
- * horizon, of the ground, and of the glow round the sun. The morning is the paler of the two
+ * horizon, and of the glow round the sun. The morning is the paler of the two
  * twilights, gold under a clearing blue, and the evening the redder.
  */
-const NIGHT = { zenith: '#060a18', horizon: '#18203a', ground: '#141a22' };
-const DAWN = { zenith: '#5d82c2', horizon: '#f1d6b0', ground: '#56604a', glow: '#ffd796' };
-const DUSK = { zenith: '#3f527f', horizon: '#e9a06e', ground: '#4a4334', glow: '#ffb070' };
-const DAY = { zenith: '#3b7bd0', horizon: '#b4d8f2', ground: '#6b7552' };
+const NIGHT = { zenith: '#060a18', horizon: '#18203a' };
+const DAWN = { zenith: '#5d82c2', horizon: '#f1d6b0', glow: '#ffd796' };
+const DUSK = { zenith: '#3f527f', horizon: '#e9a06e', glow: '#ffb070' };
+const DAY = { zenith: '#3b7bd0', horizon: '#b4d8f2' };
 
 /**
  * The sky at a time of day, from 0 at midnight to 1: the sun rises in the east at six, stands in the
@@ -68,7 +66,6 @@ export function skyDomeAt(dayFraction: number): SkyDome {
     sun,
     moon,
     stars: round(1 - towardsDusk),
-    ground: colour('ground'),
   };
 }
 
