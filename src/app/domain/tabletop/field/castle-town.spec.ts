@@ -170,6 +170,48 @@ describe('a castle town', () => {
     }
   });
 
+  it('grows and puts nothing of the field on a cell the town keeps, in front of a door, under a fixture or a lamp, but crowns over it', () => {
+    for (const size of [30, 40, 60]) {
+      for (let seed = 1; seed <= 12; seed++) {
+        const { layout } = planField({ atmosphere: 'castleTown', size, density: 100, seed, gridType: GridType.SQUARE });
+        const town = layout.settlement!;
+        const { width, height } = layout;
+        const kept = new Set<number>();
+        for (const fixture of town.fixtures ?? []) {
+          if (HUNG_FIXTURES.includes(fixture.kind)) continue;
+          const { x, y, w, h } = fixture.rect;
+          for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) kept.add((y + dy) * width + x + dx);
+        }
+        for (const fire of town.fires) kept.add(fire.y * width + fire.x);
+        for (const door of town.doors) {
+          if (door.kind === 'gate') continue;
+          for (const [dx, dy] of [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ]) {
+            const x = door.x + dx;
+            const y = door.y + dy;
+            if (x < 0 || y < 0 || x >= width || y >= height) continue;
+            if (town.walls[y * width + x] || town.zones[y * width + x] === SETTLEMENT_ZONES.floor) continue;
+            kept.add(y * width + x);
+          }
+        }
+        for (const cell of kept) {
+          expect(
+            ['', 'building', 'clearing'],
+            `${size} seed ${seed} at ${cell % width},${Math.floor(cell / width)}`
+          ).toContain(layout.props[cell]);
+        }
+        for (const object of layout.objects) {
+          const at = object.y * width + object.x;
+          expect(kept.has(at), `${size} seed ${seed} ${object.prop} at ${object.x},${object.y}`).toBe(false);
+        }
+      }
+    }
+  });
+
   it('furnishes every kind of room by plans of its own, and each kind of room has some', () => {
     const planned = new Set(TOWN_ROOM_PLANS.flatMap((plan) => plan.set ?? []));
     const kinds = TOWN_BUILDING_KINDS.flatMap((kind) => [TOWN_ROOM_KINDS[kind].front, ...TOWN_ROOM_KINDS[kind].back]);

@@ -204,7 +204,10 @@ export interface SettlementLayout {
   readonly things: readonly SettlementThing[];
   /** Where a fire burns or a lamp stands, a cell each. */
   readonly fires: readonly SettlementFire[];
-  /** Every cell anything of the settlement stands on, which nothing else is grown or put on. */
+  /**
+   * Every cell anything of the settlement stands on or keeps clear, which nothing else is grown or put
+   * on: its buildings and walls, a town's fixtures and lamps, and the cell in front of a door.
+   */
   readonly taken: Uint8Array;
   /** The middle of what a fort's wall rings round and how far the wall reaches from it each way, or null for a village. */
   readonly ring: { readonly middle: MapPoint; readonly reach: MapPoint } | null;
@@ -378,7 +381,7 @@ class Plot {
       crops: this.crops,
       things: this.things,
       fires: this.fires,
-      taken: this.taken,
+      taken: this.taken.map((cell, index) => cell | this.stood[index]),
       ring: this.ring,
       ...(this.rooms.length > 0 ? { rooms: this.rooms } : {}),
       ...(this.fixtures.length > 0 ? { fixtures: this.fixtures } : {}),
