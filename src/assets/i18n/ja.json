@@ -3274,15 +3274,15 @@
           },
           "wizardTower": {
             "entrance": "螺旋階段の間",
-            "hall": "書庫",
+            "hall": "召喚の間",
             "treasure": "秘宝庫",
-            "boss": "召喚の間",
+            "boss": "魔術師の書斎",
             "deadEnd": "素材庫",
             "chamber": "小部屋",
+            "library": "書庫",
             "workshop": "錬金術の工房",
             "observatory": "天文台",
-            "bedroom": "寝室",
-            "study": "書斎"
+            "bedroom": "寝室"
           }
         },
         "piece": {

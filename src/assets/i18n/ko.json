@@ -3274,15 +3274,15 @@
           },
           "wizardTower": {
             "entrance": "나선 계단실",
-            "hall": "서고",
+            "hall": "소환의 방",
             "treasure": "비보고",
-            "boss": "소환의 방",
+            "boss": "마법사의 서재",
             "deadEnd": "재료 창고",
             "chamber": "작은 방",
+            "library": "서고",
             "workshop": "연금술 공방",
             "observatory": "천문대",
-            "bedroom": "침실",
-            "study": "서재"
+            "bedroom": "침실"
           }
         },
         "piece": {

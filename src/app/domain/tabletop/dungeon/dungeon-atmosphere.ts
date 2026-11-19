@@ -543,12 +543,12 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
    * A floor of a wizard's tower: round, walled in stone, its rooms opening off passages that wind
    * between them, a spiral stair the way up and down.
    *
-   * The stair comes up in the middle of a room lit by candles, watched over by a gargoyle. The
-   * biggest room is the library, its walls lined with books; the hardest to reach keeps the
-   * wizard's treasures round a crystal floating over its pedestal; and the deepest is the summoning
-   * chamber, a circle of runes glowing on its floor. The dead ends are stores of jars and ingredients,
-   * and the small rooms are the wizard's own: a workshop round a cauldron, an observatory with its
-   * orrery and telescopes, a bedroom, a study. It is dark but for the candles and what glows.
+   * The stair comes up in a room lit by candles, watched over by a gargoyle. The biggest room is the
+   * summoning chamber, a circle of runes glowing on its floor; the hardest to reach keeps the
+   * wizard's treasures round a crystal floating over its pedestal; and the deepest is the wizard's
+   * own study, its desk among bookshelves. The dead ends are stores of jars and ingredients, and the
+   * small rooms are kept in turn as a library, a workshop round a cauldron, an observatory with its
+   * orrery and telescopes, and a bedroom. It is dark but for the candles and what glows.
    */
   wizardTower: {
     id: 'wizardTower',
@@ -568,10 +568,10 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
     stairs: { up: 'stair_spiral', down: 'stair_spiral' },
     lighting: { wall: ['sconce'], open: ['stand'], colors: ['#b48cff', '#7fd6ff', '#ffcf7a'] },
     roleNames: 'wizardTower',
-    roomSets: { chamber: ['workshop', 'observatory', 'bedroom', 'study'] },
+    roomSets: { chamber: ['library', 'workshop', 'observatory', 'bedroom'] },
     rooms: {
       minRoom: 5,
-      maxRoom: 9,
+      maxRoom: 7,
       windingPercent: 30,
       extraConnectorChance: 0.1,
       wallBreakChance: 0,
@@ -579,26 +579,26 @@ export const DUNGEON_ATMOSPHERES: Record<DungeonAtmosphereId, DungeonAtmosphere>
       round: true,
     },
     furnishings: [
-      { piece: 'magicCircle', arrangement: 'centre', roles: ['boss'], every: 0 },
+      { piece: 'magicCircle', arrangement: 'centre', roles: ['hall'], every: 0 },
       { piece: 'crystalPedestal', arrangement: 'centre', roles: ['treasure'], every: 0 },
       { piece: 'cauldron', arrangement: 'centre', roles: ['chamber'], every: 0, set: 'workshop' },
       { piece: 'orrery', arrangement: 'centre', roles: ['chamber'], every: 0, set: 'observatory' },
-      { piece: 'bookshelf', arrangement: 'wall', roles: ['hall'], every: 3, most: 4 },
+      { piece: 'writingDesk', arrangement: 'wall', roles: ['boss'], every: 40, most: 1 },
+      { piece: 'bookshelf', arrangement: 'wall', roles: ['boss'], every: 5, most: 3 },
+      { piece: 'bookshelf', arrangement: 'wall', roles: ['chamber'], every: 3, most: 4, set: 'library' },
       { piece: 'potionShelf', arrangement: 'wall', roles: ['deadEnd'], every: 6, most: 2 },
       { piece: 'alchemyTable', arrangement: 'wall', roles: ['chamber'], every: 6, most: 2, set: 'workshop' },
       { piece: 'potionShelf', arrangement: 'wall', roles: ['chamber'], every: 8, most: 2, set: 'workshop' },
       { piece: 'bookshelf', arrangement: 'wall', roles: ['chamber'], every: 10, most: 2, set: 'observatory' },
       { piece: 'canopyBed', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'bedroom' },
       { piece: 'wardrobe', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'bedroom' },
-      { piece: 'writingDesk', arrangement: 'wall', roles: ['chamber'], every: 40, most: 1, set: 'study' },
-      { piece: 'bookshelf', arrangement: 'wall', roles: ['chamber'], every: 5, most: 3, set: 'study' },
-      { piece: 'lectern', arrangement: 'scatter', roles: ['hall'], every: 14 },
+      { piece: 'lectern', arrangement: 'scatter', roles: ['chamber'], every: 12, set: 'library' },
+      { piece: 'lectern', arrangement: 'scatter', roles: ['boss'], every: 20 },
       { piece: 'telescope', arrangement: 'scatter', roles: ['chamber'], every: 14, set: 'observatory' },
-      { piece: 'lectern', arrangement: 'scatter', roles: ['chamber'], every: 20, set: 'study' },
       { piece: 'treasureChest', arrangement: 'corners', roles: ['treasure'], every: 5 },
-      { piece: 'bookPile', arrangement: 'corners', roles: ['hall', 'chamber'], every: 18 },
-      { piece: 'candelabra', arrangement: 'corners', roles: ['entrance', 'boss', 'chamber'], every: 14 },
-      { piece: 'gargoyle', arrangement: 'corners', roles: ['entrance', 'treasure'], every: 30 },
+      { piece: 'bookPile', arrangement: 'corners', roles: ['boss', 'chamber'], every: 18 },
+      { piece: 'candelabra', arrangement: 'corners', roles: ['entrance', 'hall', 'boss', 'chamber'], every: 14 },
+      { piece: 'gargoyle', arrangement: 'corners', roles: ['entrance', 'hall', 'treasure'], every: 30 },
       {
         piece: 'storageJars',
         arrangement: 'corners',

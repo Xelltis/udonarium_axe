@@ -33,6 +33,16 @@ export const MAX_ROOM_COUNT = 20;
 /** One scratch mask covers at most fifty cells a side, and the whole board wants covering. */
 export const MAX_BOARD_WIDTH = 50;
 export const MAX_BOARD_HEIGHT = 38;
+
+/** How much larger a round place's board is made than its round alone would take: its rim and the board's corners hold no room. */
+const ROUND_SLACK = 1.15;
+
+/**
+ * How much smaller a round place's board is made on hexes. A board of hexes is made smaller, as every
+ * one of its cells is a block of its own; a round place builds nothing outside its round, so it is
+ * made only a little smaller.
+ */
+const ROUND_HEX_FACTOR = 0.95;
 /** A cave merges worse than a set of rooms, so it gets a smaller board for the same count. */
 const CAVE_BOARD_SCALE = 0.85;
 
@@ -125,8 +135,10 @@ export function boardSizeFor(
   const width = Math.min(MAX_BOARD_WIDTH, Math.round((22 + rooms * 1.8) * spread));
   const height = Math.min(MAX_BOARD_HEIGHT, Math.round((16 + rooms * 1.4) * spread));
   if (atmosphere.rooms?.round) {
-    // A round place on a square board, as much floor inside its round as the oblong board would hold.
-    const side = fitBoardTo(Math.min(MAX_BOARD_HEIGHT, Math.round(Math.sqrt((width * height * 4) / Math.PI))), wide);
+    // A round place on a square board, as much floor inside its round as the oblong board would hold,
+    // and more for what its rim and the corners of the board leave no room to dig.
+    const round = Math.sqrt((width * height * 4) / Math.PI) * ROUND_SLACK;
+    const side = fitBoardTo(Math.min(MAX_BOARD_HEIGHT, Math.round(round)), wide);
     return { width: side, height: side };
   }
   return { width: fitBoardTo(width, wide), height: fitBoardTo(height, wide) };
@@ -148,10 +160,12 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   const atmosphere = atmosphereById(request.atmosphere);
   const rooms = clampRoomCount(request.roomCount);
   const widths = corridorWidthsFor(atmosphere, request.corridorWidth);
-  const { width, height } = boardSizeOn(boardSizeFor(atmosphere, rooms, widths.most), {
-    type: request.gridType ?? GridType.SQUARE,
-    sizePx: 1,
-  });
+  const asked = boardSizeFor(atmosphere, rooms, widths.most);
+  const gridType = request.gridType ?? GridType.SQUARE;
+  const { width, height } =
+    atmosphere.rooms?.round && isHexGrid(gridType)
+      ? { width: Math.round(asked.width * ROUND_HEX_FACTOR), height: Math.round(asked.height * ROUND_HEX_FACTOR) }
+      : boardSizeOn(asked, { type: gridType, sizePx: 1 });
   const rng = seededRandom(request.seed);
   const digging = diggingOf(atmosphere);
 

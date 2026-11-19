@@ -3274,15 +3274,15 @@
           },
           "wizardTower": {
             "entrance": "Stair room",
-            "hall": "Library",
+            "hall": "Summoning chamber",
             "treasure": "Treasury",
-            "boss": "Summoning chamber",
+            "boss": "Wizard's study",
             "deadEnd": "Store",
             "chamber": "Small room",
+            "library": "Library",
             "workshop": "Alchemy workshop",
             "observatory": "Observatory",
-            "bedroom": "Bedroom",
-            "study": "Study"
+            "bedroom": "Bedroom"
           }
         },
         "piece": {
