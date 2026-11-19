@@ -1,3 +1,5 @@
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { parseBuffModifierRequest, readBuffModifier } from '@axe/domain/character/buff-modifier';
@@ -1288,6 +1290,33 @@ describe('BuffManager', () => {
 
       sheeted.delete('ファイア・ウェポン');
       expect(status.getText('属性')).toBe('無属性');
+    });
+
+    it('keeps what it wrote and what the item held through a save and a load, and puts that back after', () => {
+      grant('ファイア・ウェポン', '属性', '=', '炎');
+      grant('物理強化', '物理D増加', '+', '2');
+      const savedBuffs = ObjectSerializer.instance.toXml(buffDataElement);
+      const savedSheet = ObjectSerializer.instance.toXml(detail);
+      buffDataElement.destroy();
+      detail.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+
+      const buffs = ObjectSerializer.instance.parseXml(savedBuffs) as DataElement;
+      const sheet = ObjectSerializer.instance.parseXml(savedSheet) as DataElement;
+      const loadedStatus = new StatusAccessor(sheet, () => 'テストキャラ');
+      const loaded = new BuffManager(
+        buffs,
+        () => ({ identifier: 'owner', name: 'テストキャラ' }),
+        () => loadedStatus
+      );
+      expect(loadedStatus.getText('属性')).toBe('炎');
+      expect(loadedStatus.getValue('物理D増加', 'now')).toBe(2);
+
+      loaded.delete('ファイア・ウェポン');
+      loaded.delete('物理強化');
+
+      expect(loadedStatus.getText('属性')).toBe('無属性');
+      expect(loadedStatus.getText('物理D増加')).toBeNull();
     });
 
     describe('where the sheet has no such item', () => {
