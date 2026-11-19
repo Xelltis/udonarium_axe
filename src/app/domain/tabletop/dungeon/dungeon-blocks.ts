@@ -38,6 +38,7 @@ import {
   MapPaint,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
+import { cellNearest, middleOfCells, shiftOntoCell } from '@axe/domain/tabletop/map-grid';
 
 /** How thick the look over a pool of dangerous ground is laid. */
 const HAZARD_AMBIENCE_DENSITY = 0.5;
@@ -206,7 +207,7 @@ function findLights(
 export function furnishingBlocks(
   piece: DungeonFurnishing,
   span: number,
-  options: Pick<DungeonBlockOptions, 'models' | 'sheerWalls'>
+  options: Pick<DungeonBlockOptions, 'models' | 'sheerWalls' | 'gridType'>
 ): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;
@@ -214,6 +215,11 @@ export function furnishingBlocks(
   const made = options.models === true && FURNISHING_SHAPES[piece.piece].cells !== undefined;
   const rects = (span > 1 && !segmented) || made ? [piece] : cellsOf(piece);
   const turn = piece.facing ?? ((segmented ? !lying : piece.h > piece.w) ? 90 : 0);
+  const gridType = options.gridType ?? GridType.SQUARE;
+  const shift =
+    made && run
+      ? shiftOntoCell(piece, cellNearest(piece, middleOfCells(piece, gridType), gridType), gridType)
+      : undefined;
   const blocks: MapBlock[] = [];
   let altitude = 0;
   for (const level of [piece.piece, ...(piece.stack ?? [])]) {
@@ -243,6 +249,7 @@ export function furnishingBlocks(
         altitude: altitude || undefined,
         rotate: piece.spin || undefined,
         thing: level,
+        ...(shift ? { offset: shift } : {}),
         ...(shape.floor ? { floorOnly: true } : {}),
         ...(model ? { model, ...(turn ? { modelTurn: turn } : {}) } : {}),
       });

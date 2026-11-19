@@ -32,6 +32,54 @@ export function blockOrigin(rect: MapRect, grid: MapGrid): MapPoint {
   return { x: middle.x - grid.sizePx / 2, y: middle.y - grid.sizePx / 2 };
 }
 
+/**
+ * How far a block of several cells on a board of hexes is shifted from where a block of its rectangle
+ * is put, in cells, so that its middle stands on the middle of one cell: a block of several cells on
+ * hexes covers the hexes round the one its middle stands on, and is put by its first cell otherwise.
+ * Nothing on squares, where the rectangle is the block.
+ */
+export function shiftOntoCell(rect: MapRect, cell: MapPoint, gridType: GridType): MapPoint | undefined {
+  if (!isHexGrid(gridType)) return undefined;
+  const grid = { type: gridType, sizePx: 1 };
+  const middle = cellCentre(cell, grid);
+  const origin = blockOrigin(rect, grid);
+  return { x: middle.x - origin.x - rect.w / 2, y: middle.y - origin.y - rect.h / 2 };
+}
+
+/** The cell of a rectangle whose middle lies nearest a point, on a board of cells a unit across. */
+export function cellNearest(rect: MapRect, point: MapPoint, gridType: GridType): MapPoint {
+  const grid = { type: gridType, sizePx: 1 };
+  let nearest = { x: rect.x, y: rect.y };
+  let least = Infinity;
+  for (let dy = 0; dy < rect.h; dy++) {
+    for (let dx = 0; dx < rect.w; dx++) {
+      const cell = { x: rect.x + dx, y: rect.y + dy };
+      const centre = cellCentre(cell, grid);
+      const off = Math.hypot(centre.x - point.x, centre.y - point.y);
+      if (off < least) {
+        least = off;
+        nearest = cell;
+      }
+    }
+  }
+  return nearest;
+}
+
+/** The middle of all the cells of a rectangle, on a board of cells a unit across. */
+export function middleOfCells(rect: MapRect, gridType: GridType): MapPoint {
+  const grid = { type: gridType, sizePx: 1 };
+  let x = 0;
+  let y = 0;
+  for (let dy = 0; dy < rect.h; dy++) {
+    for (let dx = 0; dx < rect.w; dx++) {
+      const centre = cellCentre({ x: rect.x + dx, y: rect.y + dy }, grid);
+      x += centre.x;
+      y += centre.y;
+    }
+  }
+  return { x: x / (rect.w * rect.h), y: y / (rect.w * rect.h) };
+}
+
 /** The middle of a cell, which is where anything that stands on one rather than over it goes. */
 export function cellCentre(cell: MapPoint, grid: MapGrid): MapPoint {
   if (!isHexGrid(grid.type)) {

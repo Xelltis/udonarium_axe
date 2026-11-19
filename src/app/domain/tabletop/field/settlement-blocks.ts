@@ -41,7 +41,7 @@ import type {
   MapRect,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
-import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
+import { cellNearest, middleOfCells, shiftOntoCell } from '@axe/domain/tabletop/map-grid';
 
 /** What a settlement comes to on the table: what stands, what is painted, what is slow to cross, the water and the lights. */
 export interface SettlementBlocks {
@@ -306,28 +306,11 @@ function cutUp(rect: MapRect, span: number): MapRect[] {
  */
 export function millShiftOn(mill: SettlementMill, gridType: GridType): MapPoint | undefined {
   if (!isHexGrid(gridType)) return undefined;
-  const grid = { type: gridType, sizePx: 1 };
-  const centresOf = (rect: MapRect): MapPoint[] => {
-    const centres: MapPoint[] = [];
-    for (let dy = 0; dy < rect.h; dy++) {
-      for (let dx = 0; dx < rect.w; dx++) centres.push(cellCentre({ x: rect.x + dx, y: rect.y + dy }, grid));
-    }
-    return centres;
-  };
-  let middle = cellCentre({ x: mill.rect.x + 1, y: mill.rect.y + 1 }, grid);
-  if (mill.kind === 'watermill') {
-    const wheel = centresOf(watermillWheelOf(mill));
-    const hub = {
-      x: wheel.reduce((sum, centre) => sum + centre.x, 0) / wheel.length,
-      y: wheel.reduce((sum, centre) => sum + centre.y, 0) / wheel.length,
-    };
-    const off = (centre: MapPoint) => Math.hypot(centre.x - hub.x, centre.y - hub.y);
-    middle = centresOf(watermillHouseOf(mill)).reduce((nearest, centre) =>
-      off(centre) < off(nearest) ? centre : nearest
-    );
-  }
-  const origin = blockOrigin(mill.rect, grid);
-  return { x: middle.x - origin.x - mill.rect.w / 2, y: middle.y - origin.y - mill.rect.h / 2 };
+  const cell =
+    mill.kind === 'watermill'
+      ? cellNearest(watermillHouseOf(mill), middleOfCells(watermillWheelOf(mill), gridType), gridType)
+      : { x: mill.rect.x + 1, y: mill.rect.y + 1 };
+  return shiftOntoCell(mill.rect, cell, gridType);
 }
 
 /**
@@ -515,7 +498,7 @@ export function settlementBlocks(
       ...(models ? { model: shape.model, modelTurn: fixture.turn || undefined } : {}),
     });
   }
-  for (const piece of settlement.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, { models }));
+  for (const piece of settlement.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, { models, gridType }));
   const mills = settlement.mills ?? [];
   const liftOf = mills.length > 0 ? blockLiftsTo(level, ground, gridType) : () => undefined;
   for (const mill of mills) blocks.push(...millBlocks(mill, span, models, liftOf, gridType));
