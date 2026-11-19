@@ -1,3 +1,86 @@
+## [1.81.0](https://github.com/Xelltis/udonarium_axe/compare/v1.80.0...v1.81.0) (2026-11-19)
+
+### ✨ Features
+
+* **ai-gm:** hand the game master's turns to an AI app connected over MCP ([1cbbb9a](https://github.com/Xelltis/udonarium_axe/commit/1cbbb9a981c4ad5177f493af9a294c361f598a01))
+* **ai-link:** run the AI GM from a half of the AI link panel ([5c305dd](https://github.com/Xelltis/udonarium_axe/commit/5c305ddea08ab7e5839f503e0a12ac96a284c68a))
+* **chat:** clear a tab's log before a moment or before a line ([72efc9c](https://github.com/Xelltis/udonarium_axe/commit/72efc9ce05ab2465aefdb50c762aedb9b0c2b7f5))
+* **dungeon-generator:** generate a sewer, its water run down the passages ([fc7d7de](https://github.com/Xelltis/udonarium_axe/commit/fc7d7de526f6f6cfec17b1f2e6a0cbcd4726c860))
+* **dungeon-generator:** heap a sewer's barrels in its corners and lay its pipes as one run ([c369625](https://github.com/Xelltis/udonarium_axe/commit/c369625a7c34469f3657f6f103e8ced2cbc02796))
+* **map-generator:** run a stream through a village past a watermill and a windmill ([465c9d0](https://github.com/Xelltis/udonarium_axe/commit/465c9d0aca6a633064be4ea8cb64041508a0c1ef))
+* **table-3d:** turn the parts of a model that its file says turn ([f1d26fc](https://github.com/Xelltis/udonarium_axe/commit/f1d26fcab8e124dbe075f7f699be7bfcac840d85))
+* **water:** have flowing water fall onto lower water and pour from a spout ([fe3cb26](https://github.com/Xelltis/udonarium_axe/commit/fe3cb26dc0ad96210c72e07514db15535c15e413))
+
+### 🐛 Bug Fixes
+
+* **ai-gm:** keep what is said in a tab it does not listen to from the game master ([0aa41da](https://github.com/Xelltis/udonarium_axe/commit/0aa41da4d8ed755b961b127a28cd6cc91b362ad4))
+* **ai-gm:** say that the key was refused where the game master stopped for it ([d4f2300](https://github.com/Xelltis/udonarium_axe/commit/d4f2300bb2db80f09135a20ef2d6ff93a9d288b7))
+* **ai-link:** hand a turn once, keep an AI counted as there between its waits ([e7ecaa9](https://github.com/Xelltis/udonarium_axe/commit/e7ecaa952fa50926e2d7098ad501a56226ed8c29))
+* **ai-link:** hand the AI its turn only once the room is quiet, and tell each conversation anew ([377ce45](https://github.com/Xelltis/udonarium_axe/commit/377ce454095eda9a3a931053a5f0513132d2cf30))
+* **ai-link:** keep a turn handed to an AI that went away, and tell who is there by its taker ([671a1fc](https://github.com/Xelltis/udonarium_axe/commit/671a1fcd67e95b302e5bb55eb05dd9b70c6b1ee7))
+* **ai-link:** keep the AI GM's own reading to the tabs it hears, and its turn to a tab that is there ([0a0821c](https://github.com/Xelltis/udonarium_axe/commit/0a0821c412ac2e7f2674ad060dd2f25bd333188f))
+* **ai-link:** keep the answer to a roll from an AI with the talk of its tab ([25d4f09](https://github.com/Xelltis/udonarium_axe/commit/25d4f093ad037ebd76cda0e0db1a8bd174058b8c))
+* **ai-link:** keep the half of the panel shown when it is asked after or moved to a window ([dac1ccc](https://github.com/Xelltis/udonarium_axe/commit/dac1ccc9486796a3d746f0884e6283bbaf4f4cc8))
+* **ai-link:** let the AI GM speak in any tab, and keep what it waits for to the tabs it hears ([b2aaf2f](https://github.com/Xelltis/udonarium_axe/commit/b2aaf2fc0ef59e055cdb336e8995e2e105a38d05))
+* **ai-link:** let the table's own lines reach the AI GM from any tab ([20f2647](https://github.com/Xelltis/udonarium_axe/commit/20f2647545bb6ebbdc79bd984993bd191ef01576))
+* **battle-cut-in:** draw the moment a blow lands however slowly the page runs ([f4a1962](https://github.com/Xelltis/udonarium_axe/commit/f4a1962aacd4dcd925f1fa8c0822ab2486c7a434))
+* **chat:** clear and count only the lines of a log the seat clearing it may see ([1555958](https://github.com/Xelltis/udonarium_axe/commit/15559584b5f1b8076f30842fb17ff1c66c38fd2e))
+* **chat:** clear no whole log for a date half written, and cut where a line stands ([b997a50](https://github.com/Xelltis/udonarium_axe/commit/b997a50b73997a15c0cafe419e638d979d226c17))
+* **effect:** hold a preview's time while its effect cannot be drawn yet ([3e9193a](https://github.com/Xelltis/udonarium_axe/commit/3e9193aa3f33f2c51d01004034198a6c6b12ce75))
+* **map-generator:** run a village's stream out to the edge of the board ([26383f8](https://github.com/Xelltis/udonarium_axe/commit/26383f8a8e1c022bbe4b14a7c46cd170ed6d5334))
+* **panels:** read a panel's former name the same wherever it is asked by ([f326f2d](https://github.com/Xelltis/udonarium_axe/commit/f326f2d542baec00680e3dc76df61dceea76816e))
+* **scripts:** leave an e2e spec out only where a change is told not to reach it ([469bf95](https://github.com/Xelltis/udonarium_axe/commit/469bf9544a16eaf4d7c313f43dcb92de28ae6dc2))
+* **scripts:** pick the specs that read the disk through a helper, and choose in one place ([5324b7b](https://github.com/Xelltis/udonarium_axe/commit/5324b7bc94f333ae8934f674459019ec5513fcc4))
+* **scripts:** run the specs a deletion, a file a spec reads and what setup loads all reach ([368add8](https://github.com/Xelltis/udonarium_axe/commit/368add8828f8152f1f8549543d3d9efa5ec2f32b))
+* **scripts:** trust what an e2e test left only once it passed, in a build whose parts are named ([a5b4336](https://github.com/Xelltis/udonarium_axe/commit/a5b43369e62b18b5f8031821db5e6a56209020e8))
+* **table-3d:** count no turning part in a model's box, and place only what turns each frame ([72dc1d6](https://github.com/Xelltis/udonarium_axe/commit/72dc1d600e257be0be5dded46590abb6c76259cd))
+* **table-3d:** land a spout's water on the ground as it is shaped afterwards ([31dfc01](https://github.com/Xelltis/udonarium_axe/commit/31dfc01b0060eec6181311e0c1b02206b70f0c65))
+* **table-3d:** land the water of a spout on a block under it ([399391a](https://github.com/Xelltis/udonarium_axe/commit/399391a06b90540f62d5f184c5c5ecd2ab42aad4))
+* **table-3d:** pull a block's faces ahead by the slant only where they lie in the floor's plane ([8b561fc](https://github.com/Xelltis/udonarium_axe/commit/8b561fcb9edea860da7befc2232dd82d5bc597a3))
+* **tooltip:** put the detail beside a piece away once the piece is moved ([71e56bb](https://github.com/Xelltis/udonarium_axe/commit/71e56bbce4a562554e63d92d3ef5fa2e4b132721))
+* **water:** fall and pour only onto water that stands, and stop at a block over it ([db4956c](https://github.com/Xelltis/udonarium_axe/commit/db4956c9ef305c0c848bd622f92070558d34b192))
+
+### ⚡ Performance
+
+* **effect:** build an effect new to the graphics card before its preview draws it ([f89408f](https://github.com/Xelltis/udonarium_axe/commit/f89408fe53f8c9c2591f19cd5e9022e128fc34f0))
+* **menu:** draw an icon picker's choices only while it is open ([bf98d7d](https://github.com/Xelltis/udonarium_axe/commit/bf98d7d0fa38250eb5e684223c3fd2293638fbe1))
+* **table-3d:** turn the parts that turn without placing their models again ([12d0c26](https://github.com/Xelltis/udonarium_axe/commit/12d0c26a09a947832f4ee8bf25bdba436aae771d))
+* **table-3d:** work out a spout's water apart, so a block moved elsewhere leaves the water ([0daa54c](https://github.com/Xelltis/udonarium_axe/commit/0daa54c0c80bd0c1bdc0f7e86f599df01eacd170))
+* **table-3d:** work out where a copy of a model stands once as its herd is laid ([098bc6a](https://github.com/Xelltis/udonarium_axe/commit/098bc6a6ba179799ec147c4fce4d2b333939fbd8))
+* **test:** leave out the type check the direct vitest path never reports ([d529458](https://github.com/Xelltis/udonarium_axe/commit/d529458f4e43bb82e137809d7cb34315330f5d0d))
+
+### 📝 Documentation
+
+* describe how a sewer is furnished, and the parts of a pipe run ([f398479](https://github.com/Xelltis/udonarium_axe/commit/f39847996a9ced008b8a53a2e765d43485f758c8))
+* describe the AI GM as a half of the AI link panel ([049312a](https://github.com/Xelltis/udonarium_axe/commit/049312a0e69a7d056d14f42e562bd8b2da59690d))
+* describe the AI GM run by an AI app connected over MCP ([24f9ac0](https://github.com/Xelltis/udonarium_axe/commit/24f9ac0a8b1ed2b340e6fd27cf08cf7dcd809da3))
+* describe the sewer and falling water, with the notes for v1.81.0 ([611f034](https://github.com/Xelltis/udonarium_axe/commit/611f0346d6a15ba5b049a02c1ca10db214b2b7ca))
+* describe the village stream and its mills, and the parts of a model that turn ([1d3e337](https://github.com/Xelltis/udonarium_axe/commit/1d3e33750fa6deb41e24d2f81a1cba69f1840992))
+* fix findings from the gravest down, asking at once where a decision is needed ([9260280](https://github.com/Xelltis/udonarium_axe/commit/9260280c34c81492f66959337c6aeba7371528d0))
+* name the levels of a finding Critical, High, Middle and Low ([99316a9](https://github.com/Xelltis/udonarium_axe/commit/99316a964072fe821880b40925c724b956b62572))
+* **release-notes:** date v1.81.0 no earlier than today ([a89ac58](https://github.com/Xelltis/udonarium_axe/commit/a89ac581e05378302e039c63a0e203b2202fdc4c))
+* say where a spout's water lands, whose lines a clearing takes and what an AI GM hears ([0386799](https://github.com/Xelltis/udonarium_axe/commit/03867992fa9e6b1c7ff3904285939a16978b796e))
+* set out how a fix is made, how a finding is weighed and when the long tests are run ([bfa352d](https://github.com/Xelltis/udonarium_axe/commit/bfa352dec14f80aba68be753f43a0cada80eb2aa))
+* **skills:** name what a review leaves out of its count in English too ([ce8607c](https://github.com/Xelltis/udonarium_axe/commit/ce8607cc8bc658fcf8448f1bc4b0237d1c767875))
+* **skills:** write the review-fix skill in English ([42e2c78](https://github.com/Xelltis/udonarium_axe/commit/42e2c7840385ac96bc3bdd113e395a3475b040a4))
+
+### ♻️ Refactor
+
+* **ai-link:** choose the lines an AI GM is handed in one place ([d6b3ea7](https://github.com/Xelltis/udonarium_axe/commit/d6b3ea7e5ba56c88b66c8c05bb41a6b0c53d2a23))
+* **ai-link:** drop a check of the panels open where none can be ([93f4cb9](https://github.com/Xelltis/udonarium_axe/commit/93f4cb96ff7da512626637f10323b05bdbc34d74))
+* **ai-link:** drop a reading of the bridge's kind that nothing asks for ([96372f8](https://github.com/Xelltis/udonarium_axe/commit/96372f893884f052bdf1e025bef4b13b1505581c))
+* **ai-link:** have whoever keeps the game master say so, not be guessed from who listens ([59244cc](https://github.com/Xelltis/udonarium_axe/commit/59244cc93fa8b63d4687fb6bd5c4fffb2116d64a))
+* **ai-link:** keep when the game master's turn is due in one place for both bridges ([8272360](https://github.com/Xelltis/udonarium_axe/commit/8272360967268b14c4a6e825bc65bfc39a13c030))
+* **chat:** write a moment of the log the one way the log writes it ([572a602](https://github.com/Xelltis/udonarium_axe/commit/572a6023551e4e41c29d16e7c085c8edb9ad2aa4))
+* **dungeon-generator:** take a sewer room's four sides from the one table of steps ([d77dc11](https://github.com/Xelltis/udonarium_axe/commit/d77dc11f83044f03c7c2ff8596509285e3415fea))
+* **map-generator:** keep what the generators share about the ground in one place ([7279016](https://github.com/Xelltis/udonarium_axe/commit/7279016cee0288e53ae2c5017c6259fb1bdff693))
+* **map-generator:** lay every generator's water, and read a pipe's facing, in one place ([2f1b211](https://github.com/Xelltis/udonarium_axe/commit/2f1b2115d74d1b19a83f981b447551d3100b66d1))
+* **permissions:** ask in one place whether a room server holds a seat to the game master's say ([a7686e1](https://github.com/Xelltis/udonarium_axe/commit/a7686e198fe34c7b0b71796ee88a9abbcd7ffb8f))
+* **scripts:** keep the projects and the folder of the related e2e run in one file ([c292367](https://github.com/Xelltis/udonarium_axe/commit/c292367571f171c5b493a0cfc2a1c1ad9c49e498))
+* **scripts:** move how the sources' imports are read to a module of its own ([f23134c](https://github.com/Xelltis/udonarium_axe/commit/f23134c816c5b8857360127410efd84c4bcb6dc5))
+* **scripts:** pick tests only for a change whose reach can be told ([8f15aa3](https://github.com/Xelltis/udonarium_axe/commit/8f15aa3e0d376404188d3c0ea4cdb03c300acd13))
+* **sync:** drop the wait before the next sweep with the delete record ([8585fa3](https://github.com/Xelltis/udonarium_axe/commit/8585fa33f97e1a35328bc70bd1593d0bad50c9cd))
+
 ## [1.80.0](https://github.com/Xelltis/udonarium_axe/compare/v1.79.0...v1.80.0) (2026-11-17)
 
 ### ✨ Features
