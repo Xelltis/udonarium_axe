@@ -513,7 +513,7 @@ export function settlementBlocks(
       ...(models ? { model: shape.model, modelTurn: fixture.turn || undefined } : {}),
     });
   }
-  for (const piece of settlement.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, { models, gridType }));
+  for (const piece of settlement.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, { models }));
   const mills = settlement.mills ?? [];
   const liftOf = mills.length > 0 ? blockLiftsTo(level, ground, gridType) : () => undefined;
   for (const mill of mills) blocks.push(...millBlocks(mill, span, models, liftOf, gridType));

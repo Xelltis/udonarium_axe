@@ -4,7 +4,7 @@ import {
   ORTHOGONAL_STEPS,
   type Side,
   SIDE_STEPS,
-  SIDES as FOUR_SIDES,
+  SIDES,
   SQUARE_STEPS_WITH_CORNERS,
   TURN_TO_FACE,
 } from '@axe/domain/tabletop/cell-steps';
@@ -389,7 +389,7 @@ const HEAPED_LEAST = 2;
  * The four sides of a cell, as the step to the cell on that side: up, down, left and right. A heap is
  * grown by its neighbours drawn in this order, which the sewer a seed makes is made by.
  */
-const SIDES: readonly { dx: number; dy: number }[] = [0, 2, 3, 1].map((side) => {
+const HEAP_STEPS: readonly { dx: number; dy: number }[] = [0, 2, 3, 1].map((side) => {
   const [dx, dy] = ORTHOGONAL_STEPS[side];
   return { dx, dy };
 });
@@ -578,7 +578,7 @@ class Furnisher {
   private byWall(x: number, y: number): boolean {
     if (!this.free(x, y) || this.nearEnd(x, y)) return false;
     if (AROUND.some(([dx, dy]) => this.opens(x + dx, y + dy))) return false;
-    return SIDES.some((side) => cellAt(this.layout, x + side.dx, y + side.dy) === DungeonCell.Rock);
+    return HEAP_STEPS.some((side) => cellAt(this.layout, x + side.dx, y + side.dy) === DungeonCell.Rock);
   }
 
   /**
@@ -596,7 +596,7 @@ class Furnisher {
     for (let at = 0; at < queue.length; at++) {
       const x = queue[at] % width;
       const y = Math.floor(queue[at] / width);
-      for (const side of SIDES) {
+      for (const side of HEAP_STEPS) {
         const next = (y + side.dy) * width + x + side.dx;
         if (!inRoom.has(next) || reached.has(next)) continue;
         reached.add(next);
@@ -607,7 +607,7 @@ class Furnisher {
     for (const cell of roomCells(this.layout, room)) {
       const x = cell % width;
       const y = Math.floor(cell / width);
-      for (const side of SIDES) {
+      for (const side of HEAP_STEPS) {
         if (!this.opens(x + side.dx, y + side.dy)) continue;
         if (this.taken[cell]) return false;
       }
@@ -636,7 +636,7 @@ class Furnisher {
     const pick = () => pieces[Math.floor(this.rng() * pieces.length) % pieces.length];
     let left = Math.max(HEAPED_LEAST, Math.floor(cells.length / Math.max(1, plan.every)));
     const walls = (x: number, y: number) =>
-      SIDES.filter((side) => cellAt(this.layout, x + side.dx, y + side.dy) === DungeonCell.Rock).length;
+      HEAP_STEPS.filter((side) => cellAt(this.layout, x + side.dx, y + side.dy) === DungeonCell.Rock).length;
     const corners = cells
       .map((cell) => ({ x: cell % width, y: Math.floor(cell / width), key: this.rng() }))
       .filter((cell) => walls(cell.x, cell.y) >= 2)
@@ -650,7 +650,7 @@ class Furnisher {
       const size = 2 + Math.floor(this.rng() * (HEAP_MOST - 1));
       while (heap.length < size && left > 0) {
         const beside = heap
-          .flatMap((at) => SIDES.map((side) => ({ x: at.x + side.dx, y: at.y + side.dy })))
+          .flatMap((at) => HEAP_STEPS.map((side) => ({ x: at.x + side.dx, y: at.y + side.dy })))
           .filter((cell) => this.byWall(cell.x, cell.y))
           .map((cell) => ({ ...cell, key: this.rng() }))
           .sort((one, other) => one.key - other.key);
@@ -845,7 +845,7 @@ class Furnisher {
    * the edge of the room, and only where the room's floor stays one piece.
    */
   rows(plan: FurnishingPlan, room: DungeonRoom): void {
-    const ways = FOUR_SIDES.map((side) => ({ side, count: this.wayInWeight(room, side) }));
+    const ways = SIDES.map((side) => ({ side, count: this.wayInWeight(room, side) }));
     const near = ways.reduce((best, way) => (way.count > best.count ? way : best)).side;
     const far = OPPOSITE_SIDE[near];
     const across = far === 'n' || far === 's';
@@ -901,7 +901,7 @@ class Furnisher {
     const width = this.layout.width;
     const floor = roomCells(this.layout, room).map((cell) => ({ x: cell % width, y: Math.floor(cell / width) }));
     const stretches: { side: Side; cells: { x: number; y: number }[] }[] = [];
-    for (const side of FOUR_SIDES) {
+    for (const side of SIDES) {
       const { dx, dy } = SIDE_STEPS[side];
       const acrossX = dx === 0;
       const cells = floor

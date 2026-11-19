@@ -2,6 +2,7 @@ import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { OPPOSITE_SIDE, type Side, SIDE_STEPS, TURN_TO_FACE } from '@axe/domain/tabletop/cell-steps';
 import type { DungeonFurnishing } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import type { MapLightKind, MapPoint, MapRect } from '@axe/domain/tabletop/map-blocks';
 
 /**
@@ -1161,25 +1162,12 @@ function lotFacing(
 
 /**
  * The blocks of free cells left on a board, each the largest rectangle grown from the first free cell
- * left, row by row: as wide as the free run it starts on, and as deep as every row of that run is free.
+ * left, row by row: as wide as the free run it starts on, and as deep as every row of that run is free,
+ * as a mask of cells is covered with rectangles (`mergeMaskToRects`).
  */
 function freeBlocks(plot: Plot): MapRect[] {
-  const seen = new Uint8Array(plot.width * plot.height);
-  const blocks: MapRect[] = [];
-  const open = (x: number, y: number) =>
-    plot.inside(x, y) && !plot.taken[y * plot.width + x] && !seen[y * plot.width + x];
-  for (let y = 0; y < plot.height; y++) {
-    for (let x = 0; x < plot.width; x++) {
-      if (!open(x, y)) continue;
-      let w = 0;
-      while (open(x + w, y)) w++;
-      let h = 1;
-      while (Array.from({ length: w }, (_, i) => open(x + i, y + h)).every(Boolean)) h++;
-      for (let dy = 0; dy < h; dy++) seen.fill(1, (y + dy) * plot.width + x, (y + dy) * plot.width + x + w);
-      blocks.push({ x, y, w, h });
-    }
-  }
-  return blocks;
+  const free = plot.taken.map((taken) => (taken ? 0 : 1));
+  return mergeMaskToRects(free, plot.width, plot.height, Infinity);
 }
 
 /**

@@ -207,7 +207,7 @@ function findLights(
 export function furnishingBlocks(
   piece: DungeonFurnishing,
   span: number,
-  options: Pick<DungeonBlockOptions, 'models' | 'sheerWalls' | 'gridType'>
+  options: Pick<DungeonBlockOptions, 'models' | 'sheerWalls'>
 ): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;

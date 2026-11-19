@@ -21,7 +21,7 @@ describe('a piece of furniture of several cells drawn as its model', () => {
   it('stands its middle on the middle of one of the hexes it took, as a block of several hexes is drawn round one', () => {
     for (const gridType of HEXES) {
       for (const piece of pieces) {
-        const [block] = furnishingBlocks(piece, 1, { models: true, gridType });
+        const [block] = furnishingBlocks(piece, 1, { models: true });
         const middle = middleOf(block, gridType);
         const onACell = Array.from({ length: piece.w * piece.h }, (_, at) =>
           cellCentre(
@@ -51,7 +51,7 @@ describe('a piece of furniture of several cells drawn as its model', () => {
         [named, { x: 5, y: 3 }],
         [circle, { x: 5, y: 4 }],
       ] as const) {
-        const [block] = furnishingBlocks(piece, 1, { models: true, gridType });
+        const [block] = furnishingBlocks(piece, 1, { models: true });
         const middle = middleOf(block, gridType);
         const centre = cellCentre(cell, { type: gridType, sizePx: 1 });
         expect(Math.hypot(centre.x - middle.x, centre.y - middle.y), `${gridType} ${piece.piece}`).toBeLessThan(1e-9);
@@ -61,7 +61,7 @@ describe('a piece of furniture of several cells drawn as its model', () => {
 
   it('stands as its rectangle on squares', () => {
     for (const piece of pieces) {
-      const [block] = furnishingBlocks(piece, 12, { models: true, gridType: GridType.SQUARE });
+      const [block] = furnishingBlocks(piece, 12, { models: true });
       const grid = { type: GridType.SQUARE, sizePx: 1 };
       expect(blockCorner(block, grid)).toEqual(blockOrigin(block.rect, grid));
     }
