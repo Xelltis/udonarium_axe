@@ -126,6 +126,19 @@ describe('AgentGmTools', () => {
     });
   });
 
+  it('fires no effect the master keeps for themselves from a player’s seat, by name or by id', async () => {
+    const preset = new EffectPreset();
+    preset.name = '秘奥義';
+    preset.gmOnly = true;
+    ObjectStore.instance.add(preset, false);
+    pieceAt('ゴブリン', 3, 3);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    for (const effect of ['秘奥義', preset.identifier]) {
+      await expect(call('fire_effect', { effect, targets: ['ゴブリン'] })).rejects.toThrow('There is no effect');
+    }
+  });
+
   it('plays music, an ambient sound and a sound effect by name, and stops them', async () => {
     const audios = [
       { identifier: 'a1', name: '戦闘' },

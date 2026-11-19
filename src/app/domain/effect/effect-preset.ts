@@ -248,3 +248,13 @@ export class EffectPreset extends GameObject {
 function clamp(value: number, min: number, max: number, fallback: number): number {
   return clampOr(Number(value), min, max, fallback);
 }
+
+/**
+ * The effects a reader of this role is shown and may fire: every one for the game master, and for
+ * anyone else none the master keeps for themselves, which is part of the preparation, so its name
+ * stays off the players' lists as well. Every list and every lookup of effects a seat makes goes by
+ * it, the screen's and an AI's alike (see `EffectLibraryService.shownPresets`).
+ */
+export function presetsShownTo(presets: readonly EffectPreset[], isGameMaster: boolean): EffectPreset[] {
+  return presets.filter((preset) => isGameMaster || !preset.gmOnly);
+}

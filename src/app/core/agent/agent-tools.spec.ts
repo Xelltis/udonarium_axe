@@ -51,7 +51,10 @@ describe('AGENT_TOOLS', () => {
       'wait_for_events',
     ]);
     expect(agentToolOf('send_chat')?.access).toBe('write');
-    expect(agentToolOf('play_sound')?.access).toBe('gm');
+    expect(AGENT_TOOLS.filter((tool) => tool.access === 'gm').map((tool) => tool.name)).toEqual([
+      'apply_scene',
+      'send_scenario_text',
+    ]);
     expect(agentToolOf('no_such_tool')).toBeNull();
   });
 

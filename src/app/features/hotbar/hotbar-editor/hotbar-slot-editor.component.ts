@@ -173,7 +173,7 @@ export class HotbarSlotEditorComponent {
   protected readonly choices = computed<{ value: string; name: string }[]>(() => {
     switch (this.kind()) {
       case 'effect':
-        return this.effectLibrary.presets().map((preset) => ({ value: preset.name, name: preset.name }));
+        return this.effectLibrary.shownPresets().map((preset) => ({ value: preset.name, name: preset.name }));
       case 'sound':
         this.objectChange.fileVersion();
         return [...this.audioStorage.audios]
@@ -199,7 +199,7 @@ export class HotbarSlotEditorComponent {
   /** The effects a slot can play, each with the mark the effect library draws for its shape. */
   protected readonly effectChoices = computed<{ value: string; name: string; glyph: string }[]>(() => {
     if (this.kind() !== 'effect') return [];
-    return this.effectLibrary.presets().map((preset) => ({
+    return this.effectLibrary.shownPresets().map((preset) => ({
       value: preset.name,
       name: preset.name,
       glyph: presetGlyphSvg(preset),
@@ -210,7 +210,7 @@ export class HotbarSlotEditorComponent {
   protected readonly chosenEffect = computed<EffectPreset | null>(() => {
     if (this.kind() !== 'effect') return null;
     const name = this.draft().value;
-    return this.effectLibrary.presets().find((preset) => preset.name === name) ?? null;
+    return this.effectLibrary.shownPresets().find((preset) => preset.name === name) ?? null;
   });
 
   /** Who the slot speaks as while it is being written, so its palette is the one on offer. */

@@ -62,14 +62,14 @@ describe('AgentToolRunner', () => {
 
   it('refuses a change the seat does not allow, without running the tool', async () => {
     const handler = vi.fn();
-    runner.provide({ send_chat: handler, play_sound: handler });
+    runner.provide({ send_chat: handler, apply_scene: handler });
     role = PeerRole.Player;
 
     expect(await runner.run('send_chat', { text: 'hi' }, 'read', signal)).toMatchObject({
       ok: false,
       error: { code: 'not_allowed' },
     });
-    expect(await runner.run('play_sound', { kind: 'bgm', sound: 'battle' }, 'write', signal)).toMatchObject({
+    expect(await runner.run('apply_scene', { scene: 'battle' }, 'write', signal)).toMatchObject({
       ok: false,
       error: { code: 'not_allowed' },
     });

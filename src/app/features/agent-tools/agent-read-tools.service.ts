@@ -208,12 +208,7 @@ export class AgentReadTools {
     const listed = (things: readonly Listed[]) => filterByName(things, (thing) => thing.name, name, limit);
     switch (kind) {
       case 'effects':
-        return listed(
-          this.effects
-            .presets()
-            .filter((preset) => !preset.gmOnly || this.permission.isGameMaster())
-            .map((preset) => ({ id: preset.identifier, name: preset.name }))
-        );
+        return listed(this.effects.shownPresets().map((preset) => ({ id: preset.identifier, name: preset.name })));
       case 'bgm':
       case 'ambient':
       case 'sound_effects':

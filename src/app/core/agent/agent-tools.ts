@@ -360,7 +360,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'fire_effect',
     title: 'Fire an effect',
-    access: 'gm',
+    access: 'write',
     description:
       'Fire an effect from the effects (see list_assets) for everyone to see: at pieces, or at a square. ' +
       'A caster, if given, is where it starts from.',
@@ -377,7 +377,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'play_sound',
     title: 'Play a sound',
-    access: 'gm',
+    access: 'write',
     description:
       'Play music (bgm, in place of what plays), an ambient sound (alongside others) or a sound effect (once) for everyone.',
     input: input(
@@ -391,7 +391,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'stop_sound',
     title: 'Stop a sound',
-    access: 'gm',
+    access: 'write',
     description: 'Stop the music, an ambient sound (or all of them), or everything.',
     input: input(
       {
@@ -404,21 +404,21 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'play_cut_in',
     title: 'Show a cut-in',
-    access: 'gm',
+    access: 'write',
     description: 'Show a cut-in (see list_assets) to everyone.',
     input: input({ cut_in: { type: 'string', description: 'The cut-in, by name or id.', minLength: 1 } }, ['cut_in']),
   },
   {
     name: 'stop_cut_in',
     title: 'Stop a cut-in',
-    access: 'gm',
+    access: 'write',
     description: 'Stop a cut-in that is showing, or every cut-in if none is named.',
     input: input({ cut_in: { type: 'string', description: 'The cut-in, by name or id.' } }),
   },
   {
     name: 'switch_table',
     title: 'Switch the table',
-    access: 'gm',
+    access: 'write',
     description:
       "Switch everyone to another table, starting the table's music and cut-in as the game master's switch does.",
     input: input({ table: { type: 'string', description: 'The table, by name or id.', minLength: 1 } }, ['table']),
@@ -444,7 +444,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'place_range',
     title: 'Place a range',
-    access: 'gm',
+    access: 'write',
     description:
       'Place a range on the table, flat or standing up as a solid, at a square or following a piece. Lengths are in ' +
       'squares. A column stands up any shape; a sphere needs a circle, a cone solid a cone, a beam a line. Returns its id.',
@@ -471,7 +471,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'remove_range',
     title: 'Remove a range',
-    access: 'gm',
+    access: 'write',
     destructive: true,
     description: 'Remove a range from the table (see list_assets with kind ranges).',
     input: input({ range: { type: 'string', description: 'The range, by name or id.', minLength: 1 } }, ['range']),

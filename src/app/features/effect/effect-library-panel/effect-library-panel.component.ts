@@ -45,7 +45,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 import { effectFamilyColor } from '@axe/domain/effect/effect-families';
 import { EffectField } from '@axe/domain/effect/effect-field';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { EffectPreset, presetsShownTo } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { presetGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
@@ -58,7 +58,6 @@ import {
   familyIndex,
   filterPresets,
   groupPresets,
-  presetsShownTo,
   ReachFilter,
   reachOf,
   tailSpaceFor,

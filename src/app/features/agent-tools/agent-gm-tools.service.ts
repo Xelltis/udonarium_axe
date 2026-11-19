@@ -101,7 +101,7 @@ export class AgentGmTools {
 
   private fireEffect(args: Readonly<Record<string, unknown>>): unknown {
     const preset = findOne(
-      this.effects.presets(),
+      this.effects.shownPresets(),
       textArg(args, 'effect'),
       (each) => each.identifier,
       (each) => each.name,
