@@ -116,7 +116,7 @@ export function pictureOfLook(look: string): string | null {
 export function faceMaterialOf(
   face: FaceLook,
   pictureOf: (url: string, tiled: boolean) => Texture,
-  cover: (material: Material, taking?: DarknessTaking) => void
+  cover: (material: Material, taking: DarknessTaking) => void
 ): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
   if (face.laidOver) {
     const over = new MeshBasicNodeMaterial({
@@ -126,7 +126,7 @@ export function faceMaterialOf(
       side: DoubleSide,
       ...LAID_OVER_FACES,
     });
-    cover(over);
+    cover(over, 'unlit');
     return over;
   }
   const side = SIDES[drawnFrom(face)];

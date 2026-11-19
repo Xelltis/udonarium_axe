@@ -350,12 +350,12 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly darkFog = new Fog(0x000000, 0, 1);
   private fadePx = 0;
   private readonly water = new WaterLayer(
-    (material, taking) => this.veil.cover(material, taking),
+    (material, taking) => this.veil.cover(material, taking, true),
     (url) => this.picture(url)
   );
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
-    (material) => this.veil.cover(material, 'lit')
+    (material) => this.veil.cover(material, 'lit', true)
   );
   private readonly coins = new CoinLayer(
     () => {
@@ -1051,7 +1051,7 @@ class ThreeTableEngine implements Table3dEngine {
       board.veiled,
       board.ground?.paint ? { pictures: this.paintedGround(), tilePx: board.gridSize * GROUND_PAINT_TILE_CELLS } : null
     );
-    this.veil.cover(material, 'lit');
+    this.veil.cover(material, 'lit', true);
     this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
     this.board.receiveShadow = true;
     this.boardBox = board.shape.box;
@@ -1185,7 +1185,7 @@ class ThreeTableEngine implements Table3dEngine {
       side: DoubleSide,
       ...LAID_OVER_FACES,
     });
-    this.veil.cover(material);
+    this.veil.cover(material, 'unlit', true);
     return material;
   }
 
@@ -1193,7 +1193,7 @@ class ThreeTableEngine implements Table3dEngine {
     return faceMaterialOf(
       face,
       (url, tiled) => this.sharedPicture(url, tiled),
-      (material, taking) => this.veil.cover(material, taking)
+      (material, taking) => this.veil.cover(material, taking, true)
     );
   }
 

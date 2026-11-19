@@ -163,10 +163,11 @@ export class SceneVeil {
    * dark the table is; the veil still hides it.
    *
    * The world is drawn as by moonlight at night (see {@link setMoonlit}); what the players tell apart
-   * by its colour, a piece's picture, a die or a coin, is covered with `moonlit` false, and keeps its
-   * colour, only darkened.
+   * by its colour, a piece's picture or model, a die or a coin, is covered with `moonlit` false, and
+   * keeps its colour, only darkened. Every layer says which it draws, as no default would say it for
+   * a layer added later.
    */
-  cover(material: Material, taking: DarknessTaking = 'unlit', moonlit = true): void {
+  cover(material: Material, taking: DarknessTaking, moonlit: boolean): void {
     const node = material as NodeMaterial;
     const night = (colour: Node<'vec3'>) => (moonlit ? this.byMoonlight(colour) : colour);
     if (taking === 'lit') {
