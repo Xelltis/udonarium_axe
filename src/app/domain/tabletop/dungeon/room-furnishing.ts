@@ -875,16 +875,14 @@ class Furnisher {
   private wayInWeight(room: DungeonRoom, side: Way): number {
     let out = 0;
     let through = 0;
-    const span = side === 'n' || side === 's' ? room.w : room.h;
     const step = SIDE_STEPS[side];
-    for (let offset = 0; offset < span; offset++) {
-      const x = side === 'n' || side === 's' ? room.x + offset : side === 'w' ? room.x - 1 : room.x + room.w;
-      const y = side === 'e' || side === 'w' ? room.y + offset : side === 'n' ? room.y - 1 : room.y + room.h;
+    const past = cellsPast(room, side);
+    for (const { x, y } of past) {
       if (!this.opens(x, y)) continue;
       if (this.inSomeRoom(x + step.dx, y + step.dy)) through++;
       else out++;
     }
-    return out * (span + 1) + through;
+    return out * (past.length + 1) + through;
   }
 
   /** Whether a cell lies inside one of the place's rooms. */
@@ -990,16 +988,28 @@ class Furnisher {
   }
 
   private doorsOnSide(room: DungeonRoom, along: boolean, far: boolean): number {
-    let doors = 0;
-    const span = along ? room.w : room.h;
-    for (let offset = -1; offset <= span; offset++) {
-      const x = along ? room.x + offset : far ? room.x + room.w : room.x - 1;
-      const y = along ? (far ? room.y + room.h : room.y - 1) : room.y + offset;
+    const side: Way = along ? (far ? 's' : 'n') : far ? 'e' : 'w';
+    return cellsPast(room, side, true).filter(({ x, y }) => {
       const cell = cellAt(this.layout, x, y);
-      if (cell === DungeonCell.Door || cell === DungeonCell.Corridor) doors++;
-    }
-    return doors;
+      return cell === DungeonCell.Door || cell === DungeonCell.Corridor;
+    }).length;
   }
+}
+
+/**
+ * The cells just past one side of a room, along it: the wall or the way through it beside each cell of
+ * that side, and, with `corners`, the two at its ends as well.
+ */
+function cellsPast(room: DungeonRoom, side: Way, corners = false): { x: number; y: number }[] {
+  const along = side === 'n' || side === 's';
+  const span = along ? room.w : room.h;
+  const cells: { x: number; y: number }[] = [];
+  for (let offset = corners ? -1 : 0; offset < (corners ? span + 1 : span); offset++) {
+    const x = along ? room.x + offset : side === 'w' ? room.x - 1 : room.x + room.w;
+    const y = along ? (side === 'n' ? room.y - 1 : room.y + room.h) : room.y + offset;
+    cells.push({ x, y });
+  }
+  return cells;
 }
 
 /** Whether a plan goes in a room of a kind: any where the plan names none, else one of those it names. */

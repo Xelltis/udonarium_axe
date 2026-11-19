@@ -1017,9 +1017,10 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
       if (hung) plot.stand({ kind: sign, rect: { ...hung, w: 1, h: 1 }, turn: step.turn });
     }
     if (lot.onStreet && lanterns++ % 2 === 0) {
-      sides
+      const lit = sides
         .map(({ x, y }) => ({ x: x + step.dx, y: y + step.dy }))
-        .find(({ x, y }) => onStreet(x, y) && plot.light({ x, y, kind: 'lantern' }));
+        .find(({ x, y }) => onStreet(x, y) && plot.canStand({ x, y, w: 1, h: 1 }));
+      if (lit) plot.light({ ...lit, kind: 'lantern' });
     }
   });
   laySquare(plot, plaza, high, rng, fill);
