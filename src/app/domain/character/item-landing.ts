@@ -6,7 +6,11 @@ import type { ResourceSlot } from '@axe/domain/data/resource-slot';
  * check box or a picture takes nothing written.
  */
 export type ItemTakes =
-  | { readonly takes: 'words' }
+  | {
+      readonly takes: 'words';
+      /** Whether a number is read from what it holds now, which an amount set on it holds it at. */
+      readonly holdsNumber: boolean;
+    }
   | { readonly takes: 'numbers' }
   | { readonly takes: 'choice'; readonly choices: readonly string[] }
   | { readonly takes: 'nothing' };
@@ -39,7 +43,8 @@ export type ItemLanding =
  * amount as well as words. Words naming one of its choices are that choice however they read, `Lv2`
  * no sum to work out; any other sum or roll is worked out first and its answer held to the choices as
  * it is written. One that offers no choices takes anything, and `>` with nothing clears it. One that
- * holds words takes words, and an amount as a number. One that holds numbers takes an amount, and
+ * holds words takes words, and an amount as a number where a number is read from what it holds, as
+ * words where none is; a sum or a roll is worked out first. One that holds numbers takes an amount, and
  * words only as `>` writes them wherever it is told to. An item holding words or a choice has no slot
  * but its value. An amount to move an item by is no value written into it, so it moves the number any
  * item holds, a choice's too. A check box or a picture takes nothing written.
@@ -60,7 +65,8 @@ export function landingOn(item: ItemTakes | null, slot: ResourceSlot, written: s
     const free = item.choices.length < 1 || (as === 'wordsAnywhere' && words.length < 1);
     return free ? { kind: 'words', words } : { kind: 'notAChoice', choices: item.choices };
   }
-  return as === 'amount' || as === 'formula' ? { kind: 'number' } : { kind: 'words', words };
+  if (as === 'formula' || (as === 'amount' && item.holdsNumber)) return { kind: 'number' };
+  return { kind: 'words', words };
 }
 
 /** What a sheet answers about its items, as far as where a value lands goes. */

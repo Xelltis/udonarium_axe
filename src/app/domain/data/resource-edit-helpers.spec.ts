@@ -1161,6 +1161,16 @@ describe('resource-edit-helpers', () => {
       expect(buff('&!突撃/構え=猛進/3')).toBe('突撃を付与 構え=猛進/3R    ');
     });
 
+    it('holds an item of words no number is read from at an amount as words, by the chat as by a buff', () => {
+      expect(applyResourceEditReport({ ...said(':属性=1').edit, calcAns: 1 }, character).full).toBe('属性＞1    ');
+      expect(character.status.getText('属性')).toBe('1');
+      applyResourceEditReport({ ...said(':属性=1+1').edit, calcAns: 2 }, character);
+      expect(character.status.getText('属性')).toBe('2');
+      character.status.setText('属性', '炎');
+      expect(buff('&!B/属性=1/3')).toBe('Bを付与 属性=1/3R    ');
+      expect(character.status.getText('属性')).toBe('1');
+    });
+
     it('finds the status a command names in half-width characters as well', () => {
       expect(said(':ＰＬ名=山田').edit).toMatchObject({ operator: '>', replace: '山田', target: 'PL名' });
     });

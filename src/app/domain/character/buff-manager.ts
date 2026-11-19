@@ -195,8 +195,8 @@ export class BuffManager {
    * same distance goes back when the buff runs out, or writes the words it asks for into an item and
    * writes down what the item held, so that goes back. Where the value lands is the sheet's to say
    * (see {@link landingOn}): words go only into an item that takes words or among a choice's choices,
-   * and an amount moves a number. An amount held at a value in an item holding words, which no number
-   * is read from, is written as words.
+   * and an amount moves a number, or is written as words into an item holding words no number is read
+   * from.
    *
    * Where the sheet has no such item and the buff is to make it, as one written in the chat is, one is
    * made at its foot for the buff, holding nothing and then moved, or holding the words, and it goes
@@ -223,9 +223,7 @@ export class BuffManager {
         return null;
       }
       const moved = this.moveStatus(request);
-      if (moved != null) return this.writeModifier(data, request, moved);
-      if (request.operator !== 'set' || status.takesOf(request.target)?.takes !== 'words') return null;
-      return this.writeWords(data, request.target, String(request.amount));
+      return moved == null ? null : this.writeModifier(data, request, moved);
     });
   }
 

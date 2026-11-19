@@ -1,6 +1,6 @@
 import { type ItemTakes, landingOn } from '@axe/domain/character/item-landing';
 
-const WORDS: ItemTakes = { takes: 'words' };
+const WORDS: ItemTakes = { takes: 'words', holdsNumber: false };
 const NUMBERS: ItemTakes = { takes: 'numbers' };
 const CHOICE: ItemTakes = { takes: 'choice', choices: ['通常', '攻勢', '1', '2'] };
 
@@ -9,9 +9,11 @@ describe('where a value written to an item lands', () => {
     expect(landingOn(null, 'now', '炎', 'words')).toEqual({ kind: 'missing' });
   });
 
-  it('writes words into an item that holds words, and moves a number for an amount', () => {
+  it('writes words into an item that holds words, and an amount as a number where it holds one, else as words', () => {
     expect(landingOn(WORDS, 'now', ' 炎 ', 'words')).toEqual({ kind: 'words', words: '炎' });
-    expect(landingOn(WORDS, 'now', '3', 'amount')).toEqual({ kind: 'number' });
+    expect(landingOn({ takes: 'words', holdsNumber: true }, 'now', '3', 'amount')).toEqual({ kind: 'number' });
+    expect(landingOn(WORDS, 'now', '3', 'amount')).toEqual({ kind: 'words', words: '3' });
+    expect(landingOn(WORDS, 'now', '1d6', 'formula')).toEqual({ kind: 'number' });
     expect(landingOn(WORDS, 'now', '炎', 'wordsAnywhere')).toEqual({ kind: 'words', words: '炎' });
   });
 

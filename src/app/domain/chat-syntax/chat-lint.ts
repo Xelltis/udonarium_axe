@@ -551,10 +551,7 @@ function lintBuffStatus(
   }
   const unmoved = landings.some(
     ({ piece, landing }) =>
-      landing.kind === 'noSlot' ||
-      (landing.kind === 'number' &&
-        piece.status.getValue(name, request.slot) == null &&
-        !(request.operator === 'set' && piece.status.takesOf(name)?.takes === 'words'))
+      landing.kind === 'noSlot' || (landing.kind === 'number' && piece.status.getValue(name, request.slot) == null)
   );
   if (unmoved) add(span, 'warning', 'buff.missingStatus', { params: { name } });
 }

@@ -325,10 +325,10 @@ export class StatusAccessor {
     if (data.fieldType === DataElementFieldType.SELECT) {
       return { takes: 'choice', choices: parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '') };
     }
-    if (data.type === DataElementType.NOTE) return { takes: 'words' };
-    return data.type === DataElementType.TEXT && TEXT_FIELD_TYPES.has(data.fieldType)
-      ? { takes: 'words' }
-      : { takes: 'numbers' };
+    const words =
+      data.type === DataElementType.NOTE ||
+      (data.type === DataElementType.TEXT && TEXT_FIELD_TYPES.has(data.fieldType));
+    return words ? { takes: 'words', holdsNumber: this.getValue(name, 'now') != null } : { takes: 'numbers' };
   }
 
   /** Where a value written to the item lands; see {@link landingOn}. */
