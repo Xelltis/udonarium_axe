@@ -84,9 +84,12 @@ export class AgentKindTools {
     this.check(making.input, options, 'options');
     const fields = this.fieldsToPut(kind, this.record(args['fields']));
     const made = GameObject.batch(() => making.make(options) as Thing);
-    const refused = fields.map(({ field }) => field.refuse?.(made) ?? null).find((reason) => reason !== null);
+    const refused = fields
+      .map(({ field, value }) => field.refuse?.(made, value) ?? null)
+      .find((reason) => reason !== null);
     if (refused) {
-      kind.remove?.take(made);
+      if (making.unmake) making.unmake(made);
+      else (made as unknown as { destroy?: () => void }).destroy?.();
       throw new AgentToolError('not_allowed', refused);
     }
     GameObject.batch(() => {
@@ -100,7 +103,9 @@ export class AgentKindTools {
     const thing = this.changeable(kind, textArg(args, 'id'));
     const fields = this.fieldsToPut(kind, this.record(args['fields']));
     if (fields.length < 1) throw new AgentToolError('invalid_input', 'Give at least one field to change.');
-    const refused = fields.map(({ field }) => field.refuse?.(thing) ?? null).find((reason) => reason !== null);
+    const refused = fields
+      .map(({ field, value }) => field.refuse?.(thing, value) ?? null)
+      .find((reason) => reason !== null);
     if (refused) throw new AgentToolError('not_allowed', refused);
     GameObject.batch(() => {
       for (const { field, value } of fields) field.put!(thing, value);

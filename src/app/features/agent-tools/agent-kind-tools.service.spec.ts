@@ -10,7 +10,8 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { AgentKindTools } from '@axe/features/agent-tools/agent-kind-tools.service';
-import { type AgentKind, anyKind, numberField } from '@axe/features/agent-tools/kinds/agent-kind';
+import { type AgentKind, anyKind, numberField, objectInput } from '@axe/features/agent-tools/kinds/agent-kind';
+import { AgentSquares } from '@axe/features/agent-tools/kinds/agent-squares.service';
 import { AgentKinds } from '@axe/features/agent-tools/kinds/agent-kinds.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -148,6 +149,75 @@ describe('AgentKindTools', () => {
       call('change_object', { kind: 'text-note', id: note.identifier, fields: { shown_to: 'gm', title: '秘密' } })
     ).toThrow(/owner's and the game master's to say/);
     expect([note.disclosureMode, note.title]).toEqual(['', '共有']);
+  });
+
+  it('writes nothing of a call one of whose values a field refuses, and takes back a thing just made', () => {
+    const kinds = TestBed.inject(AgentKinds);
+    const things: { level: number; label: string; destroyed?: boolean }[] = [];
+    const kind: AgentKind<(typeof things)[number]> = {
+      kind: 'probe',
+      description: '',
+      list: () => things.filter((thing) => !thing.destroyed),
+      idOf: (thing) => `probe-${things.indexOf(thing)}`,
+      nameOf: (thing) => thing.label,
+      fields: [
+        numberField(
+          'level',
+          '',
+          'write',
+          { minimum: 0 },
+          (thing) => thing.level,
+          (thing, value) => {
+            thing.level = value;
+          }
+        ),
+        {
+          ...numberField(
+            'odd',
+            '',
+            'write',
+            {},
+            () => 0,
+            () => undefined
+          ),
+          refuse: (_thing, value) => ((value as number) % 2 === 1 ? null : 'Only odd numbers.'),
+        },
+      ],
+      create: {
+        access: 'write',
+        description: '',
+        input: objectInput(),
+        make: () => {
+          const made = { level: 0, label: 'made', destroy: () => (made.destroyed = true), destroyed: false };
+          things.push(made);
+          return made;
+        },
+      },
+    };
+    things.push({ level: 1, label: 'kept' });
+    vi.spyOn(kinds, 'of').mockReturnValue(anyKind(kind));
+
+    expect(() => call('change_object', { kind: 'probe', id: 'kept', fields: { level: 5, odd: 2 } })).toThrow(
+      /Only odd numbers/
+    );
+    expect(things[0].level).toBe(1);
+    expect(() => call('create_object', { kind: 'probe', fields: { level: 5, odd: 4 } })).toThrow(/Only odd numbers/);
+    expect(kind.list().map((thing) => thing.label)).toEqual(['kept']);
+  });
+
+  it('reads and puts a thing laid from its corner and one kept by its middle in the same square', () => {
+    const squares = TestBed.inject(AgentSquares);
+    const corner = { location: { x: 0, y: 0 }, update: () => undefined } as unknown as TextNote;
+    const middle = { location: { x: 0, y: 0 }, update: () => undefined } as unknown as TextNote;
+
+    squares.field<TextNote>().put!(corner, { col: 3, row: 2 });
+    squares.field<TextNote>(undefined, 'middle').put!(middle, { col: 3, row: 2 });
+
+    expect([corner.location.x, corner.location.y]).toEqual([2 * GRID, GRID]);
+    expect([middle.location.x, middle.location.y]).toEqual([2.5 * GRID, 1.5 * GRID]);
+    expect(squares.field<TextNote>().read(corner)).toEqual({ col: 3, row: 2 });
+    expect(squares.field<TextNote>(undefined, 'middle').read(middle)).toEqual({ col: 3, row: 2 });
+    expect(squares.field<TextNote>().refuse!(corner, { col: 99, row: 2 })).toMatch(/off the table/);
   });
 
   it('holds a field kept for the game master to the master’s seat', () => {

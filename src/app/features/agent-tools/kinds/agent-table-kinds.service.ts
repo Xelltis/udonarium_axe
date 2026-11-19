@@ -1,17 +1,15 @@
 import { inject, Injectable } from '@angular/core';
-import { AgentViews } from '@axe/application/agent/agent-views.service';
+import type { AgentSquare } from '@axe/application/agent/agent-views.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import type { AgentSchema } from '@axe/core/agent/agent-schema';
 import { CONCEALED_LOCATION } from '@axe/domain/tabletop/board-switch/concealment';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import {
   type AgentKind,
-  type AgentKindField,
   type AnyAgentKind,
   anyKind,
   choiceField,
@@ -20,18 +18,7 @@ import {
   objectInput,
   textField,
 } from '@axe/features/agent-tools/kinds/agent-kind';
-
-/** A square of the table, as the generic tools take and give one. */
-const SQUARE: AgentSchema = {
-  type: 'object',
-  description: 'A square of the table: col counted from 1 at the west edge, row from 1 at the north edge.',
-  properties: {
-    col: { type: 'integer', minimum: 1 },
-    row: { type: 'integer', minimum: 1 },
-  },
-  required: ['col', 'row'],
-  additionalProperties: false,
-};
+import { AgentSquares, SQUARE_SCHEMA } from '@axe/features/agent-tools/kinds/agent-squares.service';
 
 /** Who a note's words are shown to, as the screen names the choices. */
 const DISCLOSURES = ['all', 'gm', 'selected'] as const;
@@ -43,7 +30,7 @@ const DISCLOSURES = ['all', 'gm', 'selected'] as const;
  */
 @Injectable({ providedIn: 'root' })
 export class AgentTableKinds {
-  private readonly views = inject(AgentViews);
+  private readonly squares = inject(AgentSquares);
   private readonly tabletop = inject(TabletopService);
   private readonly actions = inject(TabletopActionService);
   private readonly vision = inject(VisionService);
@@ -56,24 +43,6 @@ export class AgentTableKinds {
   private onTableFor(object: TabletopObject): boolean {
     if (object.location.name === CONCEALED_LOCATION) return this.permission.isGameMaster();
     return object.location.name === 'table' && !this.vision.isPieceHiddenByFog(object);
-  }
-
-  /** The square a thing lying on the table is in, and moving it to the middle of another. */
-  private squareField<T extends TabletopObject>(): AgentKindField<T> {
-    return {
-      name: 'square',
-      description: 'The square it lies in.',
-      schema: SQUARE,
-      access: 'write',
-      read: (object) => this.views.squareAt(object.location.x, object.location.y),
-      put: (object, value) => {
-        const middle = this.views.middleOf(value as { col: number; row: number });
-        if (!middle) return;
-        object.location.x = middle.x;
-        object.location.y = middle.y;
-        object.update();
-      },
-    };
   }
 
   private textNote(): AgentKind<TextNote> {
@@ -106,7 +75,7 @@ export class AgentTableKinds {
             note.text = value;
           }
         ),
-        this.squareField<TextNote>(),
+        this.squares.field<TextNote>(),
         numberField<TextNote>(
           'width',
           'How many squares wide.',
@@ -186,16 +155,11 @@ export class AgentTableKinds {
         description:
           'Lays a new note on the table in view, owned by this seat; a note the master lays starts shown to the master only.',
         input: objectInput({
-          at: { ...SQUARE, description: 'The square to lay it in. Leave out for the middle of the table.' },
+          at: { ...SQUARE_SCHEMA, description: 'The square to lay it in. Leave out for the middle of the table.' },
         }),
         make: (args) => {
-          const square = args['at'] as { col: number; row: number } | undefined;
-          const table = this.tabletop.currentTable;
-          const middle = (square ? this.views.middleOf(square) : null) ?? {
-            x: (table.width * table.gridSize) / 2,
-            y: (table.height * table.gridSize) / 2,
-          };
-          return this.actions.createTextNote({ x: middle.x, y: middle.y, z: 0 });
+          const corner = this.squares.cornerOrMiddle(args['at'] as AgentSquare | undefined);
+          return this.actions.createTextNote({ x: corner.x, y: corner.y, z: 0 });
         },
       },
       remove: { access: 'write', take: (note) => note.destroy() },

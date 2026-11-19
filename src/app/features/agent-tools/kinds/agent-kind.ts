@@ -18,10 +18,12 @@ export interface AgentKindField<T> {
   read(object: T): unknown;
   put?(object: T, value: unknown): void;
   /**
-   * Why this seat may not write the field of this thing, where the screen holds it to more than the
-   * access, as who a note is shown to is its owner's and the master's to say; null where it may.
+   * Why this seat may not write this value into the field of this thing, where the screen holds it to
+   * more than the access and the schema, as who a note is shown to is its owner's and the master's to
+   * say, or a tag someone else locked is not one to file under; null where it may. Asked of every field
+   * of a call before any is written, so a call refused writes nothing.
    */
-  refuse?(object: T): string | null;
+  refuse?(object: T, value: unknown): string | null;
 }
 
 /**
@@ -33,6 +35,12 @@ export interface AgentKindCreate<T> {
   readonly description: string;
   readonly input: AgentObjectSchema;
   make(args: AgentArgs): T;
+  /**
+   * Takes back a thing just made whose fields were then refused, before anyone came to it: apart from
+   * taking one away (`AgentKindRemove`), which the screen may hold to rules a thing just made is not
+   * under, as a piece is put out of play only from the graveyard. Left out, the thing is destroyed.
+   */
+  unmake?(object: T): void;
 }
 
 /** Taking a thing of a kind away: who may, and the taking itself, its tidying up included. */

@@ -59,7 +59,6 @@ const NOT_YET = [
   'cut-in-scene',
   'data',
   'dice-symbol',
-  'dice-table-palette',
   'effect-field',
   'effect-preset',
   'engagement-zone',
@@ -106,6 +105,12 @@ describe('AGENT_KIND_COVERAGE', () => {
 
     for (const [kind, coverage] of Object.entries(AGENT_KIND_COVERAGE)) {
       if (coverage.by === 'kind') expect(kinds.of(kind), kind).not.toBeNull();
+      if (coverage.by === 'within') {
+        expect(
+          kinds.of(coverage.kind)?.fields.map((field) => field.name),
+          kind
+        ).toContain(coverage.field);
+      }
       if (coverage.by === 'tools') for (const tool of coverage.tools) expect(agentToolOf(tool), tool).not.toBeNull();
     }
     expect(

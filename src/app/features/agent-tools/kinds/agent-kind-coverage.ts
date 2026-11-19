@@ -4,6 +4,7 @@
  */
 export type AgentKindCoverage =
   | { readonly by: 'kind' }
+  | { readonly by: 'within'; readonly kind: string; readonly field: string }
   | { readonly by: 'tools'; readonly tools: readonly string[] }
   | { readonly by: 'none'; readonly why: string };
 
@@ -22,6 +23,7 @@ const SAVE_HOLDER: AgentKindCoverage = {
 export const AGENT_KIND_COVERAGE: Readonly<Record<string, AgentKindCoverage>> = {
   'text-note': KIND,
   'dice-table': KIND,
+  'dice-table-palette': { by: 'within', kind: 'dice-table', field: 'entries' },
   chat: { by: 'tools', tools: ['read_chat', 'send_chat'] },
   'dice-bot': { by: 'tools', tools: ['roll_dice'] },
   TurnState: { by: 'tools', tools: ['get_turn_order', 'advance_turn'] },
