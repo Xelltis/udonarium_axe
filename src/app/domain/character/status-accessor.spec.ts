@@ -330,6 +330,30 @@ describe('StatusAccessor', () => {
     });
   });
 
+  describe('changeByBuff', () => {
+    it('finds the item once, moving it and noting what it leaves where buffs noted it before', () => {
+      const memo = detailDataElement.getFirstElementByName('器用度')!;
+      memo.setAttribute('cs-buff-left', '>24');
+      const finds = vi.spyOn(accessor as unknown as { findAll: (name: string) => DataElement[] }, 'findAll');
+
+      accessor.changeByBuff('器用度', 'now', 2);
+
+      expect(finds).toHaveBeenCalledTimes(1);
+      expect(memo.value).toBe(26);
+      expect(memo.getAttribute('cs-buff-left')).toBe('>26');
+    });
+
+    it('leaves the note of an item written into by hand as it was', () => {
+      const memo = detailDataElement.getFirstElementByName('器用度')!;
+      memo.setAttribute('cs-buff-left', '>20');
+
+      accessor.changeByBuff('器用度', 'now', 2);
+
+      expect(memo.value).toBe(26);
+      expect(memo.getAttribute('cs-buff-left')).toBe('>20');
+    });
+  });
+
   describe('a name the room made an alias of', () => {
     let spare: DataElement;
     let aliased: StatusAccessor;

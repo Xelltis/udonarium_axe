@@ -214,7 +214,12 @@ export class StatusAccessor {
    * back inside the new bounds. A correction of 0 is removed rather than stored.
    */
   setValue(name: string, nowOrMax: ResourceSlot, setValue: number): boolean {
-    const [first, ...mates] = this.findAll(name);
+    return StatusAccessor.writeFound(this.findAll(name), nowOrMax, setValue);
+  }
+
+  /** Writes a number into a slot of the items a name found, as {@link setValue} does. */
+  private static writeFound(found: readonly DataElement[], nowOrMax: ResourceSlot, setValue: number): boolean {
+    const [first, ...mates] = found;
     if (!first) return false;
     return GameObject.batch(() => {
       if (!StatusAccessor.writeSlot(first, nowOrMax, setValue)) return false;
@@ -303,12 +308,38 @@ export class StatusAccessor {
    * value at the maximum. Empty when there is no such item or slot.
    */
   changeValue(name: string, nowOrMax: ResourceSlot, addValue: number, limitMin?: boolean, limitMax?: boolean): string {
-    const data = this.findData(name);
+    return this.changeFound(this.findAll(name), nowOrMax, addValue, limitMin, limitMax);
+  }
+
+  /**
+   * Moves a number a buff moves, as {@link changeValue} does, and notes what it leaves in the item
+   * where the note is read: on an item a buff made, and on one buffs write words into, so a move is
+   * not taken for a hand's as those words go; unless someone had written into the item otherwise,
+   * which stays noted so (see {@link isWrittenOtherwise}). The item is found by its name once.
+   */
+  changeByBuff(name: string, nowOrMax: ResourceSlot, by: number): void {
+    const found = this.findAll(name);
+    const [item] = found;
+    if (!item) return;
+    const byHand = isWrittenOtherwise(item);
+    this.changeFound(found, nowOrMax, by);
+    if (!byHand && (this.isMadeByBuff(item) || isNotedByBuffs(item))) noteLeftByBuffs(item);
+  }
+
+  /** Moves a slot of the items a name found by an amount, as {@link changeValue} does. */
+  private changeFound(
+    found: readonly DataElement[],
+    nowOrMax: ResourceSlot,
+    addValue: number,
+    limitMin?: boolean,
+    limitMax?: boolean
+  ): string {
+    const [data] = found;
     if (!data) return '';
-    const type = this.getType(name, nowOrMax) as SlotType | null;
+    const type = storageOf(data, nowOrMax) as SlotType | null;
     if (!type) return '';
 
-    const oldNum = this.getValue(name, nowOrMax);
+    const oldNum = StatusAccessor.readSlot(data, nowOrMax);
     if (oldNum == null) return '';
     let target = oldNum + addValue;
 
@@ -320,8 +351,8 @@ export class StatusAccessor {
       }
     }
 
-    this.setValue(name, nowOrMax, target);
-    const finalValue = this.getValue(name, nowOrMax) ?? target;
+    StatusAccessor.writeFound(found, nowOrMax, target);
+    const finalValue = StatusAccessor.readSlot(data, nowOrMax) ?? target;
 
     let suffix = '';
     if (finalValue !== oldNum + addValue) {
@@ -367,12 +398,6 @@ export class StatusAccessor {
   writtenOtherwise(name: string): boolean {
     const item = this.findData(name);
     return item !== null && isWrittenOtherwise(item);
-  }
-
-  /** Whether buffs have noted on an item what they left in it (see {@link isNotedByBuffs}). */
-  notedByBuffs(name: string): boolean {
-    const item = this.findData(name);
-    return item !== null && isNotedByBuffs(item);
   }
 
   /** Notes on an item what it holds now as what the buffs left there (see {@link noteLeftByBuffs}). */
@@ -422,9 +447,13 @@ export class StatusAccessor {
 
   /** Whether the item that goes by the name was made by a buff for itself, and is the buff's still. */
   madeByBuff(name: string): boolean {
-    if (!this.detailDataElement || !keepsBuffItems(this.detailDataElement)) return false;
     const data = this.findData(name);
-    return data != null && isBuffMadeItem(data);
+    return data != null && this.isMadeByBuff(data);
+  }
+
+  /** Whether an item of the sheet was made by a buff for itself, and is the buff's still. */
+  private isMadeByBuff(data: DataElement): boolean {
+    return this.detailDataElement !== null && keepsBuffItems(this.detailDataElement) && isBuffMadeItem(data);
   }
 
   private findData(reference: string): DataElement | null {

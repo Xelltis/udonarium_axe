@@ -131,21 +131,20 @@ describe('BuffManager', () => {
         keepsBuffItems: vi.fn(() => false),
         writtenOtherwise: vi.fn(() => false),
         noteLeftByBuffs: vi.fn(),
-        notedByBuffs: vi.fn(() => false),
         nameOf: vi.fn((name: string) => name),
-        changeValue: vi.fn(),
+        changeByBuff: vi.fn(),
       } as unknown as StatusAccessor;
       const withStatus = new BuffManager(buffDataElement, undefined, () => status);
       withStatus.addRound('筋力強化', '', 3);
       const data = container.getFirstElementByName('筋力強化')!;
       withStatus.applyModifier(data, parseBuffModifierRequest('筋力', '+', '2')!);
       const taken = withStatus.snapshot();
-      (status.changeValue as ReturnType<typeof vi.fn>).mockClear();
+      (status.changeByBuff as ReturnType<typeof vi.fn>).mockClear();
 
       withStatus.restore(taken);
       withStatus.restore(taken);
 
-      expect(status.changeValue).not.toHaveBeenCalled();
+      expect(status.changeByBuff).not.toHaveBeenCalled();
     });
   });
 

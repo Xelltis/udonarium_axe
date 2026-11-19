@@ -308,17 +308,11 @@ export class BuffManager {
   }
 
   /**
-   * Changes a number a buff moves, and notes what it leaves in the item where the note is read: on an
-   * item a buff made (see {@link sweepMadeItems}), and on one buffs write words into, so a move is not
-   * taken for a hand's as those words go; unless someone had written into the item otherwise, which
-   * stays noted so.
+   * Changes a number a buff moves, noting what it leaves in the item where the note is read (see
+   * `StatusAccessor.changeByBuff`), as on an item a buff made (see {@link sweepMadeItems}).
    */
   private changeByBuff(target: string, slot: ResourceSlot, by: number): void {
-    const status = this.status();
-    if (!status) return;
-    const byHand = this.writtenByHand(target);
-    status.changeValue(target, slot, by);
-    if (!byHand && (status.madeByBuff(target) || status.notedByBuffs(target))) status.noteLeftByBuffs(target);
+    this.status()?.changeByBuff(target, slot, by);
   }
 
   /**
