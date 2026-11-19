@@ -1,7 +1,7 @@
+import { TranslateFn } from '@axe/application/tabletop/map-generation/dungeon-notes';
 import { FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FieldPlan } from '@axe/domain/tabletop/field/field-generator';
 import { buildFieldSummary } from '@axe/domain/tabletop/field/field-summary';
-import { TranslateFn } from '@axe/features/dungeon-generator/dungeon-notes';
 
 /**
  * The text summary handed over with a generated field map, built from its plan and seed with labels

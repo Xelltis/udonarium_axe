@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { MAP_KINDS } from '@axe/application/tabletop/map-generation/map-settings';
 import { CHAT_SOUND_TYPES } from '@axe/domain/chat/chat-sound';
 import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { AMBIENCE_BRIGHTNESS } from '@axe/domain/effect/ambience/ambience-brightness';
@@ -49,7 +50,6 @@ import { DEFAULT_MENU_LAYOUTS } from '@axe/domain/ui/builtin-menu-layouts';
 import { MENU_COMMANDS } from '@axe/domain/ui/menu-command';
 import { isMenuGroup } from '@axe/domain/ui/menu-layout';
 import { VIEW_MODES } from '@axe/domain/ui/view-mode';
-import { MAP_KINDS } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { FIRST_PERSON_FACING_NAMES, FIRST_PERSON_PAD_LABELS } from '@axe/features/first-person/first-person-hud';
 const HOTBAR_FAILURES = ['noCharacter', 'notFound', 'noTab', 'offTable', 'empty', 'notAllowed', 'unavailable'] as const;
 
