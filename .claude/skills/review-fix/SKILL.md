@@ -29,7 +29,7 @@ Rules that come before the table:
 
 - A finding that stops the tests or CI from noticing something is Middle at least, even where the user sees nothing
 - A finding born of your own fix is Middle or higher
-- A finding that comes up a second time in the same area is raised one level
+- A finding raised again against a rule you already fixed, because the fix did not hold, is raised one level. A new and different finding in the same area is not raised. Raise once only, never again in later rounds, and leave a Low as Low
 
 ## 2. Group
 
