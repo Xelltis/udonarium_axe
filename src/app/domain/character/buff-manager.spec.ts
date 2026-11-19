@@ -1605,6 +1605,20 @@ describe('BuffManager', () => {
         expect(aliased.canMakeForBuff('隠密')).toBe(true);
       });
 
+      it('leaves an item someone put in the section of made items itself, and makes the next one in a group', () => {
+        grant('物理強化', '物理D増加', '+', '2');
+        const section = madeSection()!;
+        const ours = DataElement.create('メモ', '', { [DataElementAttribute.ROLE]: 'field' });
+        section.insertBefore(ours, section.children[0]);
+
+        sheeted.delete('物理強化');
+        expect(ours.parent).toBe(section);
+        grant('炎の剣', '武器属性', '=', '炎');
+
+        expect(ours.children).toHaveLength(0);
+        expect((detail.getFirstElementByName('武器属性')!.parent as DataElement).fieldRole).toBe('group');
+      });
+
       it('keeps an item it made as the sheet’s own where words were written into it by hand', () => {
         grant('炎の剣', '武器属性', '=', '炎');
         status.setText('武器属性', '氷');

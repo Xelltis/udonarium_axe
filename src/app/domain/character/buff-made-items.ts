@@ -21,9 +21,7 @@ const MADE_BY_BUFF = 'cs-buff-made';
  */
 export function makeBuffItem(detail: DataElement, name: string, value: string | number): DataElement {
   const section = buffItemsSectionOf(detail) ?? makeBuffItemsSection(detail);
-  const group =
-    (section.children.find((child) => child instanceof DataElement) as DataElement | undefined) ??
-    makeBuffItemsGroup(section);
+  const group = section.children.find(isGroup) ?? makeBuffItemsGroup(section);
   const item = DataElement.create(name, value, {
     [DataElementAttribute.ROLE]: DataElementRole.FIELD,
     [DataElementAttribute.FIELD_TYPE]:
@@ -45,17 +43,19 @@ export function keepsBuffItems(detail: DataElement): boolean {
  */
 export function isBuffMadeItem(item: DataElement): boolean {
   if (item.getAttribute(MADE_BY_BUFF) !== '1') return false;
-  const section = item.parent?.parent;
-  return section instanceof DataElement && isBuffItemsSection(section);
+  const group = item.parent;
+  return isGroup(group) && group.parent instanceof DataElement && isBuffItemsSection(group.parent);
 }
 
 /** The names of the items buffs made that the sheet keeps where such items are. */
 export function buffItemNamesIn(detail: DataElement): string[] {
   const section = buffItemsSectionOf(detail);
   if (!section) return [];
-  return section.children.flatMap((group) =>
-    (group.children as DataElement[]).filter((item) => isBuffMadeItem(item)).map((item) => item.name)
-  );
+  return section.children
+    .filter(isGroup)
+    .flatMap((group) =>
+      (group.children as DataElement[]).filter((item) => isBuffMadeItem(item)).map((item) => item.name)
+    );
 }
 
 /**
@@ -82,13 +82,19 @@ export function dropBuffItem(item: DataElement): void {
 
 /**
  * Takes away the section made items are kept in, and its groups, once they hold none: a section only
- * buffs make, left empty when its last item was moved out into the sheet.
+ * buffs make, left empty when its last item was moved out into the sheet. Only groups are taken; an
+ * item someone put in the section itself is the sheet's, and keeps the section.
  */
 export function tidyBuffItems(detail: DataElement): void {
   const section = buffItemsSectionOf(detail);
   if (!section) return;
-  for (const group of [...section.children]) if (group.children.length < 1) group.destroy();
+  for (const group of section.children.filter(isGroup)) if (group.children.length < 1) group.destroy();
   if (section.children.length < 1) section.destroy();
+}
+
+/** Whether a part of a sheet is a group, which holds items, rather than an item itself. */
+function isGroup(node: unknown): node is DataElement {
+  return node instanceof DataElement && node.fieldRole === DataElementRole.GROUP;
 }
 
 function isBuffItemsSection(element: DataElement): boolean {
