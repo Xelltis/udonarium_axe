@@ -3143,7 +3143,7 @@
         "skyKind": "Sky",
         "skyKind_": "The background picture",
         "skyKind_clock": "A sky that turns with the game clock",
-        "skyKindHint": "On a 3D table (drawn on a canvas), draws a sky past the board and ground running out to the horizon. Not seen while looking straight down.",
+        "skyKindHint": "On a 3D table (drawn on a canvas), draws the sky of the in-game hour past the board. Looked down on, the board stands before the sky as seen at the horizon. The table is lit in the hour's colours too, by moonlight at night.",
         "sectionFog": "Fog of war",
         "fogEnabled": "Enable fog of war",
         "fogMode": "How the fog comes back",
