@@ -116,7 +116,7 @@ specはアプリをimportしないので、テストごとに読み込んだ遅�
 ソースのimportと突き合わせて選ぶ。対象はまだpushしていない変更で、`--since <コミット>`かファイル名で変えられる。
 specを外すのは、変更が届かないと言い切れるときだけにする。起動時に読み込むソース、e2eの共有ヘルパー、importから読み込まれ方が分からないソース、新しく足したか名前を変えた遅延チャンクのどれかを変えたときは全部を回す。ビルドが差し替えるファイル（`environment.prod.ts`）は差し替え元として読む。記録の無いテストが1つでもあるspecは回す。足したテスト、名前を変えたテスト、途中で止めた実行で流れなかったテストがこれにあたる。決まりは[scripts/e2e-reach.mjs](../scripts/e2e-reach.mjs)にあり、`src/app/testing/e2e-reach.spec.ts`が固定する。
 Web Workerは起動する側のファイルと一緒に読み込まれるものとして数え、AI連携のブリッジのソース（`tools/axe-mcp`と`src/app/core/agent`）はブリッジを起動するspecに届くものとする。
-記録は`npm run e2e`を1回流すとできる。記録は実行のたびに足していき、途中で落ちた実行が短い記録で上書きしないようにしてある。演出の比較も含めるなら`npm run e2e:related -- --visual`とし、2つの描き方は1つずつ順に回る。
+記録は`npm run e2e`を1回流すとできる。記録は実行のたびに足していき、途中で落ちた実行が短い記録で上書きしないようにしてある。記録を信じるのは、そのテストが最後まで通り、アプリの入口（`main`）を読んだときだけにする。通った印は[e2e/loads-reporter.ts](../e2e/loads-reporter.ts)が付けるので、`--reporter`を指定して流した記録には付かない。印のない記録しかないテストのspecは、変更がどこでも回す。演出の比較も含めるなら`npm run e2e:related -- --visual`とし、2つの描き方は1つずつ順に回る。
 
 演出の見た目は`e2e/visual/`のスクリーンショット比較で守る。
 `npx playwright test --project=visual-webgl2`と`--project=visual-webgpu`が、卓をWebGL2とWebGPUで描いて

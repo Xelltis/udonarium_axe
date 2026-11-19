@@ -136,7 +136,8 @@ export default defineConfig({
   // afford real parallelism. Each worker's browser takes about half a gigabyte:
   // 6 finish a run some 13% sooner than 4, and 8 hardly sooner than 6.
   workers: isCI ? 2 : 10,
-  reporter: 'html',
+  // What each test asked for of the app is marked as all it asks for once the test passes: see e2e/loads-reporter.ts.
+  reporter: [['html'], ['./e2e/loads-reporter.ts']],
   // A page load off the build settles in well under a second; 60s was sized for
   // the dev server compiling on demand.
   timeout: 30000,

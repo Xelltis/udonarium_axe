@@ -33,6 +33,25 @@ export function reachOfSource(source, how) {
 }
 
 /**
+ * What a test left behind of the parts of the app it asked for, read from the lines of its record:
+ * the spec, the test's name and the parts. It is taken as all the test asks for only where the test
+ * passed after leaving it, which the record is marked with, and the app's own entry is among the
+ * parts: a build whose parts the suite cannot name, as one that names them without a hash, leaves
+ * none of them. Anything else is untrusted, and the test counts as having left nothing.
+ *
+ * `marks` names the lines that are no part: the one the test's name follows, the one that says it
+ * passed, and the entry's part.
+ */
+export function recordOf(lines, { titleMark, passedMark, entryPart }) {
+  const [spec, ...rest] = lines.filter(Boolean);
+  const named = rest.find((line) => line.startsWith(titleMark));
+  if (spec === undefined || named === undefined) return null;
+  const parts = rest.filter((line) => !line.startsWith(titleMark) && line !== passedMark);
+  const trusted = rest.includes(passedMark) && parts.includes(entryPart);
+  return { spec, title: named.slice(titleMark.length), parts, trusted };
+}
+
+/**
  * The specs reached through the parts of the app, loaded as it goes, that changed sources belong to.
  *
  * `partsChanged` names each such part with a file that changed in it, and whether the part itself is

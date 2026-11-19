@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -26,14 +27,19 @@ describe('which e2e specs a changed source reaches', () => {
   let reachOfSource: (source: string, how: How) => Reach;
   let specsReachedThroughParts: (through: Through) => { every?: string; picked: Map<string, string> };
   let reasonsOf: (specs: string[], whyOf: (spec: string) => string, total: number) => string[];
+  let recordOf: (
+    lines: string[],
+    marks: { titleMark: string; passedMark: string; entryPart: string }
+  ) => { spec: string; title: string; parts: string[]; trusted: boolean } | null;
 
   beforeAll(async () => {
     const module = (await import(/* @vite-ignore */ pathToFileURL(resolve('scripts/e2e-reach.mjs')).href)) as {
       reachOfSource: typeof reachOfSource;
       specsReachedThroughParts: typeof specsReachedThroughParts;
       reasonsOf: typeof reasonsOf;
+      recordOf: typeof recordOf;
     };
-    ({ reachOfSource, specsReachedThroughParts, reasonsOf } = module);
+    ({ reachOfSource, specsReachedThroughParts, reasonsOf, recordOf } = module);
   });
 
   const how = (): How => ({
@@ -167,6 +173,46 @@ describe('which e2e specs a changed source reaches', () => {
         '1: changed itself',
       ]);
       expect(reasonsOf(['a.spec.ts', 'b.spec.ts'], whyOf, 2)).toEqual(['every one: helper reaches every spec']);
+    });
+  });
+
+  describe('what a test left behind', () => {
+    const related = JSON.parse(readFileSync('e2e/related.json', 'utf-8')) as { titleMark: string; passedMark: string };
+    const marks = { titleMark: related.titleMark, passedMark: related.passedMark, entryPart: 'main' };
+    const record = (...lines: string[]) =>
+      recordOf(['e2e/a.spec.ts', `${related.titleMark}opens › the panel`, ...lines], marks);
+
+    it('is trusted where the test passed after leaving it and the app’s entry is among its parts', () => {
+      expect(record('main', 'panel.component', related.passedMark, '')).toEqual({
+        spec: 'e2e/a.spec.ts',
+        title: 'opens › the panel',
+        parts: ['main', 'panel.component'],
+        trusted: true,
+      });
+    });
+
+    it('is not trusted where the test did not pass, as one that failed or was stopped part of the way', () => {
+      expect(record('main', 'panel.component')?.trusted).toBe(false);
+    });
+
+    it('is not trusted where the app’s entry is not among its parts, as of a build whose parts cannot be named', () => {
+      expect(record(related.passedMark)?.trusted).toBe(false);
+      expect(record('panel.component', related.passedMark)?.trusted).toBe(false);
+    });
+
+    it('is none where it names no test', () => {
+      expect(recordOf(['e2e/a.spec.ts', 'main', related.passedMark], marks)).toBeNull();
+      expect(recordOf([], marks)).toBeNull();
+    });
+
+    it('is marked passed by the reporter the configuration runs, and the mark taken off as the test starts again', () => {
+      const config = readFileSync('playwright.config.ts', 'utf-8');
+      const reporter = readFileSync('e2e/loads-reporter.ts', 'utf-8');
+      const helper = readFileSync('e2e/helpers.ts', 'utf-8');
+
+      expect(config).toMatch(/reporter: \[[^\n]*\['\.\/e2e\/loads-reporter\.ts'\]/);
+      expect(reporter).toContain('`${related.passedMark}\\n`');
+      expect(helper).toContain('line !== related.passedMark');
     });
   });
 });

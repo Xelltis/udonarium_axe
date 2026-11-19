@@ -30,20 +30,21 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 
 import { kindOfChange } from './change-reach.mjs';
-import { partNameOf, reachOfSource, reasonsOf, specsReachedThroughParts } from './e2e-reach.mjs';
+import { partNameOf, reachOfSource, reasonsOf, recordOf, specsReachedThroughParts } from './e2e-reach.mjs';
 import { importedFrom, resolveSpecifier, RuntimeImports, sourcesUnder } from './runtime-imports.mjs';
 
 /**
  * What the picker shares with the suite, kept in e2e/related.json, which the helper that writes what
- * each test loaded reads as well: where each test leaves the parts of the app it asked for, what its
- * name is kept after there and what joins the groups it stands in to its title, and the projects of
- * playwright.config.ts that run the specs of each kind, which a spec holds against the projects the
- * configuration names.
+ * each test loaded and the reporter that marks it as passed read as well: where each test leaves the
+ * parts of the app it asked for, what its name is kept after there and what joins the groups it stands
+ * in to its title, the line that says it passed, and the projects of playwright.config.ts that run the
+ * specs of each kind, which a spec holds against the projects the configuration names.
  */
 const {
   loadsDir: LOADS_DIR,
   titleMark: TITLE_MARK,
   titleJoint: TITLE_JOINT,
+  passedMark: PASSED_MARK,
   projects: PROJECTS,
 } = JSON.parse(readFileSync('e2e/related.json', 'utf-8'));
 const ENTRY = 'src/main.ts';
@@ -122,19 +123,17 @@ function testsListed() {
     return null;
   }
   const tests = new Map();
-  const ids = new Map();
   const visit = (suite, groups) => {
     for (const spec of suite.specs ?? []) {
       const file = posix.join('e2e', spec.file.split('\\').join('/'));
       const title = [...groups, spec.title].join(TITLE_JOINT);
       if (!tests.has(file)) tests.set(file, new Set());
       tests.get(file).add(title);
-      ids.set(spec.id, title);
     }
     for (const inner of suite.suites ?? []) visit(inner, [...groups, inner.title]);
   };
   for (const file of report.suites ?? []) visit(file, []);
-  return { tests: new Map([...tests].map(([file, titles]) => [file, [...titles]])), ids };
+  return new Map([...tests].map(([file, titles]) => [file, [...titles]]));
 }
 
 function specsUnder(dir) {
@@ -147,27 +146,26 @@ function specsUnder(dir) {
 
 /**
  * The parts of the app each test of each spec asked for as it went, by what it left behind, under the
- * test's name. A test that left its name is taken by it; one that left none, as before names were
- * kept, by the name Playwright lists under what it was filed as, and is passed over where it lists
- * none. What a test left under several projects is put together.
+ * test's name, put together over the projects it ran in. A test with a record that cannot be trusted
+ * in any project is left out, as one that has left nothing (`recordOf`).
  */
-function loadsKept(ids) {
+function loadsKept() {
   const loads = new Map();
+  const untrusted = [];
   if (!existsSync(LOADS_DIR)) return loads;
+  const marks = { titleMark: TITLE_MARK, passedMark: PASSED_MARK, entryPart: partNameOf(ENTRY) };
   for (const project of readdirSync(LOADS_DIR)) {
     for (const file of readdirSync(posix.join(LOADS_DIR, project))) {
-      const [spec, ...lines] = readFileSync(posix.join(LOADS_DIR, project, file), 'utf-8')
-        .split('\n')
-        .filter(Boolean);
-      if (spec === undefined) continue;
-      const named = lines.find((line) => line.startsWith(TITLE_MARK));
-      const title = named?.slice(TITLE_MARK.length) ?? ids.get(file.replace(/\.txt$/, ''));
-      if (title === undefined) continue;
-      if (!loads.has(spec)) loads.set(spec, new Map());
-      if (!loads.get(spec).has(title)) loads.get(spec).set(title, new Set());
-      for (const line of lines) if (!line.startsWith(TITLE_MARK)) loads.get(spec).get(title).add(line);
+      const record = recordOf(readFileSync(posix.join(LOADS_DIR, project, file), 'utf-8').split('\n'), marks);
+      if (record === null) continue;
+      if (!record.trusted) untrusted.push(record);
+      if (!loads.has(record.spec)) loads.set(record.spec, new Map());
+      const byTest = loads.get(record.spec);
+      if (!byTest.has(record.title)) byTest.set(record.title, new Set());
+      for (const part of record.parts) byTest.get(record.title).add(part);
     }
   }
+  for (const { spec, title } of untrusted) loads.get(spec)?.delete(title);
   return loads;
 }
 
@@ -320,8 +318,8 @@ if (partsChanged.size > 0) {
   const through = specsReachedThroughParts({
     partsChanged,
     specs: allSpecs,
-    tests: listed?.tests ?? null,
-    kept: loadsKept(listed?.ids ?? new Map()),
+    tests: listed,
+    kept: loadsKept(),
   });
   if (through.every !== undefined) pickEvery(() => true, through.every);
   for (const [spec, why] of through.picked) pick(spec, why);

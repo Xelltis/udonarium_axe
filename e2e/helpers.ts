@@ -251,8 +251,9 @@ export function keepLoadedParts(page: Page): void {
   // The test's name, by the groups it stands in and its own title, which the picker tells it by: what
   // Playwright files a test under differs from one project to the next.
   const name = `${related.titleMark}${info.titlePath.slice(1).join(related.titleJoint)}`;
+  // The mark that the test passed is taken off as it starts again: loads-reporter.ts puts it back once it has.
   const before = existsSync(kept) ? readFileSync(kept, 'utf-8').split('\n').filter(Boolean) : [];
-  const parts = before.slice(1).filter((line) => !line.startsWith(related.titleMark));
+  const parts = before.slice(1).filter((line) => !line.startsWith(related.titleMark) && line !== related.passedMark);
   const seen = new Set<string>(before[0] === spec ? parts : []);
   writeFileSync(kept, [spec, name, ...seen].map((line) => `${line}\n`).join(''));
   context.on('request', (request) => {
