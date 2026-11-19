@@ -305,12 +305,13 @@ export class StatusAccessor {
 
   /**
    * What the item takes written into it: one of its choices for a select, words for a line of text,
-   * prose or a note, and numbers for a resource or a number field. Null where there is no such item, or
-   * it is of a kind nothing is written into.
+   * prose or a note, numbers for a resource or a number field, and nothing for a check box, a picture
+   * or a table. Null where there is no such item.
    */
   takesOf(name: string): ItemTakes | null {
     const data = this.findData(name);
-    if (!data || !isChangeableElementType(data.type)) return null;
+    if (!data) return null;
+    if (!isChangeableElementType(data.type)) return { takes: 'nothing' };
     if (data.fieldType === DataElementFieldType.SELECT) {
       return { takes: 'choice', choices: parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '') };
     }

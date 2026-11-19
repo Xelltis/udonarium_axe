@@ -1064,7 +1064,13 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getText('段位')).toBe('2');
       buff('&昇格-');
       expect(character.status.getText('段位')).toBe('1');
-      expect(applyTextEdit(said(':段位=5').edit, character)).toBe('段位に「5」はありません: 1・2・3    ');
+      const five = said(':段位=5').edit;
+      expect(five.operator).toBe('=');
+      expect(applyResourceEdit({ ...five, calcAns: 5 }, character)).toBe('段位に「5」はありません: 1・2・3    ');
+      expect(said(':段位=1+1').edit.operator).toBe('=');
+      expect(applyResourceEdit({ ...said(':段位=1+1').edit, calcAns: 2 }, character)).toBe('段位＞2    ');
+      expect(character.status.getText('段位')).toBe('2');
+      applyTextEdit(said(':段位>1').edit, character);
 
       buff('&!昇格/段位+1/3');
       expect(character.status.getText('段位')).toBe('2');
@@ -1076,6 +1082,21 @@ describe('resource-edit-helpers', () => {
       expect(buff('&!x/HP^=最大/3')).toBe('バフの書式が読めません x    ');
       expect(buff('&!y/属性=炎~1/3')).toBe('バフの書式が読めません y    ');
       expect(character.status.getText('属性')).toBe('無属性');
+    });
+
+    it('reads letters alone after `=` as words, and a number with option letters as an amount', () => {
+      expect(said(':属性=L').edit).toMatchObject({ operator: '>', replace: 'L' });
+      expect(said(':属性=OK').edit).toMatchObject({ operator: '>', replace: 'OK' });
+      expect(said(':HP=10L').edit).toMatchObject({ operator: '=', amount: '10' });
+    });
+
+    it('clears an item holding a choice with `>` and nothing, and writes anything into one offering no choices', () => {
+      expect(applyTextEdit(said(':構え>').edit, character)).toBe('構え＞    ');
+      expect(character.status.getText('構え')).toBe('');
+
+      character.detailDataElement!.getFirstElementByName('構え')!.setAttribute(DataElementAttribute.CHOICES, '');
+      expect(applyTextEdit(said(':構え>突撃').edit, character)).toBe('構え＞突撃    ');
+      expect(buff('&!突撃/構え=猛進/3')).toBe('突撃を付与 構え=猛進/3R    ');
     });
 
     it('finds the status a command names in half-width characters as well', () => {

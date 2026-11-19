@@ -1,4 +1,3 @@
-import { toHalfWidth } from '@axe/core/util/string-util';
 import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import {
   buffCommandKind,
@@ -456,10 +455,7 @@ function piecesFor(targeted: boolean, context: ChatLintContext): readonly GameCh
 function meantAsResourceCommand(command: string, pieces: readonly GameCharacter[]): boolean {
   if (resourceCommandParts(command)) return true;
   const name = readNamedResourceSlot(command.replace(/^[tTｔＴ]?[:：]/, '')).name;
-  return (
-    name.length > 0 &&
-    pieces.some((piece) => piece.status.canChangeName(name) || piece.status.canChangeName(toHalfWidth(name)))
-  );
+  return name.length > 0 && pieces.some((piece) => statusNamedIn(piece, name) !== null);
 }
 
 /** Whether a command holds a reference, filled in before the command is read, so that what it names is not known yet. */
@@ -524,6 +520,9 @@ function lintBuffStatus(
       return add(span, 'error', 'buff.notAChoice', { params: { name, choices: landing.choices.join('・') } });
     }
     if (landing.kind === 'notWords') return add(span, 'error', 'buff.notWords', { params: { name } });
+  }
+  if (landings.some(({ landing }) => landing.kind === 'unwritable')) {
+    return add(span, 'warning', 'buff.missingStatus', { params: { name } });
   }
   if (landings.some(({ landing }) => landing.kind === 'missing')) {
     if (request.lasting || request.slot !== 'now') add(span, 'warning', 'buff.missingStatus', { params: { name } });

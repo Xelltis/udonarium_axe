@@ -4,6 +4,7 @@ import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import { scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
+import { DataElement } from '@axe/domain/data/data-element';
 
 describe('lintChatSyntax', () => {
   let speaker: GameCharacter;
@@ -168,6 +169,8 @@ describe('lintChatSyntax', () => {
       expect(codes(':役割=交渉役')).toEqual([]);
       expect(codes(':役割>支援役')).toEqual([]);
       expect(codes('：役割＝交渉役')).toEqual([]);
+      expect(codes(':役割=1d3')).not.toContain('res.notAChoice');
+      expect(codes(':名前メモ=OK')).toEqual([]);
       expect(codes(':役割+1')).not.toContain('res.notAChoice');
       expect(lint(':役割^=交渉役')[0]).toMatchObject({ severity: 'error', code: 'res.noSlot' });
       expect(lint(':役割=勇者')[0]).toMatchObject({
@@ -221,6 +224,13 @@ describe('lintChatSyntax', () => {
     it('finds words a buff would write into an item that holds numbers, and a number that is none of the choices', () => {
       expect(lint('&!呪い/HP=1d6/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notWords' });
       expect(lint('&!指揮/役割=5/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notAChoice' });
+    });
+
+    it('says an item nothing is written into is not moved, rather than that one will be made', () => {
+      const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
+      group.appendChild(DataElement.create('状態', '', { type: 'check' }));
+
+      expect(codes('&!X/状態=毒/3')).toEqual(['buff.missingStatus']);
     });
 
     it('finds words that are none of the choices for one target though another lacks the item', () => {

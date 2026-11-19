@@ -238,17 +238,21 @@ export function statusNamedIn(object: GameCharacter, name: string): string | nul
   return object.status.canChangeName(halfWidth) ? halfWidth : null;
 }
 
-/** Whether what follows `=` is an amount to work out: a number, a sum, or a roll. */
+/**
+ * Whether what follows `=` is an amount to work out: a number, a sum, or a roll, with any option
+ * letters after it. Letters alone, as `L` or `OK`, are words, not options with no amount.
+ */
 export function isAmountWritten(amount: string): boolean {
   const written = toHalfWidth(amount).trim();
   if (/\d\s*[dD]|[dD]\s*\d/.test(written)) return true;
-  return Number.isFinite(readBuffAmount(splitOptionLetters(written).amount));
+  const bare = splitOptionLetters(written).amount.trim();
+  return bare.length > 0 && Number.isFinite(readBuffAmount(bare));
 }
 
 /**
  * Where a `:` command's value lands on the status it names (see {@link landingOn}): `>` writes words
- * wherever it is told to, `=` writes words into an item that takes words or a choice and an amount as
- * a number, and the other operators move the number by it.
+ * wherever it is told to, `=` writes words into an item that takes words or a choice and works an
+ * amount out to hold the item at, and the other operators move the number by it.
  */
 export function commandLanding(
   object: GameCharacter,
@@ -259,7 +263,7 @@ export function commandLanding(
 ): ItemLanding {
   if (operator === '>') return object.status.landingOf(target, 'now', amount, 'wordsAnywhere');
   if (operator !== '=') return object.status.landingOf(target, slot, amount, 'moveBy');
-  return object.status.landingOf(target, slot, amount, isAmountWritten(amount) ? 'amount' : 'words');
+  return object.status.landingOf(target, slot, amount, isAmountWritten(amount) ? 'formula' : 'words');
 }
 
 /**
@@ -304,6 +308,15 @@ export interface ResourceEditReport {
  * one changes the current value instead. Both texts are empty when the status has no value to change.
  */
 export function applyResourceEditReport(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
+  if (edit.operator === '=') {
+    const landing = character.status.landingOf(edit.target, edit.nowOrMax, String(edit.calcAns), 'amount');
+    const said = (text: string): ResourceEditReport => ({ full: `${text}    `, shown: `${text}    ` });
+    if (landing.kind === 'notAChoice') return said(notAChoiceText(edit.target, String(edit.calcAns), landing.choices));
+    if (landing.kind === 'words') {
+      character.status.setText(edit.target, landing.words);
+      return said(`${edit.target}＞${landing.words}`);
+    }
+  }
   let optionText = '';
   let nowOrMax = edit.nowOrMax;
 

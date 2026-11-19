@@ -36,6 +36,16 @@ describe('where a value written to an item lands', () => {
     expect(landingOn(WORDS, 'max', '1', 'moveBy')).toEqual({ kind: 'noSlot' });
   });
 
+  it('works a sum or a roll out before holding it to the choices, and takes anything into a choice offering none', () => {
+    expect(landingOn(CHOICE, 'now', '1d3', 'formula')).toEqual({ kind: 'number' });
+    expect(landingOn({ takes: 'choice', choices: [] }, 'now', '突撃', 'words')).toEqual({
+      kind: 'words',
+      words: '突撃',
+    });
+    expect(landingOn(CHOICE, 'now', '', 'wordsAnywhere')).toEqual({ kind: 'words', words: '' });
+    expect(landingOn({ takes: 'nothing' }, 'now', '毒', 'words')).toEqual({ kind: 'unwritable' });
+  });
+
   it('has no slot but the value in an item that holds words or a choice', () => {
     expect(landingOn(WORDS, 'max', '炎', 'words')).toEqual({ kind: 'noSlot' });
     expect(landingOn(CHOICE, 'max', '攻勢', 'words')).toEqual({ kind: 'noSlot' });
