@@ -1161,6 +1161,15 @@ describe('resource-edit-helpers', () => {
       expect(buff('&!突撃/構え=猛進/3')).toBe('突撃を付与 構え=猛進/3R    ');
     });
 
+    it('says why a buff laid nowhere, as the lint says it', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('判定済み', '', { type: 'check' }));
+
+      expect(buff('&!集中/判定済み+1/3')).toBe('集中を付与 判定済み+1/3R (判定済みには書けません)    ');
+      expect(buff('&!猛攻撃/PL名+2/3')).toBe('猛攻撃を付与 PL名+2/3R (PL名に動かす数がありません)    ');
+      expect(buff('&!鼓舞/気力^+2/3')).toBe('鼓舞を付与 最大気力+2/3R (気力が見つかりません)    ');
+    });
+
     it('holds an item of words no number is read from at an amount as words, by the chat as by a buff', () => {
       expect(applyResourceEditReport({ ...said(':属性=1').edit, calcAns: 1 }, character).full).toBe('属性＞1    ');
       expect(character.status.getText('属性')).toBe('1');

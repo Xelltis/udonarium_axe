@@ -36,7 +36,7 @@ import {
 } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
-import { type ItemLanding, landingOfRequest } from '@axe/domain/character/item-landing';
+import { type BuffRequestOutcome, buffRequestOutcome, type ItemLanding } from '@axe/domain/character/item-landing';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -205,7 +205,7 @@ export function convertCommandToResourceEdit(
     return true;
   }
   const landing = commandLanding(object, target, named.slot, parts.operator, parts.amount);
-  if (landing.kind === 'words' || landing.kind === 'notAChoice') {
+  if (!readsOptions(landing)) {
     oneResourceEdit.operator = '>';
     oneResourceEdit.replace = parts.amount;
     return true;
@@ -252,6 +252,14 @@ export function isAmountWritten(amount: string): boolean {
  */
 export function slotWrittenTo(object: GameCharacter, target: string, slot: ResourceSlot): ResourceSlot {
   return slot === 'max' && object.status.getValue(target, 'max') == null ? 'now' : slot;
+}
+
+/**
+ * Whether a `:` command's value is worked out as an amount where it lands, reading the option letters
+ * at its end: everywhere but where it is written as words, or turned away from a choice.
+ */
+export function readsOptions(landing: ItemLanding): boolean {
+  return landing.kind !== 'words' && landing.kind !== 'notAChoice';
 }
 
 /**
@@ -567,16 +575,17 @@ function grantCalculatedBuff(
       if (!data) return;
       // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
       if (!isAimedAtStatus(request.target)) {
-        const landing = landingOfRequest(character.status, request);
+        const outcome = buffRequestOutcome(character.status, request, true);
         const applied = rowStacking
           ? character.buffs.stackModifier(data, request, true)
           : character.buffs.applyModifier(data, request, true);
-        if (applied && landing.kind === 'missing') made.push(request.target);
-        else if (!applied && landing.kind === 'notAChoice') {
-          refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), landing.choices));
-        } else if (!applied && landing.kind === 'notWords') {
-          refused.push(`${request.target}は数の項目なので「${request.text}」は書けません`);
-        } else if (!applied) missing.push(request.target);
+        if (applied) {
+          if (outcome.kind === 'makes') made.push(request.target);
+        } else {
+          const said = refusalOf(outcome, request);
+          if (said) refused.push(said);
+          else missing.push(request.target);
+        }
       }
       effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
     });
@@ -592,6 +601,26 @@ function grantCalculatedBuff(
     const laid = `${name}を${verb} ${effects.join(',')}${left}`;
     return keptReport(character, `${laid}${lack}    `, `${laid}    `);
   });
+}
+
+/**
+ * What the report of laying a `&!` buff says of a request it laid nowhere (see
+ * {@link buffRequestOutcome}), as the chat's lint says it; null for an item the sheet lacks, which the
+ * report names among those not found.
+ */
+function refusalOf(outcome: BuffRequestOutcome, request: ParsedBuffModifierRequest): string | null {
+  switch (outcome.kind) {
+    case 'notAChoice':
+      return notAChoiceText(request.target, request.text ?? String(request.amount), outcome.choices);
+    case 'notWords':
+      return `${request.target}は数の項目なので「${request.text}」は書けません`;
+    case 'unwritable':
+      return `${request.target}には書けません`;
+    case 'noNumber':
+      return `${request.target}に動かす数がありません`;
+    default:
+      return null;
+  }
 }
 
 /** Runs one `&` buff command on the character and returns the chat text reporting it in full; see {@link applyBuffEditReport}. */

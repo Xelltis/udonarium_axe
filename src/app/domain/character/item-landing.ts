@@ -72,6 +72,53 @@ export function landingOn(item: ItemTakes | null, slot: ResourceSlot, written: s
 /** What a sheet answers about its items, as far as where a value lands goes. */
 export interface ItemsLandedOn {
   landingOf(name: string, slot: ResourceSlot, written: string, as: WrittenAs): ItemLanding;
+  /** The number the slot of an item holds, or null where it holds none. */
+  getValue(name: string, slot: ResourceSlot): number | null;
+  /** Whether a buff may make an item of this name, there being none. */
+  canMakeForBuff(name: string): boolean;
+}
+
+/**
+ * What laying a `&!` request comes to on a piece: it moves a number or writes words (`lands`), an item
+ * is made for it (`makes`), or it lands nowhere, for words none of a choice's, words into an item that
+ * holds numbers, an item nothing is written into (a check box or a picture), a slot or an item with no
+ * number to move, or an item the sheet has none of and none is made for. The chat's lint and the
+ * report of laying the buff both go by it.
+ */
+export type BuffRequestOutcome =
+  | { readonly kind: 'lands' }
+  | { readonly kind: 'makes' }
+  | { readonly kind: 'notAChoice'; readonly choices: readonly string[] }
+  | { readonly kind: 'notWords' }
+  | { readonly kind: 'unwritable' }
+  | { readonly kind: 'noNumber' }
+  | { readonly kind: 'missing' };
+
+/**
+ * What laying a `&!` request comes to on a sheet (see {@link BuffRequestOutcome}). An item the sheet
+ * lacks is made only for a buff that is to make one, as one written in the chat is, that gives back
+ * what it moves and moves the item's value, where a buff may make one by that name.
+ */
+export function buffRequestOutcome(
+  sheet: ItemsLandedOn,
+  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text' | 'lasting'>,
+  makesMissing: boolean
+): BuffRequestOutcome {
+  const landing = landingOfRequest(sheet, request);
+  switch (landing.kind) {
+    case 'words':
+      return { kind: 'lands' };
+    case 'number':
+      return sheet.getValue(request.target, request.slot) == null ? { kind: 'noNumber' } : { kind: 'lands' };
+    case 'noSlot':
+      return { kind: 'noNumber' };
+    case 'missing':
+      return makesMissing && !request.lasting && request.slot === 'now' && sheet.canMakeForBuff(request.target)
+        ? { kind: 'makes' }
+        : { kind: 'missing' };
+    default:
+      return landing;
+  }
 }
 
 /**

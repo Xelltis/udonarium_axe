@@ -11,7 +11,7 @@ import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modif
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { landingOfRequest } from '@axe/domain/character/item-landing';
+import { type BuffRequestOutcome, buffRequestOutcome } from '@axe/domain/character/item-landing';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
@@ -33,9 +33,9 @@ import {
 } from '@axe/domain/data/resource-command-words';
 import {
   commandLanding,
-  isAmountWritten,
   parseResourceEditOption,
   readModifierLayout,
+  readsOptions,
   statusNamedIn,
 } from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
@@ -83,6 +83,8 @@ export const CHAT_LINT_CODES = [
   'buff.makesStatus',
   'buff.notAChoice',
   'buff.notWords',
+  'buff.unwritable',
+  'buff.noNumber',
   'buff.notFound',
   'buff.roundsDefault',
   'buff.badEffectTiming',
@@ -513,16 +515,15 @@ function lintResource(
   }
   if (landings.some((landing) => landing.kind === 'noSlot'))
     return add(span, 'error', 'res.noSlot', { params: { name } });
-  if (parts.operator !== '>' && isAmountWritten(parts.amount) && parseResourceEditOption(parts.amount).isErr) {
-    add(span, 'error', 'res.badOption');
-  }
+  if (landings.some(readsOptions) && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
 }
 
 /**
- * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at, by where what it
- * asks for lands on each (see {@link landingOfRequest}), as laying it would: words that are none of a
- * choice's, or go into an item that holds numbers, first, whichever piece they are for; then an item a
- * piece lacks, made for the buff where one can be; then a status nothing can be moved in.
+ * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at, by what laying it
+ * comes to on each (see {@link buffRequestOutcome}), as the report of laying it says: words that are
+ * none of a choice's, or go into an item that holds numbers, first, whichever piece they are for; then
+ * an item nothing is written into; then an item a piece lacks and none is made for; then an item with
+ * no number to move; and an item made for the buff.
  */
 function lintBuffStatus(
   request: ParsedBuffModifierRequest,
@@ -530,30 +531,20 @@ function lintBuffStatus(
   pieces: readonly GameCharacter[],
   add: Report
 ): void {
-  const name = request.target;
-  const landings = pieces.map((piece) => ({ piece, landing: landingOfRequest(piece.status, request) }));
-  const unchosen = landings.find(({ landing }) => landing.kind === 'notAChoice')?.landing;
+  const params = { params: { name: request.target } };
+  const outcomes = pieces.map((piece) => buffRequestOutcome(piece.status, request, true));
+  const unchosen = outcomes.find((outcome) => outcome.kind === 'notAChoice');
   if (unchosen?.kind === 'notAChoice') {
-    return add(span, 'error', 'buff.notAChoice', { params: { name, choices: unchosen.choices.join('・') } });
+    return add(span, 'error', 'buff.notAChoice', {
+      params: { name: request.target, choices: unchosen.choices.join('・') },
+    });
   }
-  if (landings.some(({ landing }) => landing.kind === 'notWords')) {
-    return add(span, 'error', 'buff.notWords', { params: { name } });
-  }
-  if (landings.some(({ landing }) => landing.kind === 'unwritable')) {
-    return add(span, 'warning', 'buff.missingStatus', { params: { name } });
-  }
-  const missing = landings.filter(({ landing }) => landing.kind === 'missing');
-  if (missing.length > 0) {
-    const made =
-      !request.lasting && request.slot === 'now' && missing.every(({ piece }) => piece.status.canMakeForBuff(name));
-    if (made) add(span, 'info', 'buff.makesStatus', { params: { name } });
-    else add(span, 'warning', 'buff.missingStatus', { params: { name } });
-  }
-  const unmoved = landings.some(
-    ({ piece, landing }) =>
-      landing.kind === 'noSlot' || (landing.kind === 'number' && piece.status.getValue(name, request.slot) == null)
-  );
-  if (unmoved) add(span, 'warning', 'buff.missingStatus', { params: { name } });
+  const any = (kind: BuffRequestOutcome['kind']) => outcomes.some((outcome) => outcome.kind === kind);
+  if (any('notWords')) return add(span, 'error', 'buff.notWords', params);
+  if (any('unwritable')) return add(span, 'warning', 'buff.unwritable', params);
+  if (any('missing')) return add(span, 'warning', 'buff.missingStatus', params);
+  if (any('noNumber')) add(span, 'warning', 'buff.noNumber', params);
+  if (any('makes')) add(span, 'info', 'buff.makesStatus', params);
 }
 
 /**

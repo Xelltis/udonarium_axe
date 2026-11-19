@@ -155,6 +155,9 @@ describe('lintChatSyntax', () => {
 
   describe('resource commands', () => {
     it('finds what reading the command into an edit turns down', () => {
+      expect(codes(':HP=MAX')).toEqual(['res.badOption']);
+      expect(codes(':HP+abc')).toEqual(['res.badOption']);
+      expect(codes(':名前メモ=OK')).toEqual([]);
       expect(codes(':HP-5')).toEqual([]);
       expect(codes(':HP')).toEqual(['res.noOperator']);
       expect(codes('ok :) :-) :D')).toEqual([]);
@@ -219,7 +222,7 @@ describe('lintChatSyntax', () => {
         code: 'buff.notAChoice',
         params: { name: '役割', choices: '調査役・交渉役・支援役・記録役' },
       });
-      expect(codes('&!猛攻撃/名前メモ+2/3')).toEqual(['buff.missingStatus']);
+      expect(codes('&!猛攻撃/名前メモ+2/3')).toEqual(['buff.noNumber']);
     });
 
     it('finds words a buff would write into an item that holds numbers, and a number that is none of the choices', () => {
@@ -237,7 +240,7 @@ describe('lintChatSyntax', () => {
       const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
       group.appendChild(DataElement.create('状態', '', { type: 'check' }));
 
-      expect(codes('&!X/状態=毒/3')).toEqual(['buff.missingStatus']);
+      expect(codes('&!X/状態=毒/3')).toEqual(['buff.unwritable']);
     });
 
     it('tells nothing of the items of a piece kept from the reader, and all of them to one who may see it', () => {
@@ -256,7 +259,8 @@ describe('lintChatSyntax', () => {
       expect(codes(':役割=勇者', { mayView: () => true })).toEqual(['res.notAChoice']);
       expect(codes(':役割>Fire', { mayView: () => true })).toEqual(['res.notAChoice']);
       expect(codes('&!鼓舞/気力+2/3', { mayView: () => true })).toEqual(['buff.makesStatus']);
-      expect(codes(':HP-5Q')).toEqual(['res.badOption']);
+      expect(codes(':HP-5Q')).toEqual([]);
+      expect(codes(':HP-5Q', { mayView: () => true })).toEqual(['res.badOption']);
     });
 
     it('finds words that are none of the choices for one target though another lacks the item', () => {

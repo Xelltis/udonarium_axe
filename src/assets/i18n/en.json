@@ -4843,6 +4843,8 @@
           "makesStatus": "There is no \"{{name}}\", so it is made under \"バフの項目\" at the foot of the sheet and goes when the buff does",
           "notAChoice": "Not one of the choices of \"{{name}}\", so that item does not change ({{choices}})",
           "notWords": "\"{{name}}\" holds a number, so no words can be written into it",
+          "unwritable": "\"{{name}}\" takes nothing written, so this does nothing",
+          "noNumber": "\"{{name}}\" holds no number to move, so that status does not move",
           "notFound": "{{piece}} has no buff \"{{name}}\"",
           "roundsDefault": "The rounds are no number, so it lasts 3 rounds",
           "badEffectTiming": "The effect's timing cannot be read, so the buff is laid without it (tick:roundEnd, tick:turnStart, tick:turnEnd)",
