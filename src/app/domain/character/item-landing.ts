@@ -44,7 +44,9 @@ export type ItemLanding =
  * no sum to work out; any other sum or roll is worked out first and its answer held to the choices as
  * it is written. One that offers no choices takes anything, and `>` with nothing clears it. One that
  * holds words takes words, and an amount as a number where a number is read from what it holds, as
- * words where none is; a sum or a roll is worked out first. One that holds numbers takes an amount, and
+ * words where none is; a sum or a roll is worked out first. One that holds words but a number now, as a
+ * line of text an older sheet keeps an ability's score in, takes words only as `>` writes them, so
+ * no slip of a sum is written over the score. One that holds numbers takes an amount, and
  * words only as `>` writes them wherever it is told to. An item holding words or a choice has no slot
  * but its value. An amount to move an item by is no value written into it, so it moves the number any
  * item holds, a choice's too. A check box or a picture takes nothing written.
@@ -66,6 +68,7 @@ export function landingOn(item: ItemTakes | null, slot: ResourceSlot, written: s
     return free ? { kind: 'words', words } : { kind: 'notAChoice', choices: item.choices };
   }
   if (as === 'formula' || (as === 'amount' && item.holdsNumber)) return { kind: 'number' };
+  if (as === 'words' && item.holdsNumber) return { kind: 'notWords' };
   return { kind: 'words', words };
 }
 

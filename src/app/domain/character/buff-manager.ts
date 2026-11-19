@@ -211,12 +211,13 @@ export class BuffManager {
    */
   applyModifier(
     data: DataElement,
-    request: ParsedBuffModifierRequest,
+    asked: ParsedBuffModifierRequest,
     makesMissing = false
   ): BuffModifier | BuffTextModifier | null {
     return this.alter(() => {
       const status = this.status();
       if (!status) return null;
+      const request = namedOn(status, asked);
       const landing = landingOfRequest(status, request);
       if (landing.kind === 'missing') {
         if (!makesMissing || request.lasting || request.slot !== 'now') return null;
@@ -351,10 +352,12 @@ export class BuffManager {
    */
   stackModifier(
     data: DataElement,
-    request: ParsedBuffModifierRequest,
+    asked: ParsedBuffModifierRequest,
     makesMissing = false
   ): BuffModifier | BuffTextModifier | null {
     return this.alter(() => {
+      const status = this.status();
+      const request = status ? namedOn(status, asked) : asked;
       const standing = readBuffModifier(data);
       if (!standing || !movesSameStatus(standing, request)) {
         this.revertModifier(data);
@@ -870,6 +873,16 @@ export class BuffManager {
       data.value = Number.isFinite(standing) ? settle(standing, round) : round;
     });
   }
+}
+
+/**
+ * A request naming its item by the name the sheet finds it by, as written or in half-width (see
+ * `StatusAccessor.nameOf`), so a buff written with full-width letters moves the item its half-width
+ * name finds and records that name; as written where neither finds one.
+ */
+function namedOn(status: StatusAccessor, request: ParsedBuffModifierRequest): ParsedBuffModifierRequest {
+  const named = status.nameOf(request.target);
+  return named === null || named === request.target ? request : { ...request, target: named };
 }
 
 /** Two buff rows in the order of their identifiers. */

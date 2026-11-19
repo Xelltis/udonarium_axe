@@ -131,6 +131,7 @@ describe('BuffManager', () => {
         keepsBuffItems: vi.fn(() => false),
         writtenOtherwise: vi.fn(() => false),
         noteLeftByBuffs: vi.fn(),
+        nameOf: vi.fn((name: string) => name),
         changeValue: vi.fn(),
       } as unknown as StatusAccessor;
       const withStatus = new BuffManager(buffDataElement, undefined, () => status);

@@ -1189,6 +1189,40 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getText('属性')).toBe('1');
     });
 
+    it('writes what it decided on, a full-width number held to a choice in half-width', () => {
+      expect(said(':段位=２').edit).toMatchObject({ operator: '>', replace: '2' });
+      expect(applyTextEdit(said(':段位=２').edit, character).full).toBe('段位＞2    ');
+      expect(character.status.getText('段位')).toBe('2');
+    });
+
+    it('finds the item a buff names in full-width letters, moving it rather than making another', () => {
+      const mp = character.status.getValue('MP', 'now')!;
+
+      expect(buff('&!集中/ＭＰ-2/3')).toBe('集中を付与 ＭＰ-2/3R    ');
+      expect(character.status.getValue('MP', 'now')).toBe(mp - 2);
+      expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
+    });
+
+    it('writes no words over a number a line of text holds, but by `>`', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('攻撃', '3', { [DataElementAttribute.ROLE]: 'field' }));
+
+      expect(buff('&!強化/攻撃=10+/3')).toBe('強化を付与 攻撃=10+/3R (攻撃は数の項目なので「10+」は書けません)    ');
+      expect(character.status.getText('攻撃')).toBe('3');
+      applyTextEdit(said(':攻撃>10+').edit, character);
+      expect(character.status.getText('攻撃')).toBe('10+');
+    });
+
+    it('makes no item for a name two items go by, though neither is found by it', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('防御', 1, { [DataElementAttribute.ROLE]: 'field' }));
+      group.appendChild(DataElement.create('防御', 2, { [DataElementAttribute.ROLE]: 'field' }));
+
+      expect(character.status.canMakeForBuff('防御')).toBe(false);
+      expect(buff('&!守り/防御+2/3')).toContain('防御が見つかりません');
+      expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
+    });
+
     it('finds the status a command names in half-width characters as well', () => {
       expect(said(':ＰＬ名=山田').edit).toMatchObject({ operator: '>', replace: '山田', target: 'PL名' });
     });

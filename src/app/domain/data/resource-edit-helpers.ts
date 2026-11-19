@@ -207,7 +207,7 @@ export function convertCommandToResourceEdit(
   const landing = commandLanding(object, target, named.slot, parts.operator, parts.amount);
   if (!readsOptions(landing)) {
     oneResourceEdit.operator = '>';
-    oneResourceEdit.replace = parts.amount;
+    oneResourceEdit.replace = landing.kind === 'words' ? landing.words : parts.amount;
     return true;
   }
 
@@ -232,9 +232,8 @@ export function convertCommandToResourceEdit(
  * half-width characters. Null where the sheet has neither, or nothing can be written into it.
  */
 export function statusNamedIn(object: GameCharacter, name: string): string | null {
-  if (object.status.canChangeName(name)) return name;
-  const halfWidth = toHalfWidth(name);
-  return object.status.canChangeName(halfWidth) ? halfWidth : null;
+  const named = object.status.nameOf(name);
+  return named !== null && object.status.canChangeName(named) ? named : null;
 }
 
 /**

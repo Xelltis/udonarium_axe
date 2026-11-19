@@ -1,4 +1,5 @@
 import { GameObject } from '@axe/core/sync/game-object';
+import { toHalfWidth } from '@axe/core/util/string-util';
 import {
   buffItemsIn,
   dropBuffItem,
@@ -355,12 +356,13 @@ export class StatusAccessor {
   }
 
   /**
-   * Whether a buff may make an item of this name at the foot of the sheet: the sheet has none by it,
-   * and the name is no alias of the room's, which would read the items it stands for rather than the
-   * one made. The chat's lint tells of an item to be made by the same answer.
+   * Whether a buff may make an item of this name at the foot of the sheet: no item of the sheet goes by
+   * it, not even two that it cannot tell apart, and the name is no alias of the room's, which would read
+   * the items it stands for rather than the one made. The chat's lint tells of an item to be made by
+   * the same answer.
    */
   canMakeForBuff(name: string): boolean {
-    return this.detailDataElement !== null && this.findAll(name).length < 1 && !isAliasName(name, this.aliases?.());
+    return this.detailDataElement !== null && !this.holdsAnyNamed(name) && !isAliasName(name, this.aliases?.());
   }
 
   /**
@@ -403,8 +405,34 @@ export class StatusAccessor {
     return this.findAll(reference)[0] ?? null;
   }
 
+  /**
+   * The items a name finds, the room's aliases counted: as written, or else in half-width characters,
+   * as a name typed with the input method's full-width letters is meant. Every read and write by name
+   * goes through here, a chat command's and a buff's alike.
+   */
   private findAll(reference: string): DataElement[] {
     if (!this.detailDataElement) return [];
-    return findReferencedElements(this.detailDataElement, reference, this.aliases?.());
+    const found = findReferencedElements(this.detailDataElement, reference, this.aliases?.());
+    const halfWidth = toHalfWidth(reference);
+    if (found.length > 0 || halfWidth === reference) return found;
+    return findReferencedElements(this.detailDataElement, halfWidth, this.aliases?.());
+  }
+
+  /**
+   * The name an item is found by, as written or else in half-width characters (see {@link findAll}),
+   * which is what a command or a buff that names it records; null where neither finds one.
+   */
+  nameOf(reference: string): string | null {
+    if (!this.detailDataElement) return null;
+    if (findReferencedElements(this.detailDataElement, reference, this.aliases?.()).length > 0) return reference;
+    const halfWidth = toHalfWidth(reference);
+    return this.findAll(halfWidth).length > 0 ? halfWidth : null;
+  }
+
+  /** Whether any item of the sheet goes by a name, as written or in half-width, found by it or not, as one of two by one name is not. */
+  private holdsAnyNamed(name: string): boolean {
+    const detail = this.detailDataElement;
+    if (!detail) return false;
+    return [name, toHalfWidth(name)].some((each) => detail.getElementsByName(each.trim()).length > 0);
   }
 }
