@@ -16,6 +16,7 @@ import {
 import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   AnimationClip,
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   Group,
@@ -512,6 +513,36 @@ describe('placementOf', () => {
 });
 
 describe('ModelLayer', () => {
+  it('makes the copy for a piece of the one read for a block, reading the bytes once and sharing their shapes', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const geometry = new BoxGeometry();
+    const scene = new Group();
+    scene.add(new Mesh(geometry, new MeshStandardMaterial()));
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, { gltf: { scene: Group } } | null>;
+      letGoOf: (key: string, loaded: unknown) => void;
+    };
+    const reads = vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
+
+    layer.set([knight({ owner: 'tower', kind: 'terrain' }), knight()]);
+    await vi.waitFor(() => expect(internals.loaded.size).toBe(2));
+
+    expect(reads).toHaveBeenCalledTimes(1);
+    const meshOf = (key: string) => internals.loaded.get(key)!.gltf.scene.children[0] as Mesh;
+    const [block, piece] = [meshOf('blob:knight'), meshOf(modelReadKeyOf(knight()))];
+    expect(piece.geometry).toBe(block.geometry);
+    expect(piece.material).not.toBe(block.material);
+    const letGo = vi.spyOn(geometry, 'dispose');
+    internals.letGoOf('blob:knight', internals.loaded.get('blob:knight'));
+    expect(letGo).not.toHaveBeenCalled();
+    layer.dispose();
+  });
+
   it('reads a model drawn for a piece apart from one drawn for a block, greying only the block by moonlight', () => {
     const layer = new ModelLayer(
       () => undefined,

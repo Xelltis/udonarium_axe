@@ -183,6 +183,8 @@ export class ModelLayer {
   readonly group = new Group();
   private readonly reader: HeldModelReader;
   private readonly loaded = new Map<string, LoadedModel | null>();
+  /** Where the bytes of each model read or being read are, by the key it is kept by (see `modelReadKeyOf`). */
+  private readonly readUrls = new Map<string, string>();
   private readonly loading = new Set<string>();
   /** When each model read but no longer laid stopped being laid, by its URL. */
   private readonly unused = new UnusedSince(UNUSED_MODEL_KEEP_MS);
@@ -326,6 +328,7 @@ export class ModelLayer {
     this.herds.clear();
     for (const loaded of this.loaded.values()) if (loaded) disposeObject(loaded.gltf.scene);
     this.loaded.clear();
+    this.readUrls.clear();
     this.unused.clear();
     if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
     this.sweepTimer = null;
@@ -357,8 +360,11 @@ export class ModelLayer {
     const flocks = new Map<string, TableWorldModel[]>();
     for (const model of this.laid) {
       const key = modelReadKeyOf(model);
-      const loaded = this.loaded.get(key);
-      if (loaded === undefined) this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model));
+      let loaded = this.loaded.get(key);
+      if (loaded === undefined) {
+        this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model));
+        loaded = this.loaded.get(key);
+      }
       if (!loaded) continue;
       if (loaded.animated || model.ownCopy) this.stand(model, loaded);
       else flocks.set(key, [...(flocks.get(key) ?? []), model]);
@@ -408,12 +414,32 @@ export class ModelLayer {
 
   /** Lets go of every model that has gone unused for `UNUSED_MODEL_KEEP_MS`: its meshes, materials and pictures. */
   private sweep(): void {
-    for (const url of this.unused.takeDue(performance.now())) {
-      const loaded = this.loaded.get(url);
-      this.loaded.delete(url);
-      if (loaded) disposeObject(loaded.gltf.scene);
+    for (const key of this.unused.takeDue(performance.now())) {
+      const loaded = this.loaded.get(key);
+      this.loaded.delete(key);
+      if (loaded) this.letGoOf(key, loaded);
+      this.readUrls.delete(key);
     }
     this.sweepLater();
+  }
+
+  /**
+   * Lets go of a model read: its materials, and its meshes' shapes and pictures too unless another copy
+   * read of the same bytes, which shares them, is still held (see {@link variantOf}).
+   */
+  private letGoOf(key: string, loaded: LoadedModel): void {
+    if (this.twinOf(key, 'loaded')) disposeMaterialsOf(loaded.gltf.scene);
+    else disposeObject(loaded.gltf.scene);
+  }
+
+  /** The key of another copy held, or being read, of the same bytes as the one kept by `key`. */
+  private twinOf(key: string, held: 'loaded' | 'loading'): string | null {
+    const url = this.readUrls.get(key);
+    for (const [other, otherUrl] of this.readUrls) {
+      if (other === key || otherUrl !== url) continue;
+      if (held === 'loading' ? this.loading.has(other) : this.loaded.get(other)) return other;
+    }
+    return null;
   }
 
   /** Stands a model that plays a motion where its piece is, as a copy of its own. */
@@ -532,9 +558,19 @@ export class ModelLayer {
    * Reads a model from bytes held here, its materials made over for the scene, and asks for a frame
    * once it is read, kept by `key` (see `modelReadKeyOf`). The glow it was made with is kept only for one of
    * the app's own (`ownGlow`), and it is greyed by the world's moonlight only as a block (`moonlit`).
+   * Bytes another copy is held of, for a piece where this is for a block or the other way round, are
+   * not read again: the copy is made of the other (see {@link variantOf}), and one waits for the other
+   * being read.
    */
   private read(key: string, url: string, ownGlow: boolean, moonlit: boolean): void {
     if (this.loading.has(key)) return;
+    this.readUrls.set(key, url);
+    const twin = this.twinOf(key, 'loaded');
+    if (twin) {
+      this.loaded.set(key, this.variantOf(this.loaded.get(twin)!, moonlit));
+      return;
+    }
+    if (this.twinOf(key, 'loading')) return;
     this.loading.add(key);
     this.parse(url, ownGlow, moonlit).then(
       (loaded) => {
@@ -564,33 +600,26 @@ export class ModelLayer {
     for (const picture of drawn) undrawn.delete(picture);
     releaseReadPictures(drawn, undrawn);
     for (const picture of undrawn) picture.dispose();
-    gltf.scene.updateMatrixWorld(true);
-    const box = standingBoxOf(gltf.scene);
-    const size = box.getSize(new Vector3());
-    const middle = box.getCenter(new Vector3());
-    const foot = new Vector3(middle.x, box.min.y, middle.z);
-    const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
-    const extras = gltf.scene.userData as { fit?: unknown; height?: unknown };
-    const fit = extras.fit;
-    const facade = fit === 'facade';
-    const tile = fit === 'tile';
-    const madeHeight = tile && extras.height === 'made';
-    const joined = fit === 'joined';
-    const { parts, spouts } = modelPartsOf(gltf.scene, fromFoot, fit);
-    const stretch = fit === 'stretch';
-    return {
-      gltf,
-      size,
-      foot,
-      animated: gltf.animations.length > 0,
-      parts,
-      stretch,
-      facade,
-      tile,
-      madeHeight,
-      joined,
-      ...(spouts.length ? { spouts } : {}),
-    };
+    return measured(gltf);
+  }
+
+  /**
+   * A copy of a model read for a piece made of the one read for a block, or the other way round: its
+   * meshes' shapes, its pictures and its motions shared with the other, its materials its own, covered
+   * for the moonlight as this copy is drawn (`moonlit`).
+   */
+  private variantOf(other: LoadedModel, moonlit: boolean): LoadedModel {
+    const scene = cloneSkinned(other.gltf.scene) as Group;
+    scene.traverse((object) => {
+      if (!(object instanceof Mesh)) return;
+      const ownCopy = (material: Material) => {
+        const copy = material.clone();
+        this.dress(copy, moonlit);
+        return copy;
+      };
+      object.material = Array.isArray(object.material) ? object.material.map(ownCopy) : ownCopy(object.material);
+    });
+    return measured({ scene, animations: other.gltf.animations });
   }
 
   private settle(key: string): void {
@@ -621,6 +650,45 @@ export class ModelLayer {
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
+}
+
+/** Lets go of the materials of a model's meshes alone, leaving their shapes and pictures to a copy that shares them. */
+function disposeMaterialsOf(root: Object3D): void {
+  root.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
+  });
+}
+
+/** A model read and made over for the scene as the layer keeps it: its size and foot as it stands, and its parts as made. */
+function measured(gltf: Pick<GLTF, 'scene' | 'animations'>): LoadedModel {
+  gltf.scene.updateMatrixWorld(true);
+  const box = standingBoxOf(gltf.scene);
+  const size = box.getSize(new Vector3());
+  const middle = box.getCenter(new Vector3());
+  const foot = new Vector3(middle.x, box.min.y, middle.z);
+  const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
+  const extras = gltf.scene.userData as { fit?: unknown; height?: unknown };
+  const fit = extras.fit;
+  const facade = fit === 'facade';
+  const tile = fit === 'tile';
+  const madeHeight = tile && extras.height === 'made';
+  const joined = fit === 'joined';
+  const { parts, spouts } = modelPartsOf(gltf.scene, fromFoot, fit);
+  const stretch = fit === 'stretch';
+  return {
+    gltf,
+    size,
+    foot,
+    animated: gltf.animations.length > 0,
+    parts,
+    stretch,
+    facade,
+    tile,
+    madeHeight,
+    joined,
+    ...(spouts.length ? { spouts } : {}),
+  };
 }
 
 /**
