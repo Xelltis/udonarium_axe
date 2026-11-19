@@ -187,10 +187,16 @@ describe('AiLinkService', () => {
     expect(openPanel).toHaveBeenCalledWith('aiLink');
     expect(TestBed.inject(AiLinkViewService).tab()).toBe('gm');
 
+    // Once the panel stands, it is not opened again, and once its keeper is here, it is the keeper's to see to.
     openPanel.mockClear();
-    link.noteGmPanel(true);
+    panelStands = true;
     sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
     expect(openPanel).not.toHaveBeenCalled();
+    panelStands = false;
+    const gone = link.keepsGm();
+    sockets[0].onmessage?.({ data: JSON.stringify({ type: 'gm.status', status: waiting }) });
+    expect(openPanel).not.toHaveBeenCalled();
+    gone();
   });
 
   it('turns an AI link panel standing already to the game master’s half rather than opening it again', () => {

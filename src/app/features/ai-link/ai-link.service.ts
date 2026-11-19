@@ -140,9 +140,10 @@ export class AiLinkService {
           this.gmLatest = { ...this.gmLatest, status: message.status };
           // With nobody here keeping the game master: what one was lent is given back once none runs,
           // and one found running, as on a page opened again, gets its panel, which hands it what happens.
+          // No panel of it stands then either, as a panel makes its keeper as it opens.
           if (this.gmKeepers === 0) {
             if (message.status.run === 'off') this.takeBack();
-            else if (this.gmPanels === 0) this.openGmHalf();
+            else this.openGmHalf();
           }
         }
         if (message.type === 'gm.notes') this.gmLatest = { ...this.gmLatest, notes: message.notes };
