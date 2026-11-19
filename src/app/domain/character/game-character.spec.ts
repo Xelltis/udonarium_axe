@@ -278,6 +278,19 @@ describe('GameCharacter', () => {
       character.createDataElements();
       expect(character.buffs).toBe(character.buffs);
     });
+
+    it('reads a buff element that reaches the piece after its buffs were first asked for, as from another device', () => {
+      character.createDataElements();
+      const root = character.rootDataElement!;
+      const first = character.buffDataElement;
+      if (first) root.removeChild(first);
+      const buffs = character.buffs;
+
+      root.appendChild(DataElement.create('buff', ''));
+      buffs.addRound('加護', '', 3);
+
+      expect(character.buffs.find('加護')).not.toBeNull();
+    });
   });
 
   // ----------------------------------------------------------------

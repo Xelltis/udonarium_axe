@@ -1540,6 +1540,21 @@ describe('BuffManager', () => {
           buffs.applyModifier(buffs.find('身かわし')!, parseBuffModifierRequest('回避', '+', '2')!, true)
         ).toBeNull();
         expect(madeSection()).toBeUndefined();
+        expect(aliased.canMakeForBuff('回避')).toBe(false);
+        expect(aliased.canMakeForBuff('隠密')).toBe(true);
+      });
+
+      it('takes nothing made away where the buffs cannot be read, as before they reach this device', () => {
+        grant('ファイア・ウェポン', '武器属性', '=', '炎');
+        const unread = new BuffManager(
+          null,
+          () => ({ identifier: 'owner', name: 'テストキャラ' }),
+          () => status
+        );
+
+        unread.alter(() => unread.decreaseRound());
+
+        expect(status.getText('武器属性')).toBe('炎');
       });
 
       it('makes again only an item a buff made, as a step is undone', () => {

@@ -227,6 +227,12 @@ describe('lintChatSyntax', () => {
       expect(lint('&!指揮/役割=5/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notAChoice' });
     });
 
+    it('tells of an item to be made only where a buff may make one by that name', () => {
+      vi.spyOn(speaker.status, 'canMakeForBuff').mockReturnValue(false);
+
+      expect(lint('&!鼓舞/気力+2/3')[0]).toMatchObject({ code: 'buff.missingStatus', params: { name: '気力' } });
+    });
+
     it('says an item nothing is written into is not moved, rather than that one will be made', () => {
       const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
       group.appendChild(DataElement.create('状態', '', { type: 'check' }));

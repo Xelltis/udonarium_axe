@@ -538,9 +538,12 @@ function lintBuffStatus(
   if (landings.some(({ landing }) => landing.kind === 'unwritable')) {
     return add(span, 'warning', 'buff.missingStatus', { params: { name } });
   }
-  if (landings.some(({ landing }) => landing.kind === 'missing')) {
-    if (request.lasting || request.slot !== 'now') add(span, 'warning', 'buff.missingStatus', { params: { name } });
-    else add(span, 'info', 'buff.makesStatus', { params: { name } });
+  const missing = landings.filter(({ landing }) => landing.kind === 'missing');
+  if (missing.length > 0) {
+    const made =
+      !request.lasting && request.slot === 'now' && missing.every(({ piece }) => piece.status.canMakeForBuff(name));
+    if (made) add(span, 'info', 'buff.makesStatus', { params: { name } });
+    else add(span, 'warning', 'buff.missingStatus', { params: { name } });
   }
   const unmoved = landings.some(
     ({ piece, landing }) =>

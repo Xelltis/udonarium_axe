@@ -16,7 +16,7 @@ import {
   DataElementType,
 } from '@axe/domain/data/data-element';
 import type { ElementAliasTable } from '@axe/domain/data/element-alias';
-import { findReferencedElements } from '@axe/domain/data/element-reference';
+import { findReferencedElements, isAliasName } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 import { parseSelectChoices } from '@axe/domain/data/table-layout';
 
@@ -109,12 +109,21 @@ export function heldWithinBounds(data: DataElement, type: 'value' | 'currentValu
  * written, and the others are given what the first came to hold, each within its own bounds.
  */
 export class StatusAccessor {
+  /**
+   * @param detailElement The piece's sheet, or how to read it as it stands each time: a piece's own
+   *   accessor is kept, and reads the sheet the piece holds now.
+   */
   constructor(
-    private readonly detailDataElement: DataElement | null,
+    private readonly detailElement: DataElement | null | (() => DataElement | null),
     private readonly characterName: () => string,
     /** The aliases a name is looked up with; the room's own where none are handed in. */
     private readonly aliases?: () => ElementAliasTable
   ) {}
+
+  /** The piece's sheet as it stands. */
+  private get detailDataElement(): DataElement | null {
+    return typeof this.detailElement === 'function' ? this.detailElement() : this.detailElement;
+  }
 
   /**
    * Whether the sheet item a chat command names exists and is of a kind it can write to: a
@@ -334,14 +343,22 @@ export class StatusAccessor {
   }
 
   /**
-   * Makes an item at the foot of the sheet for a buff to move, there being none by that name: a line
-   * of text holding the words, or a number field holding the number. An item is made only where the
-   * name finds it once made: not where the name is the room's alias for items the sheet has none of,
-   * nor where it is shared by items it cannot tell apart, which would leave one made again at every
-   * buff. False where nothing is made.
+   * Whether a buff may make an item of this name at the foot of the sheet: the sheet has none by it,
+   * and the name is no alias of the room's, which would read the items it stands for rather than the
+   * one made. The chat's lint tells of an item to be made by the same answer.
+   */
+  canMakeForBuff(name: string): boolean {
+    return this.detailDataElement !== null && this.findAll(name).length < 1 && !isAliasName(name, this.aliases?.());
+  }
+
+  /**
+   * Makes an item at the foot of the sheet for a buff to move, where one may be made (see
+   * {@link canMakeForBuff}): a line of text holding the words, or a number field holding the number.
+   * One the name does not find once made, as one of items it cannot tell apart, is taken away again,
+   * which would leave one made again at every buff. False where nothing is made.
    */
   makeForBuff(name: string, value: string | number): boolean {
-    if (!this.detailDataElement || this.findAll(name).length > 0) return false;
+    if (!this.detailDataElement || !this.canMakeForBuff(name)) return false;
     const made = makeBuffItem(this.detailDataElement, name, value);
     if (this.findData(name) === made) return true;
     dropBuffItem(made);

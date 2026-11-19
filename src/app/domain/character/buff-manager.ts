@@ -61,11 +61,21 @@ export class BuffManager {
   /** How many changes to the buffs are under way, one inside another, so made items are swept once the outermost is done. */
   private changing = 0;
 
+  /**
+   * @param buffElement The piece's buff element, or how to read it as it stands each time: a piece's
+   *   own manager is kept, and reads the element the piece holds now, one that came after it was made
+   *   or another put in its place included.
+   */
   constructor(
-    private readonly buffDataElement: DataElement | null,
+    private readonly buffElement: DataElement | null | (() => DataElement | null),
     private readonly owner: () => BuffTurnActor = () => ({ identifier: '', name: '' }),
     private readonly status: () => StatusAccessor | null = () => null
   ) {}
+
+  /** The piece's buff element as it stands. */
+  private get buffDataElement(): DataElement | null {
+    return typeof this.buffElement === 'function' ? this.buffElement() : this.buffElement;
+  }
 
   /**
    * Makes a change to the piece's buffs, and once it is done, with every change it is part of, takes
@@ -281,11 +291,13 @@ export class BuffManager {
   /**
    * Takes away every item a buff made for itself that no buff of the piece moves or writes into any
    * more, one that leaves what it moved included, and the section such items are kept in once it holds
-   * none. An item the sheet had all along is never taken.
+   * none. An item the sheet had all along is never taken. Nothing is taken where the buffs cannot be
+   * read, as on a device the piece's buffs have not reached yet: the container they are kept in, made
+   * with the first buff and never taken away, is not there.
    */
   private sweepMadeItems(): void {
     const status = this.status();
-    if (!status?.keepsBuffItems()) return;
+    if (!this.container || !status?.keepsBuffItems()) return;
     const used = new Set<string>();
     for (const row of this.list()) {
       const target = readBuffModifier(row)?.target ?? readBuffTextModifier(row)?.target;
