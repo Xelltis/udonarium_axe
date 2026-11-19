@@ -1033,6 +1033,53 @@ describe('resource-edit-helpers', () => {
           [DataElementAttribute.FIELD_TYPE]: 'number',
         })
       );
+      group.appendChild(
+        DataElement.create('段位', '1', {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'select',
+          [DataElementAttribute.CHOICES]: '1,2,3',
+        })
+      );
+      group.appendChild(DataElement.create('PL名', '', { [DataElementAttribute.ROLE]: 'field' }));
+    });
+
+    const buff = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+    it('writes no words into an item that holds numbers, by a buff or by the chat', () => {
+      const hp = character.status.getText('HP');
+
+      expect(buff('&!呪い/HP=1d6/3')).toBe('呪いを付与 HP=1d6/3R (HPは数の項目なので「1d6」は書けません)    ');
+      expect(character.status.getText('HP')).toBe(hp);
+      expect(said(':HP=炎').edit.operator).toBe('=');
+    });
+
+    it('holds a choice only at one of its choices, numbers among them, by a buff or by the chat', () => {
+      expect(buff('&!昇格/段位=5/3')).toBe('昇格を付与 段位=5/3R (段位に「5」はありません: 1・2・3)    ');
+      expect(character.status.getText('段位')).toBe('1');
+      expect(buff('&!構え直し/構え=3/3')).toBe(
+        '構え直しを付与 構え=3/3R (構えに「3」はありません: 通常・攻勢・守勢)    '
+      );
+
+      buff('&!昇格/段位=2/3');
+      expect(character.status.getText('段位')).toBe('2');
+      buff('&昇格-');
+      expect(character.status.getText('段位')).toBe('1');
+      expect(applyTextEdit(said(':段位=5').edit, character)).toBe('段位に「5」はありません: 1・2・3    ');
+
+      buff('&!昇格/段位+1/3');
+      expect(character.status.getText('段位')).toBe('2');
+      buff('&昇格-');
+      expect(character.status.getText('段位')).toBe('1');
+    });
+
+    it('reads no words for a slot other than the value, nor with a count to move them by', () => {
+      expect(buff('&!x/HP^=最大/3')).toBe('バフの書式が読めません x    ');
+      expect(buff('&!y/属性=炎~1/3')).toBe('バフの書式が読めません y    ');
+      expect(character.status.getText('属性')).toBe('無属性');
+    });
+
+    it('finds the status a command names in half-width characters as well', () => {
+      expect(said(':ＰＬ名=山田').edit).toMatchObject({ operator: '>', replace: '山田', target: 'PL名' });
     });
 
     function said(command: string): { ok: boolean; edit: ResourceEdit } {

@@ -167,6 +167,9 @@ describe('lintChatSyntax', () => {
       expect(codes(':名前メモ=炎の剣士')).toEqual([]);
       expect(codes(':役割=交渉役')).toEqual([]);
       expect(codes(':役割>支援役')).toEqual([]);
+      expect(codes('：役割＝交渉役')).toEqual([]);
+      expect(codes(':役割+1')).not.toContain('res.notAChoice');
+      expect(lint(':役割^=交渉役')[0]).toMatchObject({ severity: 'error', code: 'res.noSlot' });
       expect(lint(':役割=勇者')[0]).toMatchObject({
         severity: 'error',
         code: 'res.notAChoice',
@@ -213,6 +216,21 @@ describe('lintChatSyntax', () => {
         params: { name: '役割', choices: '調査役・交渉役・支援役・記録役' },
       });
       expect(codes('&!猛攻撃/名前メモ+2/3')).toEqual(['buff.missingStatus']);
+    });
+
+    it('finds words a buff would write into an item that holds numbers, and a number that is none of the choices', () => {
+      expect(lint('&!呪い/HP=1d6/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notWords' });
+      expect(lint('&!指揮/役割=5/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notAChoice' });
+    });
+
+    it('finds words that are none of the choices for one target though another lacks the item', () => {
+      const lacking = GameCharacter.create('スライム', 1, '');
+      lacking.detailDataElement!.getFirstElementByName('役割')!.destroy();
+      try {
+        expect(codes('t&!指揮/役割=勇者/3', { targets: [lacking, target] })).toContain('buff.notAChoice');
+      } finally {
+        lacking.destroy();
+      }
     });
 
     it("says nothing of a status a buff moves for whoever aims at the piece, which is none of the piece's own", () => {

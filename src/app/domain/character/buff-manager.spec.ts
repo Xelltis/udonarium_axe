@@ -121,7 +121,7 @@ describe('BuffManager', () => {
       const status = {
         getValue: vi.fn(() => 10),
         getText: vi.fn(() => '10'),
-        holdsText: vi.fn(() => false),
+        landingOf: vi.fn(() => ({ kind: 'number' })),
         changeValue: vi.fn(),
       } as unknown as StatusAccessor;
       const withStatus = new BuffManager(buffDataElement, undefined, () => status);

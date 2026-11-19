@@ -1,5 +1,6 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { dropBuffItem, isBuffMadeItem, makeBuffItem } from '@axe/domain/character/buff-made-items';
+import { type ItemLanding, type ItemTakes, landingOn, type WrittenAs } from '@axe/domain/character/item-landing';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import {
   DataElement,
@@ -31,7 +32,7 @@ const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
   minCorrection: DataElementAttribute.MIN_CORRECTION,
 };
 
-/** The kinds of field on a line of text that hold words rather than a number. */
+/** The kinds of field on a line of text that hold words rather than a number; a select is told apart before. */
 const TEXT_FIELD_TYPES: ReadonlySet<string> = new Set([
   DataElementFieldType.TEXT,
   DataElementFieldType.LONG_TEXT,
@@ -296,14 +297,25 @@ export class StatusAccessor {
   }
 
   /**
-   * Whether the item holds words rather than a number: a line of text, prose, a choice or a note.
-   * A resource and a number field hold numbers, whatever they happen to hold now.
+   * What the item takes written into it: one of its choices for a select, words for a line of text,
+   * prose or a note, and numbers for a resource or a number field. Null where there is no such item, or
+   * it is of a kind nothing is written into.
    */
-  holdsText(name: string): boolean {
+  takesOf(name: string): ItemTakes | null {
     const data = this.findData(name);
-    if (!data) return false;
-    if (data.type === DataElementType.NOTE) return true;
-    return data.type === DataElementType.TEXT && TEXT_FIELD_TYPES.has(data.fieldType);
+    if (!data || !isChangeableElementType(data.type)) return null;
+    if (data.fieldType === DataElementFieldType.SELECT) {
+      return { takes: 'choice', choices: parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '') };
+    }
+    if (data.type === DataElementType.NOTE) return { takes: 'words' };
+    return data.type === DataElementType.TEXT && TEXT_FIELD_TYPES.has(data.fieldType)
+      ? { takes: 'words' }
+      : { takes: 'numbers' };
+  }
+
+  /** Where a value written to the item lands; see {@link landingOn}. */
+  landingOf(name: string, slot: ResourceSlot, written: string, as: WrittenAs): ItemLanding {
+    return landingOn(this.takesOf(name), slot, written, as);
   }
 
   /** What the item holds, as text: a resource's amount left, anything else's value. Null where there is none. */
@@ -311,13 +323,6 @@ export class StatusAccessor {
     const data = this.findData(name);
     if (!data) return null;
     return `${data.type === DataElementType.NUMBER_RESOURCE ? data.currentValue : data.value}`;
-  }
-
-  /** The choices a select item offers, or null where the item is not a select. */
-  choicesOf(name: string): readonly string[] | null {
-    const data = this.findData(name);
-    if (!data || data.fieldType !== DataElementFieldType.SELECT) return null;
-    return parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '');
   }
 
   /**

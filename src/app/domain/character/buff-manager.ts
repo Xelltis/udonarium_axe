@@ -28,6 +28,7 @@ import {
   isBuffEffectDueAt,
   writeBuffEffectTiming,
 } from '@axe/domain/character/buff-timing';
+import { landingOfRequest } from '@axe/domain/character/item-landing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -145,15 +146,16 @@ export class BuffManager {
   /**
    * Moves a status by what the buff asks for and writes down how far it moved, so the
    * same distance goes back when the buff runs out, or writes the words it asks for into an item and
-   * writes down what the item held, so that goes back. A value held at a number in an item that holds
-   * words is written as words.
+   * writes down what the item held, so that goes back. Where the value lands is the sheet's to say
+   * (see {@link landingOn}): words go only into an item that takes words or among a choice's choices,
+   * and an amount moves a number. An amount held at a value in an item holding words, which no number
+   * is read from, is written as words.
    *
    * Where the sheet has no such item and the buff is to make it, as one written in the chat is, one is
    * made at its foot for the buff, holding nothing and then moved, or holding the words, and it goes
    * again once no buff needs it. Not for a buff that leaves its status moved, nor for the far side of a
    * resource, which a made item has none of; nor for a status ailment, whose status a piece's sheet may
-   * well not have. Null where there is no such item and none is made, or the words are not among a
-   * choice's, which leaves the buff a plain note.
+   * well not have. Null where the value lands nowhere, which leaves the buff a plain note.
    */
   applyModifier(
     data: DataElement,
@@ -162,41 +164,34 @@ export class BuffManager {
   ): BuffModifier | BuffTextModifier | null {
     const status = this.status();
     if (!status) return null;
-    const wordy =
-      request.text !== undefined ||
-      (request.operator === 'set' &&
-        request.slot === 'now' &&
-        status.holdsText(request.target) &&
-        status.getValue(request.target, request.slot) == null);
-    if (wordy) return this.writeWords(data, request.target, request.text ?? String(request.amount), makesMissing);
-    if (status.getText(request.target) == null) {
-      if (!makesMissing || request.lasting || request.slot !== 'now' || !status.makeForBuff(request.target, 0)) {
-        return null;
-      }
+    const landing = landingOfRequest(status, request);
+    if (landing.kind === 'missing') {
+      if (!makesMissing || request.lasting || request.slot !== 'now') return null;
+      if (!status.makeForBuff(request.target, request.text ?? 0)) return null;
+      if (request.text !== undefined) return this.recordWords(data, request.target, request.text, '');
+    } else if (landing.kind === 'words') {
+      return this.writeWords(data, request.target, landing.words);
+    } else if (landing.kind !== 'number') {
+      return null;
     }
     const moved = this.moveStatus(request);
-    if (moved == null) return null;
-    return this.writeModifier(data, request, moved);
+    if (moved != null) return this.writeModifier(data, request, moved);
+    if (request.operator !== 'set' || status.takesOf(request.target)?.takes !== 'words') return null;
+    return this.writeWords(data, request.target, String(request.amount));
   }
 
-  /**
-   * Writes words into an item for the buff and records what the item held, making the item where
-   * there is none and the buff is to make it. Null where the item is a choice and the words are not
-   * among its choices, or there is no item and none is made.
-   */
-  private writeWords(data: DataElement, target: string, text: string, makesMissing: boolean): BuffTextModifier | null {
+  /** Writes words into an item the sheet has for the buff, and records what the item held. */
+  private writeWords(data: DataElement, target: string, words: string): BuffTextModifier | null {
     const status = this.status();
-    if (!status) return null;
-    const choices = status.choicesOf(target);
-    if (choices && !choices.includes(text)) return null;
-    let before = status.getText(target);
-    if (before == null) {
-      if (!makesMissing || !status.makeForBuff(target, text)) return null;
-      before = '';
-    } else {
-      status.setText(target, text);
-    }
-    const modifier: BuffTextModifier = { target, text, before, order: this.lastWordsOrder() + 1 };
+    const before = status?.getText(target);
+    if (!status || before == null) return null;
+    status.setText(target, words);
+    return this.recordWords(data, target, words, before);
+  }
+
+  /** Records on the buff the words it wrote and what the item held before, as the latest to write. */
+  private recordWords(data: DataElement, target: string, words: string, before: string): BuffTextModifier {
+    const modifier: BuffTextModifier = { target, text: words, before, order: this.lastWordsOrder() + 1 };
     writeBuffTextModifier(data, modifier);
     return modifier;
   }

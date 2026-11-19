@@ -12,6 +12,7 @@ import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modif
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { landingOfRequest } from '@axe/domain/character/item-landing';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
@@ -31,7 +32,12 @@ import {
   resourceCommandParts,
   resourceCommandSites,
 } from '@axe/domain/data/resource-command-words';
-import { parseResourceEditOption, readModifierLayout, writesWordsInto } from '@axe/domain/data/resource-edit-helpers';
+import {
+  commandLanding,
+  parseResourceEditOption,
+  readModifierLayout,
+  statusNamedIn,
+} from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
 import {
   firstWordOf,
@@ -69,11 +75,13 @@ export const CHAT_LINT_CODES = [
   'res.unknownStatus',
   'res.badOption',
   'res.notAChoice',
+  'res.noSlot',
   'buff.noName',
   'buff.unreadable',
   'buff.missingStatus',
   'buff.makesStatus',
   'buff.notAChoice',
+  'buff.notWords',
   'buff.notFound',
   'buff.roundsDefault',
   'buff.badEffectTiming',
@@ -474,33 +482,34 @@ function lintResource(
   if (!parts) return add(span, 'error', 'res.noOperator');
   if (parts.operator !== '>' && parts.amount === '') return add(span, 'error', 'res.noAmount');
   if (holdsReference(command)) return;
-  const name = readNamedResourceSlot(parts.name).name;
-  const missing = pieces.filter(
-    (piece) => !piece.status.canChangeName(name) && !piece.status.canChangeName(toHalfWidth(name))
-  );
+  const named = readNamedResourceSlot(parts.name);
+  const name = named.name;
+  const aimed = pieces.map((piece) => ({ piece, target: statusNamedIn(piece, name) }));
+  const missing = aimed.filter(({ target }) => target === null).map(({ piece }) => piece);
   if (missing.length > 0) {
     return add(span, 'error', 'res.unknownStatus', {
       params: { name, piece: missing.map(nameOf).join('・') },
     });
   }
-  const takesWords = (piece: GameCharacter) =>
-    parts.operator === '>' || (parts.operator === '=' && writesWordsInto(piece, name, parts.amount));
-  const unchosen = pieces.find((piece) => {
-    const choices = piece.status.choicesOf(name);
-    return choices !== null && takesWords(piece) && !choices.includes(parts.amount);
-  });
-  if (unchosen) {
-    return add(span, 'error', 'res.notAChoice', {
-      params: { name, choices: unchosen.status.choicesOf(name)!.join('・') },
-    });
+  const landings = aimed.map(({ piece, target }) =>
+    commandLanding(piece, target!, named.slot, parts.operator, parts.amount)
+  );
+  const unchosen = landings.find((landing) => landing.kind === 'notAChoice');
+  if (unchosen?.kind === 'notAChoice') {
+    return add(span, 'error', 'res.notAChoice', { params: { name, choices: unchosen.choices.join('・') } });
   }
-  if (!pieces.every(takesWords) && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
+  if (landings.some((landing) => landing.kind === 'noSlot'))
+    return add(span, 'error', 'res.noSlot', { params: { name } });
+  if (landings.some((landing) => landing.kind !== 'words') && parseResourceEditOption(parts.amount).isErr) {
+    add(span, 'error', 'res.badOption');
+  }
 }
 
 /**
- * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at: a missing item
- * is made for the buff where one can be, words go only into an item that holds words or among a
- * choice's choices, and a number moves only an item that holds one.
+ * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at, by where what it
+ * asks for lands on each (see {@link landingOfRequest}), as laying it would: words that are none of a
+ * choice's, or go into an item that holds numbers, first, whichever piece they are for; then an item a
+ * piece lacks, made for the buff where one can be; then a status nothing can be moved in.
  */
 function lintBuffStatus(
   request: ParsedBuffModifierRequest,
@@ -509,28 +518,25 @@ function lintBuffStatus(
   add: Report
 ): void {
   const name = request.target;
-  if (pieces.some((piece) => piece.status.getText(name) == null)) {
+  const landings = pieces.map((piece) => ({ piece, landing: landingOfRequest(piece.status, request) }));
+  for (const { landing } of landings) {
+    if (landing.kind === 'notAChoice') {
+      return add(span, 'error', 'buff.notAChoice', { params: { name, choices: landing.choices.join('・') } });
+    }
+    if (landing.kind === 'notWords') return add(span, 'error', 'buff.notWords', { params: { name } });
+  }
+  if (landings.some(({ landing }) => landing.kind === 'missing')) {
     if (request.lasting || request.slot !== 'now') add(span, 'warning', 'buff.missingStatus', { params: { name } });
     else add(span, 'info', 'buff.makesStatus', { params: { name } });
-    return;
   }
-  const words = (piece: GameCharacter) =>
-    request.text ??
-    (request.operator === 'set' && piece.status.holdsText(name) && piece.status.getValue(name, request.slot) == null
-      ? String(request.amount)
-      : undefined);
-  const unchosen = pieces.find((piece) => {
-    const choices = piece.status.choicesOf(name);
-    const written = words(piece);
-    return choices !== null && written !== undefined && !choices.includes(written);
-  });
-  if (unchosen) {
-    add(span, 'error', 'buff.notAChoice', { params: { name, choices: unchosen.status.choicesOf(name)!.join('・') } });
-    return;
-  }
-  if (pieces.some((piece) => words(piece) === undefined && piece.status.getValue(name, request.slot) == null)) {
-    add(span, 'warning', 'buff.missingStatus', { params: { name } });
-  }
+  const unmoved = landings.some(
+    ({ piece, landing }) =>
+      landing.kind === 'noSlot' ||
+      (landing.kind === 'number' &&
+        piece.status.getValue(name, request.slot) == null &&
+        !(request.operator === 'set' && piece.status.takesOf(name)?.takes === 'words'))
+  );
+  if (unmoved) add(span, 'warning', 'buff.missingStatus', { params: { name } });
 }
 
 /**

@@ -37,6 +37,7 @@ import {
 } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
+import { type ItemLanding, landingOfRequest } from '@axe/domain/character/item-landing';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -192,29 +193,20 @@ export function convertCommandToResourceEdit(
   if (parts.operator !== '>' && parts.amount === '') return false;
 
   const named = readNamedResourceSlot(parts.name);
-  const reg1 = named.name;
-  const reg1HalfWidth = toHalfWidth(reg1);
   oneResourceEdit.nowOrMax = named.slot;
 
   oneResourceEdit.operator = parts.operator;
 
-  if (object.status.canChangeName(reg1)) {
-    oneResourceEdit.target = reg1;
-  } else if (object.status.canChangeName(reg1HalfWidth)) {
-    oneResourceEdit.target = reg1HalfWidth;
-  } else {
-    return false;
-  }
+  const target = statusNamedIn(object, named.name);
+  if (target === null) return false;
+  oneResourceEdit.target = target;
 
   if (oneResourceEdit.operator === '>') {
     oneResourceEdit.replace = parts.amount;
     return true;
   }
-  if (
-    oneResourceEdit.operator === '=' &&
-    named.slot === 'now' &&
-    writesWordsInto(object, oneResourceEdit.target, parts.amount)
-  ) {
+  const landing = commandLanding(object, target, named.slot, parts.operator, parts.amount);
+  if (landing.kind === 'words' || landing.kind === 'notAChoice') {
     oneResourceEdit.operator = '>';
     oneResourceEdit.replace = parts.amount;
     return true;
@@ -237,16 +229,37 @@ export function convertCommandToResourceEdit(
 }
 
 /**
- * Whether `=` writes words into the item rather than a number: an item holding a choice always takes
- * the words, and a line of text or a note takes them where they are no sum or roll to work out. A
- * resource and a number field take only numbers.
+ * The status a `:` command names, as the character's sheet has it: the name as written, or else in
+ * half-width characters. Null where the sheet has neither, or nothing can be written into it.
  */
-export function writesWordsInto(object: GameCharacter, target: string, amount: string): boolean {
-  if (object.status.choicesOf(target)) return true;
-  if (!object.status.holdsText(target)) return false;
+export function statusNamedIn(object: GameCharacter, name: string): string | null {
+  if (object.status.canChangeName(name)) return name;
+  const halfWidth = toHalfWidth(name);
+  return object.status.canChangeName(halfWidth) ? halfWidth : null;
+}
+
+/** Whether what follows `=` is an amount to work out: a number, a sum, or a roll. */
+export function isAmountWritten(amount: string): boolean {
   const written = toHalfWidth(amount).trim();
-  if (/\d\s*[dD]|[dD]\s*\d/.test(written)) return false;
-  return !Number.isFinite(readBuffAmount(splitOptionLetters(written).amount));
+  if (/\d\s*[dD]|[dD]\s*\d/.test(written)) return true;
+  return Number.isFinite(readBuffAmount(splitOptionLetters(written).amount));
+}
+
+/**
+ * Where a `:` command's value lands on the status it names (see {@link landingOn}): `>` writes words
+ * wherever it is told to, `=` writes words into an item that takes words or a choice and an amount as
+ * a number, and the other operators move the number by it.
+ */
+export function commandLanding(
+  object: GameCharacter,
+  target: string,
+  slot: ResourceSlot,
+  operator: string,
+  amount: string
+): ItemLanding {
+  if (operator === '>') return object.status.landingOf(target, 'now', amount, 'wordsAnywhere');
+  if (operator !== '=') return object.status.landingOf(target, slot, amount, 'moveBy');
+  return object.status.landingOf(target, slot, amount, isAmountWritten(amount) ? 'amount' : 'words');
 }
 
 /**
@@ -255,12 +268,15 @@ export function writesWordsInto(object: GameCharacter, target: string, amount: s
  * as it was and the report names the choices.
  */
 export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): string {
-  const choices = character.status.choicesOf(edit.target);
-  if (choices && !choices.includes(edit.replace)) {
-    return `${edit.target}に「${edit.replace}」はありません: ${choices.join('・')}    `;
-  }
+  const landing = character.status.landingOf(edit.target, 'now', edit.replace, 'wordsAnywhere');
+  if (landing.kind === 'notAChoice') return `${notAChoiceText(edit.target, edit.replace, landing.choices)}    `;
   character.status.setText(edit.target, edit.replace);
   return `${edit.target}＞${edit.replace}    `;
+}
+
+/** What a report says of words that are none of the choices an item offers. */
+function notAChoiceText(target: string, words: string, choices: readonly string[]): string {
+  return `${target}に「${words.trim()}」はありません: ${choices.join('・')}`;
 }
 
 /**
@@ -487,7 +503,7 @@ function grantCalculatedBuff(
 
   const missing: string[] = [];
   const made: string[] = [];
-  const unchosen: string[] = [];
+  const refused: string[] = [];
   const effects: string[] = [];
   requests.forEach((request, index) => {
     const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
@@ -503,14 +519,15 @@ function grantCalculatedBuff(
     if (!data) return;
     // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
     if (!isAimedAtStatus(request.target)) {
-      const existed = character.status.getText(request.target) != null;
-      const choices = character.status.choicesOf(request.target);
+      const landing = landingOfRequest(character.status, request);
       const applied = rowStacking
         ? character.buffs.stackModifier(data, request, true)
         : character.buffs.applyModifier(data, request, true);
-      if (applied && !existed) made.push(request.target);
-      else if (!applied && choices && request.text !== undefined && !choices.includes(request.text)) {
-        unchosen.push(`${request.target}に「${request.text}」はありません: ${choices.join('・')}`);
+      if (applied && landing.kind === 'missing') made.push(request.target);
+      else if (!applied && landing.kind === 'notAChoice') {
+        refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), landing.choices));
+      } else if (!applied && landing.kind === 'notWords') {
+        refused.push(`${request.target}は数の項目なので「${request.text}」は書けません`);
       } else if (!applied) missing.push(request.target);
     }
     effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
@@ -522,7 +539,7 @@ function grantCalculatedBuff(
   const lack =
     (missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '') +
     (made.length > 0 ? ` (${made.join('・')}を${BUFF_ITEMS_SECTION}に作りました)` : '') +
-    unchosen.map((said) => ` (${said})`).join('');
+    refused.map((said) => ` (${said})`).join('');
   const left = buffExpires(data) ? `/${data.value}R` : '';
   return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
 }

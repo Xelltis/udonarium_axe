@@ -59,7 +59,8 @@ export interface ParsedBuffModifierRequest {
   lasting?: true;
   /**
    * The words to hold an item at while the buff stands, where what follows `=` is no number:
-   * `属性=炎`. The amount is then nothing.
+   * `属性=炎`. Only the item's value takes words, and they move nothing at a count, so neither a
+   * slot nor a `~` is read with them. The amount is then nothing.
    */
   text?: string;
 }
@@ -136,9 +137,10 @@ export function parseBuffModifierRequest(
   const [amountText, stepText] = (amount ?? '').split(/[~～〜]/, 2);
   const value = readBuffAmount(amountText);
   if (!Number.isFinite(value)) {
-    const words = (amount ?? '').trim();
-    if (resolved.operator !== 'set' || lasting || words.length < 1) return null;
-    return { target: readNamedResourceSlot(name).name, slot: 'now', operator: 'set', amount: 0, text: words };
+    const words = (amountText ?? '').trim();
+    const named = readNamedResourceSlot(name);
+    if (resolved.operator !== 'set' || lasting || stepText !== undefined || named.slot !== 'now') return null;
+    return words.length > 0 ? { target: named.name, slot: 'now', operator: 'set', amount: 0, text: words } : null;
   }
   const moved = resolved.operator === 'add' ? value * resolved.sign : value;
   const step = resolved.repeats ? moved : stepText === undefined ? 0 : readBuffAmount(stepText);
