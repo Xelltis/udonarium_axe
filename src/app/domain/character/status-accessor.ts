@@ -15,6 +15,7 @@ import {
   DataElement,
   DataElementAttribute,
   DataElementFieldType,
+  type DataElementFieldTypeValue,
   DataElementType,
 } from '@axe/domain/data/data-element';
 import type { ElementAliasTable } from '@axe/domain/data/element-alias';
@@ -42,11 +43,26 @@ const SLOT_ATTRIBUTE: Partial<Record<SlotType, string>> = {
 };
 
 /** The kinds of field on a line of text that hold words rather than a number; a select is told apart before. */
-const TEXT_FIELD_TYPES: ReadonlySet<string> = new Set([
-  DataElementFieldType.TEXT,
-  DataElementFieldType.LONG_TEXT,
-  DataElementFieldType.SELECT,
-]);
+/**
+ * What an item of a sheet takes written into it, by how its field is edited and shown: words for a
+ * line of text, prose, a range's shape or an effect's name; one of its choices for a select; numbers
+ * for a number, a resource or a sum worked out; and nothing for a check box, a picture or a table.
+ * Every kind of field is named here, so one added later is told what it takes.
+ */
+const FIELD_TAKES: Readonly<Record<DataElementFieldTypeValue, 'words' | 'choice' | 'numbers' | 'nothing'>> = {
+  [DataElementFieldType.TEXT]: 'words',
+  [DataElementFieldType.LONG_TEXT]: 'words',
+  [DataElementFieldType.MARKDOWN]: 'words',
+  [DataElementFieldType.RANGE_SHAPE]: 'words',
+  [DataElementFieldType.EFFECT]: 'words',
+  [DataElementFieldType.SELECT]: 'choice',
+  [DataElementFieldType.NUMBER]: 'numbers',
+  [DataElementFieldType.RESOURCE]: 'numbers',
+  [DataElementFieldType.CALC]: 'numbers',
+  [DataElementFieldType.CHECK]: 'nothing',
+  [DataElementFieldType.IMAGE]: 'nothing',
+  [DataElementFieldType.CHECK_TABLE]: 'nothing',
+};
 
 const CHANGEABLE_TYPES: ReadonlySet<string> = new Set([
   DataElementType.NUMBER_RESOURCE,
@@ -323,13 +339,17 @@ export class StatusAccessor {
     const data = this.findData(name);
     if (!data) return null;
     if (!isChangeableElementType(data.type)) return { takes: 'nothing' };
-    if (data.fieldType === DataElementFieldType.SELECT) {
+    const takes =
+      data.type === DataElementType.NOTE
+        ? 'words'
+        : data.type === DataElementType.TEXT
+          ? FIELD_TAKES[data.fieldType]
+          : 'numbers';
+    if (takes === 'choice') {
       return { takes: 'choice', choices: parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '') };
     }
-    const words =
-      data.type === DataElementType.NOTE ||
-      (data.type === DataElementType.TEXT && TEXT_FIELD_TYPES.has(data.fieldType));
-    return words ? { takes: 'words', holdsNumber: this.getValue(name, 'now') != null } : { takes: 'numbers' };
+    if (takes === 'words') return { takes: 'words', holdsNumber: this.getValue(name, 'now') != null };
+    return { takes };
   }
 
   /** Where a value written to the item lands; see {@link landingOn}. */

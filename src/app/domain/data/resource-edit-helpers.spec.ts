@@ -5,7 +5,7 @@ import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementFieldType } from '@axe/domain/data/data-element';
 import {
   applyBuffEdit,
   applyBuffEditReport,
@@ -1257,6 +1257,25 @@ describe('resource-edit-helpers', () => {
       expect(said(':属性=1d6').edit).toMatchObject({ operator: '=', isDiceRoll: true });
       expect(said(':ランク=炎').edit.operator).toBe('=');
       expect(said(':HP=炎').edit.operator).toBe('=');
+    });
+
+    it('writes words into every field that holds them, by the chat as by a buff', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      for (const [name, fieldType] of [
+        ['投射の形', DataElementFieldType.RANGE_SHAPE],
+        ['技の効果', DataElementFieldType.EFFECT],
+        ['来歴', DataElementFieldType.MARKDOWN],
+      ] as const) {
+        group.appendChild(
+          DataElement.create(name, '', {
+            [DataElementAttribute.ROLE]: 'field',
+            [DataElementAttribute.FIELD_TYPE]: fieldType,
+          })
+        );
+        expect(said(`:${name}=炎`).edit).toMatchObject({ operator: '>', replace: '炎', target: name });
+        buff(`&!炎上/${name}=爆炎/3`);
+        expect(character.status.getText(name)).toBe('爆炎');
+      }
     });
 
     it('writes the words, and writes into an item holding a choice only one of its choices', () => {
