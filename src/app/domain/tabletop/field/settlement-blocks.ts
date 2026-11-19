@@ -19,6 +19,7 @@ import {
   LOW_WALLS,
   SETTLEMENT_WALL_HEIGHTS,
   SETTLEMENT_WALL_KINDS,
+  type SettlementFixture,
   type SettlementLayout,
   type SettlementMill,
   type SettlementThing,
@@ -297,6 +298,22 @@ function cutUp(rect: MapRect, span: number): MapRect[] {
   return parts;
 }
 
+/** How thick the block of a fixture hung on a wall is, in cells: well inside the wall it hangs on. */
+const HUNG_THICKNESS = 0.2;
+
+/**
+ * What a fixture hung on a wall stands as: a slab across the way it faces, in the middle of the wall's
+ * cell and well inside it, so it takes nothing a piece could bump into or climb, and a version that
+ * cannot draw its model draws nothing over the wall. Its model is drawn the size of the cell, as a model
+ * is fitted to the wider side of its block.
+ */
+function hungFootprint(fixture: SettlementFixture): { w: number; d: number } {
+  const facesAcross = fixture.turn % 180 === 0;
+  return facesAcross
+    ? { w: fixture.rect.w, d: HUNG_THICKNESS * fixture.rect.h }
+    : { w: HUNG_THICKNESS * fixture.rect.w, d: fixture.rect.h };
+}
+
 /**
  * How far a mill's one block is shifted from where a block of its rectangle is put, in cells, so
  * that its middle stands on the middle of a hex: a block of several cells on a board of hexes covers
@@ -488,12 +505,16 @@ export function settlementBlocks(
       kind: 'prop',
       rect: fixture.rect,
       blocksSight: false,
-      blocksClimb: !shape.climbed,
+      blocksClimb: !hung && !shape.climbed,
       locked: false,
       rooms: [],
       skin: { side: { kind: 'texture', id: shape.skin.side }, top: { kind: 'texture', id: shape.skin.top } },
       height: shape.height,
-      ...(filled < 1 ? { footprint: { w: fixture.rect.w * filled, d: fixture.rect.h * filled } } : {}),
+      ...(hung
+        ? { footprint: hungFootprint(fixture) }
+        : filled < 1
+          ? { footprint: { w: fixture.rect.w * filled, d: fixture.rect.h * filled } }
+          : {}),
       thing: fixture.kind,
       ...(models ? { model: shape.model, modelTurn: fixture.turn || undefined } : {}),
     });

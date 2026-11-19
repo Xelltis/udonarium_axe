@@ -290,4 +290,17 @@ describe('a castle town', () => {
       expect(modelled.blocks.blocks.length, `${gridType}`).toBeLessThanOrEqual(700);
     }
   });
+
+  it('hangs a sign or a banner as a slab well inside its wall, nothing to bump into, its model as wide as the cell', () => {
+    for (const seed of SEEDS) {
+      const { blocks } = planField({ atmosphere: 'castleTown', size: 40, density: 50, seed, models: true }).blocks;
+      const hung = blocks.filter((block) => HUNG_FIXTURES.includes(block.thing as never));
+      expect(hung.length).toBeGreaterThan(0);
+      for (const block of hung) {
+        expect(block.blocksClimb, block.thing).toBe(false);
+        expect(Math.max(block.footprint!.w, block.footprint!.d)).toBe(1);
+        expect(Math.min(block.footprint!.w, block.footprint!.d)).toBeLessThanOrEqual(0.2);
+      }
+    }
+  });
 });
