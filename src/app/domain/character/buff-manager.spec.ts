@@ -1306,6 +1306,42 @@ describe('BuffManager', () => {
       expect(status.getText('属性')).toBe('雷');
     });
 
+    describe('over words written by hand between two buffs', () => {
+      beforeEach(() => {
+        grant('A', '属性', '=', '炎', 3);
+        status.setText('属性', '風');
+        grant('B', '属性', '=', '雷', 3);
+      });
+
+      it('puts back the words written by hand as the buffs go, the one below first', () => {
+        sheeted.delete('A');
+        expect(status.getText('属性')).toBe('雷');
+        sheeted.delete('B');
+
+        expect(status.getText('属性')).toBe('風');
+      });
+
+      it('puts back the words written by hand as the buffs go, the one above first', () => {
+        sheeted.delete('B');
+        expect(status.getText('属性')).toBe('風');
+        sheeted.delete('A');
+
+        expect(status.getText('属性')).toBe('風');
+      });
+
+      it('puts back the words written by hand as the buffs go, after they were laid again as a step was undone', () => {
+        const standing = sheeted.snapshot();
+        sheeted.delete('A');
+        sheeted.restore(standing);
+        expect(status.getText('属性')).toBe('雷');
+
+        sheeted.delete('A');
+        sheeted.delete('B');
+
+        expect(status.getText('属性')).toBe('風');
+      });
+    });
+
     it('puts back the words a buff wrote as a step is undone, though it was laid again with others since', () => {
       grant('X', '属性', '=', '炎', 3);
       const step = sheeted.snapshot();

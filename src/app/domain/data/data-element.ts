@@ -105,13 +105,16 @@ export const DataElementAttribute = {
   BUFF_MOD_KEPT_STEP: 'cs-buff-mod-kept-step',
   /**
    * A buff that writes words into an item while it stands: the item, the words it wrote, what the
-   * item held before, and how late it wrote them among the buffs that did. Kept apart from the fields of a buff that moves a number, so that a version that
-   * knows no such buff reads it as a note and moves nothing as it goes.
+   * item held before, how late it wrote them among the buffs that did, and whether what the item held
+   * before was written into it otherwise, by hand or by a command. Kept apart from the fields of a
+   * buff that moves a number, so that a version that knows no such buff reads it as a note and moves
+   * nothing as it goes.
    */
   BUFF_TEXT_TARGET: 'cs-buff-text-target',
   BUFF_TEXT_SET: 'cs-buff-text-set',
   BUFF_TEXT_BEFORE: 'cs-buff-text-before',
   BUFF_TEXT_ORDER: 'cs-buff-text-order',
+  BUFF_TEXT_ON_HAND: 'cs-buff-text-hand',
   /**
    * On a sheet's item buffs write into or move, what they last left in it, kept once they are gone:
    * anything else it holds was written into it otherwise since, by hand or by a command. Left out

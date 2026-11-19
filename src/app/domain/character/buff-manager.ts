@@ -11,6 +11,7 @@ import {
   describeStandingModifier,
   holdsRequestedStatus,
   isWrittenOtherwise,
+  laidOn,
   movesSameStatus,
   ParsedBuffModifierRequest,
   readBuffModifier,
@@ -240,21 +241,32 @@ export class BuffManager {
     });
   }
 
-  /** Writes words into an item the sheet has for the buff, and records what the item held. */
+  /**
+   * Writes words into an item the sheet has for the buff, and records what the item held, and whether
+   * that was written into it otherwise (see `BuffTextModifier.onHand`).
+   */
   private writeWords(data: DataElement, target: string, words: string): BuffTextModifier | null {
     const status = this.status();
     const before = status?.getText(target);
     if (!status || before == null) return null;
+    const onHand = this.writtenByHand(target);
     status.setText(target, words);
-    return this.recordWords(data, target, words, before);
+    return this.recordWords(data, target, words, before, onHand);
   }
 
   /**
    * Records on the buff the words it wrote and what the item held before, as the latest to write, and
    * notes on the item that the buffs leave those words there (see {@link writtenByHand}).
    */
-  private recordWords(data: DataElement, target: string, words: string, before: string): BuffTextModifier {
-    const modifier: BuffTextModifier = { target, text: words, before, order: this.nextWordsOrder() };
+  private recordWords(
+    data: DataElement,
+    target: string,
+    words: string,
+    before: string,
+    onHand = false
+  ): BuffTextModifier {
+    const order = this.nextWordsOrder();
+    const modifier: BuffTextModifier = { target, text: words, before, order, ...(onHand ? { onHand } : {}) };
     writeBuffTextModifier(data, modifier);
     this.status()?.noteLeftByBuffs(target);
     return modifier;
@@ -276,11 +288,12 @@ export class BuffManager {
 
   /**
    * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
-   * now stands on what this one found there, so it puts that back when it goes. Where none did, the item
-   * goes back to what it held, moved by what buffs moving its number moved it since (see
-   * `putBackFrom`), unless someone wrote into it by hand (see {@link writtenByHand}), and
-   * what it holds then is what the buffs left, even once none writes into it: words written after,
-   * while none stands, are told as written by hand should one of them be put back.
+   * now stands on what this one found there, so it puts that back when it goes, unless it stands on
+   * words written otherwise (see `laidOn`). Where none did, the item goes back to what it held, moved
+   * by what buffs moving its number moved it since (see `putBackFrom`), unless someone wrote into it by
+   * hand (see {@link writtenByHand}), and what it holds then is what the buffs left, even once none
+   * writes into it: words written after, while none stands, are told as written by hand should one of
+   * them be put back. Words written otherwise that the buff found there go back as written so.
    */
   private revertWords(data: DataElement, words: BuffTextModifier): void {
     clearBuffTextModifier(data);
@@ -289,12 +302,12 @@ export class BuffManager {
     if (!status) return;
     const above = this.nextWordsOn(words.target, words.order, data.identifier);
     if (above) {
-      writeBuffTextModifier(above.row, { ...above.written, before: words.before });
+      writeBuffTextModifier(above.row, laidOn(above.written, words));
       return;
     }
     if (this.writtenByHand(words.target)) return;
     status.setText(words.target, putBackFrom(status.getText(words.target) ?? '', words));
-    status.noteLeftByBuffs(words.target);
+    if (!words.onHand) status.noteLeftByBuffs(words.target);
   }
 
   /**
@@ -738,21 +751,22 @@ export class BuffManager {
 
   /**
    * Lays the buffs that write into an item in the order they wrote: the first stands on what the item
-   * held before any of them, each later one on the words of the one before it, and the item shows the
-   * words of the last, unless someone wrote into it by hand (see {@link writtenByHand}). Run as buffs
-   * are put back, whichever of them were and in whatever order.
+   * held before any of them, each later one on the words of the one before it but where it found words
+   * written otherwise (see `laidOn`), and the item shows the words of the last, unless someone wrote
+   * into it by hand (see {@link writtenByHand}). Run as buffs are put back, whichever of them were and
+   * in whatever order.
    */
   private relinkWords(target: string): void {
     const chain = this.wordsOn(target);
     if (chain.length < 1) return;
-    let below = chain[0].written.before;
+    let below: Pick<BuffTextModifier, 'before' | 'onHand'> = chain[0].written;
     for (const { row, written } of chain) {
-      if (written.before !== below) writeBuffTextModifier(row, { ...written, before: below });
-      below = written.text;
+      writeBuffTextModifier(row, laidOn(written, below));
+      below = { before: written.text };
     }
     const status = this.status();
     if (!status || this.writtenByHand(target)) return;
-    if (status.getText(target) !== below) status.setText(target, below);
+    if (status.getText(target) !== below.before) status.setText(target, below.before);
     status.noteLeftByBuffs(target);
   }
 

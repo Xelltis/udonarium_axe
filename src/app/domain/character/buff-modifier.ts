@@ -81,6 +81,27 @@ export interface BuffTextModifier {
    * is the one whose words the item shows, and the one above another is the one next written after it.
    */
   order: number;
+  /**
+   * Whether what the item held before was written into it otherwise, by hand or by a command, since
+   * the buffs last left what they did in it: the buff stands on those words rather than on the words
+   * of a buff that wrote before it, which no buff going or coming back takes from under it, and puts
+   * them back as written so as it goes.
+   */
+  onHand?: true;
+}
+
+/**
+ * A buff's record of the words it wrote, standing on what it now stands on, `standing`: the words a
+ * buff below it wrote, or those the item held before the one below it went. One that stands on words
+ * written otherwise stands on them still (see {@link BuffTextModifier.onHand}). Letting a buff go and
+ * laying the buffs that write into an item again both lay each on what is below it here.
+ */
+export function laidOn(
+  written: BuffTextModifier,
+  standing: Pick<BuffTextModifier, 'before' | 'onHand'>
+): BuffTextModifier {
+  if (written.onHand) return written;
+  return { ...written, before: standing.before, ...(standing.onHand ? { onHand: true } : {}) };
 }
 
 const LASTING_MARK = /^[:：]/;
@@ -363,6 +384,7 @@ export function readBuffTextModifier(element: DataElement): BuffTextModifier | n
     text: element.getAttribute(DataElementAttribute.BUFF_TEXT_SET) ?? '',
     before: element.getAttribute(DataElementAttribute.BUFF_TEXT_BEFORE) ?? '',
     order: Number.isFinite(order) ? order : 0,
+    ...(element.getAttribute(DataElementAttribute.BUFF_TEXT_ON_HAND) === '1' ? { onHand: true } : {}),
   };
 }
 
@@ -372,6 +394,7 @@ export function writeBuffTextModifier(element: DataElement, modifier: BuffTextMo
   keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, modifier.text);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_BEFORE, modifier.before);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_ON_HAND, modifier.onHand ? '1' : null);
 }
 
 /** What an item holds, as text: a resource's amount left, anything else's value. */
@@ -407,6 +430,7 @@ export function clearBuffTextModifier(element: DataElement): void {
   keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, null);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_BEFORE, null);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, null);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_ON_HAND, null);
 }
 
 /**
