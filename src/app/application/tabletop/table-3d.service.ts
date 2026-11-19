@@ -383,6 +383,16 @@ export class Table3dService {
   });
 
   /**
+   * The current read under each block drawn as a model, kept for the water it was read from by where
+   * the block stood then, so a block that has not moved over water that has not changed is not read
+   * again as another block opens or changes.
+   */
+  private readonly currentsRead = new WeakMap<
+    ReadonlyMap<number, WaterCell>,
+    Map<string, { at: string; current: WaterCurrent | null }>
+  >();
+
+  /**
    * The blocks drawn as models, each standing in flowing water handed the current in the cells under
    * it, which turns the parts of its model that dip into it. Worked out again as the water changes,
    * without the blocks' models being worked out again with it.
@@ -393,14 +403,21 @@ export class Table3dService {
     const cells = this.waterCells.everyCell();
     if (!grid || cells.size < 1 || models.length < 1) return models;
     const currents = new Map<string, WaterCurrent>();
+    const read = this.currentsRead.get(cells) ?? new Map<string, { at: string; current: WaterCurrent | null }>();
+    this.currentsRead.set(cells, read);
     for (const { terrain } of this.terrainsDrawnAsModels()) {
-      const under: WaterCell[] = [];
-      forEachCellUnder(grid, terrain, (index) => {
-        const cell = cells.get(index);
-        if (cell) under.push(cell);
-      });
-      const current = currentOf(under);
-      if (current) currents.set(terrain.identifier, current);
+      const at = `${terrain.location.x},${terrain.location.y},${terrain.width},${terrain.depth},${terrain.rotate}`;
+      let known = read.get(terrain.identifier);
+      if (known?.at !== at) {
+        const under: WaterCell[] = [];
+        forEachCellUnder(grid, terrain, (index) => {
+          const cell = cells.get(index);
+          if (cell) under.push(cell);
+        });
+        known = { at, current: currentOf(under) };
+        read.set(terrain.identifier, known);
+      }
+      if (known.current) currents.set(terrain.identifier, known.current);
     }
     if (currents.size < 1) return models;
     return models.map((model) => {
