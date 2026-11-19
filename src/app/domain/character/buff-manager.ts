@@ -58,11 +58,30 @@ export interface BuffSnapshotEntry {
 }
 
 export class BuffManager {
+  /** How many changes to the buffs are under way, one inside another, so made items are swept once the outermost is done. */
+  private changing = 0;
+
   constructor(
     private readonly buffDataElement: DataElement | null,
     private readonly owner: () => BuffTurnActor = () => ({ identifier: '', name: '' }),
     private readonly status: () => StatusAccessor | null = () => null
   ) {}
+
+  /**
+   * Makes a change to the piece's buffs, and once it is done, with every change it is part of, takes
+   * away every item a buff made that no buff uses any more (see {@link sweepMadeItems}). Every change
+   * to the buffs is made in one; a change made of several, as a buff the chat lays again is taken off
+   * and laid, is made whole in one, so the item it stands on is not swept halfway.
+   */
+  alter<T>(change: () => T): T {
+    this.changing++;
+    try {
+      return change();
+    } finally {
+      this.changing--;
+      if (this.changing === 0) this.sweepMadeItems();
+    }
+  }
 
   /** The element the buffs are kept in: the first thing in the buff element that is not a buff itself. */
   private get container(): DataElement | null {
@@ -102,12 +121,14 @@ export class BuffManager {
    * has no buff container yet.
    */
   delete(name: string): boolean {
-    this.gather();
-    const data = this.find(name);
-    if (!data) return false;
-    this.remove(data);
-    this.removeGroupMembers(name);
-    return true;
+    return this.alter(() => {
+      this.gather();
+      const data = this.find(name);
+      if (!data) return false;
+      this.remove(data);
+      this.removeGroupMembers(name);
+      return true;
+    });
   }
 
   /**
@@ -115,7 +136,9 @@ export class BuffManager {
    * buff can be laid again with however many it moves now.
    */
   removeGroupMembers(name: string): void {
-    this.removeWhere((data) => isBuffGroupMember(data) && buffGroupOf(data) === name);
+    this.alter(() => {
+      this.removeWhere((data) => isBuffGroupMember(data) && buffGroupOf(data) === name);
+    });
   }
 
   /**
@@ -123,16 +146,18 @@ export class BuffManager {
    * returns their names in the order they were listed.
    */
   removeWhere(test: (data: DataElement) => boolean): string[] {
-    this.gather();
-    const container = this.container;
-    if (!container) return [];
-    const removed: string[] = [];
-    for (const data of [...container.children]) {
-      if (!test(data)) continue;
-      removed.push(data.name);
-      this.remove(data);
-    }
-    return removed;
+    return this.alter(() => {
+      this.gather();
+      const container = this.container;
+      if (!container) return [];
+      const removed: string[] = [];
+      for (const data of [...container.children]) {
+        if (!test(data)) continue;
+        removed.push(data.name);
+        this.remove(data);
+      }
+      return removed;
+    });
   }
 
   /**
@@ -140,16 +165,19 @@ export class BuffManager {
    * with every further row of it, putting back all they moved. Any other row goes on its own.
    */
   removeWhole(data: DataElement): void {
-    const heads = buffGroupOf(data) === data.name ? data.name : '';
-    this.remove(data);
-    if (heads.length > 0) this.removeGroupMembers(heads);
+    this.alter(() => {
+      const heads = buffGroupOf(data) === data.name ? data.name : '';
+      this.remove(data);
+      if (heads.length > 0) this.removeGroupMembers(heads);
+    });
   }
 
   /** Takes the buff away, putting back whatever it moved on the sheet. */
   remove(data: DataElement): void {
-    this.revertModifier(data);
-    data.destroy();
-    this.sweepMadeItems();
+    this.alter(() => {
+      this.revertModifier(data);
+      data.destroy();
+    });
   }
 
   /**
@@ -171,22 +199,24 @@ export class BuffManager {
     request: ParsedBuffModifierRequest,
     makesMissing = false
   ): BuffModifier | BuffTextModifier | null {
-    const status = this.status();
-    if (!status) return null;
-    const landing = landingOfRequest(status, request);
-    if (landing.kind === 'missing') {
-      if (!makesMissing || request.lasting || request.slot !== 'now') return null;
-      if (!status.makeForBuff(request.target, request.text ?? 0)) return null;
-      if (request.text !== undefined) return this.recordWords(data, request.target, request.text, '');
-    } else if (landing.kind === 'words') {
-      return this.writeWords(data, request.target, landing.words);
-    } else if (landing.kind !== 'number') {
-      return null;
-    }
-    const moved = this.moveStatus(request);
-    if (moved != null) return this.writeModifier(data, request, moved);
-    if (request.operator !== 'set' || status.takesOf(request.target)?.takes !== 'words') return null;
-    return this.writeWords(data, request.target, String(request.amount));
+    return this.alter(() => {
+      const status = this.status();
+      if (!status) return null;
+      const landing = landingOfRequest(status, request);
+      if (landing.kind === 'missing') {
+        if (!makesMissing || request.lasting || request.slot !== 'now') return null;
+        if (!status.makeForBuff(request.target, request.text ?? 0)) return null;
+        if (request.text !== undefined) return this.recordWords(data, request.target, request.text, '');
+      } else if (landing.kind === 'words') {
+        return this.writeWords(data, request.target, landing.words);
+      } else if (landing.kind !== 'number') {
+        return null;
+      }
+      const moved = this.moveStatus(request);
+      if (moved != null) return this.writeModifier(data, request, moved);
+      if (request.operator !== 'set' || status.takesOf(request.target)?.takes !== 'words') return null;
+      return this.writeWords(data, request.target, String(request.amount));
+    });
   }
 
   /** Writes words into an item the sheet has for the buff, and records what the item held. */
@@ -251,10 +281,9 @@ export class BuffManager {
   /**
    * Takes away every item a buff made for itself that no buff of the piece moves or writes into any
    * more, one that leaves what it moved included, and the section such items are kept in once it holds
-   * none. Run once whatever took buffs away is done; a buff laid again is reverted and laid without it,
-   * so the item it stands on is kept as it is. An item the sheet had all along is never taken.
+   * none. An item the sheet had all along is never taken.
    */
-  sweepMadeItems(): void {
+  private sweepMadeItems(): void {
     const status = this.status();
     if (!status?.keepsBuffItems()) return;
     const used = new Set<string>();
@@ -281,18 +310,20 @@ export class BuffManager {
     request: ParsedBuffModifierRequest,
     makesMissing = false
   ): BuffModifier | BuffTextModifier | null {
-    const standing = readBuffModifier(data);
-    if (!standing || !movesSameStatus(standing, request)) {
-      this.revertModifier(data);
-      return this.applyModifier(data, request, makesMissing);
-    }
-    if (holdsRequestedStatus(standing, request)) {
-      return this.status()?.getValue(request.target, request.slot) == null ? null : standing;
-    }
+    return this.alter(() => {
+      const standing = readBuffModifier(data);
+      if (!standing || !movesSameStatus(standing, request)) {
+        this.revertModifier(data);
+        return this.applyModifier(data, request, makesMissing);
+      }
+      if (holdsRequestedStatus(standing, request)) {
+        return this.status()?.getValue(request.target, request.slot) == null ? null : standing;
+      }
 
-    const moved = this.moveStatus(request);
-    if (moved == null) return null;
-    return this.writeModifier(data, { ...request, step: request.step ?? standing.step }, standing.applied + moved);
+      const moved = this.moveStatus(request);
+      if (moved == null) return null;
+      return this.writeModifier(data, { ...request, step: request.step ?? standing.step }, standing.applied + moved);
+    });
   }
 
   /** Moves the status by what the request asks for and answers how far it actually went. */
@@ -350,7 +381,7 @@ export class BuffManager {
   /**
    * Lets go of what the buff moved, moving it back unless the buff leaves it moved, and of the words
    * it wrote, putting back what the item held. An item made for the buff is left for
-   * {@link sweepMadeItems}, run once the buff has gone rather than as it is laid again.
+   * {@link sweepMadeItems}, run once the change this is part of is done (see {@link alter}).
    */
   private revertModifier(data: DataElement): void {
     const words = readBuffTextModifier(data);
@@ -373,19 +404,21 @@ export class BuffManager {
    * Nothing is removed here, even at zero; `deleteZeroRound` does that.
    */
   decreaseRound(): void {
-    this.gather();
-    const container = this.container;
-    if (!container) return;
-    for (const data of container.children) {
-      const movesByCount = buffEffectTimingOf(data) === null;
-      if (!buffExpires(data)) {
-        if (movesByCount) this.stepModifier(data);
-        continue;
+    this.alter(() => {
+      this.gather();
+      const container = this.container;
+      if (!container) return;
+      for (const data of container.children) {
+        const movesByCount = buffEffectTimingOf(data) === null;
+        if (!buffExpires(data)) {
+          if (movesByCount) this.stepModifier(data);
+          continue;
+        }
+        const sum = parseInt(String(data.value)) - 1;
+        data.value = sum;
+        if (sum >= 0 && movesByCount) this.stepModifier(data, sum === 0);
       }
-      const sum = parseInt(String(data.value)) - 1;
-      data.value = sum;
-      if (sum >= 0 && movesByCount) this.stepModifier(data, sum === 0);
-    }
+    });
   }
 
   /**
@@ -393,14 +426,16 @@ export class BuffManager {
    * cleared is left alone.
    */
   increaseRound(): void {
-    this.gather();
-    const container = this.container;
-    if (!container) return;
-    for (const data of container.children) {
-      if (!buffExpires(data)) continue;
-      const sum = parseInt(String(data.value)) + 1;
-      data.value = sum;
-    }
+    this.alter(() => {
+      this.gather();
+      const container = this.container;
+      if (!container) return;
+      for (const data of container.children) {
+        if (!buffExpires(data)) continue;
+        const sum = parseInt(String(data.value)) + 1;
+        data.value = sum;
+      }
+    });
   }
 
   /**
@@ -408,15 +443,17 @@ export class BuffManager {
    * sheet. A buff held until cleared stays whatever its count reads.
    */
   deleteZeroRound(): void {
-    this.gather();
-    const container = this.container;
-    if (!container) return;
-    for (const data of [...container.children]) {
-      if (!buffExpires(data)) continue;
-      if (parseInt(String(data.value)) <= 0) {
-        this.remove(data);
+    this.alter(() => {
+      this.gather();
+      const container = this.container;
+      if (!container) return;
+      for (const data of [...container.children]) {
+        if (!buffExpires(data)) continue;
+        if (parseInt(String(data.value)) <= 0) {
+          this.remove(data);
+        }
       }
-    }
+    });
   }
 
   /** Counts the rounds down, removes the buffs that ran out and returns their names. */
@@ -439,30 +476,32 @@ export class BuffManager {
    * what was moved since.
    */
   expireAt(timing: BuffTiming, acting: BuffTurnActor, ranOut?: Map<string, number>): string[] {
-    this.gather();
-    const container = this.container;
-    if (!container) return [];
+    return this.alter(() => {
+      this.gather();
+      const container = this.container;
+      if (!container) return [];
 
-    const owner = this.owner();
-    const expired: string[] = [];
-    for (const data of [...container.children]) {
-      if (this.effectMovesAt(data, timing, owner, acting)) this.stepModifier(data);
-      if (!isBuffDueAt(data, timing, owner, acting)) continue;
-      const movesByCount = buffEffectTimingOf(data) === null;
-      const round = parseInt(String(data.value)) - 1;
-      data.value = round;
-      if (round <= 0) {
-        if (!isBuffGroupMember(data)) expired.push(data.name);
-        // Only the count that brings it to nought is its last; one already standing there has had it.
-        if (round === 0 && movesByCount) this.stepModifier(data, true);
-        const standing = readBuffModifier(data);
-        if (standing?.lasting) ranOut?.set(data.name, standing.applied);
-        this.remove(data);
-      } else if (movesByCount) {
-        this.stepModifier(data);
+      const owner = this.owner();
+      const expired: string[] = [];
+      for (const data of [...container.children]) {
+        if (this.effectMovesAt(data, timing, owner, acting)) this.stepModifier(data);
+        if (!isBuffDueAt(data, timing, owner, acting)) continue;
+        const movesByCount = buffEffectTimingOf(data) === null;
+        const round = parseInt(String(data.value)) - 1;
+        data.value = round;
+        if (round <= 0) {
+          if (!isBuffGroupMember(data)) expired.push(data.name);
+          // Only the count that brings it to nought is its last; one already standing there has had it.
+          if (round === 0 && movesByCount) this.stepModifier(data, true);
+          const standing = readBuffModifier(data);
+          if (standing?.lasting) ranOut?.set(data.name, standing.applied);
+          this.remove(data);
+        } else if (movesByCount) {
+          this.stepModifier(data);
+        }
       }
-    }
-    return expired;
+      return expired;
+    });
   }
 
   /** Whether the clock moves the buff's effect at this moment, which it never does once its rounds are spent. */
@@ -490,18 +529,19 @@ export class BuffManager {
    * again by the difference alone.
    */
   putBack(entries: readonly BuffSnapshotEntry[]): void {
-    this.gather();
-    for (const entry of entries) {
-      const found = this.find(entry.name);
-      const data = found ?? this.append(entry.name, entry.value, entry.info);
-      if (!data) continue;
-      data.value = entry.value;
-      data.currentValue = entry.info;
-      applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
-      this.restoreWords(data, entry.words ?? null, entry.made ?? false);
-    }
-    this.sweepMadeItems();
+    this.alter(() => {
+      this.gather();
+      for (const entry of entries) {
+        const found = this.find(entry.name);
+        const data = found ?? this.append(entry.name, entry.value, entry.info);
+        if (!data) continue;
+        data.value = entry.value;
+        data.currentValue = entry.info;
+        applyAppearance(data, entry.appearance);
+        this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
+        this.restoreWords(data, entry.words ?? null, entry.made ?? false);
+      }
+    });
   }
 
   /**
@@ -534,29 +574,30 @@ export class BuffManager {
    * moves nothing the second time.
    */
   restore(entries: readonly BuffSnapshotEntry[]): void {
-    this.gather();
-    const container = this.container;
-    if (container) {
-      const wanted = new Set(entries.map((entry) => entry.name));
-      for (const child of [...container.children]) {
-        const data = child as DataElement;
-        if (!wanted.has(data.name)) this.remove(data);
+    this.alter(() => {
+      this.gather();
+      const container = this.container;
+      if (container) {
+        const wanted = new Set(entries.map((entry) => entry.name));
+        for (const child of [...container.children]) {
+          const data = child as DataElement;
+          if (!wanted.has(data.name)) this.remove(data);
+        }
       }
-    }
-    const restored: DataElement[] = [];
-    for (const entry of entries) {
-      const found = this.find(entry.name);
-      const data = found ?? this.append(entry.name, entry.value, entry.info);
-      if (!data) continue;
-      data.value = entry.value;
-      data.currentValue = entry.info;
-      applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
-      this.restoreWords(data, entry.words ?? null, entry.made ?? false);
-      restored.push(data);
-    }
-    this.reorder(restored);
-    this.sweepMadeItems();
+      const restored: DataElement[] = [];
+      for (const entry of entries) {
+        const found = this.find(entry.name);
+        const data = found ?? this.append(entry.name, entry.value, entry.info);
+        if (!data) continue;
+        data.value = entry.value;
+        data.currentValue = entry.info;
+        applyAppearance(data, entry.appearance);
+        this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
+        this.restoreWords(data, entry.words ?? null, entry.made ?? false);
+        restored.push(data);
+      }
+      this.reorder(restored);
+    });
   }
 
   /** Lays the buffs back in the order they were held, which is the order they are read in. */
@@ -573,14 +614,16 @@ export class BuffManager {
    * down. The container is made when the piece has none yet; null for a piece with no buff element.
    */
   append(name: string, value: number | string, info: string): DataElement | null {
-    const container = this.ensureContainer();
-    if (!container) return null;
-    const created = DataElement.create(name, value, {
-      type: DataElementType.NUMBER_RESOURCE,
-      currentValue: info,
+    return this.alter(() => {
+      const container = this.ensureContainer();
+      if (!container) return null;
+      const created = DataElement.create(name, value, {
+        type: DataElementType.NUMBER_RESOURCE,
+        currentValue: info,
+      });
+      container.appendChild(created);
+      return created;
     });
-    container.appendChild(created);
-    return created;
   }
 
   /**
@@ -691,24 +734,26 @@ export class BuffManager {
    * with no buff element at all is left untouched.
    */
   addRound(name: string, info: string = '', round: number = 3, appearance: BuffAppearance = {}): void {
-    this.gather();
-    const container = this.ensureContainer();
-    if (!container) return;
-    const data = this.find(name);
-    if (data) {
-      // Putting the same buff on again starts it over, so whatever it moved goes back first.
-      this.revertModifier(data);
-      data.value = round;
-      data.currentValue = info;
-      applyAppearance(data, appearance);
-    } else {
-      const created = DataElement.create(name, round, {
-        type: DataElementType.NUMBER_RESOURCE,
-        currentValue: info,
-      });
-      applyAppearance(created, appearance);
-      container.appendChild(created);
-    }
+    this.alter(() => {
+      this.gather();
+      const container = this.ensureContainer();
+      if (!container) return;
+      const data = this.find(name);
+      if (data) {
+        // Putting the same buff on again starts it over, so whatever it moved goes back first.
+        this.revertModifier(data);
+        data.value = round;
+        data.currentValue = info;
+        applyAppearance(data, appearance);
+      } else {
+        const created = DataElement.create(name, round, {
+          type: DataElementType.NUMBER_RESOURCE,
+          currentValue: info,
+        });
+        applyAppearance(created, appearance);
+        container.appendChild(created);
+      }
+    });
   }
 
   /**
@@ -745,23 +790,25 @@ export class BuffManager {
     appearance: BuffAppearance,
     settle: (standing: number, asked: number) => number
   ): void {
-    this.gather();
-    const data = this.find(name);
-    if (!data) {
-      this.addRound(name, info, round, appearance);
-      return;
-    }
+    this.alter(() => {
+      this.gather();
+      const data = this.find(name);
+      if (!data) {
+        this.addRound(name, info, round, appearance);
+        return;
+      }
 
-    if (!speaksOnlyOfHeldStatus(readBuffModifier(data), info)) {
-      const stacked = stackBuffEffect(`${data.currentValue ?? ''}`, info);
-      if (stacked !== null) data.currentValue = stacked;
-      else if (info.length > 0) data.currentValue = info;
-    }
-    applyAppearance(data, appearance);
+      if (!speaksOnlyOfHeldStatus(readBuffModifier(data), info)) {
+        const stacked = stackBuffEffect(`${data.currentValue ?? ''}`, info);
+        if (stacked !== null) data.currentValue = stacked;
+        else if (info.length > 0) data.currentValue = info;
+      }
+      applyAppearance(data, appearance);
 
-    if (round === undefined || !buffExpires(data)) return;
-    const standing = parseInt(String(data.value), 10);
-    data.value = Number.isFinite(standing) ? settle(standing, round) : round;
+      if (round === undefined || !buffExpires(data)) return;
+      const standing = parseInt(String(data.value), 10);
+      data.value = Number.isFinite(standing) ? settle(standing, round) : round;
+    });
   }
 }
 

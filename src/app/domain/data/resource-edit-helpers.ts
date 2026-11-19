@@ -520,7 +520,9 @@ function applyCalculatedBuff(command: string, character: GameCharacter, piles: B
 
 /**
  * Lays a buff of one row a status, or stacks it, and says in the chat what it did. A single status
- * stacked on a buff of several leaves the buff marked as several; laid anew, it is one again.
+ * stacked on a buff of several leaves the buff marked as several; laid anew, it is one again. Taking
+ * the buff off and laying it again is one change to the piece's buffs, so an item it made and stands
+ * on again is kept.
  */
 function grantCalculatedBuff(
   character: GameCharacter,
@@ -529,61 +531,62 @@ function grantCalculatedBuff(
   rest: readonly string[],
   piles: BuffPileOn
 ): string {
-  const { rounds, look } = splitBuffRounds(rest);
-  const roundText = (rounds ?? '').trim();
-  const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
-  const stacking =
-    piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
-  if (!stacking) character.buffs.removeGroupMembers(name);
-  const grouped = requests.length > 1;
-  const group = grouped ? name : stacking ? undefined : '';
-  const written = readCalculatedBuffLook(look);
-  // Laid anew, a buff written without a moment for its effect has none, whatever one of its name had.
-  const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
+  return character.buffs.alter(() => {
+    const { rounds, look } = splitBuffRounds(rest);
+    const roundText = (rounds ?? '').trim();
+    const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
+    const stacking =
+      piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
+    if (!stacking) character.buffs.removeGroupMembers(name);
+    const grouped = requests.length > 1;
+    const group = grouped ? name : stacking ? undefined : '';
+    const written = readCalculatedBuffLook(look);
+    // Laid anew, a buff written without a moment for its effect has none, whatever one of its name had.
+    const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
 
-  const missing: string[] = [];
-  const made: string[] = [];
-  const refused: string[] = [];
-  const effects: string[] = [];
-  requests.forEach((request, index) => {
-    const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
-    const effect = describeBuffModifier(request);
-    const standing = stacking ? character.buffs.find(rowName) : null;
-    const rowStacking = standing != null;
-    const note = standing && holdsRequestedStatus(readBuffModifier(standing), request) ? '' : effect;
-    if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
-    else if (piles === 'extend') character.buffs.extendRound(rowName, note, round, appearance);
-    else character.buffs.stackRound(rowName, note, round, appearance);
+    const missing: string[] = [];
+    const made: string[] = [];
+    const refused: string[] = [];
+    const effects: string[] = [];
+    requests.forEach((request, index) => {
+      const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
+      const effect = describeBuffModifier(request);
+      const standing = stacking ? character.buffs.find(rowName) : null;
+      const rowStacking = standing != null;
+      const note = standing && holdsRequestedStatus(readBuffModifier(standing), request) ? '' : effect;
+      if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
+      else if (piles === 'extend') character.buffs.extendRound(rowName, note, round, appearance);
+      else character.buffs.stackRound(rowName, note, round, appearance);
 
-    const data = character.buffs.find(rowName);
-    if (!data) return;
-    // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
-    if (!isAimedAtStatus(request.target)) {
-      const landing = landingOfRequest(character.status, request);
-      const applied = rowStacking
-        ? character.buffs.stackModifier(data, request, true)
-        : character.buffs.applyModifier(data, request, true);
-      if (applied && landing.kind === 'missing') made.push(request.target);
-      else if (!applied && landing.kind === 'notAChoice') {
-        const choices = choicesToSay(character, landing.choices);
-        refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), choices));
-      } else if (!applied && landing.kind === 'notWords') {
-        refused.push(`${request.target}は数の項目なので「${request.text}」は書けません`);
-      } else if (!applied) missing.push(request.target);
-    }
-    effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
+      const data = character.buffs.find(rowName);
+      if (!data) return;
+      // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
+      if (!isAimedAtStatus(request.target)) {
+        const landing = landingOfRequest(character.status, request);
+        const applied = rowStacking
+          ? character.buffs.stackModifier(data, request, true)
+          : character.buffs.applyModifier(data, request, true);
+        if (applied && landing.kind === 'missing') made.push(request.target);
+        else if (!applied && landing.kind === 'notAChoice') {
+          const choices = choicesToSay(character, landing.choices);
+          refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), choices));
+        } else if (!applied && landing.kind === 'notWords') {
+          refused.push(`${request.target}は数の項目なので「${request.text}」は書けません`);
+        } else if (!applied) missing.push(request.target);
+      }
+      effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
+    });
+
+    const data = character.buffs.find(name);
+    if (!data) return '';
+    const verb = stacking ? '加算' : '付与';
+    const lack =
+      (missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '') +
+      (made.length > 0 ? ` (${made.join('・')}を${BUFF_ITEMS_SECTION}に作りました)` : '') +
+      refused.map((said) => ` (${said})`).join('');
+    const left = buffExpires(data) ? `/${data.value}R` : '';
+    return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
   });
-
-  character.buffs.sweepMadeItems();
-  const data = character.buffs.find(name);
-  if (!data) return '';
-  const verb = stacking ? '加算' : '付与';
-  const lack =
-    (missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '') +
-    (made.length > 0 ? ` (${made.join('・')}を${BUFF_ITEMS_SECTION}に作りました)` : '') +
-    refused.map((said) => ` (${said})`).join('');
-  const left = buffExpires(data) ? `/${data.value}R` : '';
-  return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
 }
 
 /**

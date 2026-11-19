@@ -1232,6 +1232,27 @@ describe('BuffManager', () => {
       expect(status.getText('属性')).toBe('雷');
     });
 
+    it('takes an item it made away once the change that left it unused is done, whatever change that was', () => {
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      const ways: [string, () => unknown][] = [
+        ['laid again as a note', () => sheeted.addRound('炎の剣', '', 3)],
+        ['taken off', () => sheeted.delete('炎の剣')],
+        ['taken off whole', () => sheeted.removeWhole(sheeted.find('炎の剣')!)],
+        ['swept', () => sheeted.removeWhere(() => true)],
+        ['run out', () => sheeted.expireAt('roundEnd', owner)],
+        ['counted out', () => (sheeted.decreaseRound(), sheeted.deleteZeroRound())],
+        ['put back as it was before', () => sheeted.restore([])],
+      ];
+      for (const [way, change] of ways) {
+        grant('炎の剣', '武器属性', '=', '炎', 1);
+        expect(status.getText('武器属性'), way).toBe('炎');
+
+        change();
+
+        expect(status.getText('武器属性'), way).toBeNull();
+      }
+    });
+
     it('leaves words written into the item by hand as the buff comes back, as it does as it goes', () => {
       const owner = { identifier: 'owner', name: 'テストキャラ' };
       grant('ファイア・ウェポン', '属性', '=', '炎', 1);
@@ -1472,14 +1493,16 @@ describe('BuffManager', () => {
         expect(madeSection()).toBeUndefined();
       });
 
-      it('keeps the item made as the buff that made it is laid again', () => {
+      it('keeps the item made as the buff that made it is laid again, in one change of taking off and laying', () => {
         grant('炎の剣', '武器属性', '=', '炎');
         const made = detail.getFirstElementByName('武器属性');
 
-        grant('炎の剣', '武器属性', '=', '炎');
+        sheeted.alter(() => grant('炎の剣', '武器属性', '=', '炎'));
 
         expect(detail.getFirstElementByName('武器属性')).toBe(made);
         expect(status.getText('武器属性')).toBe('炎');
+        sheeted.delete('炎の剣');
+        expect(detail.getFirstElementByName('武器属性')).toBeNull();
       });
 
       it('makes none for a buff not asked to, as a status ailment is not', () => {
