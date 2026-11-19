@@ -3,6 +3,7 @@ import { AgentEventLog } from '@axe/application/agent/agent-event-log.service';
 import { AgentToolRunner } from '@axe/application/agent/agent-tool-runner.service';
 import { AgentChatTools } from '@axe/features/agent-tools/agent-chat-tools.service';
 import { AgentGmTools } from '@axe/features/agent-tools/agent-gm-tools.service';
+import { AgentKindTools } from '@axe/features/agent-tools/agent-kind-tools.service';
 import { AgentPieceTools } from '@axe/features/agent-tools/agent-piece-tools.service';
 import { AgentReadTools } from '@axe/features/agent-tools/agent-read-tools.service';
 
@@ -19,6 +20,7 @@ export class AgentToolsSetup {
   private readonly chat = inject(AgentChatTools);
   private readonly pieces = inject(AgentPieceTools);
   private readonly gm = inject(AgentGmTools);
+  private readonly kinds = inject(AgentKindTools);
   private done = false;
 
   /** Makes every tool runnable, once, and keeps what happens from now. */
@@ -30,6 +32,7 @@ export class AgentToolsSetup {
     this.runner.provide(this.chat.handlers);
     this.runner.provide(this.pieces.handlers);
     this.runner.provide(this.gm.handlers);
+    this.runner.provide(this.kinds.handlers);
   }
 
   /** Stops keeping what happens. */

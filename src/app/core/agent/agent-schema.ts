@@ -38,8 +38,12 @@ export interface AgentObjectSchema {
   readonly description?: string;
   readonly properties: Readonly<Record<string, AgentSchema>>;
   readonly required?: readonly string[];
-  /** Always false: a tool refuses what it does not know rather than leaving it unread. */
-  readonly additionalProperties?: false;
+  /**
+   * False for every tool's own input, which refuses what it does not know rather than leaving it
+   * unread; true only for an object whose keys a tool checks itself, as the fields of a kind of thing
+   * are checked by that kind.
+   */
+  readonly additionalProperties?: boolean;
 }
 
 /**
@@ -103,7 +107,7 @@ function checkObject(schema: AgentObjectSchema, value: unknown, at: string): str
   for (const [name, item] of Object.entries(record)) {
     const inner = schema.properties[name];
     if (!inner) {
-      problems.push(`${at}.${name} is not known`);
+      if (schema.additionalProperties !== true) problems.push(`${at}.${name} is not known`);
       continue;
     }
     if (item === undefined) continue;

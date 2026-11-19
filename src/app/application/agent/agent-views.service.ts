@@ -13,7 +13,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { cellColRow, type CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellColRow, type CellGrid, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -141,6 +141,22 @@ export class AgentViews {
     if (index < 0) return null;
     const { col, row } = cellColRow(grid, index);
     return { col: col + 1, row: row + 1 };
+  }
+
+  /** The square a point of the table in view lies in, or null for a point off the grid. */
+  squareAt(x: number, y: number, table: GameTable = this.tabletop.currentTable): AgentSquare | null {
+    const grid = this.grid(table);
+    const index = cellIndexAt(grid, x, y);
+    if (index < 0) return null;
+    const { col, row } = cellColRow(grid, index);
+    return { col: col + 1, row: row + 1 };
+  }
+
+  /** The middle of a square of the table in view, or null for a square off it. */
+  middleOf(square: AgentSquare, table: GameTable = this.tabletop.currentTable): { x: number; y: number } | null {
+    const grid = this.grid(table);
+    const index = this.cellOf(square, table);
+    return index < 0 ? null : cellCenterOf(grid, index);
   }
 
   /** The index of a square in the grid of the table in view, or -1 for one off it. */

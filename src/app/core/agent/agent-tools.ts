@@ -52,6 +52,19 @@ const SPEAKER: AgentSchema = {
     'Who speaks: a piece whose sheet this seat may open (id or name), or "self" for the seat itself. Leave out for the seat.',
 };
 
+const KIND: AgentSchema = {
+  type: 'string',
+  description: 'The kind of thing, as describe_kinds names it.',
+  minLength: 1,
+};
+const OBJECT_ID: AgentSchema = { type: 'string', description: 'The thing: its id, or its name as this seat sees it.' };
+const FIELDS: AgentSchema = {
+  type: 'object',
+  description: 'The fields to write, by name, each in the shape describe_kinds gives.',
+  properties: {},
+  additionalProperties: true,
+};
+
 function input(properties: Record<string, AgentSchema>, required: readonly string[] = []): AgentObjectSchema {
   return { type: 'object', properties, required, additionalProperties: false };
 }
@@ -177,6 +190,37 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         maximum: 50,
       },
     }),
+  },
+  {
+    name: 'describe_kinds',
+    title: 'Describe the kinds of things',
+    access: 'read',
+    description:
+      'Describe every kind of thing in the room the generic tools reach (or the one named): its fields with their shapes and who may write each, whether one can be made or taken away and by whom, and the actions that can be done to one with their args. Read it before using list_objects, get_object, create_object, change_object, remove_object or act_on_object on a kind.',
+    input: input({ kind: { type: 'string', description: 'The kind to describe. Leave out for every kind.' } }),
+  },
+  {
+    name: 'list_objects',
+    title: 'List the things of a kind',
+    access: 'read',
+    description:
+      'List the things of a kind this seat can see, by id and name: the kind as describe_kinds names it, optionally only those whose name holds some words.',
+    input: input(
+      {
+        kind: KIND,
+        name: { type: 'string', description: 'Only things whose name holds these words.' },
+        limit: { type: 'integer', minimum: 1, maximum: 500 },
+      },
+      ['kind']
+    ),
+  },
+  {
+    name: 'get_object',
+    title: 'Read a thing',
+    access: 'read',
+    description:
+      'Read a thing of a kind: its id, name and every field this seat is shown. A field kept from this seat is left out. For a kind with only one thing, the id may be left out.',
+    input: input({ kind: KIND, id: OBJECT_ID }, ['kind']),
   },
   {
     name: 'send_chat',
@@ -356,6 +400,64 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     destructive: true,
     description: 'Take a piece off the table into the shared inventory, from where it can be put back by hand.',
     input: input({ piece: PIECE }, ['piece']),
+  },
+  {
+    name: 'create_object',
+    title: 'Make a thing',
+    access: 'write',
+    description:
+      'Make a thing of a kind that can be made (see describe_kinds): options says where and from what, as the kind describes them, and fields are written into it after. Answers the thing as get_object reads it.',
+    input: input(
+      {
+        kind: KIND,
+        options: {
+          type: 'object',
+          description: 'What making one takes, as describe_kinds lists it.',
+          properties: {},
+          additionalProperties: true,
+        },
+        fields: FIELDS,
+      },
+      ['kind']
+    ),
+  },
+  {
+    name: 'change_object',
+    title: 'Change a thing',
+    access: 'write',
+    description:
+      'Write fields of a thing of a kind: each field as describe_kinds gives its shape, written only by the seats it says. Every field is checked before any is written. Answers the thing as get_object reads it.',
+    input: input({ kind: KIND, id: OBJECT_ID, fields: FIELDS }, ['kind', 'fields']),
+  },
+  {
+    name: 'remove_object',
+    title: 'Take a thing away',
+    access: 'write',
+    destructive: true,
+    description:
+      'Take a thing of a kind away, as the screen does, where the kind can be taken away (see describe_kinds).',
+    input: input({ kind: KIND, id: OBJECT_ID }, ['kind', 'id']),
+  },
+  {
+    name: 'act_on_object',
+    title: 'Act on a thing',
+    access: 'write',
+    description:
+      'Do one of the actions describe_kinds lists for a kind to a thing of it, as turning a card over or rolling a die, with the args that action takes. For a kind with only one thing, the id may be left out.',
+    input: input(
+      {
+        kind: KIND,
+        id: OBJECT_ID,
+        action: { type: 'string', description: 'The action, as describe_kinds names it.', minLength: 1 },
+        args: {
+          type: 'object',
+          description: 'What the action takes, as describe_kinds lists it.',
+          properties: {},
+          additionalProperties: true,
+        },
+      },
+      ['kind', 'action']
+    ),
   },
   {
     name: 'fire_effect',
