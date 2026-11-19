@@ -1086,6 +1086,11 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getText('属性')).toBe('無属性');
     });
 
+    it('writes words with a wave dash among them, which moves nothing', () => {
+      expect(buff('&!夜警/属性=夜〜朝/3')).toBe('夜警を付与 属性=夜〜朝/3R    ');
+      expect(character.status.getText('属性')).toBe('夜〜朝');
+    });
+
     it('reads what follows `=` with no digit in it as words, and anything with one as an amount, as it always was', () => {
       expect(said(':属性=L').edit).toMatchObject({ operator: '>', replace: 'L' });
       expect(said(':属性=OK').edit).toMatchObject({ operator: '>', replace: 'OK' });

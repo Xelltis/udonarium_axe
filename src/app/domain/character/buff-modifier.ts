@@ -120,6 +120,10 @@ export function readBuffAmount(words: string): number {
  *
  * A `:` before the status, as a chat line's `:HP-3` moves it, leaves it moved once the buff goes:
  * `:HP/+/0~-3` takes 3 at every count and gives none of it back, which is poison.
+ *
+ * An amount that is no sum, written after `=`, is words to hold the value at: `属性=炎`, and
+ * `時間帯=夜〜朝` with the wave dash among them, since what follows it is no amount to move by. Words
+ * with an amount to move them by after the wave, as `炎~1`, are not read.
  */
 export function parseBuffModifierRequest(
   target: string,
@@ -137,9 +141,10 @@ export function parseBuffModifierRequest(
   const [amountText, stepText] = (amount ?? '').split(/[~～〜]/, 2);
   const value = readBuffAmount(amountText);
   if (!Number.isFinite(value)) {
-    const words = (amountText ?? '').trim();
+    const stepped = stepText !== undefined && Number.isFinite(readBuffAmount(stepText));
+    const words = (amount ?? '').trim();
     const named = readNamedResourceSlot(name);
-    if (resolved.operator !== 'set' || lasting || stepText !== undefined || named.slot !== 'now') return null;
+    if (resolved.operator !== 'set' || lasting || stepped || named.slot !== 'now') return null;
     return words.length > 0 ? { target: named.name, slot: 'now', operator: 'set', amount: 0, text: words } : null;
   }
   const moved = resolved.operator === 'add' ? value * resolved.sign : value;
