@@ -16,9 +16,9 @@ function middleOf(block: ReturnType<typeof furnishingBlocks>[number], gridType: 
 
 describe('a piece of furniture of several cells drawn as its model', () => {
   const pieces: DungeonFurnishing[] = [
-    { piece: 'magicCircle', x: 4, y: 3, w: 3, h: 3 },
-    { piece: 'bed', x: 5, y: 2, w: 1, h: 2, facing: 0 },
-    { piece: 'rouletteTable', x: 3, y: 5, w: 2, h: 1 },
+    { piece: 'magicCircle', x: 4, y: 3, w: 3, h: 3, spin: 0 },
+    { piece: 'bed', x: 5, y: 2, w: 1, h: 2, spin: 0, facing: 0 },
+    { piece: 'rouletteTable', x: 3, y: 5, w: 2, h: 1, spin: 0 },
   ];
 
   it('stands its middle on the middle of one of the hexes it took, as a block of several hexes is drawn round one', () => {
