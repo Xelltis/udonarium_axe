@@ -5,6 +5,7 @@ import { AgentChatTools } from '@axe/features/agent-tools/agent-chat-tools.servi
 import { AgentFileTools } from '@axe/features/agent-tools/agent-file-tools.service';
 import { AgentGmTools } from '@axe/features/agent-tools/agent-gm-tools.service';
 import { AgentKindTools } from '@axe/features/agent-tools/agent-kind-tools.service';
+import { AgentMapTools } from '@axe/features/agent-tools/agent-map-tools.service';
 import { AgentMusicTools } from '@axe/features/agent-tools/agent-music-tools.service';
 import { AgentPieceTools } from '@axe/features/agent-tools/agent-piece-tools.service';
 import { AgentReadTools } from '@axe/features/agent-tools/agent-read-tools.service';
@@ -25,6 +26,7 @@ export class AgentToolsSetup {
   private readonly kinds = inject(AgentKindTools);
   private readonly music = inject(AgentMusicTools);
   private readonly files = inject(AgentFileTools);
+  private readonly maps = inject(AgentMapTools);
   private done = false;
 
   /** Makes every tool runnable, once, and keeps what happens from now. */
@@ -39,6 +41,7 @@ export class AgentToolsSetup {
     this.runner.provide(this.kinds.handlers);
     this.runner.provide(this.music.handlers);
     this.runner.provide(this.files.handlers);
+    this.runner.provide(this.maps.handlers);
   }
 
   /** Stops keeping what happens. */

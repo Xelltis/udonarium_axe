@@ -655,6 +655,51 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     input: input({ table: { type: 'string', description: 'The table, by name or id.', minLength: 1 } }, ['table']),
   },
   {
+    name: 'generate_map',
+    title: 'Make a map',
+    access: 'gm',
+    timeoutMs: 180_000,
+    description:
+      "Make a map as the map generator panel does, built as a table of its own: a dungeon of rooms and passages or open country, from an atmosphere, a size and a seed (the same seed makes the same map). An atmosphere it does not know is answered with the list of those it does. Everyone is switched to the new table unless switch_to is false. replace_previous takes away the map this seat's AI made last. Answers the table, the seed and the master's notes on the map (rooms, hazards, what stands where).",
+    input: input(
+      {
+        kind: { type: 'string', enum: ['dungeon', 'field'] },
+        atmosphere: {
+          type: 'string',
+          description:
+            "The look and kind of place, as the generator names it (stoneDungeon, woodland, village...). Leave out for the panel's first.",
+        },
+        rooms: { type: 'integer', description: 'For a dungeon: how many rooms.', minimum: 3, maximum: 20 },
+        traps: { type: 'integer', description: 'For a dungeon: how many traps.', minimum: 0, maximum: 30 },
+        size: { type: 'integer', description: 'For a field: how many cells across.', minimum: 20, maximum: 60 },
+        density: {
+          type: 'integer',
+          description: 'For a field: how thickly it is grown or built, 0 to 100.',
+          minimum: 0,
+          maximum: 100,
+        },
+        relief: {
+          type: 'integer',
+          description: 'For a field: how high its ground rises, in cells.',
+          minimum: 0,
+          maximum: 6,
+        },
+        season: { type: 'string', enum: ['', 'spring', 'summer', 'autumn', 'winter'] },
+        grid: { type: 'string', enum: ['square', 'hex_vertical', 'hex_horizontal'] },
+        seed: { type: 'integer', minimum: 0 },
+        name: { type: 'string', description: "The name of the table. Leave out for the atmosphere's.", maxLength: 200 },
+        fog: { type: 'boolean', description: 'Whether the table starts covered by the fog of war.' },
+        party: {
+          type: 'string',
+          description: 'For a dungeon: the party whose pieces are stood at the way in, by name or id.',
+        },
+        replace_previous: { type: 'boolean', description: "Take away the map this seat's AI made last." },
+        switch_to: { type: 'boolean', description: 'Switch everyone to the new table. Leave out for yes.' },
+      },
+      ['kind']
+    ),
+  },
+  {
     name: 'apply_scene',
     title: 'Set a scene',
     access: 'gm',

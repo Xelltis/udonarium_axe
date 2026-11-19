@@ -72,6 +72,7 @@ describe('AGENT_TOOLS', () => {
     ]);
     expect(agentToolOf('send_chat')?.access).toBe('write');
     expect(AGENT_TOOLS.filter((tool) => tool.access === 'gm').map((tool) => tool.name)).toEqual([
+      'generate_map',
       'apply_scene',
       'send_scenario_text',
     ]);
