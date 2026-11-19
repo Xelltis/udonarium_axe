@@ -13,6 +13,7 @@ import {
 import { mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
+import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 import { noCandidatesKey } from '@axe/features/disclosure/disclosure-context-menu';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -102,7 +103,7 @@ export class DisclosureControlComponent {
     const myCursor = PeerCursor.myCursor;
     if (myCursor) candidates.push({ userId: myCursor.userId, name: myCursor.name || myCursor.userId.slice(0, 6) });
     const owner = this.owner();
-    const narrowed = Network.instance.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+    const narrowed = heldToGameMasterByServer();
     const object = this.object();
     if (narrowed && ownerRuledByServer(object) && (!owner || object instanceof Card)) {
       const holder = owner && owner !== myCursor?.userId ? PeerCursor.findByUserId(owner) : null;

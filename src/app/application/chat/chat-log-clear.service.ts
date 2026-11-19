@@ -2,12 +2,12 @@ import { inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/network/network';
 import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
 
 /**
  * How much of a tab's log is cleared: all of it where nothing is given, the lines that stand in the
@@ -53,7 +53,7 @@ export class ChatLogClearService {
    */
   get keepsServerRolls(): boolean {
     this.objectChange.trackMyCursor();
-    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+    return heldToGameMasterByServer();
   }
 
   /**

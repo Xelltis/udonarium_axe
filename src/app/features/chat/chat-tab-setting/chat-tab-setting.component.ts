@@ -24,6 +24,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
 import { ChatLogStylePreferenceService } from '@axe/features/chat/chat-log-style-preference.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -191,7 +192,7 @@ export class ChatTabSettingComponent {
    */
   get isKeptToGameMasterByServer(): boolean {
     this.objectChange.trackMyCursor();
-    return Network.authorityPeerId !== null && !PeerCursor.isMyselfGameMaster;
+    return heldToGameMasterByServer();
   }
 
   /** Whether the selected tab's name may be changed, which the system tab's may not. */
