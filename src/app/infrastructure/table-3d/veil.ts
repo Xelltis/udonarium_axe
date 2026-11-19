@@ -161,19 +161,24 @@ export class SceneVeil {
    * Lays the veil and the darkness over a material, taken in its light or on its colour. A lit
    * material that gives off a glow of its own, as a neon tube or a potion does, keeps it however
    * dark the table is; the veil still hides it.
+   *
+   * The world is drawn as by moonlight at night (see {@link setMoonlit}); what the players tell apart
+   * by its colour, a piece's picture, a die or a coin, is covered with `moonlit` false, and keeps its
+   * colour, only darkened.
    */
-  cover(material: Material, taking: DarknessTaking = 'unlit'): void {
+  cover(material: Material, taking: DarknessTaking = 'unlit', moonlit = true): void {
     const node = material as NodeMaterial;
+    const night = (colour: Node<'vec3'>) => (moonlit ? this.byMoonlight(colour) : colour);
     if (taking === 'lit') {
       litByLamps(material);
       if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial) {
         const lifted = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
         material.emissiveNode = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
       }
-      node.outputNode = this.fogged(vec4(this.byMoonlight(output.rgb).add(this.glowing), output.a));
+      node.outputNode = this.fogged(vec4(night(output.rgb).add(this.glowing), output.a));
     } else {
       node.outputNode = this.fogged(
-        vec4(this.byMoonlight(output.rgb.mul(vec3(this.lifted).add(this.lamplit))).add(this.glowing), output.a)
+        vec4(night(output.rgb.mul(vec3(this.lifted).add(this.lamplit))).add(this.glowing), output.a)
       );
     }
   }

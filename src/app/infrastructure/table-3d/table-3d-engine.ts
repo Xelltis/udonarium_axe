@@ -311,7 +311,7 @@ class ThreeTableEngine implements Table3dEngine {
   private boardBox = { x: 0, y: 0, width: 0, height: 0 };
   private readonly sprites = new SpriteLayer(
     (url) => this.spritePicture(url),
-    (material) => this.veil.cover(material)
+    (material) => this.veil.cover(material, 'unlit', false)
   );
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly solids = new SolidLayer();
@@ -336,7 +336,7 @@ class ThreeTableEngine implements Table3dEngine {
   private spoutsHeard: ((spouts: readonly WaterSpout[]) => void) | null = null;
   private readonly dice = new TableDiceLayer(
     () => this.renderer,
-    (material, lit) => this.veil.cover(material, lit ? 'lit' : 'unlit'),
+    (material, lit) => this.veil.cover(material, lit ? 'lit' : 'unlit', false),
     BOARD_TO_SCENE
   );
   private readonly skyDome = new SkyLayer();
@@ -362,7 +362,7 @@ class ThreeTableEngine implements Table3dEngine {
       this.changed = true;
       this.needsFrame();
     },
-    (material) => this.veil.cover(material)
+    (material) => this.veil.cover(material, 'unlit', false)
   );
 
   constructor(
