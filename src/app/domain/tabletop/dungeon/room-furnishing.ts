@@ -352,8 +352,11 @@ export interface FurnishingPlan {
   above?: readonly FurnishingId[];
   /** What each one is picked from, where the pieces come in more than one kind. Left out, the piece alone. */
   pieces?: readonly FurnishingId[];
-  /** The kind of room it goes in, of the kinds the place keeps for the part the room plays. Left out, any. */
-  set?: string;
+  /**
+   * The kinds of room it goes in, of the kinds the place keeps for the part the room plays, one or
+   * several. Left out, any.
+   */
+  set?: string | readonly string[];
 }
 
 export interface FurnishingOptions {
@@ -992,6 +995,12 @@ class Furnisher {
  * open, and a piece against a wall stands clear of every way through the edge of the room, with the
  * room's floor still one piece round it.
  */
+/** Whether a plan goes in a room of a kind: any where the plan names none, else one of those it names. */
+function goesIn(plan: FurnishingPlan, set: string | undefined): boolean {
+  if (plan.set === undefined) return true;
+  return typeof plan.set === 'string' ? plan.set === set : set !== undefined && plan.set.includes(set);
+}
+
 export function furnishRooms(
   layout: DungeonLayout,
   plans: readonly FurnishingPlan[],
@@ -1001,7 +1010,7 @@ export function furnishRooms(
   const furnisher = new Furnisher(layout, rng, options);
   for (const plan of plans) {
     for (const room of layout.rooms) {
-      if (!plan.roles.includes(room.role) || (plan.set !== undefined && plan.set !== room.set)) continue;
+      if (!plan.roles.includes(room.role) || !goesIn(plan, room.set)) continue;
       furnisher[plan.arrangement](plan, room);
     }
   }

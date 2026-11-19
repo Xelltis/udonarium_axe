@@ -88,8 +88,50 @@ describe('a castle town', () => {
     expect(signs).toBeGreaterThan(SEEDS.length * 3);
   });
 
+  it('keeps the cell in front of every door clear, and stands no two things on one cell', () => {
+    for (const [width, height] of [
+      [40, 30],
+      [60, 45],
+      [28, 21],
+    ]) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const town = laySettlement('castleTown', width, height, seed);
+        const stood = new Map<number, string>();
+        const put = (x: number, y: number, what: string) => {
+          const cell = y * width + x;
+          expect(
+            stood.get(cell),
+            `${seed} ${width}x${height} ${what} on ${stood.get(cell)} at ${x},${y}`
+          ).toBeUndefined();
+          stood.set(cell, what);
+        };
+        for (const fixture of town.fixtures ?? []) {
+          if (HUNG_FIXTURES.includes(fixture.kind)) continue;
+          const { x, y, w, h } = fixture.rect;
+          for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) put(x + dx, y + dy, fixture.kind);
+        }
+        for (const fire of town.fires) put(fire.x, fire.y, fire.kind);
+        for (const door of town.doors) {
+          if (door.kind === 'gate') continue;
+          for (const [dx, dy] of [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ]) {
+            const x = door.x + dx;
+            const y = door.y + dy;
+            if (x < 0 || y < 0 || x >= width || y >= height) continue;
+            if (town.walls[y * width + x] || town.zones[y * width + x] === SETTLEMENT_ZONES.floor) continue;
+            expect(stood.get(y * width + x), `${seed} ${width}x${height} door ${door.x},${door.y}`).toBeUndefined();
+          }
+        }
+      }
+    }
+  });
+
   it('furnishes every kind of room by plans of its own, and each kind of room has some', () => {
-    const planned = new Set(TOWN_ROOM_PLANS.map((plan) => plan.set));
+    const planned = new Set(TOWN_ROOM_PLANS.flatMap((plan) => plan.set ?? []));
     const kinds = TOWN_BUILDING_KINDS.flatMap((kind) => [TOWN_ROOM_KINDS[kind].front, ...TOWN_ROOM_KINDS[kind].back]);
     expect([...planned].sort()).toEqual([...new Set(kinds)].sort());
   });

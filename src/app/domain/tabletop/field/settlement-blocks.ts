@@ -117,7 +117,8 @@ const SIGN_SKIN: Skin = { side: 'wall_timber', top: 'wood_plank' };
  * What each fixture of a town is drawn as and built of: its model, and where it is drawn without one,
  * a block of its skin as tall as it stands filling so much of its cells; whether a piece may climb
  * onto it, as onto a bench, or not, as onto a fountain or a lamp post. A fixture that hangs on a wall
- * is drawn only as its model, over the wall's own cell.
+ * is laid only where models are asked for, over the wall's own cell and filling it; its skin is what
+ * is drawn where its model cannot be, as on a version that knows none, so it fills no less of the cell.
  */
 const FIXTURES: Readonly<
   Record<
@@ -126,7 +127,8 @@ const FIXTURES: Readonly<
       readonly model: SettlementModelId;
       readonly skin: Skin;
       readonly height: number;
-      readonly fill: number;
+      /** How much of its cells it fills, where it is a block standing on the ground; a hung one fills its wall's cell. */
+      readonly fill?: number;
       readonly climbed: boolean;
     }
   >
@@ -150,18 +152,12 @@ const FIXTURES: Readonly<
   },
   bench: { model: 'bench', skin: { side: 'wall_timber', top: 'wood_plank' }, height: 0.47, fill: 0.8, climbed: true },
   planter: { model: 'planter', skin: { side: 'wall_timber', top: 'forest' }, height: 0.46, fill: 0.8, climbed: true },
-  banner: {
-    model: 'banner',
-    skin: { side: 'wall_ashlar', top: 'stone_paving_big' },
-    height: 3.5,
-    fill: 1,
-    climbed: false,
-  },
-  signInn: { model: 'sign_inn', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
-  signTavern: { model: 'sign_tavern', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
-  signSmithy: { model: 'sign_smithy', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
-  signBakery: { model: 'sign_bakery', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
-  signShop: { model: 'sign_shop', skin: SIGN_SKIN, height: 2, fill: 1, climbed: false },
+  banner: { model: 'banner', skin: { side: 'wall_ashlar', top: 'stone_paving_big' }, height: 3.5, climbed: false },
+  signInn: { model: 'sign_inn', skin: SIGN_SKIN, height: 2, climbed: false },
+  signTavern: { model: 'sign_tavern', skin: SIGN_SKIN, height: 2, climbed: false },
+  signSmithy: { model: 'sign_smithy', skin: SIGN_SKIN, height: 2, climbed: false },
+  signBakery: { model: 'sign_bakery', skin: SIGN_SKIN, height: 2, climbed: false },
+  signShop: { model: 'sign_shop', skin: SIGN_SKIN, height: 2, climbed: false },
 };
 
 /** The model each small thing is drawn as, kept to its own shape within its cell. */
@@ -504,7 +500,7 @@ export function settlementBlocks(
     const shape = FIXTURES[fixture.kind];
     const hung = HUNG_FIXTURES.includes(fixture.kind);
     if (hung && !models) continue;
-    const filled = models ? 1 : shape.fill;
+    const filled = models ? 1 : (shape.fill ?? 1);
     blocks.push({
       kind: 'prop',
       rect: fixture.rect,

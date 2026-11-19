@@ -256,6 +256,11 @@ class Plot {
   readonly rooms: SettlementRoom[] = [];
   readonly fixtures: SettlementFixture[] = [];
   ring: { readonly middle: MapPoint; readonly reach: MapPoint } | null = null;
+  /**
+   * The cells something stands on in a town's streets, a fixture or a fire, or that are kept clear in
+   * front of a door: nothing else is stood on one.
+   */
+  private readonly stood: Uint8Array;
 
   constructor(
     readonly width: number,
@@ -264,6 +269,47 @@ class Plot {
     this.zones = new Uint8Array(width * height);
     this.taken = new Uint8Array(width * height);
     this.walls = new Uint8Array(width * height);
+    this.stood = new Uint8Array(width * height);
+  }
+
+  /** Keeps a cell clear, as the one in front of a door is, so nothing is stood on it. */
+  keepClear(x: number, y: number): void {
+    if (this.inside(x, y)) this.stood[y * this.width + x] = 1;
+  }
+
+  /** Whether every cell of a rectangle is on the board with nothing standing on it nor kept clear. */
+  canStand(rect: MapRect): boolean {
+    for (let y = rect.y; y < rect.y + rect.h; y++) {
+      for (let x = rect.x; x < rect.x + rect.w; x++) {
+        if (!this.inside(x, y) || this.stood[y * this.width + x]) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Stands a fixture on the ground where it can stand, and keeps its cells for it; answers whether it
+   * stood. A fixture that hangs on a wall stands on no ground, and is hung whatever stands below.
+   */
+  stand(fixture: SettlementFixture): boolean {
+    if (HUNG_FIXTURES.includes(fixture.kind)) {
+      this.fixtures.push(fixture);
+      return true;
+    }
+    if (!this.canStand(fixture.rect)) return false;
+    this.fixtures.push(fixture);
+    for (let y = fixture.rect.y; y < fixture.rect.y + fixture.rect.h; y++) {
+      for (let x = fixture.rect.x; x < fixture.rect.x + fixture.rect.w; x++) this.stood[y * this.width + x] = 1;
+    }
+    return true;
+  }
+
+  /** Lights a fire on a cell where it can stand, and keeps the cell for it; answers whether it was lit. */
+  light(fire: SettlementFire): boolean {
+    if (!this.canStand({ x: fire.x, y: fire.y, w: 1, h: 1 })) return false;
+    this.fires.push(fire);
+    this.stood[fire.y * this.width + fire.x] = 1;
+    return true;
   }
 
   inside(x: number, y: number): boolean {
@@ -892,7 +938,7 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
   );
   for (let x = 1; x < width - 1; x += BANNER_SPACING) {
     if (inTower(x, 0) || x === gateX || x === gateX + 1) continue;
-    plot.fixtures.push({ kind: 'banner', rect: { x, y: 0, w: 1, h: 1 }, turn: FACINGS.s.turn });
+    plot.stand({ kind: 'banner', rect: { x, y: 0, w: 1, h: 1 }, turn: FACINGS.s.turn });
   }
   plot.take({ x: 0, y: 1, w: width, h: 1 });
   plot.paint({ x: gateX, y: 1, w: 2, h: 2 }, SETTLEMENT_ZONES.road);
@@ -927,7 +973,6 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
   };
   plot.paint(plaza, SETTLEMENT_ZONES.yard);
   plot.take(plaza);
-  laySquare(plot, plaza, high, rng, fill);
 
   const onStreet = (x: number, y: number) =>
     streets.some((street) => x >= street.x && x < street.x + street.w && y >= street.y && y < street.y + street.h) ||
@@ -944,6 +989,7 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
     const count = Math.min(between(rooms[0], rooms[1], rng), Math.max(1, Math.floor(inside / floor)));
     const built = houseWithRooms(plot, lot.rect, count, wall, lot.facing, rng);
     const step = FACINGS[lot.facing];
+    plot.keepClear(built.entrance.x + step.dx, built.entrance.y + step.dy);
     const front = { x: built.entrance.x - step.dx, y: built.entrance.y - step.dy };
     const names = TOWN_ROOM_KINDS[kind];
     const off = (room: MapRect) =>
@@ -964,17 +1010,15 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
       const hung = sides.find(
         ({ x, y }) => plot.walls[y * width + x] === SETTLEMENT_WALL_KINDS.indexOf('timberWall') + 1
       );
-      if (hung) plot.fixtures.push({ kind: sign, rect: { ...hung, w: 1, h: 1 }, turn: step.turn });
+      if (hung) plot.stand({ kind: sign, rect: { ...hung, w: 1, h: 1 }, turn: step.turn });
     }
     if (lot.onStreet && lanterns++ % 2 === 0) {
-      const lamp = sides
+      sides
         .map(({ x, y }) => ({ x: x + step.dx, y: y + step.dy }))
-        .find(
-          ({ x, y }) => plot.inside(x, y) && onStreet(x, y) && !plot.fires.some((fire) => fire.x === x && fire.y === y)
-        );
-      if (lamp) plot.fires.push({ ...lamp, kind: 'lantern' });
+        .find(({ x, y }) => onStreet(x, y) && plot.light({ x, y, kind: 'lantern' }));
     }
   });
+  laySquare(plot, plaza, high, rng, fill);
   layStreetLamps(plot, high, cross, onStreet);
 }
 
@@ -990,7 +1034,7 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     w: 3,
     h: 3,
   };
-  plot.fixtures.push({ kind: 'fountain', rect: fountain, turn: 0 });
+  plot.stand({ kind: 'fountain', rect: fountain, turn: 0 });
   const stalls: TownFixtureKind[] = ['marketStallFruit', 'marketStallCloth', 'marketStallPottery'];
   const wanted = Math.max(1, Math.round(2 * fill));
   const clearOfHigh = (x: number) => x + 1 < high.x || x > high.x + high.w - 1;
@@ -1001,8 +1045,8 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     let laid = 0;
     for (let x = plaza.x + 1; x + 1 < plaza.x + plaza.w - 1 && laid < wanted; x += 3) {
       if (!clearOfHigh(x)) continue;
-      plot.fixtures.push({ kind: stalls[Math.floor(rng() * stalls.length)], rect: { x, y, w: 2, h: 1 }, turn });
-      laid++;
+      const kind = stalls[Math.floor(rng() * stalls.length)];
+      if (plot.stand({ kind, rect: { x, y, w: 2, h: 1 }, turn })) laid++;
     }
   }
   const middle = { x: fountain.x + 1, y: fountain.y + 1 };
@@ -1010,7 +1054,7 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     const step = FACINGS[way];
     const at = { x: middle.x + step.dx * 3, y: middle.y + step.dy * 3 };
     if (way === 'n' || way === 's' ? false : at.x >= plaza.x + 1 && at.x < plaza.x + plaza.w - 1) {
-      plot.fixtures.push({ kind: 'bench', rect: { ...at, w: 1, h: 1 }, turn: FACINGS[OPPOSITE_FACING[way]].turn });
+      plot.stand({ kind: 'bench', rect: { ...at, w: 1, h: 1 }, turn: FACINGS[OPPOSITE_FACING[way]].turn });
     }
   }
   for (const [x, y] of [
@@ -1019,11 +1063,7 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     [plaza.x, plaza.y + plaza.h - 2],
     [plaza.x + plaza.w - 1, plaza.y + plaza.h - 2],
   ]) {
-    plot.fixtures.push({
-      kind: 'planter',
-      rect: { x, y, w: 1, h: 1 },
-      turn: x === plaza.x ? FACINGS.e.turn : FACINGS.w.turn,
-    });
+    plot.stand({ kind: 'planter', rect: { x, y, w: 1, h: 1 }, turn: x === plaza.x ? FACINGS.e.turn : FACINGS.w.turn });
   }
   for (const [x, y] of [
     [plaza.x, plaza.y],
@@ -1031,7 +1071,7 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     [plaza.x, plaza.y + plaza.h - 1],
     [plaza.x + plaza.w - 1, plaza.y + plaza.h - 1],
   ]) {
-    plot.fixtures.push({ kind: 'lampPost', rect: { x, y, w: 1, h: 1 }, turn: 0 });
+    plot.stand({ kind: 'lampPost', rect: { x, y, w: 1, h: 1 }, turn: 0 });
   }
 }
 
@@ -1039,19 +1079,15 @@ const OPPOSITE_FACING: Readonly<Record<Facing, Facing>> = { n: 's', s: 'n', e: '
 
 /** Lamp posts along the edges of the high street and the cross street, every so many cells, out of the square. */
 function layStreetLamps(plot: Plot, high: MapRect, cross: MapRect, onStreet: (x: number, y: number) => boolean): void {
-  const stands = (x: number, y: number) =>
-    plot.inside(x, y) &&
-    onStreet(x, y) &&
-    plot.zones[y * plot.width + x] === SETTLEMENT_ZONES.road &&
-    !plot.fixtures.some(({ rect }) => x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h) &&
-    !plot.fires.some((fire) => fire.x === x && fire.y === y);
+  const lamp = (x: number, y: number) => {
+    if (!plot.inside(x, y) || !onStreet(x, y) || plot.zones[y * plot.width + x] !== SETTLEMENT_ZONES.road) return;
+    plot.stand({ kind: 'lampPost', rect: { x, y, w: 1, h: 1 }, turn: 0 });
+  };
   for (let y = high.y + 2; y < high.y + high.h; y += LAMP_SPACING) {
-    const x = (y / LAMP_SPACING) % 2 < 1 ? high.x : high.x + high.w - 1;
-    if (high.w > 2 && stands(x, y)) plot.fixtures.push({ kind: 'lampPost', rect: { x, y, w: 1, h: 1 }, turn: 0 });
+    if (high.w > 2) lamp((y / LAMP_SPACING) % 2 < 1 ? high.x : high.x + high.w - 1, y);
   }
   for (let x = 2; x < cross.w; x += LAMP_SPACING) {
-    const y = (x / LAMP_SPACING) % 2 < 1 ? cross.y : cross.y + cross.h - 1;
-    if (cross.h > 2 && stands(x, y)) plot.fixtures.push({ kind: 'lampPost', rect: { x, y, w: 1, h: 1 }, turn: 0 });
+    if (cross.h > 2) lamp(x, (x / LAMP_SPACING) % 2 < 1 ? cross.y : cross.y + cross.h - 1);
   }
 }
 
