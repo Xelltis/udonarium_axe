@@ -1050,7 +1050,8 @@ describe('resource-edit-helpers', () => {
     it('writes no words into an item that holds numbers, by a buff or by the chat', () => {
       const hp = character.status.getText('HP');
 
-      expect(buff('&!呪い/HP=1d6/3')).toBe('呪いを付与 HP=1d6/3R (HPは数の項目なので「1d6」は書けません)    ');
+      expect(buff('&!呪い/HP=炎/3')).toBe('呪いを付与 HP=炎/3R (HPは数の項目なので「炎」は書けません)    ');
+      expect(buff('&!呪い/HP=1d6/3')).toBe('バフの書式が読めません 呪い    ');
       expect(character.status.getText('HP')).toBe(hp);
       expect(said(':HP=炎').edit.operator).toBe('=');
     });
@@ -1083,6 +1084,12 @@ describe('resource-edit-helpers', () => {
     it('reads no words for a slot other than the value, nor with a count to move them by', () => {
       expect(buff('&!x/HP^=最大/3')).toBe('バフの書式が読めません x    ');
       expect(buff('&!y/属性=炎~1/3')).toBe('バフの書式が読めません y    ');
+      expect(character.status.getText('属性')).toBe('無属性');
+    });
+
+    it('reads what follows `=` in a buff as a chat command reads it, words with a digit not at all', () => {
+      expect(buff('&!x/属性=ロングソード+1/3')).toBe('バフの書式が読めません x    ');
+      expect(said(':属性=ロングソード+1').edit.operator).toBe('=');
       expect(character.status.getText('属性')).toBe('無属性');
     });
 
@@ -1207,7 +1214,8 @@ describe('resource-edit-helpers', () => {
       const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
       group.appendChild(DataElement.create('攻撃', '3', { [DataElementAttribute.ROLE]: 'field' }));
 
-      expect(buff('&!強化/攻撃=10+/3')).toBe('強化を付与 攻撃=10+/3R (攻撃は数の項目なので「10+」は書けません)    ');
+      expect(buff('&!強化/攻撃=炎/3')).toBe('強化を付与 攻撃=炎/3R (攻撃は数の項目なので「炎」は書けません)    ');
+      expect(buff('&!強化/攻撃=10+/3')).toBe('バフの書式が読めません 強化    ');
       expect(character.status.getText('攻撃')).toBe('3');
       applyTextEdit(said(':攻撃>10+').edit, character);
       expect(character.status.getText('攻撃')).toBe('10+');

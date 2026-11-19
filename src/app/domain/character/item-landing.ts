@@ -1,5 +1,15 @@
+import { toHalfWidth } from '@axe/core/util/string-util';
 import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
+
+/**
+ * Whether what follows `=` is an amount to work out rather than words, for a chat command and a buff
+ * alike: a number, a sum, a roll or a system's command, anything with a digit in it. Words with none,
+ * as `炎`, `OK` or `L`, are words, and only they; words with a digit are written with `>`.
+ */
+export function isAmountWritten(amount: string): boolean {
+  return /\d/.test(toHalfWidth(amount));
+}
 
 /**
  * What an item takes written into it: words, numbers, one of the choices it offers, or nothing, as a

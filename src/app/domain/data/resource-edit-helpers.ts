@@ -36,7 +36,12 @@ import {
 } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
-import { type BuffRequestOutcome, buffRequestOutcome, type ItemLanding } from '@axe/domain/character/item-landing';
+import {
+  type BuffRequestOutcome,
+  buffRequestOutcome,
+  isAmountWritten,
+  type ItemLanding,
+} from '@axe/domain/character/item-landing';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -234,15 +239,6 @@ export function convertCommandToResourceEdit(
 export function statusNamedIn(object: GameCharacter, name: string): string | null {
   const named = object.status.nameOf(name);
   return named !== null && object.status.canChangeName(named) ? named : null;
-}
-
-/**
- * Whether what follows `=` is an amount to work out, as everything written after it always was: a
- * number, a sum, a roll or a system's command, anything with a digit in it. Words with none, as `炎`,
- * `OK` or `L`, are words, and only they.
- */
-export function isAmountWritten(amount: string): boolean {
-  return /\d/.test(toHalfWidth(amount));
 }
 
 /**

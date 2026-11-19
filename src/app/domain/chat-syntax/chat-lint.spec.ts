@@ -228,7 +228,8 @@ describe('lintChatSyntax', () => {
     });
 
     it('finds words a buff would write into an item that holds numbers, and a number that is none of the choices', () => {
-      expect(lint('&!呪い/HP=1d6/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notWords' });
+      expect(lint('&!呪い/HP=炎/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notWords' });
+      expect(lint('&!呪い/HP=1d6/3')[0]).toMatchObject({ severity: 'error', code: 'buff.unreadable' });
       expect(lint('&!指揮/役割=5/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notAChoice' });
     });
 
