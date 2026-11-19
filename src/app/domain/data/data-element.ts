@@ -112,6 +112,12 @@ export const DataElementAttribute = {
   BUFF_TEXT_SET: 'cs-buff-text-set',
   BUFF_TEXT_BEFORE: 'cs-buff-text-before',
   BUFF_TEXT_ORDER: 'cs-buff-text-order',
+  /**
+   * On a sheet's item buffs write words into, the words they last left in it: anything else it holds
+   * was written by hand while they stood. Left out where no buff has written into it since it was the
+   * sheet's own.
+   */
+  BUFF_WORDS_LEFT: 'cs-buff-words-left',
   BUFF_GROUP: 'cs-buff-group',
   BUFF_KIND: 'cs-buff-kind',
   GAP_DISTANCE: 'cs-gap-distance',

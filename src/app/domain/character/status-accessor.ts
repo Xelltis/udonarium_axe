@@ -7,6 +7,7 @@ import {
   makeBuffItem,
   tidyBuffItems,
 } from '@axe/domain/character/buff-made-items';
+import { readWordsLeft, writeWordsLeft } from '@axe/domain/character/buff-modifier';
 import { type ItemLanding, type ItemTakes, landingOn, type WrittenAs } from '@axe/domain/character/item-landing';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import {
@@ -340,6 +341,18 @@ export class StatusAccessor {
     const data = this.findData(name);
     if (!data) return null;
     return `${data.type === DataElementType.NUMBER_RESOURCE ? data.currentValue : data.value}`;
+  }
+
+  /** The words the buffs writing into an item last left in it, or null where none are noted (see {@link readWordsLeft}). */
+  wordsLeftIn(name: string): string | null {
+    const item = this.findData(name);
+    return item ? readWordsLeft(item) : null;
+  }
+
+  /** Notes on an item the words the buffs writing into it leave there, or, for null, that none does any more. */
+  noteWordsLeft(name: string, words: string | null): void {
+    const item = this.findData(name);
+    if (item) writeWordsLeft(item, words);
   }
 
   /**

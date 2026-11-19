@@ -348,6 +348,21 @@ export function writeBuffTextModifier(element: DataElement, modifier: BuffTextMo
   element.setAttribute(DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
 }
 
+/**
+ * The words the buffs writing into an item last left in it, as `writeWordsLeft` noted them on the item;
+ * null where none were noted. Written after a `>`, so words of nothing are told from none being noted.
+ */
+export function readWordsLeft(item: DataElement): string | null {
+  const noted = item.getAttribute(DataElementAttribute.BUFF_WORDS_LEFT) ?? '';
+  return noted.startsWith('>') ? noted.slice(1) : null;
+}
+
+/** Notes on an item the words the buffs writing into it leave there, or, for null, that none does any more. */
+export function writeWordsLeft(item: DataElement, words: string | null): void {
+  if (words === null) item.removeAttribute(DataElementAttribute.BUFF_WORDS_LEFT);
+  else item.setAttribute(DataElementAttribute.BUFF_WORDS_LEFT, `>${words}`);
+}
+
 /** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */
 export function clearBuffTextModifier(element: DataElement): void {
   element.removeAttribute(DataElementAttribute.BUFF_TEXT_TARGET);

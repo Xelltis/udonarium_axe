@@ -1272,6 +1272,29 @@ describe('BuffManager', () => {
       expect(status.getText('属性')).toBe('雷');
     });
 
+    it('puts back the words a buff wrote as a step is undone, though it was laid again with others since', () => {
+      grant('X', '属性', '=', '炎', 3);
+      const step = sheeted.snapshot();
+      sheeted.alter(() => grant('X', '属性', '=', '水', 3));
+      expect(status.getText('属性')).toBe('水');
+
+      sheeted.restore(step);
+      expect(status.getText('属性')).toBe('炎');
+      sheeted.delete('X');
+      expect(status.getText('属性')).toBe('無属性');
+    });
+
+    it('keeps words written by hand though they are those of a buff standing under another', () => {
+      grant('A', '属性', '=', '炎');
+      grant('B', '属性', '=', '水');
+      status.setText('属性', '炎');
+
+      sheeted.delete('B');
+      expect(status.getText('属性')).toBe('炎');
+      sheeted.delete('A');
+      expect(status.getText('属性')).toBe('炎');
+    });
+
     it('puts back what each buff found there, whichever of two on the same item goes first', () => {
       grant('ファイア・ウェポン', '属性', '=', '炎');
       grant('アイス・ウェポン', '属性', '=', '氷');

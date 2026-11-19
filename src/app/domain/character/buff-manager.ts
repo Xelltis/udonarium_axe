@@ -238,10 +238,14 @@ export class BuffManager {
     return this.recordWords(data, target, words, before);
   }
 
-  /** Records on the buff the words it wrote and what the item held before, as the latest to write. */
+  /**
+   * Records on the buff the words it wrote and what the item held before, as the latest to write, and
+   * notes on the item that the buffs leave those words there (see {@link writtenByHand}).
+   */
   private recordWords(data: DataElement, target: string, words: string, before: string): BuffTextModifier {
     const modifier: BuffTextModifier = { target, text: words, before, order: this.nextWordsOrder() };
     writeBuffTextModifier(data, modifier);
+    this.status()?.noteWordsLeft(target, words);
     return modifier;
   }
 
@@ -262,10 +266,10 @@ export class BuffManager {
   /**
    * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
    * now stands on what this one found there, so it puts that back when it goes. Where none did, the item
-   * goes back to what it held, unless someone wrote into it by hand (see {@link writtenByHand}).
+   * goes back to what it held, unless someone wrote into it by hand (see {@link writtenByHand}). Once no
+   * buff writes into it, an item none wrote into by hand is the sheet's own again.
    */
   private revertWords(data: DataElement, words: BuffTextModifier): void {
-    const chain = this.wordsOn(words.target);
     clearBuffTextModifier(data);
     const status = this.status();
     if (!status) return;
@@ -274,18 +278,20 @@ export class BuffManager {
       writeBuffTextModifier(above.row, { ...above.written, before: words.before });
       return;
     }
-    if (!this.writtenByHand(words.target, chain)) status.setText(words.target, words.before);
+    if (this.writtenByHand(words.target)) return;
+    status.setText(words.target, words.before);
+    status.noteWordsLeft(words.target, this.wordsOn(words.target).length > 0 ? words.before : null);
   }
 
   /**
-   * Whether someone wrote into an item by hand while buffs wrote into it: it holds neither the words
-   * one of those buffs, `chain`, wrote, nor what it held before the first of them. What was written by
-   * hand stays as it is, whichever of the buffs goes or comes back.
+   * Whether someone wrote into an item by hand while buffs wrote into it: it holds other words than
+   * those the buffs last left there, as noted on the item. What was written by hand stays as it is,
+   * whichever of the buffs goes or comes back, until a buff writes into the item again.
    */
-  private writtenByHand(target: string, chain: readonly { written: BuffTextModifier }[]): boolean {
-    const held = this.status()?.getText(target);
-    if (held == null || chain.length < 1) return false;
-    return held !== chain[0].written.before && !chain.some(({ written }) => written.text === held);
+  private writtenByHand(target: string): boolean {
+    const status = this.status();
+    const left = status?.wordsLeftIn(target) ?? null;
+    return left !== null && status?.getText(target) !== left;
   }
 
   /**
@@ -700,9 +706,9 @@ export class BuffManager {
       below = written.text;
     }
     const status = this.status();
-    if (status && status.getText(target) !== below && !this.writtenByHand(target, chain)) {
-      status.setText(target, below);
-    }
+    if (!status || this.writtenByHand(target)) return;
+    if (status.getText(target) !== below) status.setText(target, below);
+    status.noteWordsLeft(target, below);
   }
 
   /** The buffs that write into an item, in the order they wrote, with what each wrote. */
