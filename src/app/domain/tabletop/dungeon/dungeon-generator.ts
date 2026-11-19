@@ -155,7 +155,7 @@ export function boardSizeFor(
  *
  * Everything comes from the request's seed, so the same request gives the same dungeon on every peer.
  * Furniture is put in last, and only where the place is furnished, so that a place with none comes out
- * of its seed exactly as it always has; on hexes nothing is stacked. A place with hidden doors has
+ * of its seed exactly as it always has; on hexes no container is stacked. A place with hidden doors has
  * the ways out of its first room dressed as wall. The water is run after the doors are hung, so that no
  * channel comes up against one, and before the furniture, so that nothing stands in it; it takes nothing
  * from the seed's chance, and the ground is dug for it once everything that stands on the ground is placed.
@@ -224,8 +224,8 @@ export function generateDungeon(request: DungeonRequest): DungeonLayout {
   if (atmosphere.hiddenDoors) hideDoorsOf(layout, 0);
   if (atmosphere.waterways) cutWaterways(layout, atmosphere.waterways);
   if (atmosphere.furnishings) {
-    const stackable = !isHexGrid(request.gridType ?? GridType.SQUARE);
-    layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng, { stackable });
+    const stacksContainers = !isHexGrid(request.gridType ?? GridType.SQUARE);
+    layout.furnishings = furnishRooms(layout, atmosphere.furnishings, rng, { stacksContainers });
   }
   // Set last of all, and only where any were asked for, so that a place with none comes out of
   // its seed exactly as it always has - and so that a trap is never set under the furniture.

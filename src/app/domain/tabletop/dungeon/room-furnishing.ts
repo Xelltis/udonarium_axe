@@ -361,12 +361,13 @@ export interface FurnishingPlan {
 
 export interface FurnishingOptions {
   /**
-   * Whether anything may be stacked on anything else.
+   * Whether the containers a hold is stowed with may be stacked two high.
    *
-   * A board of hexes builds a piece a cell at a time, so a stacked container costs its cells
-   * twice over; there it stands one high.
+   * A board of hexes builds a container a cell at a time, so a stacked one costs its cells twice
+   * over; there they stand one high. A sign hung over one piece of a run along a wall is one piece
+   * over one, and is hung on every board.
    */
-  stackable: boolean;
+  stacksContainers: boolean;
 }
 
 /** The most pieces one heap in a corner is made of. */
@@ -970,7 +971,7 @@ class Furnisher {
           : { x: room.x + row, y: room.y + at, w: CONTAINER_WIDTH, h: CONTAINER_LENGTH };
         if (!this.clearRect(rect)) continue;
         const piece = pick();
-        const stacked = this.options.stackable && this.rng() < 0.55;
+        const stacked = this.options.stacksContainers && this.rng() < 0.55;
         this.put(piece, rect.x, rect.y, rect.w, rect.h, stacked ? [pick()] : undefined);
       }
     }
@@ -1020,7 +1021,7 @@ export function furnishRooms(
   layout: DungeonLayout,
   plans: readonly FurnishingPlan[],
   rng: () => number,
-  options: FurnishingOptions = { stackable: true }
+  options: FurnishingOptions = { stacksContainers: true }
 ): DungeonFurnishing[] {
   const furnisher = new Furnisher(layout, rng, options);
   for (const plan of plans) {

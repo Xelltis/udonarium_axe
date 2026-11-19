@@ -92,22 +92,22 @@ export const TOWN_ROOM_PLANS: readonly FurnishingPlan[] = [
  * A settlement with the rooms of its buildings furnished as what each is, by the plans of
  * `TOWN_ROOM_PLANS`, the same from the same seed: the rooms are handed to the dungeon's furnisher
  * as a dungeon's rooms are, the walls as its rock, the doors as its doors and the streets as its
- * passages, so a piece never stands in a doorway or shuts a room in two. Pieces are stacked only
- * where asked, as on a board of squares. A settlement with no rooms to furnish is left as it is.
+ * passages, so a piece never stands in a doorway or shuts a room in two. Containers are stacked
+ * only where asked, as on a board of squares. A settlement with no rooms to furnish is left as it is.
  */
 export function furnishSettlement(
   settlement: SettlementLayout,
   width: number,
   height: number,
   seed: number,
-  stackable: boolean
+  stacksContainers: boolean
 ): SettlementLayout {
   if (!settlement.rooms || settlement.rooms.length === 0) return settlement;
   const furnishings = furnishRooms(
     asDungeon(settlement, width, height, seed),
     TOWN_ROOM_PLANS,
     seededRandom(seed + FURNISHING_SEED),
-    { stackable }
+    { stacksContainers }
   );
   return { ...settlement, furnishings };
 }
