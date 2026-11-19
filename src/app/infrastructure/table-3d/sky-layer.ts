@@ -2,6 +2,7 @@ import type { SkyDome, SkyWay } from '@axe/domain/tabletop/world/sky-dome';
 import { skyLevelTurn } from '@axe/infrastructure/table-3d/sky-level';
 import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import {
+  abs,
   clamp,
   dot,
   float,
@@ -14,6 +15,7 @@ import {
   positionLocal,
   pow,
   smoothstep,
+  step,
   uniform,
   vec3,
 } from 'three/tsl';
@@ -48,9 +50,13 @@ const HAZE_DEPTH = 6;
 /** Where the sky comes in the order things are drawn: before everything, which is all drawn over it. */
 const SKY_ORDER = -100;
 
-/** How many stars a way of the sky is cut into, and how few of those hold one. */
+/**
+ * How many stars a way of the sky is cut into, and how few of those hold one: of the cells a star lies
+ * wholly inside of, about seven in ten of those the sky passes through, so as many stars show as one
+ * in every hundred and sixty-seven cells.
+ */
 const STAR_CELLS = 260;
-const STAR_SHARE = 0.006;
+const STAR_SHARE = 0.0086;
 /** How far out from its point a star shows, in cells: a small round light, not the whole cell. */
 const STAR_RADIUS = 0.22;
 /** How near the way to the sun or the moon a point of the sky has to be to be its disc, as the cosine of the angle. */
@@ -169,8 +175,10 @@ export class SkyLayer {
 
   /**
    * The colour of the sky the way a point of the dome lies from its middle. A few of the cells the sky
-   * is cut into hold a star, a small round light at the cell's middle. The stars are over the horizon
-   * only: a night sky starred under the board as well would read as the depths of space.
+   * is cut into hold a star, a small round light at the cell's middle as it lies on the sky, and only
+   * where all of it lies within its own cell, which alone draws it, so no star is cut off along the
+   * cell's side. The stars are over the horizon only: a night sky starred under the board as well would
+   * read as the depths of space.
    */
   private skyColour() {
     const way = this.drawnWay();
@@ -181,8 +189,11 @@ export class SkyLayer {
     const seed = cell.x.add(cell.y.mul(STAR_CELLS * 2 + 3)).add(cell.z.mul((STAR_CELLS * 2 + 3) ** 2));
     const point = normalize(corner.add(0.5)).mul(STAR_CELLS);
     const round = float(1).sub(smoothstep(STAR_RADIUS * 0.4, STAR_RADIUS, length(scaled.sub(point))));
+    const off = abs(point.sub(corner.add(0.5)));
+    const whole = float(1).sub(step(0.5 - STAR_RADIUS, max(off.x, max(off.y, off.z))));
     const star = smoothstep(1 - STAR_SHARE, 1, hash(seed) as Node<'float'>)
       .mul(round)
+      .mul(whole)
       .mul(this.stars)
       .mul(clamp(up.mul(3), 0, 1));
     return this.skyBase(way)
