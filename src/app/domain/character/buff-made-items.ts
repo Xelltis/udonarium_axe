@@ -59,6 +59,14 @@ export function buffItemNamesIn(detail: DataElement): string[] {
 }
 
 /**
+ * Makes an item a buff made the sheet's own, where it is: it is no longer taken away once no buff
+ * needs it, as one someone wrote into by hand is not.
+ */
+export function adoptBuffItem(item: DataElement): void {
+  item.removeAttribute(MADE_BY_BUFF);
+}
+
+/**
  * Takes away an item a buff made, and the group and the section that held it once they hold nothing
  * else. Any other item is left where it is.
  */

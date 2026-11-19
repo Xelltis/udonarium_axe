@@ -299,7 +299,8 @@ export class BuffManager {
   /**
    * Takes away every item a buff made for itself that a buff let go of in the change just done and no
    * buff of the piece moves or writes into any more, one that leaves what it moved included, and the
-   * section such items are kept in once it holds none. An item the sheet had all along is never taken,
+   * section such items are kept in once it holds none. One someone wrote words into by hand is kept, as
+   * the sheet's own, with them (see {@link writtenByHand}). An item the sheet had all along is never taken,
    * nor one no buff let go of here, as one another device has just made for a buff that has yet to reach
    * this one. Nothing is taken where the buffs cannot be read, as on a device the piece's buffs have not
    * reached yet: the container they are kept in, made with the first buff and never taken away, is not
@@ -316,7 +317,9 @@ export class BuffManager {
       if (target !== undefined) used.add(target);
     }
     for (const name of status.madeItemNames()) {
-      if (released.has(name) && !used.has(name)) status.dropMadeByBuff(name);
+      if (!released.has(name) || used.has(name)) continue;
+      if (this.writtenByHand(name)) status.adoptMadeByBuff(name);
+      else status.dropMadeByBuff(name);
     }
     status.tidyBuffItems();
   }

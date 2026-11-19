@@ -1,5 +1,6 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import {
+  adoptBuffItem,
   buffItemNamesIn,
   dropBuffItem,
   isBuffMadeItem,
@@ -407,6 +408,12 @@ export class StatusAccessor {
   dropMadeByBuff(name: string): void {
     const data = this.findData(name);
     if (data) dropBuffItem(data);
+  }
+
+  /** Makes the item a buff made by that name the sheet's own, where it is (see {@link adoptBuffItem}). */
+  adoptMadeByBuff(name: string): void {
+    const data = this.findData(name);
+    if (data && isBuffMadeItem(data)) adoptBuffItem(data);
   }
 
   private findData(reference: string): DataElement | null {

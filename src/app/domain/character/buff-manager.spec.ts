@@ -1605,6 +1605,19 @@ describe('BuffManager', () => {
         expect(aliased.canMakeForBuff('隠密')).toBe(true);
       });
 
+      it('keeps an item it made as the sheet’s own where words were written into it by hand', () => {
+        grant('炎の剣', '武器属性', '=', '炎');
+        status.setText('武器属性', '氷');
+
+        sheeted.delete('炎の剣');
+
+        expect(status.getText('武器属性')).toBe('氷');
+        expect(status.madeByBuff('武器属性')).toBe(false);
+        grant('雷の剣', '武器属性', '=', '雷');
+        sheeted.delete('雷の剣');
+        expect(status.getText('武器属性')).toBe('氷');
+      });
+
       it('takes away no made item no buff let go of in the change, as one made on another device for a buff yet to come', () => {
         grant('鼓舞', '気力', '+', '2');
         const row = sheeted.find('鼓舞')!;
