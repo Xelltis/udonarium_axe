@@ -4,6 +4,7 @@ import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -145,6 +146,7 @@ export class ChatLintService {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly turnCommands = inject(TurnChatCommandService);
   private readonly inventory = inject(GameObjectInventoryService);
+  private readonly disclosure = inject(DisclosureService);
 
   private readonly systems = inject(GameSystemPrefetchService);
 
@@ -294,6 +296,7 @@ export class ChatLintService {
       hasEffectTarget: candidates.length > 0,
       hasBattleDefender: candidates.some((piece) => piece !== speaker),
       isGameMaster,
+      mayView: (piece: GameCharacter) => this.disclosure.canView(piece),
       piecesOnTable: () => pieces.filter((piece) => piece.location.name === 'table'),
       get keptOffTable() {
         return PeerCursor.isMyselfKeptOffTable;

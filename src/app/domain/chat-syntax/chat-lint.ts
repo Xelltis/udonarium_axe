@@ -11,7 +11,7 @@ import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modif
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { type ItemLanding, landingOfRequest } from '@axe/domain/character/item-landing';
+import { landingOfRequest } from '@axe/domain/character/item-landing';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
@@ -32,8 +32,8 @@ import {
   resourceCommandSites,
 } from '@axe/domain/data/resource-command-words';
 import {
-  choicesToSay,
   commandLanding,
+  isAmountWritten,
   parseResourceEditOption,
   readModifierLayout,
   statusNamedIn,
@@ -47,6 +47,7 @@ import {
   type RollCheck,
   rollLimitBreaches,
 } from '@axe/domain/dice/dice-roll-line';
+import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
 import type { TurnChatCommand, TurnChatRefusal } from '@axe/domain/tabletop/turn-chat-command';
 
 /** How much a finding matters: it will not work, it may not work as meant, or it is worth knowing. */
@@ -153,6 +154,12 @@ export interface ChatLintContext {
   /** The pieces a line aimed at targets is sent to. */
   readonly targets: readonly GameCharacter[];
   readonly isGameMaster: boolean;
+  /**
+   * Whether the reader may see what a piece keeps, as the game master and its owner always may. A
+   * piece kept from the reader is checked against nothing, so the lint tells nothing of its items or
+   * its buffs. Left out, a piece whose contents are kept from anyone is kept from the reader.
+   */
+  mayView?(piece: GameCharacter): boolean;
   /** Whether the reader watches a room on a room server, where their commands are not carried out. */
   readonly keptOffTable: boolean;
   /** What a reference is filled in with, or null where nothing answers it. */
@@ -443,9 +450,18 @@ function lintRoll(text: string, message: TextRange, span: TextRange, context: Ch
   }
 }
 
+/**
+ * The pieces a command reaches that the reader may see the contents of, which alone it is checked
+ * against (see {@link ChatLintContext.mayView}).
+ */
 function piecesFor(targeted: boolean, context: ChatLintContext): readonly GameCharacter[] {
-  if (targeted) return context.targets;
-  return context.speaker ? [context.speaker] : [];
+  const reached = targeted ? context.targets : context.speaker ? [context.speaker] : [];
+  return seenBy(context, reached);
+}
+
+/** Those of the pieces the reader may see the contents of. */
+function seenBy(context: ChatLintContext, pieces: readonly GameCharacter[]): readonly GameCharacter[] {
+  return pieces.filter((piece) => (context.mayView ? context.mayView(piece) : !isKeptFromAnyone(piece)));
 }
 
 /**
@@ -491,29 +507,15 @@ function lintResource(
   const landings = aimed.map(({ piece, target }) =>
     commandLanding(piece, target!, named.slot, parts.operator, parts.amount)
   );
-  const unchosen = saidChoicesMissed(aimed.map(({ piece }, index) => ({ piece, landing: landings[index] })));
-  if (unchosen) return add(span, 'error', 'res.notAChoice', { params: { name, choices: unchosen.join('・') } });
+  const unchosen = landings.find((landing) => landing.kind === 'notAChoice');
+  if (unchosen?.kind === 'notAChoice') {
+    return add(span, 'error', 'res.notAChoice', { params: { name, choices: unchosen.choices.join('・') } });
+  }
   if (landings.some((landing) => landing.kind === 'noSlot'))
     return add(span, 'error', 'res.noSlot', { params: { name } });
-  if (landings.some((landing) => landing.kind !== 'words') && parseResourceEditOption(parts.amount).isErr) {
+  if (parts.operator !== '>' && isAmountWritten(parts.amount) && parseResourceEditOption(parts.amount).isErr) {
     add(span, 'error', 'res.badOption');
   }
-}
-
-/**
- * The choices of the first piece whose item a value is none of the choices of, where they may be said
- * (see {@link choicesToSay}): of a piece whose contents are kept from anyone, nothing is told, not even
- * that the value missed. Null where none missed.
- */
-function saidChoicesMissed(
-  landings: readonly { piece: GameCharacter; landing: ItemLanding }[]
-): readonly string[] | null {
-  for (const { piece, landing } of landings) {
-    if (landing.kind !== 'notAChoice') continue;
-    const choices = choicesToSay(piece, landing.choices);
-    if (choices.length > 0) return choices;
-  }
-  return null;
 }
 
 /**
@@ -530,8 +532,10 @@ function lintBuffStatus(
 ): void {
   const name = request.target;
   const landings = pieces.map((piece) => ({ piece, landing: landingOfRequest(piece.status, request) }));
-  const unchosen = saidChoicesMissed(landings);
-  if (unchosen) return add(span, 'error', 'buff.notAChoice', { params: { name, choices: unchosen.join('・') } });
+  const unchosen = landings.find(({ landing }) => landing.kind === 'notAChoice')?.landing;
+  if (unchosen?.kind === 'notAChoice') {
+    return add(span, 'error', 'buff.notAChoice', { params: { name, choices: unchosen.choices.join('・') } });
+  }
   if (landings.some(({ landing }) => landing.kind === 'notWords')) {
     return add(span, 'error', 'buff.notWords', { params: { name } });
   }
@@ -619,8 +623,9 @@ function lintReset(
   add: Report,
   nameOf: (piece: GameCharacter) => string
 ): void {
-  const pieces = span.reach === 'table' ? context.piecesOnTable?.() : piecesFor(span.targeted, context);
-  if (!pieces || pieces.length < 1) return;
+  const pieces =
+    span.reach === 'table' ? seenBy(context, context.piecesOnTable?.() ?? []) : piecesFor(span.targeted, context);
+  if (pieces.length < 1) return;
   if (span.takes !== 'values') {
     const name = nameShadowedBy(span);
     if (name.length > 0 && pieces.some((piece) => piece.buffs.find(name) != null)) {

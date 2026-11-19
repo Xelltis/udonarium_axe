@@ -294,22 +294,27 @@ export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): Res
  * choices it offers stay with those who may see them.
  */
 function wordsReport(character: GameCharacter, target: string, full: string): ResourceEditReport {
-  const said = `${full}    `;
-  return { full: said, shown: isKeptFromAnyone(character) ? `${target}＞${KEPT_VALUE}    ` : said };
+  return keptReport(character, `${full}    `, `${target}＞${KEPT_VALUE}    `);
+}
+
+/**
+ * A report of a change to one piece: in full, and as it is said to everyone, which is `kept` for a
+ * piece whose contents are kept from anyone, and the full report for any other. Every report of a
+ * change to one piece's items, by a `:` command or a `&!` buff, goes through here.
+ */
+function keptReport(character: GameCharacter, full: string, kept: string): ResourceEditReport {
+  return { full, shown: isKeptFromAnyone(character) ? kept : full };
+}
+
+/** A report said to everyone as it is. */
+function sayToAll(text: string): ResourceEditReport {
+  return { full: text, shown: text };
 }
 
 /** What a report says of words that are none of the choices an item offers, naming the choices where there are any to say. */
 function notAChoiceText(target: string, words: string, choices: readonly string[]): string {
   const offered = choices.length > 0 ? `: ${choices.join('・')}` : '';
   return `${target}に「${words.trim()}」はありません${offered}`;
-}
-
-/**
- * The choices of a piece's item that may be said to everyone: none of a piece whose contents are kept
- * from anyone, which a report seen by all or the chat's lint names no choice of.
- */
-export function choicesToSay(character: GameCharacter, choices: readonly string[]): readonly string[] {
-  return isKeptFromAnyone(character) ? [] : choices;
 }
 
 /**
@@ -423,9 +428,9 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
   const full = `${edit.target}${suffix}:${oldNum}${operatorText}${edit.diceResult}＞${newNum}${optionText}${sideEffectText}    `;
   const beaten =
     nowOrMax === 'now' && isResourceSpentAt(targetElement, newNum, character.status.getValue(edit.target, 'max'));
-  if (!isKeptFromAnyone(character) || beaten) return { full, shown: full };
+  if (beaten) return sayToAll(full);
   const change = edit.operator === '=' ? `=${KEPT_VALUE}` : `${operatorText}${edit.diceResult}`;
-  return { full, shown: `${edit.target}${suffix}:${change}    ` };
+  return keptReport(character, full, `${edit.target}${suffix}:${change}    `);
 }
 
 /** What stands in for a value said to be set on a piece whose contents are kept from anyone. */
@@ -511,10 +516,10 @@ function slotSuffix(slot: ResourceSlot): string {
  * twice is still holding it there, so that starts over as always. For the same reason a helping
  * stacked on a buff that holds its status leaves the status held, adding only to the rounds.
  */
-function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
+function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): ResourceEditReport {
   const { name, requests, rest } = readCalculatedBuff(command);
-  if (name.length < 1) return '';
-  if (!requests) return `バフの書式が読めません ${name}    `;
+  if (name.length < 1) return sayToAll('');
+  if (!requests) return sayToAll(`バフの書式が読めません ${name}    `);
   return grantCalculatedBuff(character, name, requests, rest, piles);
 }
 
@@ -530,7 +535,7 @@ function grantCalculatedBuff(
   requests: readonly ParsedBuffModifierRequest[],
   rest: readonly string[],
   piles: BuffPileOn
-): string {
+): ResourceEditReport {
   return character.buffs.alter(() => {
     const { rounds, look } = splitBuffRounds(rest);
     const roundText = (rounds ?? '').trim();
@@ -568,8 +573,7 @@ function grantCalculatedBuff(
           : character.buffs.applyModifier(data, request, true);
         if (applied && landing.kind === 'missing') made.push(request.target);
         else if (!applied && landing.kind === 'notAChoice') {
-          const choices = choicesToSay(character, landing.choices);
-          refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), choices));
+          refused.push(notAChoiceText(request.target, request.text ?? String(request.amount), landing.choices));
         } else if (!applied && landing.kind === 'notWords') {
           refused.push(`${request.target}は数の項目なので「${request.text}」は書けません`);
         } else if (!applied) missing.push(request.target);
@@ -578,19 +582,27 @@ function grantCalculatedBuff(
     });
 
     const data = character.buffs.find(name);
-    if (!data) return '';
+    if (!data) return sayToAll('');
     const verb = stacking ? '加算' : '付与';
     const lack =
       (missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '') +
       (made.length > 0 ? ` (${made.join('・')}を${BUFF_ITEMS_SECTION}に作りました)` : '') +
       refused.map((said) => ` (${said})`).join('');
     const left = buffExpires(data) ? `/${data.value}R` : '';
-    return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
+    const laid = `${name}を${verb} ${effects.join(',')}${left}`;
+    return keptReport(character, `${laid}${lack}    `, `${laid}    `);
   });
 }
 
+/** Runs one `&` buff command on the character and returns the chat text reporting it in full; see {@link applyBuffEditReport}. */
+export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
+  return applyBuffEditReport(buff, character).full;
+}
+
 /**
- * Runs one `&` buff command on the character and returns the chat text reporting it.
+ * Runs one `&` buff command on the character and returns the chat text reporting it: in full, and as
+ * it is said to everyone, which of a piece whose contents are kept from anyone leaves out what a `&!`
+ * buff found of its items (see {@link keptReport}).
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
  * removes one buff, `&*-`, `&*バフ-` and `&*デバフ-` clear the piece and its parts of every buff, of
@@ -600,7 +612,7 @@ function grantCalculatedBuff(
  * stacks onto a buff of the same name rather than starting it over, and `++` lengthens it by the
  * rounds asked for as well. A targeted command's text starts with the character's name.
  */
-export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
+export function applyBuffEditReport(buff: BuffEdit, character: GameCharacter): ResourceEditReport {
   const { piles, command } = readBuffStacking(buff.command);
   let text = '';
   if (buff.targeted) {
@@ -626,12 +638,13 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       text += `${reg1}を消去    `;
     }
   } else if (kind === 'calculated') {
-    text += applyCalculatedBuff(command, character, piles);
+    const report = applyCalculatedBuff(command, character, piles);
+    return { full: text + report.full, shown: text + report.shown };
   } else {
     const splittext = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
     const state = findStatusAilment(StatusAilmentCatalog.instance.ailments, splittext[0]);
     if (state && (piles === 'none' || !character.buffs.find(state.name))) {
-      return text + plantCommandedState(state, splittext, character);
+      return sayToAll(text + plantCommandedState(state, splittext, character));
     }
     let round: number | undefined = undefined;
     let sub = '';
@@ -675,7 +688,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
     }
   }
 
-  return text;
+  return sayToAll(text);
 }
 
 /**

@@ -240,11 +240,23 @@ describe('lintChatSyntax', () => {
       expect(codes('&!X/状態=毒/3')).toEqual(['buff.missingStatus']);
     });
 
-    it('tells nothing of the choices of a piece whose contents are kept from anyone, by a buff or by the chat', () => {
+    it('tells nothing of the items of a piece kept from the reader, and all of them to one who may see it', () => {
       speaker.disclosureMode = 'gm';
 
-      expect(codes('&!指揮/役割=勇者/3')).toEqual([]);
-      expect(codes(':役割=勇者')).toEqual([]);
+      for (const line of [
+        '&!指揮/役割=勇者/3',
+        ':役割=勇者',
+        ':役割>Fire',
+        ':役割=Fire',
+        '&!鼓舞/気力+2/3',
+        ':気力-1',
+      ]) {
+        expect(codes(line), line).toEqual([]);
+      }
+      expect(codes(':役割=勇者', { mayView: () => true })).toEqual(['res.notAChoice']);
+      expect(codes(':役割>Fire', { mayView: () => true })).toEqual(['res.notAChoice']);
+      expect(codes('&!鼓舞/気力+2/3', { mayView: () => true })).toEqual(['buff.makesStatus']);
+      expect(codes(':HP-5Q')).toEqual(['res.badOption']);
     });
 
     it('finds words that are none of the choices for one target though another lacks the item', () => {

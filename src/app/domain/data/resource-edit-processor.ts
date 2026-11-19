@@ -31,7 +31,7 @@ import {
 import { readDefaultResetCommand, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import {
   ailmentsForBuffRemoval,
-  applyBuffEdit,
+  applyBuffEditReport,
   applyDefaultReset,
   applyResourceEditReport,
   applyTextEdit,
@@ -392,9 +392,9 @@ export class ResourceEditProcessor {
     return applyResourceEditReport(edit, character);
   }
 
-  /** Runs one buff command on the character and returns its report; see {@link applyBuffEdit}. */
-  buffEdit(buff: BuffEdit, character: GameCharacter): string {
-    return applyBuffEdit(buff, character);
+  /** Runs one buff command on the character and returns its reports; see {@link applyBuffEditReport}. */
+  buffEdit(buff: BuffEdit, character: GameCharacter): ResourceEditReport {
+    return applyBuffEditReport(buff, character);
   }
 
   /**
@@ -449,7 +449,9 @@ export class ResourceEditProcessor {
     const withParts = (piece: GameCharacter) => [piece, ...piece.partsAlong()];
     for (const buff of buffList) {
       if (parseBuffClearanceCommand(buff.command)) recorder.watch(withParts(buff.object));
-      add(this.buffEdit(buff, buff.object));
+      const report = this.buffEdit(buff, buff.object);
+      add(report.shown, report.full);
+      if (report.shown !== report.full) kept.add(buff.object);
     }
     for (const sweep of buffSweeps) {
       add(isTableResetCommand(sweep) ? this.resetTable(sweep, recorder) : this.sweepBuffs(sweep, recorder));

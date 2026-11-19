@@ -8,6 +8,7 @@ import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catal
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import {
   applyBuffEdit,
+  applyBuffEditReport,
   applyResourceEdit,
   applyResourceEditReport,
   applyTextEdit,
@@ -1133,7 +1134,21 @@ describe('resource-edit-helpers', () => {
           shown: '構え＞？    ',
         });
         expect(applyResourceEditReport({ ...said(':段位=5').edit, calcAns: 5 }, character).shown).toBe('段位＞？    ');
-        expect(buff('&!構え直し/構え=突撃/3')).toBe('構え直しを付与 構え=突撃/3R (構えに「突撃」はありません)    ');
+      });
+
+      it('tells everyone a buff laid on it but nothing of what it found of its items', () => {
+        const report = (command: string) =>
+          applyBuffEditReport({ command, object: character, targeted: false }, character);
+
+        expect(report('&!構え直し/構え=突撃/3')).toEqual({
+          full: '構え直しを付与 構え=突撃/3R (構えに「突撃」はありません: 通常・攻勢・守勢)    ',
+          shown: '構え直しを付与 構え=突撃/3R    ',
+        });
+        expect(report('&!呪い/ランク=炎/3').shown).toBe('呪いを付与 ランク=炎/3R    ');
+        expect(report('&!結界/結界=炎/3')).toEqual({
+          full: '結界を付与 結界=炎/3R (結界をバフの項目に作りました)    ',
+          shown: '結界を付与 結界=炎/3R    ',
+        });
       });
     });
 
