@@ -351,13 +351,57 @@ describe('TurnDesk', () => {
     } finally {
       clearInterval(calling);
     }
-    // Its turn is put back, and the game master waits for a taker again rather than seeming to think.
-    expect(lastStatus(tab)).toMatchObject({ run: 'waiting', attended: false });
+    // Its turn stays with it, and the tab is told that nobody is seen taking it.
+    expect(lastStatus(tab)).toMatchObject({ run: 'thinking', attended: false });
 
     const back = desk.waitForTurn(2000, undefined, gm);
     await until(() => lastStatus(tab)?.attended === true);
     desk.close();
     await back;
+  });
+
+  it('hands a turn once only to an AI that went quiet over it and came back, done with it as it asks for the next', async () => {
+    const tab = await connect();
+    const gm = {};
+    start(tab);
+    expect(await desk.waitForTurn(2000, undefined, gm)).toMatchObject({ turn: true });
+    tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'called' }] });
+    expect(await desk.waitForTurn(2000, undefined, gm)).toMatchObject({ turn: true, events: [LINE] });
+
+    // It calls nothing for longer than it counts as there, as over a long answer, and then asks again.
+    await until(() => lastStatus(tab)?.attended === false, 2000);
+    expect(await desk.waitForTurn(100, undefined, gm)).toMatchObject({ turn: false });
+
+    tab.say({ type: 'gm.events', events: [{ event: { ...LINE, id: 'm2' }, wake: 'called' }] });
+    expect(await desk.waitForTurn(2000, undefined, gm)).toMatchObject({ turn: true, events: [{ ...LINE, id: 'm2' }] });
+  });
+
+  it('counts an AI as there between its waits, and keeps its place from another meanwhile', async () => {
+    const tab = await connect();
+    const gm = {};
+    start(tab);
+    expect(await desk.waitForTurn(2000, undefined, gm)).toMatchObject({ turn: true });
+    const toldBefore = tab.heard.length;
+
+    // A wait runs out with nothing to hand over, as one does while the room is quiet.
+    expect(await desk.waitForTurn(30, undefined, gm)).toMatchObject({ turn: false, running: true });
+    expect(desk.status()).toMatchObject({ run: 'waiting', attended: true });
+    const told = tab.heard.slice(toldBefore).flatMap((message) => {
+      const status = (message as { type?: string; status?: GmStatus }).type === 'gm.status';
+      return status ? [(message as { status: GmStatus }).status.attended] : [];
+    });
+    expect(told).not.toContain(false);
+    expect(await desk.waitForTurn(30, undefined, {})).toMatchObject({
+      turn: false,
+      note: expect.stringMatching(/^Another AI/),
+    });
+
+    // Once it has not shown itself for a while, it is told to be gone, and another may take its place.
+    await until(() => lastStatus(tab)?.attended === false, 2000);
+    const other = desk.waitForTurn(2000, undefined, {});
+    await until(() => desk.status().attended === true);
+    desk.close();
+    expect(await other).toMatchObject({ turn: false, running: false });
   });
 
   it('hands a turn that never reached its taker to whoever asks next, whole, with what goes beside it', async () => {

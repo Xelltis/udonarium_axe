@@ -68,11 +68,15 @@ const SOMEONE_WAITS =
  * game master stands, and whether an AI is there to take the turns at all.
  *
  * A turn handed over is held until the conversation it went to is done with it, which it shows by
- * asking for the next. One that goes away with a turn, hanging up or calling nothing for a while, has
- * the turn put back for whoever asks next: all of it where it never showed it had the turn, and only
- * that a turn is to be taken where it did, so nothing that happened is lost or told twice. An AI is
- * there while a conversation waits for the turn, or takes one and has called a tool of late; what
- * another conversation calls says nothing of that.
+ * asking for the next. It is put back only where that conversation can be told never to ask: it hung
+ * up, or another took its place after it had called nothing for a while. It is put back whole where
+ * the conversation never showed it had the turn, and only as a turn still to be taken where it did,
+ * so nothing that happened is lost or told twice. One that comes back after calling nothing for a
+ * while is done with its turn as any other is.
+ *
+ * An AI is there while the conversation holding the place waits for the turn, or has shown itself of
+ * late: taking a turn, calling a tool, or waiting until its wait ran out, as one does between waits.
+ * What another conversation calls says nothing of that.
  */
 export class TurnDesk {
   private run: GmRun = 'off';
@@ -104,7 +108,10 @@ export class TurnDesk {
     got: boolean;
     readonly toldBefore: { instructions: string; notes: string; fresh: number } | undefined;
   } | null = null;
-  /** When the conversation taking the turn last showed it was there: handed the turn, or called a tool. */
+  /**
+   * When the conversation holding the place last showed it was there: handed the turn, calling a tool,
+   * or waiting until its wait ran out.
+   */
   private holderSeenAt = 0;
   private attendedTimer: ReturnType<typeof setTimeout> | null = null;
   private attendedTold = false;
@@ -148,19 +155,19 @@ export class TurnDesk {
   }
 
   /**
-   * Notes that a conversation called a tool. Only the calls of the one taking the turn tell anything:
-   * that the turn reached it, and that it is still taking it.
+   * Notes that a conversation called a tool. Only the calls of the one holding the place tell anything:
+   * that it is there, and where it is taking a turn, that the turn reached it.
    */
   noteCall(conversation: object = this): void {
-    if (conversation !== this.waiting || this.run !== 'thinking') return;
-    if (this.held) this.held.got = true;
+    if (conversation !== this.waiting) return;
+    if (this.held && this.run === 'thinking') this.held.got = true;
     this.holderSeen();
     this.tellIfAttendanceChanged();
   }
 
   /**
-   * Counts the conversation taking the turn as there from now, for a while. Once that while is over
-   * with no call of its own, it is taken to have gone, and its turn is put back for whoever asks next.
+   * Counts the conversation holding the place as there from now, for a while, and looks again once
+   * that while is over. Its turn stays with it: only another taking its place puts the turn back.
    */
   private holderSeen(): void {
     this.holderSeenAt = Date.now();
@@ -168,16 +175,15 @@ export class TurnDesk {
     this.attendedTimer = setTimeout(
       () => {
         this.attendedTimer = null;
-        if (this.holderGone()) this.putTurnBack();
         this.tellIfAttendanceChanged();
       },
       (this.options.attendedMs ?? ATTENDED_MS) + 50
     );
   }
 
-  /** Whether a turn is being taken by a conversation that has called nothing for too long to be taken as there. */
+  /** Whether the conversation holding the place has shown itself too long ago to be taken as there. */
   private holderGone(): boolean {
-    return this.run === 'thinking' && Date.now() - this.holderSeenAt >= (this.options.attendedMs ?? ATTENDED_MS);
+    return Date.now() - this.holderSeenAt >= (this.options.attendedMs ?? ATTENDED_MS);
   }
 
   /**
@@ -210,11 +216,10 @@ export class TurnDesk {
    * conversation asking has not had them as they stand.
    */
   waitForTurn(timeoutMs: number, signal?: AbortSignal, conversation: object = this): Promise<TurnWait> {
-    // Another conversation waiting keeps its place: were each to take the other's, neither would wait.
-    // So does one taking its turn, for as long as its own calls show it is there: one that went away
-    // in the middle of a turn leaves the next to whoever asks.
-    const takingTurn = this.run === 'thinking' && !this.holderGone();
-    const busy = this.waiter !== null || takingTurn;
+    // The conversation holding the place keeps it while it waits, and for as long as it shows itself,
+    // taking a turn or between its waits: were each to take the other's, neither would wait. One that
+    // went away leaves the next turn to whoever asks.
+    const busy = this.waiter !== null || !this.holderGone();
     if (busy && this.waiting !== conversation) {
       return Promise.resolve({ turn: false, running: this.run !== 'off', note: SOMEONE_WAITS });
     }
@@ -241,8 +246,11 @@ export class TurnDesk {
         resolve(given);
         this.tellIfAttendanceChanged();
       };
-      const timeUp = () =>
+      const timeUp = () => {
+        // Waiting until the wait ran out shows it is there, as it is expected to wait again.
+        if (this.waiter === answer) this.holderSeen();
         answer({ turn: false, running: this.run !== 'off', note: this.run === 'off' ? NOT_STARTED : NOTHING_YET });
+      };
       const onAbort = () => timeUp();
       const timer = setTimeout(timeUp, timeoutMs);
       signal?.addEventListener('abort', onAbort, { once: true });
@@ -261,6 +269,7 @@ export class TurnDesk {
     if (conversation !== this.waiting) return;
     this.hungUp(conversation);
     this.putTurnBack();
+    this.holderSeenAt = 0;
     this.tellIfAttendanceChanged();
   }
 
@@ -270,6 +279,7 @@ export class TurnDesk {
    */
   hungUp(conversation: object): void {
     if (conversation !== this.waiting || !this.waiter) return;
+    this.holderSeenAt = 0;
     this.waiter({ turn: false, running: this.run !== 'off', note: NOTHING_YET });
   }
 
@@ -301,9 +311,9 @@ export class TurnDesk {
     this.attendedTimer = null;
   }
 
-  /** Whether an AI is there to take the turns: one waits for the turn, or takes one and is still seen to. */
+  /** Whether an AI is there to take the turns: the one holding the place waits for the turn, or was seen of late. */
   private attended(): boolean {
-    return this.waiter !== null || (this.run === 'thinking' && !this.holderGone());
+    return this.waiter !== null || !this.holderGone();
   }
 
   private tellIfAttendanceChanged(): void {

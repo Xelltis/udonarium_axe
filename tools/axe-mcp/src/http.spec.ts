@@ -133,6 +133,19 @@ describe('serveMcpOverHttp', () => {
       })
     );
     await until(() => desk.status().attended === true);
+
+    // Another call of the same client, one the tab is slow to answer, is cut off: the wait stays as it was.
+    axe.answer = () => undefined;
+    const other = request(url, { method: 'POST', headers: { ...headers, 'mcp-session-id': session } });
+    other.on('error', () => undefined);
+    other.end(
+      JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_room', arguments: {} } })
+    );
+    await until(() => axe.heard.some((message) => (message as { type?: string })?.type === 'call'));
+    other.destroy();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(desk.status().attended).toBe(true);
+
     waiting.destroy();
     await until(() => desk.status().attended === false);
 
