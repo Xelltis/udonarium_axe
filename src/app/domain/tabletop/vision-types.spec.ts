@@ -1,5 +1,6 @@
 import {
   applyLightPreset,
+  applyLightPresetWith,
   LIGHT_PRESETS,
   LightAnimation,
   LightCategory,
@@ -127,5 +128,29 @@ describe('vision-types', () => {
       expect(target.lightPreset).toBe(LightPreset.CUSTOM);
       expect(target.lightBrightRadius).toBe(4);
     });
+  });
+});
+
+describe('a preset laid on a light with what is asked of it beyond', () => {
+  it('stays the preset where its motion is the preset’s, and is a light of its own where the motion differs', () => {
+    const light = () => ({
+      lightPreset: '',
+      lightBrightRadius: 0,
+      lightDimRadius: 0,
+      lightColor: '',
+      lightAngle: 0,
+      lightAnimation: '',
+    });
+    const torch = light();
+    applyLightPresetWith(torch, LightPreset.TORCH, {});
+    expect(torch.lightPreset).toBe(LightPreset.TORCH);
+
+    const still = light();
+    applyLightPresetWith(still, LightPreset.TORCH, { animation: 'none' });
+    expect(still).toMatchObject({ lightPreset: LightPreset.CUSTOM, lightAnimation: 'none' });
+
+    const tinted = light();
+    applyLightPresetWith(tinted, LightPreset.TORCH, { color: '#00ff00' });
+    expect(tinted).toMatchObject({ lightPreset: LightPreset.TORCH, lightColor: '#00ff00' });
   });
 });

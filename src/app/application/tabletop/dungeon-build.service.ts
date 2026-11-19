@@ -47,7 +47,7 @@ import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { trapPresetOf } from '@axe/domain/tabletop/trap-presets';
 import { EYE_HEIGHT_CELLS } from '@axe/domain/tabletop/vision-scene';
-import { applyLightPreset, type GeneratedLightMotion, LightPreset } from '@axe/domain/tabletop/vision-types';
+import { applyLightPresetWith, type GeneratedLightMotion, LightPreset } from '@axe/domain/tabletop/vision-types';
 
 const TERRAIN_IMAGE_TAG = '地形';
 /** What dangerous ground and traps take from, which is what most sheets call it. */
@@ -584,9 +584,10 @@ export class DungeonBuildService {
   ): void {
     for (const light of lights) {
       const source = LightSource.create(this.t(`feature.light.skin.${LIGHT_SKIN[light.kind]}`));
-      applyLightPreset(source, LIGHT_PRESET[light.kind]);
-      if (motion) source.lightAnimation = motion;
-      if (light.color) source.lightColor = light.color;
+      applyLightPresetWith(source, LIGHT_PRESET[light.kind], {
+        ...(motion ? { animation: motion } : {}),
+        ...(light.color ? { color: light.color } : {}),
+      });
       source.lightEnabled = true;
       source.lightDirection = light.kind === 'sconce' ? light.facing : 0;
       source.isLock = true;
