@@ -258,7 +258,7 @@ export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null
  * ground under every piece that stopped on it. Spent, it has nothing left to spring. This version
  * asks the ground's own switch instead.
  */
-function guardPressedGround(trigger: TableTrigger): void {
+export function guardPressedGround(trigger: TableTrigger): void {
   trigger.once = true;
   trigger.repeat = 'once';
   trigger.spent = true;
