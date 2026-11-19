@@ -186,7 +186,10 @@ class FakeEngine implements Table3dEngine {
     this.changed = true;
   }
 
+  /** How many times the light of the sky was handed over, the same light again included. */
+  skyLightsTold = 0;
   setSkyLight(light: SkyLight): void {
+    this.skyLightsTold++;
     if (JSON.stringify(light) === JSON.stringify(this.skies.at(-1))) return;
     this.skies.push(light);
     this.changed = true;
@@ -1382,6 +1385,25 @@ describe('Table3dService', () => {
     expect(125 + open.door!.shiftX).toBeCloseTo(100 + 25 * Math.cos((95 * Math.PI) / 180), 6);
     expect(155 + open.door!.shiftY).toBeCloseTo(155 + 25 * Math.sin((95 * Math.PI) / 180), 6);
     table.destroy();
+  });
+
+  it('lights the scene again only as its sky or its hour changes, not as anything else of the table does', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    const table = TestBed.inject(TabletopService).currentTable;
+    const told = engine.skyLightsTold;
+    const color = table.gridColor;
+
+    table.gridColor = '#123456';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+
+    expect(engine.skyLightsTold).toBe(told);
+    table.gridColor = color;
   });
 
   it('draws a sky past the board only on a table that asks for one, as it is at the hour the clock tells', async () => {

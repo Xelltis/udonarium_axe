@@ -169,15 +169,18 @@ export class Table3dService {
    * The light of the sky over the table at the story's hour, as the room's clock tells it, in the
    * colours of the sky drawn over it where one is.
    */
-  readonly skyLight = computed(() =>
-    skyLightAt(this.dayFraction(), tableSkyKindOf(this.tabletop.currentTableVersion()?.skyKind) === 'clock')
-  );
+  readonly skyLight = computed(() => skyLightAt(this.dayFraction(), this.underClockSky()));
 
   /** The sky drawn past the board of the table in view, as it is at the story's hour, or none where the table shows its background picture. */
-  readonly sky = computed(() => {
-    const table = this.tabletop.currentTableVersion();
-    return tableSkyKindOf(table?.skyKind) === 'clock' ? skyDomeAt(this.dayFraction()) : null;
-  });
+  readonly sky = computed(() => (this.underClockSky() ? skyDomeAt(this.dayFraction()) : null));
+
+  /**
+   * Whether the table in view has the clock's sky drawn over it, which tells only as that changes, not
+   * as anything else of the table does.
+   */
+  private readonly underClockSky = computed(
+    () => tableSkyKindOf(this.tabletop.currentTableVersion()?.skyKind) === 'clock'
+  );
 
   /** How far through the story's day it is, from 0 at midnight to 1. */
   private readonly dayFraction = computed(() =>
