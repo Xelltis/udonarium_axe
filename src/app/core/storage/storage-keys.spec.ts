@@ -24,6 +24,7 @@ describe('the keys the app keeps settings under in the browser', () => {
       effectLibrarySize: 'axe.effect.librarySize',
       firstPersonPiece: 'ui-first-person-piece',
       foregroundSeeThrough: 'axe.foreground.seeThrough',
+      generatedLightMotion: 'axe.generator.lightMotion',
       hotbar: 'ui-hotbar',
       hotbarOwner: 'ui-hotbar-owner',
       iconChosenByHand: 'axe.icon.chosenByHand',

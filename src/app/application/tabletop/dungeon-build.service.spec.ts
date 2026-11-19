@@ -26,6 +26,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { LightAnimation } from '@axe/domain/tabletop/vision-types';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -796,6 +797,19 @@ describe('DungeonBuildService', () => {
         expect(built!.altitude).toBeGreaterThan(0);
       }
       if (planned.kind === 'campfire') expect(built!.altitude).toBe(0);
+    }
+  });
+
+  it('lets each light move as its kind of lamp does unless the lights were asked to move one way', async () => {
+    const own = (await build()).result.table.lightSources;
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((light) => light.lightAnimation === LightAnimation.FLICKER)).toBe(true);
+
+    for (const motion of [LightAnimation.NONE, LightAnimation.PULSE] as const) {
+      const lights = (await build({ lightMotion: motion })).result.table.lightSources;
+      expect(lights.length).toBe(own.length);
+      expect(lights.every((light) => light.lightAnimation === motion)).toBe(true);
+      expect(lights.every((light) => light.lightEnabled)).toBe(true);
     }
   });
 

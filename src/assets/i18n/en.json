@@ -3458,6 +3458,8 @@
           "doubleDoors": "Double doors (%)",
           "muster": "Party at the way in",
           "musterNobody": "Nobody",
+          "lightMotion": "Light motion",
+          "lightMotionOwn": "As the place has it",
           "fog": "Start with the fog of war drawn",
           "traps": "Traps"
         },

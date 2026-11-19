@@ -3458,6 +3458,8 @@
           "doubleDoors": "양문의 비율(%)",
           "muster": "입구에 모을 파티",
           "musterNobody": "모으지 않음",
+          "lightMotion": "조명 움직임",
+          "lightMotionOwn": "분위기대로",
           "fog": "전장의 안개를 씌운 상태로 시작",
           "traps": "함정"
         },

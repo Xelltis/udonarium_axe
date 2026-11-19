@@ -47,7 +47,7 @@ import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { trapPresetOf } from '@axe/domain/tabletop/trap-presets';
 import { EYE_HEIGHT_CELLS } from '@axe/domain/tabletop/vision-scene';
-import { applyLightPreset, LightPreset } from '@axe/domain/tabletop/vision-types';
+import { applyLightPreset, type GeneratedLightMotion, LightPreset } from '@axe/domain/tabletop/vision-types';
 
 const TERRAIN_IMAGE_TAG = '地形';
 /** What dangerous ground and traps take from, which is what most sheets call it. */
@@ -159,6 +159,8 @@ export interface DungeonBuildOptions {
    * story's clock over open country. Left out, the table's background picture, as under a roof of rock.
    */
   skyKind?: TableSkyKind;
+  /** How the lights stood on the map move. Left out or empty, each as its kind of lamp does. */
+  lightMotion?: GeneratedLightMotion;
 }
 
 /** One piece and the cell of the finished map it is to be standing on. */
@@ -254,7 +256,7 @@ export class DungeonBuildService {
     this.laySlowGround(table, blocks.slows ?? []);
     this.layHarms(table, blocks.harms ?? []);
     this.setTraps(table, blocks.traps);
-    this.standLights(table, blocks.lights, options.wallHeight, grid);
+    this.standLights(table, blocks.lights, options.wallHeight, grid, options.lightMotion ?? '');
     this.musterParty(table, options.muster ?? []);
 
     return { table, terrainCount: blocks.blocks.length, summary: options.summary };
@@ -573,11 +575,21 @@ export class DungeonBuildService {
     }
   }
 
-  /** A light of its own for each spot, a child of the table so the table takes it away again. */
-  private standLights(table: GameTable, lights: readonly MapLight[], wallHeight: number, grid: MapGrid): void {
+  /**
+   * A light of its own for each spot, a child of the table so the table takes it away again, moving
+   * as its kind of lamp does or as the motion asked for.
+   */
+  private standLights(
+    table: GameTable,
+    lights: readonly MapLight[],
+    wallHeight: number,
+    grid: MapGrid,
+    motion: GeneratedLightMotion
+  ): void {
     for (const light of lights) {
       const source = LightSource.create(this.t(`feature.light.skin.${LIGHT_SKIN[light.kind]}`));
       applyLightPreset(source, LIGHT_PRESET[light.kind]);
+      if (motion) source.lightAnimation = motion;
       if (light.color) source.lightColor = light.color;
       source.lightEnabled = true;
       source.lightDirection = light.kind === 'sconce' ? light.facing : 0;

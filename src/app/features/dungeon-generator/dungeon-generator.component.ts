@@ -12,6 +12,8 @@ import {
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -77,6 +79,11 @@ import { FIELD_SEASONS, type FieldSeason } from '@axe/domain/tabletop/field/fiel
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { MAP_HEAVY_TERRAINS, MAP_MAX_TERRAINS, syncObjectCount } from '@axe/domain/tabletop/map-blocks';
+import {
+  GENERATED_LIGHT_MOTIONS,
+  type GeneratedLightMotion,
+  generatedLightMotionOf,
+} from '@axe/domain/tabletop/vision-types';
 import { DungeonMaterialPickerComponent } from '@axe/features/dungeon-generator/dungeon-material-picker.component';
 import { describeDungeon } from '@axe/features/dungeon-generator/dungeon-notes';
 import { withFieldMaterials } from '@axe/features/dungeon-generator/field-materials';
@@ -161,6 +168,14 @@ export class DungeonGeneratorComponent {
   protected readonly placeStairs = signal(true);
   protected readonly sheerWalls = signal(false);
   protected readonly fogEnabled = signal(false);
+  protected readonly lightMotions = GENERATED_LIGHT_MOTIONS;
+  /**
+   * How the lights stood on the map move, kept in this browser so that a master who finds the
+   * flicker too much has to say so once rather than at every map.
+   */
+  protected readonly lightMotion = signal<GeneratedLightMotion>(
+    generatedLightMotionOf(readLocal(STORAGE_KEYS.generatedLightMotion))
+  );
 
   private readonly wallOverride = signal<DungeonMaterial | null>(null);
   private readonly floorOverride = signal<DungeonMaterial | null>(null);
@@ -387,6 +402,13 @@ export class DungeonGeneratorComponent {
     this.musterParty.set(identifier);
   }
 
+  /** Chooses how the lights stood on the map move, and remembers it in this browser. */
+  protected setLightMotion(motion: GeneratedLightMotion): void {
+    const chosen = generatedLightMotionOf(motion);
+    this.lightMotion.set(chosen);
+    writeLocal(STORAGE_KEYS.generatedLightMotion, chosen || null);
+  }
+
   protected resetMaterials(): void {
     this.wallOverride.set(null);
     this.floorOverride.set(null);
@@ -443,6 +465,7 @@ export class DungeonGeneratorComponent {
           muster: this.musterStands(plan),
           ground: (this.field() ? (plan as FieldPlan).layout.relief : (plan as DungeonPlan).layout.relief) ?? null,
           skyKind: this.field() ? 'clock' : '',
+          lightMotion: this.lightMotion(),
         },
         // A map with nothing standing on it is finished the moment it starts, not NaN done.
         (done, total) => this.progress.set(total > 0 ? Math.round((done / total) * 100) : 100)

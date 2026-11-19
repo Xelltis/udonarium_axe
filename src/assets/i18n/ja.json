@@ -3458,6 +3458,8 @@
           "doubleDoors": "両開きの割合（％）",
           "muster": "入口に集めるパーティ",
           "musterNobody": "集めない",
+          "lightMotion": "灯りの動き",
+          "lightMotionOwn": "雰囲気どおり",
           "fog": "戦場の霧をかけた状態にする",
           "traps": "罠"
         },

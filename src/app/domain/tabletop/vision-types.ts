@@ -18,6 +18,19 @@ export enum LightAnimation {
   NEON = 'neon',
 }
 
+/**
+ * How the lights a map generator stands are to move: each as its kind of lamp does, which is the
+ * empty choice, or every one of them the same way.
+ */
+export const GENERATED_LIGHT_MOTIONS = ['', LightAnimation.NONE, LightAnimation.FLICKER, LightAnimation.PULSE] as const;
+
+export type GeneratedLightMotion = (typeof GENERATED_LIGHT_MOTIONS)[number];
+
+/** Reads a stored way for generated lights to move, anything unknown or missing as each kind's own. */
+export function generatedLightMotionOf(value: unknown): GeneratedLightMotion {
+  return (GENERATED_LIGHT_MOTIONS as readonly unknown[]).includes(value) ? (value as GeneratedLightMotion) : '';
+}
+
 export enum LightPreset {
   CUSTOM = 'custom',
   TORCH = 'torch',

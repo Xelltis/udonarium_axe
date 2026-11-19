@@ -4,6 +4,7 @@ import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { DUNGEON_GRID_SIZE } from '@axe/application/tabletop/dungeon-build.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
@@ -47,6 +48,8 @@ type Panel = DungeonGeneratorComponent & {
   builtTable(): GameTable | null;
   summary(): string;
   canEdit: boolean;
+  lightMotion(): string;
+  setLightMotion(motion: string): void;
   setWall(material: { kind: 'texture'; id: string }): void;
   resetMaterials(): void;
   chooseAtmosphere(id: string): void;
@@ -271,6 +274,27 @@ describe('DungeonGeneratorComponent', () => {
 
     expect(store.getObjects(GameTable).length).toBe(0);
     expect(component.builtTable()).toBeNull();
+  });
+
+  it('stands the lights as the place has them until told otherwise, and remembers the motion chosen in this browser', async () => {
+    localStorage.removeItem(STORAGE_KEYS.generatedLightMotion);
+    try {
+      expect(component.lightMotion()).toBe('');
+      component.setLightMotion('none');
+      expect(localStorage.getItem(STORAGE_KEYS.generatedLightMotion)).toBe('none');
+      component.roomCount.set(3);
+      await component.generate();
+      const lights = component.builtTable()!.lightSources;
+      expect(lights.length).toBeGreaterThan(0);
+      expect(lights.every((light) => light.lightAnimation === 'none')).toBe(true);
+
+      const next = TestBed.createComponent(DungeonGeneratorComponent).componentInstance as Panel;
+      expect(next.lightMotion()).toBe('none');
+      next.setLightMotion('');
+      expect(localStorage.getItem(STORAGE_KEYS.generatedLightMotion)).toBeNull();
+    } finally {
+      localStorage.removeItem(STORAGE_KEYS.generatedLightMotion);
+    }
   });
 
   it('builds one table and remembers it', async () => {
