@@ -385,7 +385,7 @@ export class Table3dService {
   /**
    * The current read under each block drawn as a model, kept for the water it was read from by where
    * the block stood then, so a block that has not moved over water that has not changed is not read
-   * again as another block opens or changes.
+   * again as another block opens or changes. Only the blocks drawn as models now are kept.
    */
   private readonly currentsRead = new WeakMap<
     ReadonlyMap<number, WaterCell>,
@@ -403,11 +403,11 @@ export class Table3dService {
     const cells = this.waterCells.everyCell();
     if (!grid || cells.size < 1 || models.length < 1) return models;
     const currents = new Map<string, WaterCurrent>();
-    const read = this.currentsRead.get(cells) ?? new Map<string, { at: string; current: WaterCurrent | null }>();
-    this.currentsRead.set(cells, read);
+    const read = this.currentsRead.get(cells);
+    const kept = new Map<string, { at: string; current: WaterCurrent | null }>();
     for (const { terrain } of this.terrainsDrawnAsModels()) {
       const at = `${terrain.location.x},${terrain.location.y},${terrain.width},${terrain.depth},${terrain.rotate}`;
-      let known = read.get(terrain.identifier);
+      let known = read?.get(terrain.identifier);
       if (known?.at !== at) {
         const under: WaterCell[] = [];
         forEachCellUnder(grid, terrain, (index) => {
@@ -415,10 +415,11 @@ export class Table3dService {
           if (cell) under.push(cell);
         });
         known = { at, current: currentOf(under) };
-        read.set(terrain.identifier, known);
       }
+      kept.set(terrain.identifier, known);
       if (known.current) currents.set(terrain.identifier, known.current);
     }
+    this.currentsRead.set(cells, kept);
     if (currents.size < 1) return models;
     return models.map((model) => {
       const current = currents.get(model.owner);
