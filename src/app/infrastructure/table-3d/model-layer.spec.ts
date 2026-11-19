@@ -543,6 +543,36 @@ describe('ModelLayer', () => {
     layer.dispose();
   });
 
+  it('measures the copy for a piece as its twin was read, each part its own mesh, however the twin stands posed since', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const scene = new Group();
+    scene.add(new Mesh(new BoxGeometry(1, 2, 1), new MeshStandardMaterial()));
+    type Loaded = { gltf: { scene: Group }; size: Vector3; foot: Vector3; parts: { mesh: Mesh; within: Matrix4 }[] };
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, Loaded | null>;
+      variantOf: (other: Loaded, moonlit: boolean) => Loaded;
+    };
+    vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
+    layer.set([knight({ owner: 'tower', kind: 'terrain' })]);
+    await vi.waitFor(() => expect(internals.loaded.get('blob:knight')).toBeTruthy());
+    const block = internals.loaded.get('blob:knight')!;
+    block.gltf.scene.children[0].position.set(3, 1, 0);
+    block.gltf.scene.updateMatrixWorld(true);
+
+    const piece = internals.variantOf(block, false);
+
+    expect([piece.size, piece.foot]).toEqual([block.size, block.foot]);
+    expect(piece.parts.map((part) => part.within)).toEqual(block.parts.map((part) => part.within));
+    expect(piece.parts[0].mesh).toBe(piece.gltf.scene.children[0]);
+    expect(piece.parts[0].mesh).not.toBe(block.parts[0].mesh);
+    layer.dispose();
+  });
+
   it('reads a model drawn for a piece apart from one drawn for a block, greying only the block by moonlight', () => {
     const layer = new ModelLayer(
       () => undefined,

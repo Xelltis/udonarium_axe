@@ -606,7 +606,8 @@ export class ModelLayer {
   /**
    * A copy of a model read for a piece made of the one read for a block, or the other way round: its
    * meshes' shapes, its pictures and its motions shared with the other, its materials its own, covered
-   * for the moonlight as this copy is drawn (`moonlit`).
+   * for the moonlight as this copy is drawn (`moonlit`), and its measure the other's (see
+   * {@link measuredAs}).
    */
   private variantOf(other: LoadedModel, moonlit: boolean): LoadedModel {
     const scene = cloneSkinned(other.gltf.scene) as Group;
@@ -619,7 +620,7 @@ export class ModelLayer {
       };
       object.material = Array.isArray(object.material) ? object.material.map(ownCopy) : ownCopy(object.material);
     });
-    return measured({ scene, animations: other.gltf.animations });
+    return measuredAs(other, scene);
   }
 
   private settle(key: string): void {
@@ -658,6 +659,23 @@ function disposeMaterialsOf(root: Object3D): void {
     if (!(object instanceof Mesh)) return;
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
   });
+}
+
+/**
+ * A copy of a model's scene, made by cloning it, measured as the model was when it was read: its size,
+ * its foot and its parts the model's, each part the copy's own mesh at the same place in the walk of
+ * the scene (see `meshesOf`). A model is measured once, as it stands when read, so a copy made as the
+ * other stands posed by a motion stands as the other does. A copy whose meshes do not answer the
+ * model's one for one is measured as it stands.
+ */
+function measuredAs(other: LoadedModel, scene: Group): LoadedModel {
+  const copies = meshesOf(scene);
+  const placeOf = new Map<Object3D, number>(meshesOf(other.gltf.scene).map((mesh, index) => [mesh, index]));
+  const parts = other.parts.map((part) => ({ ...part, mesh: copies[placeOf.get(part.mesh) ?? -1] }));
+  if (copies.length !== placeOf.size || !parts.every((part) => part.mesh instanceof Mesh)) {
+    return measured({ scene, animations: other.gltf.animations });
+  }
+  return { ...other, gltf: { scene, animations: other.gltf.animations }, parts: parts as ModelPart[] };
 }
 
 /** A model read and made over for the scene as the layer keeps it: its size and foot as it stands, and its parts as made. */
