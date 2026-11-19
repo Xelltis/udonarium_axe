@@ -768,6 +768,46 @@ function touchesCell(piece: DungeonRect, cell: DungeonPoint): boolean {
 }
 
 describe('rows of seats facing the far end of a room', () => {
+  it('faces away from the way in out of the rooms, though a way into a room next door opens on another side', () => {
+    const width = 16;
+    const height = 12;
+    const cells = new Uint8Array(width * height).fill(DungeonCell.Rock);
+    const nave = { x: 2, y: 2, w: 7, h: 7, index: 0, role: DungeonRoomRole.Hall };
+    const vestry = { x: 10, y: 2, w: 3, h: 3, index: 1, role: DungeonRoomRole.Chamber };
+    for (const room of [nave, vestry]) {
+      for (let y = room.y; y < room.y + room.h; y++) {
+        for (let x = room.x; x < room.x + room.w; x++) cells[y * width + x] = DungeonCell.Room;
+      }
+    }
+    cells[9 * width + 5] = DungeonCell.Door;
+    cells[10 * width + 5] = DungeonCell.Corridor;
+    cells[3 * width + 9] = DungeonCell.Door;
+    const layout = {
+      width,
+      height,
+      cells,
+      rooms: [nave, vestry],
+      doors: [],
+      doorLeaves: [],
+      links: [],
+      entrance: { x: 5, y: 10 },
+      exit: { x: 11, y: 3 },
+      mouth: null,
+      keyRoomIndex: -1,
+      seed: 1,
+    } as DungeonLayout;
+
+    const placed = furnishRooms(
+      layout,
+      [{ piece: 'barrel', arrangement: 'rows', roles: ['hall'], every: 0, back: 'crate' }],
+      seededRandom(1)
+    );
+
+    const altar = placed.find((piece) => piece.piece === 'crate')!;
+    expect(altar.y).toBe(nave.y);
+    expect(placed.filter((piece) => piece.piece === 'barrel').every((pew) => pew.facing === 180)).toBe(true);
+  });
+
   it('stands the back piece against the wall across from the way in facing the room, and rows of seats facing it with an aisle', () => {
     let rooms = 0;
     for (const seed of SEEDS) {

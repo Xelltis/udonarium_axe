@@ -834,14 +834,15 @@ class Furnisher {
   }
 
   /**
-   * Rows of seats facing the far end of the room from the side of it with the most ways in, as pews
-   * face an altar: the plan's back piece stands against the middle of that far wall facing the room,
+   * Rows of seats facing the far end of the room from the side of it it is come into by, as pews face
+   * an altar across from a church's door (see {@link wayInWeight}): the plan's back piece stands against
+   * the middle of that far wall facing the room,
    * and the rows run across the room every other cell from the second in front of it to the second
    * short of the way in, an aisle left down the middle. A seat stands only clear of every way through
    * the edge of the room, and only where the room's floor stays one piece.
    */
   rows(plan: FurnishingPlan, room: DungeonRoom): void {
-    const ways = (['n', 'e', 's', 'w'] as const).map((side) => ({ side, count: this.waysOnSide(room, side) }));
+    const ways = (['n', 'e', 's', 'w'] as const).map((side) => ({ side, count: this.wayInWeight(room, side) }));
     const near = ways.reduce((best, way) => (way.count > best.count ? way : best)).side;
     const far = OPPOSITE[near];
     const across = far === 'n' || far === 's';
@@ -865,16 +866,30 @@ class Furnisher {
     }
   }
 
-  /** How many ways through the edge of a room open on one side of it. */
-  private waysOnSide(room: DungeonRoom, side: Way): number {
-    let ways = 0;
+  /**
+   * How much a side of a room counts as the side it is come into by: by the ways through it out of the
+   * rooms, to a passage or a street, before any number of ways into a room next door, and then by how
+   * many of either there are. A church's nave is come into by its door from the street, not by the
+   * vestry's door.
+   */
+  private wayInWeight(room: DungeonRoom, side: Way): number {
+    let out = 0;
+    let through = 0;
     const span = side === 'n' || side === 's' ? room.w : room.h;
+    const step = WAY_STEPS[side];
     for (let offset = 0; offset < span; offset++) {
       const x = side === 'n' || side === 's' ? room.x + offset : side === 'w' ? room.x - 1 : room.x + room.w;
       const y = side === 'e' || side === 'w' ? room.y + offset : side === 'n' ? room.y - 1 : room.y + room.h;
-      if (this.opens(x, y)) ways++;
+      if (!this.opens(x, y)) continue;
+      if (this.inSomeRoom(x + step.dx, y + step.dy)) through++;
+      else out++;
     }
-    return ways;
+    return out * (span + 1) + through;
+  }
+
+  /** Whether a cell lies inside one of the place's rooms. */
+  private inSomeRoom(x: number, y: number): boolean {
+    return this.layout.rooms.some((room) => x >= room.x && y >= room.y && x < room.x + room.w && y < room.y + room.h);
   }
 
   /**
