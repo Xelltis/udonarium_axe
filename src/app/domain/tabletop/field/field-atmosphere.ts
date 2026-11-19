@@ -902,16 +902,16 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
    * The town below a castle that stands off the board, at dusk: the castle's wall along the top of
    * the board with its gate and its banners, cobbled streets from the gate, and a market square round
    * a fountain. Every building has its rooms, furnished as what it is, and a few trees grow in the
-   * yards left between them. Lanterns burn by the doors and the lamp posts glow.
+   * grass of the yards left between them. Lanterns burn by the doors and the lamp posts glow.
    */
   castleTown: {
     id: 'castleTown',
-    defaultGround: 'packed_earth',
+    defaultGround: 'steppe',
     defaultProp: 'wall_timber',
     relief: 12,
     damp: 0,
     bands: [
-      { upTo: 1, texture: 'packed_earth' },
+      { upTo: 1, texture: 'steppe' },
       { upTo: 1, texture: 'stone_paving_small' },
       { upTo: 1, texture: 'stone_paving_big' },
       { upTo: 1, texture: 'wood_plank' },
