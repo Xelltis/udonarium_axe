@@ -2,6 +2,7 @@ import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
   ModelLayer,
   modelPartsOf,
+  modelReadKeyOf,
   partPlacementsOf,
   placedPartsOf,
   placementOf,
@@ -511,6 +512,25 @@ describe('placementOf', () => {
 });
 
 describe('ModelLayer', () => {
+  it('reads a model drawn for a piece apart from one drawn for a block, greying only the block by moonlight', () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const read = vi
+      .spyOn(layer as unknown as { read: (...args: unknown[]) => void }, 'read')
+      .mockImplementation(() => undefined);
+
+    layer.set([knight(), knight({ owner: 'tower', kind: 'terrain' })]);
+
+    expect(read.mock.calls.map(([key, url, , moonlit]) => [key, url, moonlit])).toEqual([
+      ['blob:knight#piece', 'blob:knight', false],
+      ['blob:knight', 'blob:knight', true],
+    ]);
+    layer.dispose();
+  });
+
   /** A model of one mesh that plays the motions named, read at once in place of a file. */
   function layerOf(motions: readonly string[]): ModelLayer {
     const layer = new ModelLayer(
@@ -526,7 +546,7 @@ describe('ModelLayer', () => {
       foot: new Vector3(0, 0, 0),
       animated: true,
     };
-    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', loaded);
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), loaded);
     return layer;
   }
 
@@ -591,7 +611,7 @@ describe('ModelLayer', () => {
     shape.setIndex([...Array(12).keys()]);
     const scene = new Group();
     scene.add(new Mesh(shape));
-    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), {
       gltf: { scene, animations: [] },
       size: new Vector3(1, 2, 1),
       foot: new Vector3(0, 0, 0),
@@ -622,7 +642,7 @@ describe('ModelLayer', () => {
       );
       const body = new Mesh(new BufferGeometry());
       const wheel = new Mesh(new BufferGeometry());
-      (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+      (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), {
         gltf: { scene: new Group(), animations: [] },
         size: MADE.size,
         foot: new Vector3(),

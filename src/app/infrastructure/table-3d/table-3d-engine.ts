@@ -321,7 +321,7 @@ class ThreeTableEngine implements Table3dEngine {
   /** How hard lightning lights the scene now, from 0 to 1. */
   private flash = 0;
   private readonly models = new ModelLayer(
-    (material) => this.veil.cover(material, 'lit'),
+    (material, moonlit) => this.veil.cover(material, 'lit', moonlit),
     () => {
       this.piecesMoved();
       this.needsFrame();

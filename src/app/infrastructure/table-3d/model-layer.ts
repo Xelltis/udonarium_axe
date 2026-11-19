@@ -1,5 +1,6 @@
 import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
@@ -203,7 +204,7 @@ export class ModelLayer {
   private disposed = false;
 
   constructor(
-    private readonly dress: (material: Material) => void,
+    private readonly dress: (material: Material, moonlit: boolean) => void,
     private readonly arrived: () => void,
     private readonly renderer: () => WebGPURenderer,
     private readonly spoutsMoved: (spouts: readonly WaterSpout[]) => void = () => undefined
@@ -343,7 +344,7 @@ export class ModelLayer {
         one &&
         one.url === stood.url &&
         (one.cutFaces ?? '') === stood.cut &&
-        (one.ownCopy || this.loaded.get(one.url)?.animated)
+        (one.ownCopy || this.loaded.get(modelReadKeyOf(one))?.animated)
       ) {
         continue;
       }
@@ -355,11 +356,12 @@ export class ModelLayer {
     }
     const flocks = new Map<string, TableWorldModel[]>();
     for (const model of this.laid) {
-      const loaded = this.loaded.get(model.url);
-      if (loaded === undefined) this.read(model.url, isAppModel(model.model.identifier));
+      const key = modelReadKeyOf(model);
+      const loaded = this.loaded.get(key);
+      if (loaded === undefined) this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model));
       if (!loaded) continue;
       if (loaded.animated || model.ownCopy) this.stand(model, loaded);
-      else flocks.set(model.url, [...(flocks.get(model.url) ?? []), model]);
+      else flocks.set(key, [...(flocks.get(key) ?? []), model]);
     }
     for (const [url, herd] of this.herds) {
       if (flocks.has(url)) continue;
@@ -374,7 +376,7 @@ export class ModelLayer {
 
   /** Tells where the spouts of the models laid stand on the table, whenever they are not where they were last told. */
   private tellSpouts(): void {
-    const spouts = this.laid.flatMap((model) => spoutsOf(model, this.loaded.get(model.url) ?? null));
+    const spouts = this.laid.flatMap((model) => spoutsOf(model, this.loaded.get(modelReadKeyOf(model)) ?? null));
     const told = JSON.stringify(spouts);
     if (told === this.toldSpouts) return;
     this.toldSpouts = told;
@@ -387,7 +389,7 @@ export class ModelLayer {
    */
   private noteUnused(): void {
     const read = [...this.loaded].filter(([, loaded]) => loaded !== null).map(([url]) => url);
-    this.unused.note(read, new Set(this.laid.map((model) => model.url)), performance.now());
+    this.unused.note(read, new Set(this.laid.map(modelReadKeyOf)), performance.now());
     this.sweepLater();
   }
 
@@ -528,36 +530,37 @@ export class ModelLayer {
 
   /**
    * Reads a model from bytes held here, its materials made over for the scene, and asks for a frame
-   * once it is read. The glow it was made with is kept only for one of the app's own (`ownGlow`).
+   * once it is read, kept by `key` (see `modelReadKeyOf`). The glow it was made with is kept only for one of
+   * the app's own (`ownGlow`), and it is greyed by the world's moonlight only as a block (`moonlit`).
    */
-  private read(url: string, ownGlow: boolean): void {
-    if (this.loading.has(url)) return;
-    this.loading.add(url);
-    this.parse(url, ownGlow).then(
+  private read(key: string, url: string, ownGlow: boolean, moonlit: boolean): void {
+    if (this.loading.has(key)) return;
+    this.loading.add(key);
+    this.parse(url, ownGlow, moonlit).then(
       (loaded) => {
         if (this.disposed) {
           if (loaded) disposeObject(loaded.gltf.scene);
           return;
         }
-        this.loaded.set(url, loaded);
-        this.settle(url);
+        this.loaded.set(key, loaded);
+        this.settle(key);
       },
       () => {
         if (this.disposed) return;
-        this.loaded.set(url, null);
-        this.settle(url);
+        this.loaded.set(key, null);
+        this.settle(key);
       }
     );
   }
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
-  private async parse(url: string, ownGlow: boolean): Promise<LoadedModel | null> {
+  private async parse(url: string, ownGlow: boolean, moonlit: boolean): Promise<LoadedModel | null> {
     const read = await this.reader.read(url);
     if (!read) return null;
     const gltf = { scene: read.scene, animations: read.animations };
     const drawn = new Set<Texture>();
     const undrawn = new Set<Texture>();
-    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn, ownGlow));
+    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn, ownGlow, moonlit));
     for (const picture of drawn) undrawn.delete(picture);
     releaseReadPictures(drawn, undrawn);
     for (const picture of undrawn) picture.dispose();
@@ -590,8 +593,8 @@ export class ModelLayer {
     };
   }
 
-  private settle(url: string): void {
-    this.loading.delete(url);
+  private settle(key: string): void {
+    this.loading.delete(key);
     this.lay();
     this.arrived();
   }
@@ -600,19 +603,44 @@ export class ModelLayer {
    * Makes a mesh's material over as the scene's own, as `sceneMaterialOf` makes it: lit as the board
    * is, veiled and darkened with it, throwing shadows.
    */
-  private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>, ownGlow: boolean): void {
+  private makeOver(
+    object: Object3D,
+    drawn: Set<Texture>,
+    undrawn: Set<Texture>,
+    ownGlow: boolean,
+    moonlit: boolean
+  ): void {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
     object.receiveShadow = true;
     const madeOver = (material: Material) => {
       const lit = sceneMaterialOf(material, drawn, undrawn, ownGlow);
-      this.dress(lit);
+      this.dress(lit, moonlit);
       material.dispose();
       return lit;
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
 }
+
+/**
+ * Whether a model is drawn for a block of the world, which the moonlight greys at night, rather than for
+ * a piece, whose colours the players tell pieces apart by and which keeps them.
+ */
+function moonlitFor(model: TableWorldModel): boolean {
+  return model.kind === Terrain.aliasName;
+}
+
+/**
+ * What a read model is kept by: where its bytes are, and for a piece apart from a block, since the two
+ * are made over differently for the moonlight (see `moonlitFor`) and one model may be drawn as both.
+ */
+export function modelReadKeyOf(model: TableWorldModel): string {
+  return moonlitFor(model) ? model.url : `${model.url}${PIECE_READ}`;
+}
+
+/** What is added to the key a model drawn for a piece is kept by. */
+const PIECE_READ = '#piece';
 
 /**
  * A material of a model made over as the scene's own, lit as the board is: its colour, its picture
