@@ -74,6 +74,16 @@ export class BackgroundSound extends GameObject {
     return sound;
   }
 
+  /**
+   * Starts a sound looping for the whole room where it is not playing, a sound stopped before
+   * included, and leaves one playing as it is, where it stands in the order. What asks for a sound to
+   * be on, rather than started again, goes through here: a scene put on, or an AI asking for it.
+   */
+  static keepPlaying(audioIdentifier: string): BackgroundSound | null {
+    const known = BackgroundSound.of(audioIdentifier);
+    return known?.isOn ? known : BackgroundSound.start(audioIdentifier);
+  }
+
   /** The background sounds playing in the room, in the order they were started. */
   static playing(): BackgroundSound[] {
     return ObjectStore.instance

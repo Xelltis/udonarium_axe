@@ -223,9 +223,7 @@ export class BoardSceneService {
     for (const sound of BackgroundSound.playing()) {
       if (!kept.has(sound.audioIdentifier)) sound.stop();
     }
-    for (const identifier of kept) {
-      if (!BackgroundSound.of(identifier)?.isOn) BackgroundSound.start(identifier);
-    }
+    for (const identifier of kept) BackgroundSound.keepPlaying(identifier);
   }
 
   /**

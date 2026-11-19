@@ -155,7 +155,7 @@ export class AgentGmTools {
         this.jukebox.play(audio);
         break;
       case 'ambient':
-        if (!BackgroundSound.of(audio.identifier)) BackgroundSound.start(audio.identifier);
+        BackgroundSound.keepPlaying(audio.identifier);
         break;
       case 'sound_effect':
         SoundEffect.play(audio);

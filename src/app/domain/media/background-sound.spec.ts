@@ -134,6 +134,32 @@ describe('BackgroundSound', () => {
     });
   });
 
+  describe('keepPlaying()', () => {
+    it('starts a sound stopped before again', () => {
+      fakeLoopPlayers();
+      AudioStorage.instance.add(makeAudio('brook'));
+      BackgroundSound.start('brook')!.stop();
+
+      expect(BackgroundSound.keepPlaying('brook')!.isOn).toBe(true);
+    });
+
+    it('leaves a sound playing where it stands in the order', () => {
+      fakeLoopPlayers();
+      AudioStorage.instance.add(makeAudio('wind'));
+      AudioStorage.instance.add(makeAudio('brook'));
+      const now = vi.spyOn(Date, 'now');
+      now.mockReturnValue(1000);
+      BackgroundSound.start('wind');
+      now.mockReturnValue(2000);
+      BackgroundSound.start('brook');
+      now.mockReturnValue(3000);
+
+      BackgroundSound.keepPlaying('wind');
+
+      expect(BackgroundSound.playing().map((sound) => sound.audioIdentifier)).toEqual(['wind', 'brook']);
+    });
+  });
+
   describe('stop()', () => {
     it('lets the sound die away and keeps it in the room, marked stopped', () => {
       const players = fakeLoopPlayers();

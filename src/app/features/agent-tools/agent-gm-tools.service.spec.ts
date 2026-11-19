@@ -166,6 +166,18 @@ describe('AgentGmTools', () => {
     await expect(call('play_sound', { kind: 'bgm', sound: '無音' })).rejects.toThrow('There is no sound named 無音');
   });
 
+  it('starts an ambient sound stopped before again, from a player’s seat as from the master’s', async () => {
+    vi.spyOn(TestBed.inject(AudioStorage), 'audios', 'get').mockReturnValue([
+      { identifier: 'rain-agent', name: '雨' },
+    ] as AudioFile[]);
+    const keep = vi.spyOn(BackgroundSound, 'keepPlaying').mockReturnValue(null);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    await call('play_sound', { kind: 'ambient', sound: '雨' });
+
+    expect(keep).toHaveBeenCalledWith('rain-agent');
+  });
+
   it('says a scenario text marked as the AI’s, as the lines it sends are', async () => {
     const main = new ChatTab();
     main.name = 'メイン';
