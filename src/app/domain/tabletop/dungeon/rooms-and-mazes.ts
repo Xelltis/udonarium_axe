@@ -1,3 +1,4 @@
+import { SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import {
   cellAt,
   clampCorridorWidth,
@@ -38,11 +39,6 @@ export interface RoomsAndMazesParams {
 
 const PLACEMENT_TRIES_PER_ROOM = 60;
 
-/** Every cell and the eight round it, as steps. */
-const NEIGHBOURHOOD: readonly [number, number][] = [-1, 0, 1].flatMap((dy) =>
-  [-1, 0, 1].map((dx): [number, number] => [dx, dy])
-);
-
 /**
  * The round of a round place, cell by cell: whether each cell lies outside it, and whether each is
  * kept from being dug, which besides those outside are the cells of the wall round it, the ones
@@ -65,15 +61,10 @@ export function roundOf(
     outside[cell] = Math.hypot(centre.x - middle.x, centre.y - middle.y) > reach ? 1 : 0;
   });
   const kept = new Uint8Array(width * height);
+  const out = (x: number, y: number) => x < 0 || y < 0 || x >= width || y >= height || outside[y * width + x] === 1;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      kept[y * width + x] = NEIGHBOURHOOD.some(([dx, dy]) => {
-        const nx = x + dx;
-        const ny = y + dy;
-        return nx < 0 || ny < 0 || nx >= width || ny >= height || outside[ny * width + nx] === 1;
-      })
-        ? 1
-        : 0;
+      kept[y * width + x] = out(x, y) || SQUARE_STEPS_WITH_CORNERS.some(([dx, dy]) => out(x + dx, y + dy)) ? 1 : 0;
     }
   }
   return { outside, kept };

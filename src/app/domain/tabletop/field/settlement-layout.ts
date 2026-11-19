@@ -1,5 +1,6 @@
 import { clamp } from '@axe/core/util/clamp';
 import { seededRandom } from '@axe/core/util/seeded-random';
+import { OPPOSITE_SIDE, type Side, SIDE_STEPS, TURN_TO_FACE } from '@axe/domain/tabletop/cell-steps';
 import type { DungeonFurnishing } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import type { MapLightKind, MapPoint, MapRect } from '@axe/domain/tabletop/map-blocks';
 
@@ -835,14 +836,14 @@ const LAMP_SPACING = 8;
 const BANNER_SPACING = 6;
 
 /** The ways out of a cell, as steps, and which way a fixture there is turned to face each. */
-const FACINGS = {
-  n: { dx: 0, dy: -1, turn: 180 },
-  s: { dx: 0, dy: 1, turn: 0 },
-  e: { dx: 1, dy: 0, turn: 270 },
-  w: { dx: -1, dy: 0, turn: 90 },
-} as const;
+const FACINGS: Readonly<Record<Side, { readonly dx: number; readonly dy: number; readonly turn: number }>> = {
+  n: { ...SIDE_STEPS.n, turn: TURN_TO_FACE.n },
+  s: { ...SIDE_STEPS.s, turn: TURN_TO_FACE.s },
+  e: { ...SIDE_STEPS.e, turn: TURN_TO_FACE.e },
+  w: { ...SIDE_STEPS.w, turn: TURN_TO_FACE.w },
+};
 
-type Facing = keyof typeof FACINGS;
+type Facing = Side;
 
 /** The buildings a town has one of where it has the room, in the order the best lots go to them. */
 const TOWN_LANDMARKS: readonly TownBuildingKind[] = [
@@ -1027,7 +1028,7 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
 
 /**
  * The market square: a fountain in the middle, stalls along its top and bottom facing into it but
- * for where the high street runs through, a bench on each side of the fountain facing it, boxes of
+ * for where the high street runs through, a bench east and west of the fountain facing it, boxes of
  * flowers at its corners and lamp posts beside them.
  */
 function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number, fill: number): void {
@@ -1053,11 +1054,11 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     }
   }
   const middle = { x: fountain.x + 1, y: fountain.y + 1 };
-  for (const way of ['n', 's', 'e', 'w'] as const) {
+  for (const way of ['e', 'w'] as const) {
     const step = FACINGS[way];
     const at = { x: middle.x + step.dx * 3, y: middle.y + step.dy * 3 };
-    if (way === 'n' || way === 's' ? false : at.x >= plaza.x + 1 && at.x < plaza.x + plaza.w - 1) {
-      plot.stand({ kind: 'bench', rect: { ...at, w: 1, h: 1 }, turn: FACINGS[OPPOSITE_FACING[way]].turn });
+    if (at.x >= plaza.x + 1 && at.x < plaza.x + plaza.w - 1) {
+      plot.stand({ kind: 'bench', rect: { ...at, w: 1, h: 1 }, turn: FACINGS[OPPOSITE_SIDE[way]].turn });
     }
   }
   for (const [x, y] of [
@@ -1077,8 +1078,6 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     plot.stand({ kind: 'lampPost', rect: { x, y, w: 1, h: 1 }, turn: 0 });
   }
 }
-
-const OPPOSITE_FACING: Readonly<Record<Facing, Facing>> = { n: 's', s: 'n', e: 'w', w: 'e' };
 
 /** Lamp posts along the edges of the high street and the cross street, every so many cells, out of the square. */
 function layStreetLamps(plot: Plot, high: MapRect, cross: MapRect, onStreet: (x: number, y: number) => boolean): void {

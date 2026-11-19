@@ -1,5 +1,12 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
-import { ORTHOGONAL_STEPS, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
+import {
+  OPPOSITE_SIDE,
+  ORTHOGONAL_STEPS,
+  type Side,
+  SIDE_STEPS,
+  SQUARE_STEPS_WITH_CORNERS,
+  TURN_TO_FACE,
+} from '@axe/domain/tabletop/cell-steps';
 import {
   cellAt,
   DungeonCell,
@@ -390,23 +397,15 @@ const PIPE_SHORTEST = 3;
 /** The most pieces in one run against a wall, unless a plan says otherwise. */
 const WALL_RUN_MOST = 3;
 
-type Way = 'n' | 'e' | 's' | 'w';
-
-/** The step from a cell to the cell on each side of it. */
-const WAY_STEPS: Readonly<Record<Way, { dx: number; dy: number }>> = {
-  n: { dx: 0, dy: -1 },
-  e: { dx: 1, dy: 0 },
-  s: { dx: 0, dy: 1 },
-  w: { dx: -1, dy: 0 },
-};
+type Way = Side;
 
 /**
  * How far a piece made facing south is turned, clockwise as the board is looked down on, to stand
- * with its back to a wall on each side of it.
+ * with its back to a wall on one side of it: to face the side across.
  */
-const BACK_TO: Readonly<Record<Way, number>> = { n: 0, e: 90, s: 180, w: 270 };
-
-const OPPOSITE: Readonly<Record<Way, Way>> = { n: 's', s: 'n', e: 'w', w: 'e' };
+function backTo(wall: Way): number {
+  return TURN_TO_FACE[OPPOSITE_SIDE[wall]];
+}
 
 /**
  * How far the end of a pipe is turned, clockwise as the board is looked down on, for the pipe to
@@ -692,7 +691,7 @@ class Furnisher {
         const on = at < length - 1 ? stepTo(cell, cells[at + 1]) : null;
         if (!back || !on) {
           this.put('pipeEnd', cell.x, cell.y, 1, 1, undefined, PIPE_END_TURNS[(back ?? on)!]);
-        } else if (back === OPPOSITE[on]) {
+        } else if (back === OPPOSITE_SIDE[on]) {
           const valved = ++lengths % every === 0;
           this.put(
             valved ? 'pipeValve' : plan.piece,
@@ -758,12 +757,12 @@ class Furnisher {
 
       const start = at(0, bar);
       const wall: Way = along ? (far === 1 ? 's' : 'n') : far === 1 ? 'e' : 'w';
-      this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length, undefined, 0, BACK_TO[wall]);
+      this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length, undefined, 0, backTo(wall));
       for (const seat of seats) this.put(plan.seat!, seat.x, seat.y, 1, 1);
       if (backed) {
         for (let offset = 0; offset < length; offset++) {
           const cell = at(offset, shelf);
-          this.put(plan.back!, cell.x, cell.y, 1, 1, undefined, 0, BACK_TO[wall]);
+          this.put(plan.back!, cell.x, cell.y, 1, 1, undefined, 0, backTo(wall));
         }
       }
       return;
@@ -795,7 +794,7 @@ class Furnisher {
       const run: DungeonFurnishing[] = [];
       for (let at = first; at + w <= cells.length && run.length < most; at += w) {
         const rect = againstWall(side, cells[at], w, d);
-        if (!this.standsClear(rect) || !this.putRect(room, piece, rect, BACK_TO[side])) {
+        if (!this.standsClear(rect) || !this.putRect(room, piece, rect, backTo(side))) {
           if (run.length > 0) break;
           continue;
         }
@@ -845,7 +844,7 @@ class Furnisher {
   rows(plan: FurnishingPlan, room: DungeonRoom): void {
     const ways = (['n', 'e', 's', 'w'] as const).map((side) => ({ side, count: this.wayInWeight(room, side) }));
     const near = ways.reduce((best, way) => (way.count > best.count ? way : best)).side;
-    const far = OPPOSITE[near];
+    const far = OPPOSITE_SIDE[near];
     const across = far === 'n' || far === 's';
     const depth = across ? room.h : room.w;
     const breadth = across ? room.w : room.h;
@@ -855,14 +854,14 @@ class Furnisher {
     };
     if (plan.back) {
       const altar = { ...cellAtDepth(0, Math.floor(breadth / 2)), w: 1, h: 1 };
-      if (this.standsClear(altar)) this.putRect(room, plan.back, altar, BACK_TO[far]);
+      if (this.standsClear(altar)) this.putRect(room, plan.back, altar, backTo(far));
     }
     const aisle = Math.floor(breadth / 2);
     for (let fromFar = 2; fromFar <= depth - 3; fromFar += 2) {
       for (let along = 0; along < breadth; along++) {
         if (along === aisle || (breadth % 2 === 0 && along === aisle - 1)) continue;
         const seat = { ...cellAtDepth(fromFar, along), w: 1, h: 1 };
-        if (this.standsClear(seat)) this.putRect(room, plan.piece, seat, BACK_TO[near]);
+        if (this.standsClear(seat)) this.putRect(room, plan.piece, seat, backTo(near));
       }
     }
   }
@@ -877,7 +876,7 @@ class Furnisher {
     let out = 0;
     let through = 0;
     const span = side === 'n' || side === 's' ? room.w : room.h;
-    const step = WAY_STEPS[side];
+    const step = SIDE_STEPS[side];
     for (let offset = 0; offset < span; offset++) {
       const x = side === 'n' || side === 's' ? room.x + offset : side === 'w' ? room.x - 1 : room.x + room.w;
       const y = side === 'e' || side === 'w' ? room.y + offset : side === 'n' ? room.y - 1 : room.y + room.h;
@@ -902,7 +901,7 @@ class Furnisher {
     const floor = roomCells(this.layout, room).map((cell) => ({ x: cell % width, y: Math.floor(cell / width) }));
     const stretches: { side: Way; cells: { x: number; y: number }[] }[] = [];
     for (const side of ['n', 'e', 's', 'w'] as const) {
-      const { dx, dy } = WAY_STEPS[side];
+      const { dx, dy } = SIDE_STEPS[side];
       const acrossX = dx === 0;
       const cells = floor
         .filter((cell) => cellAt(this.layout, cell.x + dx, cell.y + dy) === DungeonCell.Rock)
