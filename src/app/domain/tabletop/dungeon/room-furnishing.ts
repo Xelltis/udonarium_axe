@@ -1,5 +1,5 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
-import { SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
+import { ORTHOGONAL_STEPS, SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import {
   cellAt,
   DungeonCell,
@@ -134,13 +134,14 @@ const HEAP_MOST = 4;
 /** The fewest pieces heaped in a room that has room for any. */
 const HEAPED_LEAST = 2;
 
-/** The four sides of a cell, as the step to the cell on that side and whether a wall there runs across the board. */
-const SIDES: readonly { dx: number; dy: number; across: boolean }[] = [
-  { dx: 0, dy: -1, across: true },
-  { dx: 0, dy: 1, across: true },
-  { dx: -1, dy: 0, across: false },
-  { dx: 1, dy: 0, across: false },
-];
+/**
+ * The four sides of a cell, as the step to the cell on that side: up, down, left and right. A heap is
+ * grown by its neighbours drawn in this order, which the sewer a seed makes is made by.
+ */
+const SIDES: readonly { dx: number; dy: number }[] = [0, 2, 3, 1].map((side) => {
+  const [dx, dy] = ORTHOGONAL_STEPS[side];
+  return { dx, dy };
+});
 
 /** The fewest cells a pipe runs: an end, one length and an end. */
 const PIPE_SHORTEST = 3;
