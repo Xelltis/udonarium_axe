@@ -246,6 +246,11 @@ describe('lintChatSyntax', () => {
       expect(codes('&!X/状態=毒/3')).toEqual(['buff.unwritable']);
     });
 
+    it('finds a value written in that `:` asks to leave once the buff goes', () => {
+      expect(lint('&!変化/:名前メモ=3/3')[0]).toMatchObject({ severity: 'error', code: 'buff.lastingWords' });
+      expect(codes('&!毒/:HP-1/3')).toEqual([]);
+    });
+
     it('finds the half-width item a buff can move before a full-width one nothing is written into, as laying it does', () => {
       const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
       group.appendChild(DataElement.create('ＨＰ', '', { type: 'check' }));

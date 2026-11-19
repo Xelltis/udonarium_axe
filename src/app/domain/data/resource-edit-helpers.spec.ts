@@ -1272,6 +1272,17 @@ describe('resource-edit-helpers', () => {
       expect(said(':HP=炎').edit.operator).toBe('=');
     });
 
+    it('writes in no value that `:` asks to leave once the buff goes, as words or one of the choices', () => {
+      expect(buff('&!変化/:属性=3/3')).toBe(
+        '変化を付与 :属性=3/3R (属性に書く値はバフが外れると戻るため、「:」では残せません)    '
+      );
+      expect(character.status.getText('属性')).toBe('無属性');
+      expect(buff('&!昇格/:段位=2/3')).toBe(
+        '昇格を付与 :段位=2/3R (段位に書く値はバフが外れると戻るため、「:」では残せません)    '
+      );
+      expect(character.status.getText('段位')).toBe('1');
+    });
+
     it('writes words into every field that holds them, by the chat as by a buff', () => {
       const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
       for (const [name, fieldType] of [

@@ -83,6 +83,7 @@ export const CHAT_LINT_CODES = [
   'buff.makesStatus',
   'buff.notAChoice',
   'buff.notWords',
+  'buff.lastingWords',
   'buff.unwritable',
   'buff.noNumber',
   'buff.notFound',
@@ -521,7 +522,8 @@ function lintResource(
 /**
  * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at, by what laying it
  * comes to on each (see {@link buffRequestOutcome}), as the report of laying it says: words that are
- * none of a choice's, or go into an item that holds numbers, first, whichever piece they are for; then
+ * none of a choice's, go into an item that holds numbers, or are a value written in that `:` asks to
+ * leave, first, whichever piece they are for; then
  * an item nothing is written into; then an item a piece lacks and none is made for; then an item with
  * no number to move; and an item made for the buff.
  */
@@ -541,6 +543,7 @@ function lintBuffStatus(
   }
   const any = (kind: BuffRequestOutcome['kind']) => outcomes.some((outcome) => outcome.kind === kind);
   if (any('notWords')) return add(span, 'error', 'buff.notWords', params);
+  if (any('lastingWords')) return add(span, 'error', 'buff.lastingWords', params);
   if (any('unwritable')) return add(span, 'warning', 'buff.unwritable', params);
   if (any('missing')) return add(span, 'warning', 'buff.missingStatus', params);
   if (any('noNumber')) add(span, 'warning', 'buff.noNumber', params);

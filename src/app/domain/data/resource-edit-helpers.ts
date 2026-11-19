@@ -614,6 +614,8 @@ function refusalOf(outcome: BuffRequestOutcome, request: ParsedBuffModifierReque
       return notAChoiceText(request.target, request.text ?? String(request.amount), outcome.choices);
     case 'notWords':
       return `${request.target}は数の項目なので「${request.text}」は書けません`;
+    case 'lastingWords':
+      return `${request.target}に書く値はバフが外れると戻るため、「:」では残せません`;
     case 'unwritable':
       return `${request.target}には書けません`;
     case 'noNumber':

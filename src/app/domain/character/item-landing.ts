@@ -111,17 +111,25 @@ export function namedRequest<T extends { readonly target: string }>(
 }
 
 /**
+ * Where what a `&!` buff asks for lands (see {@link ItemLanding}), or nowhere for one that is to stay
+ * once the buff goes, asked for by `:`, where it would be written in as a value, as words or one of a
+ * choice's, which a buff puts back as it goes rather than leaving.
+ */
+export type RequestLanding = ItemLanding | { readonly kind: 'lastingWords' };
+
+/**
  * What laying a `&!` request comes to on a piece: it moves a number or writes words (`lands`), an item
  * is made for it (`makes`), or it lands nowhere, for words none of a choice's, words into an item that
- * holds numbers, an item nothing is written into (a check box or a picture), a slot or an item with no
- * number to move, or an item the sheet has none of and none is made for. The chat's lint and the
- * report of laying the buff both go by it.
+ * holds numbers, a value written in that `:` asks to leave, an item nothing is written into (a check
+ * box or a picture), a slot or an item with no number to move, or an item the sheet has none of and
+ * none is made for. The chat's lint and the report of laying the buff both go by it.
  */
 export type BuffRequestOutcome =
   | { readonly kind: 'lands' }
   | { readonly kind: 'makes' }
   | { readonly kind: 'notAChoice'; readonly choices: readonly string[] }
   | { readonly kind: 'notWords' }
+  | { readonly kind: 'lastingWords' }
   | { readonly kind: 'unwritable' }
   | { readonly kind: 'noNumber' }
   | { readonly kind: 'missing' };
@@ -157,14 +165,17 @@ export function buffRequestOutcome(
 /**
  * Where what a `&!` buff asks for lands on a sheet, on the item its name finds (see
  * {@link namedRequest}): its words as words, an amount it holds the item at as an amount written, and
- * one it moves the item by as a move.
+ * one it moves the item by as a move; nowhere where one `:` asks to leave would be written in as a
+ * value (see {@link RequestLanding}).
  */
 export function landingOfRequest(
   sheet: ItemsLandedOn,
-  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text'>
-): ItemLanding {
+  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text' | 'lasting'>
+): RequestLanding {
   const { target } = namedRequest(sheet, request);
-  if (request.text !== undefined) return sheet.landingOf(target, request.slot, request.text, 'words');
-  const as = request.operator === 'set' ? 'amount' : 'moveBy';
-  return sheet.landingOf(target, request.slot, String(request.amount), as);
+  const landing =
+    request.text !== undefined
+      ? sheet.landingOf(target, request.slot, request.text, 'words')
+      : sheet.landingOf(target, request.slot, String(request.amount), request.operator === 'set' ? 'amount' : 'moveBy');
+  return request.lasting && landing.kind === 'words' ? { kind: 'lastingWords' } : landing;
 }
