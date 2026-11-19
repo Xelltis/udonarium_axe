@@ -136,11 +136,16 @@ export class SkyLayer {
 
   /**
    * Stands the sky round the eye, in the scene's space, and turns it for the way the camera looks, so
-   * that a table looked steeply down on stands before the sky as seen looking at the horizon.
+   * that a table looked steeply down on stands before the sky as seen looking at the horizon. An eye
+   * among the pieces (`amongPieces`) sees the sky as it stands, its horizon where the world's is, as
+   * does one with no camera to look by.
    */
-  follow(eye: Vector3, camera?: Camera): void {
+  follow(eye: Vector3, camera?: Camera, amongPieces = false): void {
     this.dome.position.copy(eye);
-    if (!camera) return;
+    if (!camera || amongPieces) {
+      this.level.value.identity();
+      return;
+    }
     camera.getWorldDirection(looking);
     sideways.setFromMatrixColumn(camera.matrixWorld, 0);
     const halfView = camera instanceof PerspectiveCamera ? (camera.fov * Math.PI) / 360 : FLAT_HALF_VIEW;
@@ -153,9 +158,8 @@ export class SkyLayer {
     (this.dome.material as Material).dispose();
   }
 
-  /** The sun and the moon, where a point of the dome shows them. */
-  private bodies() {
-    const way = this.drawnWay();
+  /** The sun and the moon, where a point of the dome the sky is drawn the way `way` from shows them. */
+  private bodies(way: Node<'vec3'>) {
     const sunShows = smoothstep(-0.03, 0.02, this.sun.y);
     const sunDisc = smoothstep(SUN_DISC, SUN_DISC + 0.00005, max(dot(way, this.sun), 0)).mul(sunShows);
     const moonShows = smoothstep(-0.03, 0.02, this.moon.y).mul(this.stars.mul(0.7).add(0.3));
@@ -182,7 +186,7 @@ export class SkyLayer {
       .mul(this.stars)
       .mul(clamp(up.mul(3), 0, 1));
     return this.skyBase(way)
-      .add(this.bodies())
+      .add(this.bodies(way))
       .add(vec3(star, star, star));
   }
 

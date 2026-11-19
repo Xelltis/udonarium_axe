@@ -757,7 +757,7 @@ class ThreeTableEngine implements Table3dEngine {
       drawing.far = depth.far;
       drawing.updateProjectionMatrix();
     }
-    this.skyDome.follow(at, this.camera);
+    this.skyDome.follow(at, this.camera, view.nearPx !== undefined);
     this.sprites.face(view.axes);
     this.fadePx = view.fadePx ?? 0;
     this.water.lookFromAmongPieces(view.nearPx !== undefined);
