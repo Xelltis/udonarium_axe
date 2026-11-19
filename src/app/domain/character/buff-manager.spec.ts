@@ -2,7 +2,12 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { BuffManager } from '@axe/domain/character/buff-manager';
-import { parseBuffModifierRequest, readBuffModifier } from '@axe/domain/character/buff-modifier';
+import {
+  parseBuffModifierRequest,
+  readBuffModifier,
+  readBuffTextModifier,
+  writeBuffTextModifier,
+} from '@axe/domain/character/buff-modifier';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { noteRanOut } from '@axe/domain/tabletop/turn-history';
@@ -1281,6 +1286,39 @@ describe('BuffManager', () => {
       sheeted.restore(step);
       expect(status.getText('属性')).toBe('炎');
       sheeted.delete('X');
+      expect(status.getText('属性')).toBe('無属性');
+    });
+
+    it('keeps words written by hand after the buffs went, as one of them is put back', () => {
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      grant('A', '属性', '=', '炎', 1);
+      const step = sheeted.snapshot();
+      const due = sheeted.dueAt('roundEnd', owner);
+      sheeted.expireAt('roundEnd', owner);
+      expect(status.getText('属性')).toBe('無属性');
+      status.setText('属性', '風');
+
+      sheeted.putBack(due);
+      expect(status.getText('属性')).toBe('風');
+      sheeted.restore(step);
+      expect(status.getText('属性')).toBe('風');
+    });
+
+    it('lays two buffs that wrote at the same order, as two devices may at once, by their rows', () => {
+      grant('A', '属性', '=', '炎');
+      grant('B', '属性', '=', '水');
+      const [lower, upper] = [sheeted.find('A')!, sheeted.find('B')!].sort((a, b) =>
+        a.identifier < b.identifier ? -1 : 1
+      );
+      const below = readBuffTextModifier(lower)!;
+      writeBuffTextModifier(lower, { ...below, before: '無属性' });
+      writeBuffTextModifier(upper, { ...readBuffTextModifier(upper)!, before: below.text, order: below.order });
+      status.setText('属性', readBuffTextModifier(upper)!.text);
+      status.noteWordsLeft('属性', readBuffTextModifier(upper)!.text);
+
+      sheeted.removeWhole(lower);
+      expect(status.getText('属性')).toBe(readBuffTextModifier(upper)!.text);
+      sheeted.removeWhole(upper);
       expect(status.getText('属性')).toBe('無属性');
     });
 

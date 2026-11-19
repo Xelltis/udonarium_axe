@@ -264,27 +264,28 @@ export class BuffManager {
   /**
    * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
    * now stands on what this one found there, so it puts that back when it goes. Where none did, the item
-   * goes back to what it held, unless someone wrote into it by hand (see {@link writtenByHand}). Once no
-   * buff writes into it, an item none wrote into by hand is the sheet's own again.
+   * goes back to what it held, unless someone wrote into it by hand (see {@link writtenByHand}), and
+   * what it holds then is what the buffs left, even once none writes into it: words written after,
+   * while none stands, are told as written by hand should one of them be put back.
    */
   private revertWords(data: DataElement, words: BuffTextModifier): void {
     clearBuffTextModifier(data);
     const status = this.status();
     if (!status) return;
-    const above = this.nextWordsOn(words.target, words.order);
+    const above = this.nextWordsOn(words.target, words.order, data.identifier);
     if (above) {
       writeBuffTextModifier(above.row, { ...above.written, before: words.before });
       return;
     }
     if (this.writtenByHand(words.target)) return;
     status.setText(words.target, words.before);
-    status.noteWordsLeft(words.target, this.wordsOn(words.target).length > 0 ? words.before : null);
+    status.noteWordsLeft(words.target, words.before);
   }
 
   /**
-   * Whether someone wrote into an item by hand while buffs wrote into it: it holds other words than
-   * those the buffs last left there, as noted on the item. What was written by hand stays as it is,
-   * whichever of the buffs goes or comes back, until a buff writes into the item again.
+   * Whether someone wrote into an item by hand since buffs last wrote into it: it holds other words
+   * than those the buffs last left there, as noted on the item. What was written by hand stays as it
+   * is, whichever of the buffs goes or comes back, until a buff writes into the item again.
    */
   private writtenByHand(target: string): boolean {
     const status = this.status();
@@ -709,17 +710,32 @@ export class BuffManager {
     status.noteWordsLeft(target, below);
   }
 
-  /** The buffs that write into an item, in the order they wrote, with what each wrote. */
+  /**
+   * The buffs that write into an item, in the order they wrote, with what each wrote. Two that wrote at
+   * the same order, as two devices laying one each at once may, go by their rows' identifiers, the
+   * same way on every device.
+   */
   private wordsOn(target: string): { row: DataElement; written: BuffTextModifier }[] {
     return this.list()
       .map((row) => ({ row, written: readBuffTextModifier(row) }))
       .filter((each): each is { row: DataElement; written: BuffTextModifier } => each.written?.target === target)
-      .sort((a, b) => a.written.order - b.written.order);
+      .sort((a, b) => a.written.order - b.written.order || compareIdentifiers(a.row, b.row));
   }
 
-  /** The buff that wrote words into the item next after an order, with what it wrote; none where none did. */
-  private nextWordsOn(target: string, order: number): { row: DataElement; written: BuffTextModifier } | null {
-    return this.wordsOn(target).find(({ written }) => written.order > order) ?? null;
+  /**
+   * The buff that wrote words into the item next after one that wrote at an order, its row the one
+   * named, in the order {@link wordsOn} lays them; none where none did.
+   */
+  private nextWordsOn(
+    target: string,
+    order: number,
+    identifier: string
+  ): { row: DataElement; written: BuffTextModifier } | null {
+    return (
+      this.wordsOn(target).find(
+        ({ row, written }) => written.order > order || (written.order === order && row.identifier > identifier)
+      ) ?? null
+    );
   }
 
   /** Whether the item a buff moves or writes into was made by a buff for itself. */
@@ -826,6 +842,11 @@ export class BuffManager {
       data.value = Number.isFinite(standing) ? settle(standing, round) : round;
     });
   }
+}
+
+/** Two buff rows in the order of their identifiers. */
+function compareIdentifiers(a: DataElement, b: DataElement): number {
+  return a.identifier < b.identifier ? -1 : a.identifier > b.identifier ? 1 : 0;
 }
 
 /** Whether this is one buff rather than something buffs are kept in. */
