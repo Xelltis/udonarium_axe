@@ -475,6 +475,15 @@ describe('Table3dService', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     TestBed.tick();
     expect(lowestOf()).toBe(0);
+
+    // A block moved where no water lands leaves the water as it was worked out, not laid again.
+    const waterOf = () => (scene as unknown as { water: () => unknown }).water();
+    const laid = waterOf();
+    block.location = { name: 'table', x: 400, y: 350 };
+    block.update();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+    expect(waterOf()).toBe(laid);
     table.destroy();
   });
 

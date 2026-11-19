@@ -39,7 +39,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
-import { sameFields } from '@axe/core/util/same-fields';
+import { sameEntries, sameFields } from '@axe/core/util/same-fields';
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { effectGroundOf } from '@axe/domain/effect/scene/effect-ground';
 import { EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
@@ -56,7 +56,12 @@ import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { blockFootprintOf } from '@axe/domain/tabletop/terrain-footprint';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
-import { waterColumnsOf, waterFallsOf, type WaterSpout } from '@axe/domain/tabletop/water/water-falls';
+import {
+  type WaterColumn,
+  waterColumnsOf,
+  waterFallsOf,
+  type WaterSpout,
+} from '@axe/domain/tabletop/water/water-falls';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
@@ -372,8 +377,8 @@ export class Table3dService {
     const weather = this.ambience.weather();
     const underwater = weather?.kind === 'underwater' ? weather : null;
     const moving = this.motion.enabled();
-    const spouts = this.spouts();
-    if (!grid || (cells.size < 1 && spouts.length < 1)) return tableWaterOf(grid, cells, [], [], moving, underwater);
+    const columns = this.spoutColumns();
+    if (!grid || (cells.size < 1 && columns.length < 1)) return tableWaterOf(grid, cells, [], [], moving, underwater);
     return tableWaterOf(
       grid,
       cells,
@@ -381,12 +386,25 @@ export class Table3dService {
       waterShoreOf(grid, cells, this.waterCells.bankGroundOf),
       moving,
       underwater,
-      {
-        falls: waterFallsOf(grid, cells),
-        columns: waterColumnsOf(grid, cells, spouts, (x, y, belowPx) => this.pieces.landingPxAt(x, y, belowPx)),
-      }
+      { falls: waterFallsOf(grid, cells), columns }
     );
   });
+
+  /**
+   * The water pouring from the spouts, down to what it lands on. What it lands on is read from the
+   * blocks over each point, which follows every block of the table; worked out apart and told on only
+   * where a column changes, a block moved anywhere else leaves the rest of the water as it was drawn.
+   */
+  private readonly spoutColumns = computed<readonly WaterColumn[]>(
+    () => {
+      const grid = this.waterCells.grid();
+      const spouts = this.spouts();
+      if (!grid || spouts.length < 1) return [];
+      const cells = this.waterCells.cells();
+      return waterColumnsOf(grid, cells, spouts, (x, y, belowPx) => this.pieces.landingPxAt(x, y, belowPx));
+    },
+    { equal: sameEntries }
+  );
 
   /**
    * The rain, storm or snow falling through the air over the table in view, up to its walls or ten
