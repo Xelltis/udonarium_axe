@@ -248,6 +248,11 @@ const LEAST_ROOM = 3;
 const LARGE_TENT_TRIES = 300;
 const SMALL_TENT_TRIES = 450;
 
+/** How a wall of one kind is written in `SettlementLayout.walls`: one more than its place in `SETTLEMENT_WALL_KINDS`. */
+function wallMark(kind: SettlementWallKind): number {
+  return SETTLEMENT_WALL_KINDS.indexOf(kind) + 1;
+}
+
 /** A board of cells being laid out: the zone of each and what stands on it. */
 class Plot {
   readonly zones: Uint8Array;
@@ -339,16 +344,19 @@ class Plot {
    * may stand against.
    */
   clearBut(rect: MapRect, kind: SettlementWallKind): boolean {
-    const mark = SETTLEMENT_WALL_KINDS.indexOf(kind) + 1;
     for (let y = rect.y - 1; y <= rect.y + rect.h; y++) {
       for (let x = rect.x - 1; x <= rect.x + rect.w; x++) {
         const edge = x < rect.x || y < rect.y || x >= rect.x + rect.w || y >= rect.y + rect.h;
         if (!edge || !this.inside(x, y)) continue;
-        const cell = y * this.width + x;
-        if (this.taken[cell] && this.walls[cell] !== mark) return false;
+        if (this.taken[y * this.width + x] && !this.wallOf(x, y, kind)) return false;
       }
     }
     return true;
+  }
+
+  /** Whether a wall of one kind stands on a cell. */
+  wallOf(x: number, y: number, kind: SettlementWallKind): boolean {
+    return this.inside(x, y) && this.walls[y * this.width + x] === wallMark(kind);
   }
 
   take(rect: MapRect): void {
@@ -365,7 +373,7 @@ class Plot {
 
   /** Stands a wall on cells, the latest laid on a cell standing there, and takes the cells. */
   wall(cells: readonly MapPoint[], kind: SettlementWallKind): void {
-    const mark = SETTLEMENT_WALL_KINDS.indexOf(kind) + 1;
+    const mark = wallMark(kind);
     for (const { x, y } of cells) {
       if (!this.inside(x, y)) continue;
       this.walls[y * this.width + x] = mark;
@@ -835,16 +843,6 @@ const LAMP_SPACING = 8;
 /** How many cells of the town wall are left between one banner and the next. */
 const BANNER_SPACING = 6;
 
-/** The ways out of a cell, as steps, and which way a fixture there is turned to face each. */
-const FACINGS: Readonly<Record<Side, { readonly dx: number; readonly dy: number; readonly turn: number }>> = {
-  n: { ...SIDE_STEPS.n, turn: TURN_TO_FACE.n },
-  s: { ...SIDE_STEPS.s, turn: TURN_TO_FACE.s },
-  e: { ...SIDE_STEPS.e, turn: TURN_TO_FACE.e },
-  w: { ...SIDE_STEPS.w, turn: TURN_TO_FACE.w },
-};
-
-type Facing = Side;
-
 /** The buildings a town has one of where it has the room, in the order the best lots go to them. */
 const TOWN_LANDMARKS: readonly TownBuildingKind[] = [
   'guardhouse',
@@ -897,7 +895,7 @@ const ROOMY_BUILDINGS: Readonly<Partial<Record<TownBuildingKind, { readonly shor
 /** A lot cut from a block between streets, and the side of it a street runs along, if any does. */
 interface TownLot {
   readonly rect: MapRect;
-  readonly facing: Facing;
+  readonly facing: Side;
   readonly onStreet: boolean;
 }
 
@@ -942,7 +940,7 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
   );
   for (let x = 1; x < width - 1; x += BANNER_SPACING) {
     if (inTower(x, 0) || x === gateX || x === gateX + 1) continue;
-    plot.stand({ kind: 'banner', rect: { x, y: 0, w: 1, h: 1 }, turn: FACINGS.s.turn });
+    plot.stand({ kind: 'banner', rect: { x, y: 0, w: 1, h: 1 }, turn: TURN_TO_FACE.s });
   }
   plot.take({ x: 0, y: 1, w: width, h: 1 });
   plot.paint({ x: gateX, y: 1, w: 2, h: 2 }, SETTLEMENT_ZONES.road);
@@ -992,7 +990,7 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
     const inside = (lot.rect.w - 2) * (lot.rect.h - 2);
     const count = Math.min(between(rooms[0], rooms[1], rng), Math.max(1, Math.floor(inside / floor)));
     const built = houseWithRooms(plot, lot.rect, count, wall, lot.facing, rng);
-    const step = FACINGS[lot.facing];
+    const step = SIDE_STEPS[lot.facing];
     plot.keepClear(built.entrance.x + step.dx, built.entrance.y + step.dy);
     const front = { x: built.entrance.x - step.dx, y: built.entrance.y - step.dy };
     const names = TOWN_ROOM_KINDS[kind];
@@ -1011,10 +1009,8 @@ function layCastleTown(plot: Plot, rng: () => number, fill: number): void {
     }));
     const sign = TOWN_SIGNS[kind];
     if (sign && wall === 'timberWall') {
-      const hung = sides.find(
-        ({ x, y }) => plot.walls[y * width + x] === SETTLEMENT_WALL_KINDS.indexOf('timberWall') + 1
-      );
-      if (hung) plot.stand({ kind: sign, rect: { ...hung, w: 1, h: 1 }, turn: step.turn });
+      const hung = sides.find(({ x, y }) => plot.wallOf(x, y, 'timberWall'));
+      if (hung) plot.stand({ kind: sign, rect: { ...hung, w: 1, h: 1 }, turn: TURN_TO_FACE[lot.facing] });
     }
     if (lot.onStreet && lanterns++ % 2 === 0) {
       const lit = sides
@@ -1044,8 +1040,8 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
   const wanted = Math.max(1, Math.round(2 * fill));
   const clearOfHigh = (x: number) => x + 1 < high.x || x > high.x + high.w - 1;
   for (const [y, turn] of [
-    [plaza.y, FACINGS.s.turn],
-    [plaza.y + plaza.h - 1, FACINGS.n.turn],
+    [plaza.y, TURN_TO_FACE.s],
+    [plaza.y + plaza.h - 1, TURN_TO_FACE.n],
   ] as const) {
     let laid = 0;
     for (let x = plaza.x + 1; x + 1 < plaza.x + plaza.w - 1 && laid < wanted; x += 3) {
@@ -1056,10 +1052,10 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
   }
   const middle = { x: fountain.x + 1, y: fountain.y + 1 };
   for (const way of ['e', 'w'] as const) {
-    const step = FACINGS[way];
+    const step = SIDE_STEPS[way];
     const at = { x: middle.x + step.dx * 3, y: middle.y + step.dy * 3 };
     if (at.x >= plaza.x + 1 && at.x < plaza.x + plaza.w - 1) {
-      plot.stand({ kind: 'bench', rect: { ...at, w: 1, h: 1 }, turn: FACINGS[OPPOSITE_SIDE[way]].turn });
+      plot.stand({ kind: 'bench', rect: { ...at, w: 1, h: 1 }, turn: TURN_TO_FACE[OPPOSITE_SIDE[way]] });
     }
   }
   for (const [x, y] of [
@@ -1068,7 +1064,7 @@ function laySquare(plot: Plot, plaza: MapRect, high: MapRect, rng: () => number,
     [plaza.x, plaza.y + plaza.h - 2],
     [plaza.x + plaza.w - 1, plaza.y + plaza.h - 2],
   ]) {
-    plot.stand({ kind: 'planter', rect: { x, y, w: 1, h: 1 }, turn: x === plaza.x ? FACINGS.e.turn : FACINGS.w.turn });
+    plot.stand({ kind: 'planter', rect: { x, y, w: 1, h: 1 }, turn: x === plaza.x ? TURN_TO_FACE.e : TURN_TO_FACE.w });
   }
   for (const [x, y] of [
     [plaza.x, plaza.y],
@@ -1152,7 +1148,7 @@ function lotFacing(
   const count = (cells: MapPoint[]) =>
     cells.filter(({ x, y }) => onStreet(x, y)).length * plot.width * plot.height +
     cells.filter(({ x, y }) => open(x, y)).length;
-  const sides: { facing: Facing; street: number }[] = [
+  const sides: { facing: Side; street: number }[] = [
     { facing: 's', street: count(Array.from({ length: rect.w }, (_, i) => ({ x: rect.x + i, y: rect.y + rect.h }))) },
     { facing: 'n', street: count(Array.from({ length: rect.w }, (_, i) => ({ x: rect.x + i, y: rect.y - 1 }))) },
     { facing: 'e', street: count(Array.from({ length: rect.h }, (_, i) => ({ x: rect.x + rect.w, y: rect.y + i }))) },

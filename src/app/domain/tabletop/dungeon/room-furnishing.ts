@@ -397,13 +397,11 @@ const PIPE_SHORTEST = 3;
 /** The most pieces in one run against a wall, unless a plan says otherwise. */
 const WALL_RUN_MOST = 3;
 
-type Way = Side;
-
 /**
  * How far a piece made facing south is turned, clockwise as the board is looked down on, to stand
  * with its back to a wall on one side of it: to face the side across.
  */
-function backTo(wall: Way): number {
+function backTo(wall: Side): number {
   return TURN_TO_FACE[OPPOSITE_SIDE[wall]];
 }
 
@@ -411,7 +409,7 @@ function backTo(wall: Way): number {
  * How far the end of a pipe is turned, clockwise as the board is looked down on, for the pipe to
  * leave it each way: its model is made with the pipe leaving to the west.
  */
-const PIPE_END_TURNS: Readonly<Record<Way, number>> = { w: 0, n: 90, e: 180, s: 270 };
+const PIPE_END_TURNS: Readonly<Record<Side, number>> = { w: 0, n: 90, e: 180, s: 270 };
 
 /**
  * How far a bend is turned, clockwise as the board is looked down on, to join each pair of ways: its
@@ -424,7 +422,7 @@ const PIPE_ELBOW_TURNS: Readonly<Record<string, number>> = { sw: 0, nw: 90, en: 
  * wall from that cell, rightwards or downwards, and so many out from the wall into the room.
  */
 function againstWall(
-  side: Way,
+  side: Side,
   cell: { x: number; y: number },
   along: number,
   out: number
@@ -442,7 +440,7 @@ function againstWall(
 }
 
 /** The way from one cell to the cell beside it. */
-function stepTo(from: { x: number; y: number }, to: { x: number; y: number }): Way {
+function stepTo(from: { x: number; y: number }, to: { x: number; y: number }): Side {
   if (to.x > from.x) return 'e';
   if (to.x < from.x) return 'w';
   return to.y > from.y ? 's' : 'n';
@@ -756,7 +754,7 @@ class Furnisher {
       if (!ends.every((cell) => this.walkable(cell.x, cell.y))) continue;
 
       const start = at(0, bar);
-      const wall: Way = along ? (far === 1 ? 's' : 'n') : far === 1 ? 'e' : 'w';
+      const wall: Side = along ? (far === 1 ? 's' : 'n') : far === 1 ? 'e' : 'w';
       this.put(plan.piece, start.x, start.y, along ? length : 1, along ? 1 : length, undefined, 0, backTo(wall));
       for (const seat of seats) this.put(plan.seat!, seat.x, seat.y, 1, 1);
       if (backed) {
@@ -872,7 +870,7 @@ class Furnisher {
    * many of either there are. A church's nave is come into by its door from the street, not by the
    * vestry's door.
    */
-  private wayInWeight(room: DungeonRoom, side: Way): number {
+  private wayInWeight(room: DungeonRoom, side: Side): number {
     let out = 0;
     let through = 0;
     const step = SIDE_STEPS[side];
@@ -894,10 +892,10 @@ class Furnisher {
    * The stretches of a room's floor along its walls: the cells with wall on one side, gathered into
    * runs of cells side by side along that wall.
    */
-  private wallStretches(room: DungeonRoom): { side: Way; cells: { x: number; y: number }[] }[] {
+  private wallStretches(room: DungeonRoom): { side: Side; cells: { x: number; y: number }[] }[] {
     const width = this.layout.width;
     const floor = roomCells(this.layout, room).map((cell) => ({ x: cell % width, y: Math.floor(cell / width) }));
-    const stretches: { side: Way; cells: { x: number; y: number }[] }[] = [];
+    const stretches: { side: Side; cells: { x: number; y: number }[] }[] = [];
     for (const side of ['n', 'e', 's', 'w'] as const) {
       const { dx, dy } = SIDE_STEPS[side];
       const acrossX = dx === 0;
@@ -988,7 +986,7 @@ class Furnisher {
   }
 
   private doorsOnSide(room: DungeonRoom, along: boolean, far: boolean): number {
-    const side: Way = along ? (far ? 's' : 'n') : far ? 'e' : 'w';
+    const side: Side = along ? (far ? 's' : 'n') : far ? 'e' : 'w';
     return cellsPast(room, side, true).filter(({ x, y }) => {
       const cell = cellAt(this.layout, x, y);
       return cell === DungeonCell.Door || cell === DungeonCell.Corridor;
@@ -1000,7 +998,7 @@ class Furnisher {
  * The cells just past one side of a room, along it: the wall or the way through it beside each cell of
  * that side, and, with `corners`, the two at its ends as well.
  */
-function cellsPast(room: DungeonRoom, side: Way, corners = false): { x: number; y: number }[] {
+function cellsPast(room: DungeonRoom, side: Side, corners = false): { x: number; y: number }[] {
   const along = side === 'n' || side === 's';
   const span = along ? room.w : room.h;
   const cells: { x: number; y: number }[] = [];
