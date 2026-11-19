@@ -533,6 +533,7 @@ function grantCalculatedBuff(
     effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
   });
 
+  character.buffs.sweepMadeItems();
   const data = character.buffs.find(name);
   if (!data) return '';
   const verb = stacking ? '加算' : '付与';

@@ -32,6 +32,9 @@ import { landingOfRequest } from '@axe/domain/character/item-landing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
+/** The attribute of a piece's buffs that keeps the latest order words were written at. */
+const WORDS_WRITTEN = 'cs-buff-words-written';
+
 /** Everything one buff is, as plain data, so a step of the round can be put back as it was. */
 export interface BuffSnapshotEntry {
   name: string;
@@ -146,6 +149,7 @@ export class BuffManager {
   remove(data: DataElement): void {
     this.revertModifier(data);
     data.destroy();
+    this.sweepMadeItems();
   }
 
   /**
@@ -196,14 +200,23 @@ export class BuffManager {
 
   /** Records on the buff the words it wrote and what the item held before, as the latest to write. */
   private recordWords(data: DataElement, target: string, words: string, before: string): BuffTextModifier {
-    const modifier: BuffTextModifier = { target, text: words, before, order: this.lastWordsOrder() + 1 };
+    const modifier: BuffTextModifier = { target, text: words, before, order: this.nextWordsOrder() };
     writeBuffTextModifier(data, modifier);
     return modifier;
   }
 
-  /** How late the latest buff of the piece that writes words wrote them, or 0 where none does. */
-  private lastWordsOrder(): number {
-    return this.list().reduce((latest, row) => Math.max(latest, readBuffTextModifier(row)?.order ?? 0), 0);
+  /**
+   * The order the next buff of the piece to write words writes them at: past every order handed out
+   * before, kept on the piece, so a buff laid after another went never shares its order should that
+   * one come back.
+   */
+  private nextWordsOrder(): number {
+    const container = this.ensureContainer();
+    const handed = Number(container?.getAttribute(WORDS_WRITTEN) ?? 0);
+    const standing = this.list().reduce((latest, row) => Math.max(latest, readBuffTextModifier(row)?.order ?? 0), 0);
+    const next = Math.max(Number.isFinite(handed) ? handed : 0, standing) + 1;
+    container?.setAttribute(WORDS_WRITTEN, String(next));
+    return next;
   }
 
   /**
@@ -225,17 +238,21 @@ export class BuffManager {
   }
 
   /**
-   * Takes away the item a buff made for itself, once no buff of the piece moves it or writes into it
-   * any more, and the section such items are kept in once it holds none. An item the sheet had all
-   * along is left.
+   * Takes away every item a buff made for itself that no buff of the piece moves or writes into any
+   * more, one that leaves what it moved included, and the section such items are kept in once it holds
+   * none. Run once whatever took buffs away is done; a buff laid again is reverted and laid without it,
+   * so the item it stands on is kept as it is. An item the sheet had all along is never taken.
    */
-  private dropWhenUnused(target: string): void {
+  sweepMadeItems(): void {
     const status = this.status();
     if (!status?.keepsBuffItems()) return;
-    const used = this.list().some(
-      (row) => readBuffModifier(row)?.target === target || readBuffTextModifier(row)?.target === target
-    );
-    if (!used) status.dropMadeByBuff(target);
+    const used = new Set<string>();
+    for (const row of this.list()) {
+      const target = readBuffModifier(row)?.target ?? readBuffTextModifier(row)?.target;
+      if (target !== undefined) used.add(target);
+    }
+    for (const name of status.madeItemNames()) if (!used.has(name)) status.dropMadeByBuff(name);
+    status.tidyBuffItems();
   }
 
   /**
@@ -321,19 +338,16 @@ export class BuffManager {
 
   /**
    * Lets go of what the buff moved, moving it back unless the buff leaves it moved, and of the words
-   * it wrote, putting back what the item held. An item made for the buff goes once no buff needs it.
+   * it wrote, putting back what the item held. An item made for the buff is left for
+   * {@link sweepMadeItems}, run once the buff has gone rather than as it is laid again.
    */
   private revertModifier(data: DataElement): void {
     const words = readBuffTextModifier(data);
-    if (words) {
-      this.revertWords(data, words);
-      this.dropWhenUnused(words.target);
-    }
+    if (words) this.revertWords(data, words);
     const modifier = readBuffModifier(data);
     if (!modifier) return;
     if (!modifier.lasting) this.status()?.changeValue(modifier.target, modifier.slot, -modifier.applied);
     clearBuffModifier(data);
-    if (!modifier.lasting) this.dropWhenUnused(modifier.target);
   }
 
   /**
@@ -476,6 +490,7 @@ export class BuffManager {
       this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null, entry.made ?? false);
       this.restoreWords(data, entry.words ?? null, entry.made ?? false);
     }
+    this.sweepMadeItems();
   }
 
   /**
@@ -530,6 +545,7 @@ export class BuffManager {
       restored.push(data);
     }
     this.reorder(restored);
+    this.sweepMadeItems();
   }
 
   /** Lays the buffs back in the order they were held, which is the order they are read in. */
@@ -584,47 +600,53 @@ export class BuffManager {
   }
 
   /**
-   * Writes the words a buff wrote back as they stood, with what the item held before them, which is
-   * nothing to do where they stand already. Words it no longer writes are let go of. A buff that wrote
-   * before one standing comes back under it: the item keeps the later buff's words, and the later buff
-   * now stands on these, as it did before this one went. An item made by a buff for these words is made
-   * again where it has gone; any other gone stays gone, and the words with it.
+   * Writes the words a buff wrote back as they stood, and lays the buffs that write into that item in
+   * the order they wrote again (see {@link relinkWords}). Words it no longer writes are let go of. An
+   * item made by a buff for these words is made again where it has gone; any other gone stays gone,
+   * and the words with it.
    */
   private restoreWords(data: DataElement, wanted: BuffTextModifier | null, made: boolean): void {
     const standing = readBuffTextModifier(data);
-    if (standing && wanted && standing.target === wanted.target && standing.text === wanted.text) {
-      writeBuffTextModifier(data, wanted);
-      return;
-    }
-    if (standing) {
-      this.revertWords(data, standing);
-      this.dropWhenUnused(standing.target);
-    }
+    if (standing && (!wanted || standing.target !== wanted.target)) this.revertWords(data, standing);
     if (!wanted) return;
     const status = this.status();
     if (!status) return;
-    if (status.getText(wanted.target) == null && !(made && status.makeForBuff(wanted.target, wanted.text))) return;
-    const later = this.nextWordsOn(wanted.target, wanted.order);
-    if (later) {
-      writeBuffTextModifier(data, { ...wanted, before: later.written.before });
-      writeBuffTextModifier(later.row, { ...later.written, before: wanted.text });
+    if (status.getText(wanted.target) == null && !(made && status.makeForBuff(wanted.target, wanted.text))) {
+      clearBuffTextModifier(data);
       return;
     }
-    status.setText(wanted.target, wanted.text);
     writeBuffTextModifier(data, wanted);
+    this.relinkWords(wanted.target);
+  }
+
+  /**
+   * Lays the buffs that write into an item in the order they wrote: the first stands on what the item
+   * held before any of them, each later one on the words of the one before it, and the item shows the
+   * words of the last. Run as buffs are put back, whichever of them were and in whatever order.
+   */
+  private relinkWords(target: string): void {
+    const chain = this.wordsOn(target);
+    if (chain.length < 1) return;
+    let below = chain[0].written.before;
+    for (const { row, written } of chain) {
+      if (written.before !== below) writeBuffTextModifier(row, { ...written, before: below });
+      below = written.text;
+    }
+    const status = this.status();
+    if (status && status.getText(target) !== below) status.setText(target, below);
+  }
+
+  /** The buffs that write into an item, in the order they wrote, with what each wrote. */
+  private wordsOn(target: string): { row: DataElement; written: BuffTextModifier }[] {
+    return this.list()
+      .map((row) => ({ row, written: readBuffTextModifier(row) }))
+      .filter((each): each is { row: DataElement; written: BuffTextModifier } => each.written?.target === target)
+      .sort((a, b) => a.written.order - b.written.order);
   }
 
   /** The buff that wrote words into the item next after an order, with what it wrote; none where none did. */
   private nextWordsOn(target: string, order: number): { row: DataElement; written: BuffTextModifier } | null {
-    return (
-      this.list()
-        .map((row) => ({ row, written: readBuffTextModifier(row) }))
-        .filter(
-          (each): each is { row: DataElement; written: BuffTextModifier } =>
-            each.written?.target === target && each.written.order > order
-        )
-        .sort((a, b) => a.written.order - b.written.order)[0] ?? null
-    );
+    return this.wordsOn(target).find(({ written }) => written.order > order) ?? null;
   }
 
   /** Whether the item a buff moves or writes into was made by a buff for itself. */

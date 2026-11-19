@@ -1,5 +1,6 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import {
+  buffItemNamesIn,
   dropBuffItem,
   isBuffMadeItem,
   keepsBuffItems,
@@ -349,6 +350,16 @@ export class StatusAccessor {
   /** Whether the sheet keeps any item a buff made for itself, which a sheet seldom does. */
   keepsBuffItems(): boolean {
     return this.detailDataElement !== null && keepsBuffItems(this.detailDataElement);
+  }
+
+  /** Takes away the section items buffs made are kept in, once it holds none. */
+  tidyBuffItems(): void {
+    if (this.detailDataElement) tidyBuffItems(this.detailDataElement);
+  }
+
+  /** The names of the items buffs made for themselves that the sheet keeps. */
+  madeItemNames(): string[] {
+    return this.detailDataElement ? buffItemNamesIn(this.detailDataElement) : [];
   }
 
   /** Whether the item that goes by the name was made by a buff for itself, and is the buff's still. */

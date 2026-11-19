@@ -1297,6 +1297,38 @@ describe('BuffManager', () => {
     describe('as a step is undone', () => {
       const owner = { identifier: 'owner', name: 'テストキャラ' };
 
+      it('lays every buff put back on the item in the order they wrote, however they are listed', () => {
+        grant('ファイア・ウェポン', '属性', '=', '炎');
+        grant('アイス・ウェポン', '属性', '=', '氷');
+        grant('ファイア・ウェポン', '属性', '=', '炎');
+        const standing = sheeted.snapshot();
+        sheeted.removeWhere(() => true);
+        expect(status.getText('属性')).toBe('無属性');
+
+        sheeted.restore(standing);
+        expect(status.getText('属性')).toBe('炎');
+
+        sheeted.delete('ファイア・ウェポン');
+        expect(status.getText('属性')).toBe('氷');
+        sheeted.delete('アイス・ウェポン');
+        expect(status.getText('属性')).toBe('無属性');
+      });
+
+      it('never gives a buff laid after another went the order of the one gone, should it come back', () => {
+        grant('ファイア・ウェポン', '属性', '=', '炎', 1);
+        const due = sheeted.dueAt('roundEnd', owner);
+        sheeted.expireAt('roundEnd', owner);
+        grant('アイス・ウェポン', '属性', '=', '氷', 5);
+
+        sheeted.putBack(due);
+        expect(status.getText('属性')).toBe('氷');
+
+        sheeted.delete('ファイア・ウェポン');
+        expect(status.getText('属性')).toBe('氷');
+        sheeted.delete('アイス・ウェポン');
+        expect(status.getText('属性')).toBe('無属性');
+      });
+
       it('brings back one that wrote under a later one standing without its words, and each puts back what it found', () => {
         grant('ファイア・ウェポン', '属性', '=', '炎', 1);
         grant('アイス・ウェポン', '属性', '=', '氷', 5);
@@ -1405,6 +1437,30 @@ describe('BuffManager', () => {
         expect(status.getValue('物理D増加', 'now')).toBe(2);
         sheeted.delete('物理強化');
         expect(status.getText('物理D増加')).toBeNull();
+      });
+
+      it('keeps an item made while any buff touches it, one that leaves what it moved included, and takes it once none does', () => {
+        grant('鼓舞', '気力', '+', '2');
+        grant('毒', ':気力', '+', '0~-1', 3);
+        sheeted.expireOneRound();
+        expect(status.getValue('気力', 'now')).toBe(1);
+
+        sheeted.delete('鼓舞');
+        expect(status.getValue('気力', 'now')).toBe(-1);
+        sheeted.delete('毒');
+
+        expect(status.getText('気力')).toBeNull();
+        expect(madeSection()).toBeUndefined();
+      });
+
+      it('keeps the item made as the buff that made it is laid again', () => {
+        grant('炎の剣', '武器属性', '=', '炎');
+        const made = detail.getFirstElementByName('武器属性');
+
+        grant('炎の剣', '武器属性', '=', '炎');
+
+        expect(detail.getFirstElementByName('武器属性')).toBe(made);
+        expect(status.getText('武器属性')).toBe('炎');
       });
 
       it('makes none for a buff not asked to, as a status ailment is not', () => {

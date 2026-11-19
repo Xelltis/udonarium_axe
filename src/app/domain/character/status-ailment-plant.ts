@@ -35,6 +35,7 @@ export function plantStatusAilment(
     ...look,
   });
   moveStatusOf(character, ailment);
+  character.buffs.sweepMadeItems();
   emitStatusAilmentPlanted({ characterIdentifier: character.identifier, name: ailment.name });
 }
 

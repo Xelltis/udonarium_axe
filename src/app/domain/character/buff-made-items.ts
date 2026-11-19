@@ -49,6 +49,15 @@ export function isBuffMadeItem(item: DataElement): boolean {
   return section instanceof DataElement && isBuffItemsSection(section);
 }
 
+/** The names of the items buffs made that the sheet keeps where such items are. */
+export function buffItemNamesIn(detail: DataElement): string[] {
+  const section = buffItemsSectionOf(detail);
+  if (!section) return [];
+  return section.children.flatMap((group) =>
+    (group.children as DataElement[]).filter((item) => isBuffMadeItem(item)).map((item) => item.name)
+  );
+}
+
 /**
  * Takes away an item a buff made, and the group and the section that held it once they hold nothing
  * else. Any other item is left where it is.

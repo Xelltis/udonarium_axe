@@ -1141,6 +1141,13 @@ describe('resource-edit-helpers', () => {
       expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
     });
 
+    it('says it made an item only the first time the buff that made it is laid', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      expect(edit('&!炎の剣/武器属性=炎/3')).toContain('武器属性をバフの項目に作りました');
+      expect(edit('&!炎の剣/武器属性=炎/3')).toBe('炎の剣を付与 武器属性=炎/3R    ');
+    });
+
     it('says which choices an item takes where a buff writes another into it', () => {
       const text = applyBuffEdit({ command: '&!構え直し/構え=突撃/3', object: character, targeted: false }, character);
 
