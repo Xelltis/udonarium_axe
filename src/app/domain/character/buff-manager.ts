@@ -148,13 +148,18 @@ export class BuffManager {
    * writes down what the item held, so that goes back. A value held at a number in an item that holds
    * words is written as words.
    *
-   * Where the sheet has no such item, one is made at its foot for the buff, holding nothing and then
-   * moved, or holding the words, and it goes again once no buff needs it. Not for a buff that leaves
-   * its status moved, nor for the far side of a resource, which a made item has none of. Null where
-   * there is no such item and none is made, or the words are not among a choice's, which leaves the
-   * buff a plain note.
+   * Where the sheet has no such item and the buff is to make it, as one written in the chat is, one is
+   * made at its foot for the buff, holding nothing and then moved, or holding the words, and it goes
+   * again once no buff needs it. Not for a buff that leaves its status moved, nor for the far side of a
+   * resource, which a made item has none of; nor for a status ailment, whose status a piece's sheet may
+   * well not have. Null where there is no such item and none is made, or the words are not among a
+   * choice's, which leaves the buff a plain note.
    */
-  applyModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | BuffTextModifier | null {
+  applyModifier(
+    data: DataElement,
+    request: ParsedBuffModifierRequest,
+    makesMissing = false
+  ): BuffModifier | BuffTextModifier | null {
     const status = this.status();
     if (!status) return null;
     const wordy =
@@ -163,9 +168,11 @@ export class BuffManager {
         request.slot === 'now' &&
         status.holdsText(request.target) &&
         status.getValue(request.target, request.slot) == null);
-    if (wordy) return this.writeWords(data, request.target, request.text ?? String(request.amount));
+    if (wordy) return this.writeWords(data, request.target, request.text ?? String(request.amount), makesMissing);
     if (status.getText(request.target) == null) {
-      if (request.lasting || request.slot !== 'now' || !status.makeForBuff(request.target, 0)) return null;
+      if (!makesMissing || request.lasting || request.slot !== 'now' || !status.makeForBuff(request.target, 0)) {
+        return null;
+      }
     }
     const moved = this.moveStatus(request);
     if (moved == null) return null;
@@ -174,16 +181,17 @@ export class BuffManager {
 
   /**
    * Writes words into an item for the buff and records what the item held, making the item where
-   * there is none. Null where the item is a choice and the words are not among its choices.
+   * there is none and the buff is to make it. Null where the item is a choice and the words are not
+   * among its choices, or there is no item and none is made.
    */
-  private writeWords(data: DataElement, target: string, text: string): BuffTextModifier | null {
+  private writeWords(data: DataElement, target: string, text: string, makesMissing: boolean): BuffTextModifier | null {
     const status = this.status();
     if (!status) return null;
     const choices = status.choicesOf(target);
     if (choices && !choices.includes(text)) return null;
     let before = status.getText(target);
     if (before == null) {
-      if (!status.makeForBuff(target, text)) return null;
+      if (!makesMissing || !status.makeForBuff(target, text)) return null;
       before = '';
     } else {
       status.setText(target, text);
@@ -242,11 +250,15 @@ export class BuffManager {
    * holding the same status at a value keeps holding it there, and nothing is moved. Null where the
    * sheet has no such status, as for a buff laid fresh.
    */
-  stackModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | BuffTextModifier | null {
+  stackModifier(
+    data: DataElement,
+    request: ParsedBuffModifierRequest,
+    makesMissing = false
+  ): BuffModifier | BuffTextModifier | null {
     const standing = readBuffModifier(data);
     if (!standing || !movesSameStatus(standing, request)) {
       this.revertModifier(data);
-      return this.applyModifier(data, request);
+      return this.applyModifier(data, request, makesMissing);
     }
     if (holdsRequestedStatus(standing, request)) {
       return this.status()?.getValue(request.target, request.slot) == null ? null : standing;

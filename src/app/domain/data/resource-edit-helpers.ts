@@ -506,8 +506,8 @@ function grantCalculatedBuff(
       const existed = character.status.getText(request.target) != null;
       const choices = character.status.choicesOf(request.target);
       const applied = rowStacking
-        ? character.buffs.stackModifier(data, request)
-        : character.buffs.applyModifier(data, request);
+        ? character.buffs.stackModifier(data, request, true)
+        : character.buffs.applyModifier(data, request, true);
       if (applied && !existed) made.push(request.target);
       else if (!applied && choices && request.text !== undefined && !choices.includes(request.text)) {
         unchosen.push(`${request.target}に「${request.text}」はありません: ${choices.join('・')}`);

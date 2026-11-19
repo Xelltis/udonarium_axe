@@ -1200,7 +1200,7 @@ describe('BuffManager', () => {
 
     function grant(name: string, target: string, operator: string, amount: string, round = 2) {
       sheeted.addRound(name, '', round);
-      return sheeted.applyModifier(sheeted.find(name)!, parseBuffModifierRequest(target, operator, amount)!);
+      return sheeted.applyModifier(sheeted.find(name)!, parseBuffModifierRequest(target, operator, amount)!, true);
     }
 
     it('holds the item at the words while it stands and puts back what it held as it runs out', () => {
@@ -1365,6 +1365,15 @@ describe('BuffManager', () => {
         expect(status.getValue('物理D増加', 'now')).toBe(2);
         sheeted.delete('物理強化');
         expect(status.getText('物理D増加')).toBeNull();
+      });
+
+      it('makes none for a buff not asked to, as a status ailment is not', () => {
+        sheeted.addRound('麻痺', '', 2);
+        expect(sheeted.applyModifier(sheeted.find('麻痺')!, parseBuffModifierRequest('移動', '=', '0')!)).toBeNull();
+        expect(
+          sheeted.applyModifier(sheeted.find('麻痺')!, parseBuffModifierRequest('構えの名', '=', '伏せ')!)
+        ).toBeNull();
+        expect(madeSection()).toBeUndefined();
       });
 
       it('leaves an item the sheet had all along when a buff on it goes', () => {
