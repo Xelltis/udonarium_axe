@@ -82,8 +82,10 @@ const UNDER_SKY: SkyLightColours = {
  * other half of the sky through the night.
  *
  * Under the sky drawn over a table, the light takes its colours from the hour as the sky does: the
- * sun's lasts until it has set, the twilight after it fading into the moonlight. A table with no sky
- * drawn is lit in the colours it always was.
+ * sun's lasts until it has set, the twilight after it fading into the moonlight. Through the first
+ * half of the twilight the light comes from where the sun went down, ever weaker, and through the
+ * second from the moon, ever stronger, so it never lights a wall from the side the sun is not, and
+ * never jumps from one to the other. A table with no sky drawn is lit in the colours it always was.
  */
 export function skyLightAt(dayFraction: number, underSky = false): SkyLight {
   const time = ((dayFraction % 1) + 1) % 1;
@@ -116,12 +118,17 @@ export function skyLightAt(dayFraction: number, underSky = false): SkyLight {
     };
   }
   const night = underSky ? 1 - skyTwilightAt(time).fromNight : 1;
+  const bySun = night < 0.5;
+  const sunWay = Math.PI * ((time - 0.25) / 0.5);
+  const from = bySun ? { x: Math.cos(sunWay), y: Math.sin(sunWay), z: 0 } : direction;
+  const share = night < 1 ? Math.abs(1 - night * 2) : 1;
+  const straight = (bySun ? SUN_STRENGTH : MOON_STRENGTH) * share;
   return {
-    direction,
-    strength,
+    direction: from,
+    strength: straight,
     colour: mixHex(twilight.sun, colours.moon, night),
     skyColour: mixHex(twilight.sky, colours.nightSky, night),
-    skyStrength: 1 - strength * direction.z,
+    skyStrength: 1 - straight * from.z,
     moonlit: underSky ? Math.round(night * MOONLIT * 1000) / 1000 : 0,
   };
 }

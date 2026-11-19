@@ -84,6 +84,18 @@ describe('the light of the sky over the table', () => {
       expect(skyLightAt(0).moonlit).toBe(0);
     });
 
+    it('lights the twilight from where the sun went down and then from the moon, never jumping', () => {
+      expect(skyLightAt(0.76, true).direction.x).toBeLessThan(-0.9);
+      expect(skyLightAt(0.24, true).direction.x).toBeGreaterThan(0.9);
+      expect(skyLightAt(0.79, true).direction).toEqual(skyLightAt(0.79).direction);
+      let before = skyLightAt(0.7, true).strength;
+      for (let step = 1; step <= 600; step++) {
+        const strength = skyLightAt(0.7 + step / 6000, true).strength;
+        expect(Math.abs(strength - before), `${0.7 + step / 6000}`).toBeLessThan(0.02);
+        before = strength;
+      }
+    });
+
     it('brings the moonlight on as the sky drawn brings its stars out, at every hour', () => {
       const full = skyLightAt(0, true).moonlit;
       for (let step = 0; step < 200; step++) {
