@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import type { AgentSeat, GmStatus } from '@axe/core/agent/agent-protocol';
 
 import { TabLink } from '../tab-link';
@@ -40,6 +42,15 @@ describe('TurnDesk', () => {
         (message as { type?: string })?.type === 'gm.status' ? [(message as { status: GmStatus }).status] : []
       )
       .at(-1);
+  }
+
+  /**
+   * The status the desk told the tab last, once the tab has heard it. What the tab heard before may
+   * lag behind and hold a value it had earlier, so a wait for that value alone may end too soon.
+   */
+  async function told(tab: TestTab): Promise<GmStatus> {
+    await until(() => isDeepStrictEqual(lastStatus(tab), desk.status()));
+    return lastStatus(tab)!;
   }
 
   function start(tab: TestTab, set: { instructions?: string; notes?: string; fresh?: boolean } = {}): void {
@@ -101,15 +112,14 @@ describe('TurnDesk', () => {
       instructions: '古城の探索',
       notes: '一行は門の前',
     });
-    await until(() => lastStatus(tab)?.run === 'thinking');
-    expect(lastStatus(tab)).toMatchObject({ kept: true, attended: true });
+    expect(await told(tab)).toMatchObject({ run: 'thinking', kept: true, attended: true });
   });
 
   it('hands over a turn once the room has gone quiet after a line that calls for one, with what happened', async () => {
     const tab = await connect();
     await open(tab);
     const waiting = desk.waitForTurn(2000);
-    await until(() => lastStatus(tab)?.run === 'waiting');
+    expect(await told(tab)).toMatchObject({ run: 'waiting' });
 
     tab.say({ type: 'gm.events', events: [{ event: { kind: 'piece_moved', id: 'p1' } }] });
     tab.say({ type: 'gm.events', events: [{ event: LINE, wake: 'line' }] });
@@ -200,7 +210,7 @@ describe('TurnDesk', () => {
     const tab = await connect();
     await open(tab);
     const waiting = desk.waitForTurn(2000);
-    await until(() => lastStatus(tab)?.run === 'waiting');
+    expect(await told(tab)).toMatchObject({ run: 'waiting' });
     tab.say({ type: 'gm.nudge', direction: '次の場面へ' });
 
     expect(await waiting).toMatchObject({ turn: true, direction: '次の場面へ' });
@@ -237,12 +247,11 @@ describe('TurnDesk', () => {
     const tab = await connect();
     await open(tab);
     const waiting = desk.waitForTurn(2000);
-    await until(() => lastStatus(tab)?.run === 'waiting');
+    expect(await told(tab)).toMatchObject({ run: 'waiting' });
     tab.say({ type: 'gm.stop' });
 
     expect(await waiting).toMatchObject({ turn: false, running: false });
-    await until(() => lastStatus(tab)?.run === 'off');
-    expect(lastStatus(tab)).toMatchObject({ halted: 'asked', kept: true });
+    expect(await told(tab)).toMatchObject({ run: 'off', halted: 'asked', kept: true });
 
     start(tab);
     expect(await desk.waitForTurn(120)).toMatchObject({ turn: false, running: true });
@@ -264,8 +273,7 @@ describe('TurnDesk', () => {
     await open(tab);
     tab.say({ type: 'seat', seat: { ...GM, role: 'pl' } });
 
-    await until(() => lastStatus(tab)?.run === 'off');
-    expect(lastStatus(tab)).toMatchObject({ halted: 'seat' });
+    expect(await told(tab)).toMatchObject({ run: 'off', halted: 'seat' });
   });
 
   it('tells an AI of another conversation that somebody waits already, the one waiting kept in its place', async () => {
@@ -347,15 +355,15 @@ describe('TurnDesk', () => {
     // The one taking the turn calls nothing for a while; what the other calls says nothing of it.
     const calling = setInterval(() => desk.noteCall(other), 20);
     try {
-      await until(() => lastStatus(tab)?.attended === false, 2000);
+      await until(() => desk.status().attended === false, 2000);
+      // Its turn stays with it, and the tab is told that nobody is seen taking it.
+      expect(await told(tab)).toMatchObject({ run: 'thinking', attended: false });
     } finally {
       clearInterval(calling);
     }
-    // Its turn stays with it, and the tab is told that nobody is seen taking it.
-    expect(lastStatus(tab)).toMatchObject({ run: 'thinking', attended: false });
 
     const back = desk.waitForTurn(2000, undefined, gm);
-    await until(() => lastStatus(tab)?.attended === true);
+    expect(await told(tab)).toMatchObject({ attended: true });
     desk.close();
     await back;
   });
@@ -369,7 +377,8 @@ describe('TurnDesk', () => {
     expect(await desk.waitForTurn(2000, undefined, gm)).toMatchObject({ turn: true, events: [LINE] });
 
     // It calls nothing for longer than it counts as there, as over a long answer, and then asks again.
-    await until(() => lastStatus(tab)?.attended === false, 2000);
+    await until(() => desk.status().attended === false, 2000);
+    expect(await told(tab)).toMatchObject({ run: 'thinking', attended: false });
     expect(await desk.waitForTurn(100, undefined, gm)).toMatchObject({ turn: false });
 
     tab.say({ type: 'gm.events', events: [{ event: { ...LINE, id: 'm2' }, wake: 'called' }] });
@@ -385,19 +394,20 @@ describe('TurnDesk', () => {
 
     // A wait runs out with nothing to hand over, as one does while the room is quiet.
     expect(await desk.waitForTurn(30, undefined, gm)).toMatchObject({ turn: false, running: true });
-    expect(desk.status()).toMatchObject({ run: 'waiting', attended: true });
-    const told = tab.heard.slice(toldBefore).flatMap((message) => {
+    expect(await told(tab)).toMatchObject({ run: 'waiting', attended: true });
+    const attendance = tab.heard.slice(toldBefore).flatMap((message) => {
       const status = (message as { type?: string; status?: GmStatus }).type === 'gm.status';
       return status ? [(message as { status: GmStatus }).status.attended] : [];
     });
-    expect(told).not.toContain(false);
+    expect(attendance).not.toContain(false);
     expect(await desk.waitForTurn(30, undefined, {})).toMatchObject({
       turn: false,
       note: expect.stringMatching(/^Another AI/),
     });
 
     // Once it has not shown itself for a while, it is told to be gone, and another may take its place.
-    await until(() => lastStatus(tab)?.attended === false, 2000);
+    await until(() => desk.status().attended === false, 2000);
+    expect(await told(tab)).toMatchObject({ attended: false });
     const other = desk.waitForTurn(2000, undefined, {});
     await until(() => desk.status().attended === true);
     desk.close();
