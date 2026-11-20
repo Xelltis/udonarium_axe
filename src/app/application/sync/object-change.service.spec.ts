@@ -4,7 +4,8 @@ import { NetworkPeerEvent, ObjectChangeService, ObjectDeleteEvent } from '@axe/a
 import { fileLoaded$ } from '@axe/core/event/domain-events';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { localDispatch } from '@axe/core/network/network-messaging';
-import { childrenChanged$, objectAdded$, objectChanged$, objectRemoved$ } from '@axe/core/sync/object-event-extension';
+import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
+import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-store-events';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 

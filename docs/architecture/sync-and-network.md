@@ -188,6 +188,7 @@ SkyWayとは次の3点で動きが変わる。
 そこで`receiveEvents`と`localDispatch`は、イベントを流したあと、`setNetworkTick`で渡された関数をマイクロタスクごとに1回呼ぶ。
 `src/main.ts`は起動を終えたあと、その関数として`ChangeDetectionScheduler`（`ɵChangeDetectionScheduler`）の`notify(0)`を渡す。
 物の変更の知らせは、`core/sync/object-event-extension`の`markForChanged`がマイクロタスクに集めて物ごとに1回`objectChanged$`を流し、`ObjectChangeService`が`versionOf()`・`collectionOf()`のsignalを進める。
+このモジュールは読み込まれたときに`GameObject.onUpdate`と`ObjectNode.onChildrenChanged`を差し込むので、2つのクラスの側から読み込まれない所に置く（ストアの出入りの知らせ`objectAdded$`・`objectRemoved$`は`core/sync/object-store-events`に分けた）。こうしておくと、どちらが先に読み込まれても、できあがったクラスに差し込める。
 
 `src/main.ts`は、前のページが頼んだブラウザのデータの消去を済ませてから`bootstrapApplication`を呼ぶ。
 最初の画面を描く前に、`composition/app-providers`の`APP_INITIALIZERS`が次の順で走る。

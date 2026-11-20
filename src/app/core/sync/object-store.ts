@@ -1,7 +1,7 @@
 import { networkSend, networkSendLatest } from '@axe/core/network/network-messaging';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
-import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-event-extension';
 import { Type } from '@axe/core/sync/object-factory';
+import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-store-events';
 
 type ObjectAliasName = string;
 type ObjectIdentifier = string;

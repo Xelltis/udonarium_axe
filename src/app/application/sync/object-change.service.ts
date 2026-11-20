@@ -37,12 +37,10 @@ import { peerStatsUpdated$ } from '@axe/core/network/peer-stats-events';
 import {
   childrenChanged$,
   type ChildrenChangeEvent,
-  objectAdded$,
   objectChanged$,
   type ObjectChangeEvent,
-  objectRemoved$,
-  type ObjectStoreEvent,
 } from '@axe/core/sync/object-event-extension';
+import { objectAdded$, objectRemoved$, type ObjectStoreEvent } from '@axe/core/sync/object-store-events';
 import { debounce } from '@axe/core/util/debounce';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 

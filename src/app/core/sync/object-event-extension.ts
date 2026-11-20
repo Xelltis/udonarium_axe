@@ -20,14 +20,6 @@ export interface ChildrenChangeEvent {
 export const objectChanged$ = new EventChannel<ObjectChangeEvent>();
 export const childrenChanged$ = new EventChannel<ChildrenChangeEvent>();
 
-export interface ObjectStoreEvent {
-  identifier: string;
-  aliasName: string;
-}
-
-export const objectAdded$ = new EventChannel<ObjectStoreEvent>();
-export const objectRemoved$ = new EventChannel<ObjectStoreEvent>();
-
 const objectBatches = new Map<string, { object: GameObject; fromSelf: boolean }>();
 const nodeBatches = new Set<string>();
 
