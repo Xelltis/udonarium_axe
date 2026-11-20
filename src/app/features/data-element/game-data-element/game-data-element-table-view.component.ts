@@ -33,7 +33,6 @@ import {
   TABLE_CELL_KINDS,
   type TableShape,
   type TableShapeColumn,
-  tableShapeProblems,
 } from '@axe/domain/data/table-shape';
 import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
 import {
@@ -248,12 +247,12 @@ export class GameDataElementTableViewComponent {
    * is refused, and the bar says why; one that takes away cells holding something is asked about first.
    */
   private async build(shape: TableShape): Promise<boolean> {
-    const [problem] = tableShapeProblems(shape);
+    const element = this.element();
+    const [problem] = this.edit.tableBuildProblems(element, shape);
     if (problem) {
       this.editProblem.set(problem);
       return false;
     }
-    const element = this.element();
     const lost = this.edit.cellsLostBy(element, shape);
     if (lost > 0) {
       const sure = await this.confirm.ask(this.t('feature.dataElement.tableView.edit.confirmLost', { count: lost }));

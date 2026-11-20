@@ -33,8 +33,10 @@ import {
   canBuildTable,
   cellsLostBy,
   createShapedTable,
+  tableBuildProblems,
   type TableShape,
   tableShapeOf,
+  type TableShapeProblem,
   tableShapeProblems,
 } from '@axe/domain/data/table-shape';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
@@ -416,6 +418,11 @@ export class DataElementEditService {
     return tableShapeOf(element);
   }
 
+  /** What keeps a shape from being built on a group or section's table as it stands now (see `tableBuildProblems`). */
+  tableBuildProblems(element: DataElement, shape: TableShape): TableShapeProblem[] {
+    return tableBuildProblems(element, shape);
+  }
+
   /** How many cells holding something building a group or section's table this way would take away. */
   cellsLostBy(element: DataElement, shape: TableShape): number {
     return cellsLostBy(element, shape);
@@ -429,7 +436,7 @@ export class DataElementEditService {
    */
   buildTable(element: DataElement, shape: TableShape): boolean {
     if (!this.rolePermission.canEditTabletop() || !canBuildTable(element)) return false;
-    if (tableShapeProblems(shape).length > 0) return false;
+    if (tableBuildProblems(element, shape).length > 0) return false;
     applyTableShape(element, shape);
     for (const each of [element, ...element.children, ...element.children.flatMap((row) => row.children)]) {
       this.objectChange.notifyChanged(each.identifier);

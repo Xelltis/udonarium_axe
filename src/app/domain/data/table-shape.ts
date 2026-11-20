@@ -42,13 +42,16 @@ export interface TableShapeRow {
 }
 
 /**
- * A table as it is built: its columns and its rows, in order, and the names of the gap columns the
- * table keeps as they are, which no column may go by.
+ * A table as it is built: its columns and its rows, in order, the names of the gap columns the table
+ * keeps as they are, which no column may go by, and the rows and columns the shape was read from, by
+ * identifier and by name. Building takes away only rows and columns the shape was read from and no
+ * longer has; one added to the table since, as by another seat, is kept.
  */
 export interface TableShape {
   readonly columns: readonly TableShapeColumn[];
   readonly rows: readonly TableShapeRow[];
   readonly gaps?: readonly string[];
+  readonly seen?: { readonly rows: readonly string[]; readonly columns: readonly string[] };
 }
 
 const KIND_OF_FIELD: Readonly<Record<string, TableCellKind>> = {
@@ -92,7 +95,46 @@ export function tableShapeOf(table: DataElement): TableShape {
   const gaps = getTableColumns(table)
     .filter((column) => isGapColumn(column))
     .map((column) => column.name);
-  return { columns, rows: rows.map((row) => ({ name: row.name, from: row.identifier })), gaps };
+  return {
+    columns,
+    rows: rows.map((row) => ({ name: row.name, from: row.identifier })),
+    gaps,
+    seen: { rows: rows.map((row) => row.identifier), columns: columns.map((column) => column.name) },
+  };
+}
+
+/**
+ * What of a table building a shape on it leaves as it is: the body rows and the columns the shape was
+ * not read from, as ones another seat added since, by name, which no row or column of the shape may
+ * take, besides its gap columns.
+ */
+function standingApart(table: DataElement, shape: TableShape): { rows: string[]; columns: string[] } {
+  const seen = shape.seen ?? { rows: [], columns: [] };
+  return {
+    rows: getTableBodyRows(table)
+      .filter((row) => !seen.rows.includes(row.identifier))
+      .map((row) => row.name),
+    columns: getTableColumns(table)
+      .filter((column) => !isGapColumn(column) && !seen.columns.includes(column.name))
+      .map((column) => column.name),
+  };
+}
+
+/**
+ * What keeps a shape from being built on a table as it stands now (see {@link tableShapeProblems}):
+ * besides what is wrong with the shape itself, a row or column taking the name of one the table holds
+ * apart from it, a gap column or one added since the shape was read.
+ */
+export function tableBuildProblems(table: DataElement, shape: TableShape): TableShapeProblem[] {
+  const apart = standingApart(table, shape);
+  const gaps = getTableColumns(table)
+    .filter((column) => isGapColumn(column))
+    .map((column) => column.name);
+  return tableShapeProblems({
+    ...shape,
+    gaps: [...gaps, ...apart.columns],
+    rows: [...shape.rows, ...apart.rows.map((name) => ({ name, from: null }))],
+  });
 }
 
 /**
@@ -153,20 +195,26 @@ function holdsValue(cell: DataElement): boolean {
   return `${cell.value ?? ''}`.trim() !== '' || cell.getAttribute(DataElementAttribute.CELL_TEXT).trim() !== '';
 }
 
-/** How many cells holding something building the table this way takes away, with the rows and columns it drops. */
+/** How many cells holding something building the table this way takes away, with the rows and columns it drops (see `TableShape.seen`). */
 export function cellsLostBy(table: DataElement, shape: TableShape): number {
-  const keptRows = new Set(shape.rows.map((row) => row.from).filter((from): from is string => from !== null));
-  const keptColumns = new Set(
-    shape.columns.map((column) => column.from).filter((from): from is string => from !== null)
-  );
   let lost = 0;
   for (const row of getTableBodyRows(table)) {
     for (const cell of row.children) {
-      if (cell.getAttribute(DataElementAttribute.CELL_KIND).trim() === 'gap' || !holdsValue(cell)) continue;
-      if (!keptRows.has(row.identifier) || !keptColumns.has(cell.name)) lost++;
+      if (isGapCell(cell) || !holdsValue(cell)) continue;
+      if (dropsRow(shape, row) || dropsColumn(shape, cell.name)) lost++;
     }
   }
   return lost;
+}
+
+/** Whether building the shape takes a body row away: one it was read from and no longer has. */
+function dropsRow(shape: TableShape, row: DataElement): boolean {
+  return (shape.seen?.rows ?? []).includes(row.identifier) && !shape.rows.some((each) => each.from === row.identifier);
+}
+
+/** Whether building the shape takes a column away, by its name as it stands: one it was read from and no longer has. */
+function dropsColumn(shape: TableShape, name: string): boolean {
+  return (shape.seen?.columns ?? []).includes(name) && !shape.columns.some((each) => each.from === name);
 }
 
 /** A value carried into a cell of another kind, as far as it reads as one: ticked or not, a number, or as it was. */
@@ -268,27 +316,32 @@ function orderedCells(row: DataElement, cells: readonly DataElement[]): DataElem
 
 /**
  * Fits a row's cells to the columns: each cell of a kept column written as its column says, and every
- * other cell but the gaps taken away. A cell is made for a column the row lacks where `makes`, as a
- * body row has one of every column; a row holding the gaps' settings is given none, as it would then
- * no longer read as one.
+ * other cell of a column the shape was read from taken away, gaps and cells of columns added since
+ * kept after them. Each column's cell is the one its former name finds as the row stands, found for
+ * every column before any is renamed, so columns renamed into each other's names keep their own. A
+ * cell is made for a column the row lacks where `makes`, as a body row has one of every column; a row
+ * holding the gaps' settings is given none, as it would then no longer read as one.
  */
-function fitRow(row: DataElement, changes: readonly ColumnChange[], makes: boolean): void {
-  const cells = changes.flatMap((change) => {
-    const column = change.column;
-    const found =
-      column.from !== null
-        ? (row.children.find((each) => each.name === column.from && !isGapCell(each)) ?? null)
-        : null;
-    const cell = found ?? (makes ? newCell(column) : null);
+function fitRow(row: DataElement, shape: TableShape, changes: readonly ColumnChange[], makes: boolean): void {
+  const found = changes.map((change) =>
+    change.column.from !== null
+      ? (row.children.find((each) => each.name === change.column.from && !isGapCell(each)) ?? null)
+      : null
+  );
+  const cells = changes.flatMap((change, index) => {
+    const cell = found[index] ?? (makes ? newCell(change.column) : null);
     if (!cell) return [];
     fitCell(cell, change, !makes);
     return [cell];
   });
+  const apart = row.children.filter(
+    (cell) => !cells.includes(cell) && !isGapCell(cell) && !dropsColumn(shape, cell.name)
+  );
   for (const cell of [...row.children]) {
-    if (!cells.includes(cell) && !isGapCell(cell)) cell.destroy();
+    if (!cells.includes(cell) && !apart.includes(cell) && !isGapCell(cell)) cell.destroy();
   }
   for (const cell of cells) if (cell.parent !== row) row.appendChild(cell);
-  layInOrder(row, orderedCells(row, cells));
+  layInOrder(row, orderedCells(row, [...cells, ...apart]));
 }
 
 /** Lays a parent's children in the order given, moving only those out of place. */
@@ -323,14 +376,17 @@ export function applyTableShape(table: DataElement, shape: TableShape): void {
         standing.find((each) => each.identifier === wanted.from) ??
         DataElement.create(wanted.name.trim(), '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
       if (row.name !== wanted.name.trim()) row.name = wanted.name.trim();
-      fitRow(row, changes, true);
+      fitRow(row, shape, changes, true);
       return row;
     });
-    for (const control of controls) fitRow(control, changes, false);
-    for (const row of standing) if (!rows.includes(row)) row.destroy();
+    const apart = standing.filter((row) => !rows.includes(row) && !dropsRow(shape, row));
+    for (const row of apart) fitRow(row, shape, changes, true);
+    for (const control of controls) fitRow(control, shape, changes, false);
+    for (const row of standing) if (!rows.includes(row) && !apart.includes(row)) row.destroy();
     for (const row of rows) if (row.parent !== table) table.appendChild(row);
+    const body = [...rows, ...apart];
     const controlsFirst = controls.length > 0 && table.children.indexOf(controls[0]) === 0;
-    layInOrder(table, controlsFirst ? [...controls, ...rows] : [...rows, ...controls]);
+    layInOrder(table, controlsFirst ? [...controls, ...body] : [...body, ...controls]);
   });
 }
 

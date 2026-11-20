@@ -63,6 +63,7 @@ export class TableBuilderDialogComponent {
     columns: this.columns().map(({ key: _key, ...column }) => column),
     rows: this.rows().map(({ key: _key, ...row }) => row),
     gaps: this.option.shape.gaps,
+    seen: this.option.shape.seen,
   }));
 
   /** What keeps the table from being built as it is now, as the builder tells it. */

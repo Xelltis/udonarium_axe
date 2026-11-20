@@ -15,6 +15,7 @@ import {
   movedAPlace,
   newTableColumn,
   newTableRow,
+  tableBuildProblems,
   type TableShape,
   tableShapeOf,
   tableShapeProblems,
@@ -86,7 +87,55 @@ describe('table-shape', () => {
         { name: '3', from: table.children[2].identifier },
       ],
       gaps: ['間'],
+      seen: { rows: [table.children[1].identifier, table.children[2].identifier], columns: ['技巧', '備考'] },
     });
+  });
+
+  it('keeps each column’s values where columns are named into each other’s names in one build', () => {
+    const values = (table: DataElement, name: string) =>
+      getTableBodyRows(table).map((row) => row.getFirstElementByName(name)?.value);
+    for (const names of [
+      ['備考', '技巧'],
+      ['備考', '注記'],
+    ]) {
+      const table = skillTable();
+      const shape = tableShapeOf(table);
+
+      applyTableShape(table, {
+        ...shape,
+        columns: [
+          { ...shape.columns[0], name: names[0] },
+          { ...shape.columns[1], name: names[1] },
+        ],
+      });
+
+      expect(values(table, names[0]), names.join('/')).toEqual([1, 0]);
+      expect(values(table, names[1]), names.join('/')).toEqual(['メモ2', 'メモ3']);
+    }
+  });
+
+  it('keeps the rows and columns added since the shape was read, and builds no name onto them', () => {
+    const table = skillTable();
+    const shape = tableShapeOf(table);
+    const added = DataElement.create('4', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    added.appendChild(cell('技巧', 1, DataElementFieldType.CHECK));
+    added.appendChild(cell('備考', 'あとから'));
+    table.appendChild(added);
+    for (const row of getTableBodyRows(table)) row.appendChild(cell('隠密', 1, DataElementFieldType.CHECK));
+
+    expect(tableBuildProblems(table, { ...shape, rows: [...shape.rows, { name: '4', from: null }] })).toEqual([
+      'sameRowName',
+    ]);
+    expect(
+      tableBuildProblems(table, { ...shape, columns: [shape.columns[0], { ...shape.columns[1], name: '隠密' }] })
+    ).toEqual(['sameName']);
+    expect(cellsLostBy(table, { ...shape, rows: [shape.rows[0]] })).toBe(2);
+
+    applyTableShape(table, { ...shape, rows: [shape.rows[0]] });
+
+    expect(getTableBodyRows(table).map((row) => row.name)).toEqual(['2', '4']);
+    expect(added.getFirstElementByName('備考')?.value).toBe('あとから');
+    expect(getTableBodyRows(table)[0].getFirstElementByName('隠密')?.value).toBe(1);
   });
 
   it('changes nothing of a table built again as it stands', () => {
@@ -101,8 +150,10 @@ describe('table-shape', () => {
 
   it('adds, names again, moves and takes away rows and columns, leaving every value it keeps as it was', () => {
     const table = skillTable();
-    const [two, three] = tableShapeOf(table).rows;
+    const { rows, seen } = tableShapeOf(table);
+    const [two, three] = rows;
     const shape: TableShape = {
+      seen,
       columns: [
         { name: '注記', label: '', group: '', kind: 'text', choices: '', from: '備考' },
         { name: '技巧', label: '器用', group: '肉体', kind: 'check', choices: '', from: '技巧' },
