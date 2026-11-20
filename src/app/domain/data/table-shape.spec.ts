@@ -147,6 +147,29 @@ describe('table-shape', () => {
     }
   });
 
+  it('builds on a table with no rows yet that gained one since, whatever its cells hold', () => {
+    const table = DataElement.create('空の表', '', {
+      [DataElementAttribute.ROLE]: DataElementRole.SECTION,
+      [DataElementAttribute.VIEW_MODE]: DataElementViewMode.TABLE,
+    });
+    const gapRow = DataElement.create('gap', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    gapRow.appendChild(cell('値', ''));
+    gapRow.appendChild(cell('間', '', DataElementFieldType.TEXT, { [DataElementAttribute.CELL_KIND]: 'gap' }));
+    table.appendChild(gapRow);
+    const shape = tableShapeOf(table);
+    const added = DataElement.create('1', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    added.appendChild(
+      cell('値', 3, DataElementFieldType.NUMBER, {
+        [DataElementAttribute.CHOICES]: 'a,b',
+        [DataElementAttribute.COLUMN_LABEL]: '別の見出し',
+      })
+    );
+    added.appendChild(cell('新しい列', 1, DataElementFieldType.CHECK));
+    table.appendChild(added);
+
+    expect(tableBuildProblems(table, shape)).toEqual([]);
+  });
+
   it('builds on a table whose cells were written, or which gained rows and columns, since the shape was read', () => {
     const table = skillTable();
     const shape = tableShapeOf(table);

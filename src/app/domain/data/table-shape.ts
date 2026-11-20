@@ -9,11 +9,13 @@ import {
 } from '@axe/domain/data/data-element';
 import {
   canRenderAsTable,
+  getRawTableRows,
   getTableBodyRows,
   getTableColumns,
   isCheckCellChecked,
   isGapColumn,
   isTableControlRow,
+  tableColumnsOf,
 } from '@axe/domain/data/table-layout';
 
 /** What the cells of a column hold, as the table builder offers the kinds. */
@@ -89,10 +91,19 @@ export function tableShapeOf(table: DataElement): TableShape {
   return { ...read, seen: { columns: read.columns, rows: read.rows } };
 }
 
-/** A table's columns, rows and gap columns as they stand (see {@link tableShapeOf}). */
-function readTable(table: DataElement): Required<Omit<TableShape, 'seen'>> {
-  const rows = getTableBodyRows(table);
-  const columns = getTableColumns(table)
+/**
+ * A table's columns, rows and gap columns as they stand (see {@link tableShapeOf}), read from the body
+ * rows `reads` keeps, all of them unless told otherwise, and the rows holding the gaps' settings:
+ * which columns there are, in what order, and their words, groups, kinds and choices included.
+ */
+function readTable(
+  table: DataElement,
+  reads: (row: DataElement) => boolean = () => true
+): Required<Omit<TableShape, 'seen'>> {
+  const raw = getRawTableRows(table).filter((row) => isTableControlRow(row) || reads(row));
+  const rows = raw.filter((row) => !isTableControlRow(row));
+  const read = tableColumnsOf(raw);
+  const columns = read
     .filter((column) => !isGapColumn(column))
     .map((column): TableShapeColumn => {
       const cell = rows.flatMap((row) => row.children).find((child) => child.name === column.name) ?? null;
@@ -105,9 +116,7 @@ function readTable(table: DataElement): Required<Omit<TableShape, 'seen'>> {
         from: column.name,
       };
     });
-  const gaps = getTableColumns(table)
-    .filter((column) => isGapColumn(column))
-    .map((column) => column.name);
+  const gaps = read.filter((column) => isGapColumn(column)).map((column) => column.name);
   return { columns, rows: rows.map((row) => ({ name: row.name, from: row.identifier })), gaps };
 }
 
@@ -160,12 +169,13 @@ export function tableBuildProblems(table: DataElement, shape: TableShape): Table
 /**
  * Whether the rows and columns a shape was read from read otherwise now: any of them gone, named
  * again, moved among the others, or a column's words, group, kind or choices changed, everything a
- * build writes. Rows and columns added since, and the values of cells, are not counted.
+ * build writes. All of it is read again from the rows the shape was read from alone, so rows and
+ * columns added since, and the values of cells, are not counted.
  */
 function changedSince(table: DataElement, shape: TableShape): boolean {
   if (!shape.seen) return false;
   const seen = seenOf(shape);
-  const now = readTable(table);
+  const now = readTable(table, (row) => seen.rows.has(row.identifier));
   const standing: TableShapeSeen = {
     columns: now.columns.filter((column) => seen.columns.has(column.name)),
     rows: now.rows.filter((row) => seen.rows.has(row.from)),

@@ -78,8 +78,13 @@ function createTableColumn(cell: DataElement): TableColumn {
  * A column takes its label, group and kind from the first cell seen with that name.
  */
 export function getTableColumns(element: DataElement): TableColumn[] {
+  return tableColumnsOf(getRawTableRows(element));
+}
+
+/** The columns the rows given make, as {@link getTableColumns} reads them from all of a table's rows. */
+export function tableColumnsOf(rows: readonly DataElement[]): TableColumn[] {
   const columns: TableColumn[] = [];
-  for (const row of getRawTableRows(element)) {
+  for (const row of rows) {
     for (const child of row.children) {
       if (child.fieldRole !== DataElementRole.FIELD || columns.some((column) => column.name === child.name)) continue;
       columns.push(createTableColumn(child));
