@@ -330,4 +330,21 @@ describe('BoardSceneService', () => {
       expect(ObjectStore.instance.getObjects(BoardScene)).toEqual([]);
     });
   });
+
+  describe('filing and ordering', () => {
+    it('files a scene and moves it among those of its folder, the game master alone', () => {
+      const first = scene({ name: '一', folderName: '第1話', order: 1 });
+      const loose = scene({ name: '外', order: 2 });
+      const second = scene({ name: '二', order: 3 });
+
+      expect(service.fileInto(second, ' 第1話 ')).toBe(true);
+      service.moveInFolder(second, 0);
+      expect([second.order, loose.order, first.order]).toEqual([1, 2, 3]);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      expect(service.fileInto(first, '')).toBe(false);
+      service.moveInFolder(first, 0);
+      expect([first.folderName, first.order]).toEqual(['第1話', 3]);
+    });
+  });
 });

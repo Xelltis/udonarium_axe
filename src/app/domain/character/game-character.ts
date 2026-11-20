@@ -381,10 +381,13 @@ export class GameCharacter extends OwnedTabletopObject {
   set size(value: number) {
     this.setCommonValue('size', value);
   }
-  /** The piece's chat palette: the first palette among its children, or null when it has none. */
+  /**
+   * The piece's chat palette: the first palette among its children that is not the remote
+   * controller's buff palette, or null when it has none.
+   */
   get chatPalette(): ChatPalette | null {
     for (const child of this.children) {
-      if (child instanceof ChatPalette) return child;
+      if (child instanceof ChatPalette && !(child instanceof BuffPalette)) return child;
     }
     return null;
   }

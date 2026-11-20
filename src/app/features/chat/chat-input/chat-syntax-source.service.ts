@@ -64,8 +64,7 @@ export class ChatSyntaxSourceService {
       variables: speaker?.chatPalette?.paletteVariables.map((variable) => variable.name) ?? [],
       portraits: this.portraitsOf(speaker),
       effects: this.effectLibrary
-        .presets()
-        .filter((preset) => !preset.gmOnly || PeerCursor.isMyselfGameMaster)
+        .shownPresets()
         .map((preset) => preset.name.trim())
         .filter((name) => name.length > 0),
       cutIns: this.chatCutIns(),

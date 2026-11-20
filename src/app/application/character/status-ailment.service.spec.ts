@@ -78,10 +78,45 @@ describe('StatusAilmentService', () => {
       expect(service.ailments()).toEqual([]);
     });
 
-    it('takes the first word, since a column is asked for by a single word', () => {
-      service.add('行動 不能');
+    it('refuses a name of more than one word or with a colon, which could not be read back, and says why', () => {
+      expect([service.nameRefusal('行動 不能'), service.nameRefusal('毒:強'), service.nameRefusal(' 毒 ')]).toEqual([
+        'notOneWord',
+        'notOneWord',
+        null,
+      ]);
+      expect(service.add('行動 不能')).toBeNull();
+      expect(service.add('毒:強')).toBeNull();
+      expect(service.ailments()).toEqual([]);
 
-      expect(service.ailments()[0].name).toBe('行動');
+      service.add(' 毒 ');
+      expect(service.nameRefusal('毒')).toBe('taken');
+      expect(service.ailments().map((entry) => entry.name)).toEqual(['毒']);
+    });
+
+    it('writes a change only where every field but the effect is one word', () => {
+      const poison = service.add('毒')!;
+
+      expect(service.change('毒', { ...poison, icon: '☠ ☠' })).toBe(false);
+      expect(service.change('毒', { ...poison, icon: '☠', effect: '毎ラウンド HP-1' })).toBe(true);
+
+      expect(service.ailments()[0]).toMatchObject({ icon: '☠', effect: '毎ラウンド HP-1' });
+    });
+
+    it('lets a seat that may not edit the table add, change, move, take away or replace nothing', () => {
+      service.add('毒');
+      service.add('麻痺');
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+
+      expect(service.add('気絶')).toBeNull();
+      expect(service.change('毒', { ...newStatusAilment('毒'), color: 'red' })).toBe(false);
+      service.move('麻痺', -1);
+      service.remove('毒');
+      service.save([]);
+
+      expect(service.ailments().map((entry) => [entry.name, entry.color])).toEqual([
+        ['毒', ''],
+        ['麻痺', ''],
+      ]);
     });
 
     it('moves one along the order the columns stand in', () => {

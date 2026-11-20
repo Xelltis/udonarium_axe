@@ -16,12 +16,21 @@
       <button
         class="bg-ui-accent hover:bg-ui-accent-strong text-ui-on-accent rounded-ui-sm shrink-0 cursor-pointer border-none px-2.5 py-1 font-semibold disabled:cursor-default disabled:opacity-40"
         type="button"
-        [disabled]="newName().trim().length < 1"
+        [disabled]="nameRefusal() !== null"
         (click)="add()"
       >
         {{ 'feature.statusAilment.add' | transloco }}
       </button>
     </div>
+    @if (nameRefusal() === 'notOneWord') {
+      <p class="text-ui-danger m-0 px-3 pb-1.5 text-[11px]" data-testid="status-ailment-name-refused">
+        {{ 'feature.statusAilment.nameNotOneWord' | transloco }}
+      </p>
+    } @else if (nameRefusal() === 'taken') {
+      <p class="text-ui-danger m-0 px-3 pb-1.5 text-[11px]" data-testid="status-ailment-name-refused">
+        {{ 'feature.statusAilment.nameTaken' | transloco }}
+      </p>
+    }
   } @else {
     <p class="text-ui-dim m-0 px-3 py-2 text-[11px]">{{ 'feature.statusAilment.readOnly' | transloco }}</p>
   }
@@ -192,6 +201,11 @@
               />
             }
           </div>
+          @if (refusedChange() === ailment.name) {
+            <p class="text-ui-danger m-0 mt-1 text-[11px]" data-testid="status-ailment-change-refused">
+              {{ 'feature.statusAilment.fieldRefused' | transloco }}
+            </p>
+          }
         }
       </div>
     }

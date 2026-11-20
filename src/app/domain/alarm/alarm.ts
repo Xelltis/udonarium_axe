@@ -7,6 +7,15 @@ import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { PresetSound } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
+/** The longest an alarm counts down, in seconds. */
+export const ALARM_MAX_SECONDS = 3600;
+
+/** How long an alarm asked to count down for the seconds given does: none to an hour, and none for no number. */
+export function clampAlarmSeconds(seconds: number): number {
+  const value = Number(seconds);
+  return Number.isFinite(value) ? Math.max(0, Math.min(ALARM_MAX_SECONDS, value)) : 0;
+}
+
 @SyncObject('Alarm')
 export class Alarm extends GameObject {
   @SyncVar() initTimeStamp = 0;

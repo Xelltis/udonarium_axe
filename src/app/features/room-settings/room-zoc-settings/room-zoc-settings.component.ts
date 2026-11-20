@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { wholeCellsOrNone } from '@axe/core/util/whole-cells';
-import { asBreakOutMode, BREAK_OUT_MODES } from '@axe/domain/tabletop/move/engagement';
-import { asZocMode, HOSTILITY_BY, ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
+import { BREAK_OUT_MODES } from '@axe/domain/tabletop/move/engagement';
+import { HOSTILITY_BY, ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
 import { isGroupAnswered, RoomRuleGroup } from '@axe/domain/tabletop/room-rules';
 import { RoomSettingsAccessService } from '@axe/features/room-settings/room-settings-access.service';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -35,7 +34,7 @@ export class RoomZocSettingsComponent {
   readonly breakOutModes = BREAK_OUT_MODES;
 
   /** Whether and how enemy pieces hold the ground around them. */
-  readonly zocMode = this.access.ruleField('zocMode', asZocMode);
+  readonly zocMode = this.access.setting('zocMode');
 
   /** A table where an enemy holds no ground is asked nothing about how much of it. */
   get showsZocOptions(): boolean {
@@ -48,26 +47,26 @@ export class RoomZocSettingsComponent {
   }
 
   /** How the table tells its two sides apart, which decides who holds ground against whom. */
-  readonly hostilityBy = this.access.ruleField('hostilityBy');
+  readonly hostilityBy = this.access.setting('hostilityBy');
 
   /** How many cells the ground an enemy piece holds reaches. */
-  readonly zocRange = this.access.ruleField('zocRange', wholeCellsOrNone);
+  readonly zocRange = this.access.setting('zocRange');
 
   /** Whether the ground held against the picked piece stays shown. */
-  readonly zocAlways = this.access.ruleField('zocAlways');
+  readonly zocAlways = this.access.setting('zocAlways');
 
   /** What a step into held ground costs on top, in cells. */
-  readonly zocExtraCost = this.access.ruleField('zocExtraCost', wholeCellsOrNone);
+  readonly zocExtraCost = this.access.setting('zocExtraCost');
 
   /** Whether pieces meeting in held ground are held as one fight that charges for the step leaving it. */
-  readonly zocEngages = this.access.ruleField('zocEngages');
+  readonly zocEngages = this.access.setting('zocEngages');
 
   /** How a piece leaves a fight. */
-  readonly breakOutMode = this.access.ruleField('breakOutMode', asBreakOutMode);
+  readonly breakOutMode = this.access.setting('breakOutMode');
 
   /** What leaving a fight costs, in cells. */
-  readonly breakOutCost = this.access.ruleField('breakOutCost', wholeCellsOrNone);
+  readonly breakOutCost = this.access.setting('breakOutCost');
 
   /** Whether a piece is weighed in a fight by the ground it covers rather than one apiece. */
-  readonly engagementCountsSize = this.access.ruleField('engagementCountsSize');
+  readonly engagementCountsSize = this.access.setting('engagementCountsSize');
 }

@@ -1,15 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { trackEvery } from '@axe/application/sync/track-every';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { VoteService } from '@axe/application/vote/vote.service';
 import { Network } from '@axe/core/network/network';
-import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { connectedPeerIdsOf } from '@axe/domain/peer/peer-face';
-import { Vote } from '@axe/domain/vote/vote';
 import { UiPeerPickListComponent } from '@axe/ui/components/peer-pick-list/peer-pick-list.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -21,8 +20,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class VoteMenuComponent {
   private readonly panelService = inject(PanelService);
-  private readonly chatMessageService = inject(ChatMessageService);
-  private readonly objectStore = inject(ObjectStore);
+  private readonly votes = inject(VoteService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -37,26 +35,26 @@ export class VoteMenuComponent {
   isSecret = false;
   includSelf = false;
 
-  /** Every peer connected to the room, one row each in the vote menu. */
+  /** Every peer connected to the room that may be asked, which is any but a guest's, one row each. */
   get peerList() {
-    return this.networkService.peerContexts;
+    return this.networkService.peerContexts.filter((peer) => this.votes.mayBeAsked(peer.peerId));
   }
   /** This user's own cursor. */
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
-  /** The room's single shared vote object. */
-  get vote(): Vote {
-    return this.objectStore.get<Vote>('Vote')!;
-  }
-
-  /** The peer ids of the rows, followed as seats come and go. */
-  protected readonly peerIds = computed(() => {
-    this.objectChange.networkVersion();
-    return this.peerList.map((peer) => peer.peerId);
-  });
+  /** The peer ids of the rows, followed as seats come and go and as their roles change. */
+  protected readonly peerIds = computed(
+    () => {
+      this.objectChange.networkVersion();
+      trackEvery(this.objectChange, PeerCursor.aliasName);
+      return this.peerList.map((peer) => peer.peerId);
+    },
+    { equal: (a, b) => a.length === b.length && a.every((peerId, index) => peerId === b[index]) }
+  );
 
   constructor() {
+    closeWhenOffTheTable();
     this.setDefaultCheck();
   }
 
@@ -71,11 +69,11 @@ export class VoteMenuComponent {
   }
 
   /**
-   * The peer ids the vote will be sent to: the ticked peers, and this user when they chose to
-   * include themselves.
+   * The peer ids the vote will be sent to: the ticked peers that may still be asked, and this user
+   * when they chose to include themselves.
    */
   selectedList(): string[] {
-    const sendList = [...this.checkedPeers()];
+    const sendList = this.checkedPeers().filter((peerId) => this.votes.mayBeAsked(peerId));
     if (this.includSelf) {
       sendList.push(this.myPeer.peerId);
     }
@@ -83,46 +81,21 @@ export class VoteMenuComponent {
   }
 
   /**
-   * Starts a roll call or vote for the chosen users, announces it in the chat tab and closes the
-   * menu.
+   * Starts a roll call or vote for the chosen users through {@link VoteService.start}, which announces
+   * it in the chat tab, and closes the menu once it has started.
    *
-   * A roll call asks a fixed ready answer. A vote takes its choices from the choices field split on
-   * spaces, or a default choice when the field is empty, and says in its announcement when its
-   * answers are hidden until it closes.
+   * A vote takes its choices from the choices field split on spaces.
    */
   send() {
-    if (PeerCursor.isMyselfKeptOffTable) return;
-    const vote = this.vote;
-    let voteTitle: string;
-    let choicesInput: string = this.voteContentsText.trim();
-    let startMessage: string;
-
-    if (this.isRollCall) {
-      choicesInput = this.t('feature.vote.rollCallReady');
-      startMessage = encodeI18nMessage('feature.vote.rollCallStart');
-      voteTitle = this.t('feature.vote.rollCall');
-    } else {
-      choicesInput = choicesInput.length === 0 ? this.t('feature.vote.rollCallDefault') : choicesInput;
-      startMessage = encodeI18nMessage(this.isSecret ? 'feature.vote.voteStartSecret' : 'feature.vote.voteStart', {
-        title: this.voteTitle,
-      });
-      voteTitle = this.voteTitle;
-    }
-    const choices = choicesInput.split(/\s+/i);
-    const peerList = this.selectedList();
-
-    vote.makeVote(
-      PeerCursor.myCursor.peerId,
-      voteTitle,
-      peerList,
-      choices,
-      this.isRollCall,
-      this.chatTabidentifier,
-      this.isSecret
-    );
-    vote.startVote();
-    this.chatMessageService.sendSystemMessageAsLastSpeaker(startMessage, this.chatTabidentifier);
-    this.panelService.close();
+    const refusal = this.votes.start({
+      rollCall: this.isRollCall,
+      title: this.voteTitle,
+      choices: this.voteContentsText.split(/\s+/),
+      asked: this.selectedList(),
+      secret: this.isSecret,
+      tabIdentifier: this.chatTabidentifier,
+    });
+    if (refusal === null) this.panelService.close();
   }
 
   /** Switches the menu between a roll call and a vote, from the type radio buttons. */

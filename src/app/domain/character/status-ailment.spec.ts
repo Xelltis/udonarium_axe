@@ -4,6 +4,8 @@ import {
   findStatusAilment,
   formatStatusAilments,
   impliedBuffTiming,
+  isStatusAilmentName,
+  isStatusAilmentWritable,
   newStatusAilment,
   parseStatusAilments,
   StatusAilment,
@@ -178,5 +180,25 @@ describe('a state that moves what the sheet says', () => {
 
   it('reads a state written before any of this as moving nothing', () => {
     expect(decodeStatusAilment('毒 color:green rounds:3')).toMatchObject({ stat: '', op: '', amount: '' });
+  });
+});
+
+describe('a name and the fields that must read back as written', () => {
+  it('takes a name of one word with no colon, and no other', () => {
+    expect(['毒', 'poison', ':HP'].map(isStatusAilmentName)).toEqual([true, true, false]);
+    expect(['毒:強', '行動 不能', ''].map(isStatusAilmentName)).toEqual([false, false, false]);
+  });
+
+  it('writes and reads nothing of a state whose name it would not read back', () => {
+    expect(encodeStatusAilment(ailment({ name: '毒:強' }))).toBe('');
+    expect(encodeStatusAilment(ailment({ name: '行動 不能' }))).toBe('');
+    expect(decodeStatusAilment('毒:強 rounds:3')).toBeNull();
+  });
+
+  it('lets only the effect hold a space', () => {
+    expect(isStatusAilmentWritable(ailment({ icon: '☠', stat: ':HP', effect: '毎ラウンド HP-1' }))).toBe(true);
+    for (const field of ['color', 'icon', 'stat', 'op', 'amount'] as const) {
+      expect(isStatusAilmentWritable(ailment({ [field]: 'a b' }))).toBe(false);
+    }
   });
 });

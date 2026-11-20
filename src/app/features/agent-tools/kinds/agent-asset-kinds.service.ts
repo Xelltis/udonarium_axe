@@ -28,14 +28,14 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import type { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode, normalizeDisclosureMode } from '@axe/domain/disclosure/disclosure';
-import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
+import { fileUnderFolder } from '@axe/domain/folder/folder-path';
 import { ASSET_OWNER_ALIAS, AssetOwner } from '@axe/domain/media/asset-owner';
 import { AssetRemoval, type AssetRemovalKind } from '@axe/domain/media/asset-removal';
 import { readAudioAnalysis } from '@axe/domain/media/audio-analysis';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { readBeatGrid } from '@axe/domain/media/beat-grid';
 import { readCuePoints } from '@axe/domain/media/cue-points';
-import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { browsableImageTags, canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { IMAGE_TAG_LOCK_ALIAS } from '@axe/domain/media/image-tag-lock';
 import { MODEL_TAG_ALIAS, ModelTag } from '@axe/domain/media/model-tag';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -263,16 +263,11 @@ export class AgentAssetKinds {
   }
 
   /**
-   * The tags the list of pictures offers above them, as it offers them: each a person filed a picture
-   * under, but the tool's own and those someone else keeps from this seat.
+   * The tags the list of pictures offers above them, as it offers them: those of the pictures this
+   * seat may browse, so none the tool keeps, the master keeps back or someone else locks from it.
    */
   private pictureTags(): string[] {
-    const tags = new Set<string>();
-    for (const image of this.imageStorage.images) {
-      const tag = ImageTag.get(image.identifier)?.tag ?? '';
-      if (tag && tag !== SYSTEM_RESERVED_TAG && !this.tagLock.hides(tag)) tags.add(tag);
-    }
-    return [...tags];
+    return browsableImageTags(this.imageStorage.images, this.tagLock.sight());
   }
 
   private imageTagLock(): AgentKind<string> {
@@ -983,8 +978,7 @@ export class AgentAssetKinds {
         'write',
         this.onSheet((piece) => piece.folderName),
         (piece, value) => {
-          const folder = normalizeFolderPath(value);
-          if (piece.folderName !== folder) piece.folderName = folder;
+          fileUnderFolder(piece, value);
         },
         500
       ),

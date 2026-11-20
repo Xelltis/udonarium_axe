@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { type AgentEventBatch, AgentEventLog } from '@axe/application/agent/agent-event-log.service';
 import { AgentViews } from '@axe/application/agent/agent-views.service';
+import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { IPeerContext } from '@axe/core/network/peer-context';
@@ -217,6 +218,46 @@ describe('AgentReadTools', () => {
       '罠が作動した',
       'GMにだけ',
     ]);
+  });
+
+  it('keeps a player’s seat to the tabs its role may read by every road: listed, named, opened, read back and heard', async () => {
+    PeerCursor.myCursor.role = PeerRole.Player;
+    const kept = ChatTabList.instance.addChatTab('GM卓');
+    kept.plCanView = false;
+    TestBed.inject(ActiveChatTabService).set(kept.identifier);
+    const events = TestBed.inject(AgentEventLog);
+    events.start();
+    const waiting = call('wait_for_events', { timeout_seconds: 5 }) as Promise<AgentEventBatch>;
+    const inKept = (text: string, more: Record<string, unknown> = {}) =>
+      kept.addMessage({
+        from: 'gm-user',
+        name: 'GM',
+        text,
+        timestamp: (said += 1000),
+        tag: '',
+        imageIdentifier: '',
+        ...more,
+      });
+
+    const keptLines = [inKept('伏せた話'), inKept('あなたにだけ', { to: 'ai-gm-user' })];
+    say('表の話', { from: 'someone' });
+
+    const notFound = expect.objectContaining({ code: 'not_found' }) as AgentToolError;
+    expect((call('get_room') as { chat_tabs: { name: string }[] }).chat_tabs.map((tab) => tab.name)).toEqual([
+      'メイン',
+    ]);
+    expect(() => call('read_chat', { tab: 'GM卓' })).toThrow(notFound);
+    expect(() => tools.tab(kept.identifier)).toThrow(notFound);
+    expect(call('read_chat')).toMatchObject({ tab: { name: 'メイン' }, lines: [{ text: '表の話' }] });
+    expect(keptLines.map((line) => TestBed.inject(AgentViews).lineRead(line))).toEqual([null, null]);
+    expect((await waiting).events.map((event) => (event as { text?: string }).text)).toEqual(['表の話']);
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    expect((call('get_room') as { chat_tabs: { name: string; open?: true }[] }).chat_tabs).toEqual([
+      { id: main.identifier, name: 'メイン' },
+      { id: kept.identifier, name: 'GM卓', open: true },
+    ]);
+    expect(tools.tab('')).toBe(kept);
   });
 
   it('names the seat a line came from, this seat’s own before its cursor knows its user, and says plainly who sent it', () => {

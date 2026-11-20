@@ -1,14 +1,16 @@
 import { inject, Injectable } from '@angular/core';
 import { AgentViews } from '@axe/application/agent/agent-views.service';
+import { AlarmService } from '@axe/application/alarm/alarm.service';
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
+import { ChatTabEditService, type ChatTabPermissionKey } from '@axe/application/chat/chat-tab-edit.service';
 import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
-import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { PartyService } from '@axe/application/party/party.service';
@@ -16,6 +18,15 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import {
+  ROOM_SETTINGS,
+  type RoomSettingKey,
+  roomSettingOf,
+  type RoomSettingSources,
+  type RoomSettingValue,
+  type RoomSettingWriter,
+} from '@axe/application/tabletop/room-settings';
+import { VoteRefusal, VoteService } from '@axe/application/vote/vote.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { AgentSchema } from '@axe/core/agent/agent-schema';
 import type { AgentAccess } from '@axe/core/agent/agent-tools';
@@ -23,34 +34,36 @@ import { getPeerContexts } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { wholeCellsOrNone } from '@axe/core/util/whole-cells';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { asBattleSide, BATTLE_SIDES } from '@axe/domain/battle/battle-lineup';
 import { isHandLocation } from '@axe/domain/card/hand-location';
 import { BUFF_TIMINGS, type BuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { type StatusAilment, withRounds } from '@axe/domain/character/status-ailment';
+import {
+  isStatusAilmentWritable,
+  newStatusAilment,
+  type StatusAilment,
+  withRounds,
+} from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { BuffPalette, ChatPalette } from '@axe/domain/chat/chat-palette';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { BUILTIN_STAMPS } from '@axe/domain/chat/stamp-catalog';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
 import { DataSummarySetting, type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
 import { readElementAliases, writeElementAliases } from '@axe/domain/data/element-alias';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
-import { withFolderInOrder } from '@axe/domain/folder/folder-tree';
+import { folderSiblingsOf } from '@axe/domain/folder/folder-tree';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { connectedPeerIdsOf, peerFaceOf } from '@axe/domain/peer/peer-face';
-import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
 import {
   SCENARIO_TEXT_SPEAKERS,
   ScenarioText,
@@ -60,8 +73,8 @@ import {
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { scenePartsOf } from '@axe/domain/scene/board-scene-parts';
 import { CONCEALED_LOCATION } from '@axe/domain/tabletop/board-switch/concealment';
-import { asDiagonalMove, DEFAULT_DIAGONAL_MOVE, DIAGONAL_MOVES } from '@axe/domain/tabletop/move/diagonal-move';
-import { asZocMode, ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
+import { DIAGONAL_MOVES } from '@axe/domain/tabletop/move/diagonal-move';
+import { ZOC_MODES } from '@axe/domain/tabletop/move/zone-of-control';
 import type { RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { FACTION_PHASE_MODES, TURN_ORDER_MODES } from '@axe/domain/tabletop/turn-order-mode';
@@ -143,11 +156,15 @@ const NAMED: AgentSchema = { type: 'object', properties: NAMED_PROPERTIES, addit
 /** The name the room's settings are synced under, which the class built on its rule answers does not carry. */
 const CONFIG_ALIAS = 'config';
 
-/** One of the permissions a chat tab keeps for the players and the guests. */
-type TabPermission = 'plCanView' | 'plCanSpeak' | 'guestCanView' | 'guestCanSpeak';
+/** Who may write a room setting through the AI: the seats the room settings let write it. */
+const SETTING_ACCESS: Readonly<Record<RoomSettingWriter, AgentAccess>> = { table: 'write', shared: 'gm' };
 
 /** Why a seat other than the game master may not change who may read a tab on a room server. */
 const READING_HELD = 'On a room server, only the game master may change who may read a tab.';
+
+/** Why a seat other than the game master may not change who may speak in a tab on a room server. */
+const SPEAKING_HELD =
+  'On a room server, a seat other than the game master may change who may speak only in a tab they may already read.';
 
 /** This seat's own stamps on the lines of chat, as the one thing the reactions kind lists. */
 interface SeatReactions {
@@ -156,37 +173,9 @@ interface SeatReactions {
 
 const SEAT_REACTIONS: SeatReactions = { mine: true };
 
-/** A thing filed in folders and kept in an order, as the scenario texts and the scenes are. */
-interface Filed {
-  folderName: string;
-  order: number;
-}
-
-/** The things filed in the same folder as one, in the order of the list. */
-function folderSiblings<T extends Filed>(all: readonly T[], item: T): T[] {
-  const folder = normalizeFolderPath(item.folderName);
-  return all.filter((each) => normalizeFolderPath(each.folderName) === folder);
-}
-
-/** Files a thing in a folder, as a panel's "move to" does: its place in the list is left as it was. */
-function fileInto<T extends Filed>(item: T, path: string): void {
-  const folder = normalizeFolderPath(path);
-  if (normalizeFolderPath(item.folderName) !== folder) item.folderName = folder;
-}
-
-/**
- * Moves a thing to a place among those of its folder, counted from 1, and numbers the whole list
- * again, as a panel's moving up and down does.
- */
-function moveInFolder<T extends Filed>(all: readonly T[], item: T, place: number): void {
-  const folder = normalizeFolderPath(item.folderName);
-  const siblings = folderSiblings(all, item).filter((each) => each !== item);
-  siblings.splice(Math.max(0, Math.min(siblings.length, place - 1)), 0, item);
-  const list = withFolderInOrder(all, (each) => each.folderName, folder, siblings);
-  list.forEach((each, index) => {
-    if (Number(each.order) !== index + 1) each.order = index + 1;
-  });
-}
+/** Why a state's part was not written: every part but the effect is one word. */
+const AILMENT_FIELD_HELD =
+  "Only a state's effect may hold spaces; its colour, mark, status, operator and amount are one word each.";
 
 /** The ways a state may move a status, as the `&!` command spells them. */
 const STAT_OPS = ['=', '+', '-'] as const;
@@ -225,6 +214,10 @@ export class AgentRoomKinds {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chat = inject(ChatMessageService);
+  private readonly tabEdit = inject(ChatTabEditService);
+  private readonly votes = inject(VoteService);
+  private readonly alarms = inject(AlarmService);
+  private readonly visibleTabs = inject(VisibleChatTabsService);
   private readonly reactions = inject(ChatReactionService);
   private readonly stampRules = inject(StampRulesService);
   private readonly stampPacks = inject(StampPackService);
@@ -248,10 +241,7 @@ export class AgentRoomKinds {
       this.paletteKind(
         ChatPalette.aliasName,
         "A piece's chat palette: the lines its speaker sends from, one to a line, `//name=value` lines setting variables, and the dice system they roll under. Listed for the pieces whose sheet this seat may open.",
-        (piece) => {
-          const palette = piece.chatPalette;
-          return palette && !(palette instanceof BuffPalette) ? palette : null;
-        }
+        (piece) => piece.chatPalette
       )
     ),
     anyKind(
@@ -274,8 +264,7 @@ export class AgentRoomKinds {
 
   /** The chat tabs this seat may read, in the order the room lists them. */
   private viewableTabs(): ChatTab[] {
-    const role = this.permission.role();
-    return ChatTabList.instance.chatTabs.filter((tab) => canRoleViewTab(tab, role));
+    return this.visibleTabs.readableNow();
   }
 
   /** A chat tab this seat may read, by id or name. */
@@ -333,25 +322,23 @@ export class AgentRoomKinds {
   }
 
   private chatTab(): AgentKind<ChatTab> {
-    const permission = (
-      key: TabPermission,
-      name: string,
-      description: string,
-      refuse: (tab: ChatTab) => string | null
-    ): AgentKindField<ChatTab> => ({
+    const permission = (key: ChatTabPermissionKey, name: string, description: string): AgentKindField<ChatTab> => ({
       ...flagField<ChatTab>(
         name,
         description,
         'write',
         (tab) => tab[key],
-        (tab, value) => this.setTabPermission(tab, key, value)
+        (tab, value) => {
+          this.tabEdit.setPermission(tab, key, value);
+        }
       ),
-      refuse,
+      refuse: (tab) =>
+        this.tabEdit.mayChangePermission(tab, key)
+          ? null
+          : key === 'plCanView' || key === 'guestCanView'
+            ? READING_HELD
+            : SPEAKING_HELD,
     });
-    const speaking = (readable: (tab: ChatTab) => boolean) => (tab: ChatTab) =>
-      heldToGameMasterByServer() && !readable(tab)
-        ? 'On a room server, a seat other than the game master may change who may speak only in a tab they may already read.'
-        : null;
     return {
       kind: ChatTab.aliasName,
       description:
@@ -368,33 +355,21 @@ export class AgentRoomKinds {
           'write',
           (tab) => tab.name,
           (tab, value) => {
-            tab.name = value;
+            this.tabEdit.rename(tab, value);
           },
           100
         ),
-        permission(
-          'plCanView',
-          'players_read',
-          'Whether players may read it; taking this away takes speaking too.',
-          () => (heldToGameMasterByServer() ? READING_HELD : null)
-        ),
+        permission('plCanView', 'players_read', 'Whether players may read it; taking this away takes speaking too.'),
         permission(
           'plCanSpeak',
           'players_speak',
-          'Whether players may speak in it; letting them speak lets them read too.',
-          speaking((tab) => tab.plCanView)
+          'Whether players may speak in it; letting them speak lets them read too.'
         ),
-        permission(
-          'guestCanView',
-          'guests_read',
-          'Whether guests may read it; taking this away takes speaking too.',
-          () => (heldToGameMasterByServer() ? READING_HELD : null)
-        ),
+        permission('guestCanView', 'guests_read', 'Whether guests may read it; taking this away takes speaking too.'),
         permission(
           'guestCanSpeak',
           'guests_speak',
-          'Whether guests may speak in it; letting them speak lets them read too.',
-          speaking((tab) => tab.guestCanView)
+          'Whether guests may speak in it; letting them speak lets them read too.'
         ),
         flagField<ChatTab>('system', 'Whether it is the system tab.', null, (tab) => tab.isSystemTab),
         numberField<ChatTab>(
@@ -410,44 +385,28 @@ export class AgentRoomKinds {
         description:
           'Adds a tab at the end of the list, under a default name unless a name is written; players may read and speak in it and guests may read it until that is changed.',
         input: objectInput(),
-        make: () => ChatTabList.instance.addChatTab(this.t('feature.chat.tabSetting.defaultTabName')),
+        make: () => {
+          const made = this.tabEdit.create(this.t('feature.chat.tabSetting.defaultTabName'));
+          if (!made) throw new AgentToolError('not_allowed', 'This seat may not add a chat tab.');
+          return made;
+        },
       },
       remove: { access: 'write', take: (tab) => this.removeTab(tab) },
     };
   }
 
-  /** Sets one of a tab's permissions, as the tab settings do: speaking brings reading, and reading taken away takes speaking. */
-  private setTabPermission(tab: ChatTab, key: TabPermission, value: boolean): void {
-    tab[key] = value;
-    if (key === 'plCanSpeak' && value) tab.plCanView = true;
-    else if (key === 'plCanView' && !value) tab.plCanSpeak = false;
-    else if (key === 'guestCanSpeak' && value) tab.guestCanView = true;
-    else if (key === 'guestCanView' && !value) tab.guestCanSpeak = false;
-  }
-
   /**
-   * Takes a tab away for every seat, as the tab settings do, the place the system messages go to
-   * moving with the tabs after it. On a room server a seat other than the game master's leaves a tab
-   * holding dice the server rolled, as the server keeps them.
+   * Takes a tab away for every seat through the tab settings' own rule. On a room server a seat other
+   * than the game master's leaves a tab holding dice the server rolled, as the server keeps them.
    */
   private removeTab(tab: ChatTab): void {
-    if (heldToGameMasterByServer() && tab.chatMessages.some((message) => message.isServerRoll)) {
+    if (this.tabEdit.deleteKeptForGameMaster(tab)) {
       throw new AgentToolError(
         'not_allowed',
         'On a room server, only the game master may take away a tab holding dice the server rolled.'
       );
     }
-    const list = ChatTabList.instance;
-    const index = list.children.indexOf(tab);
-    tab.destroy();
-    if (list.systemMessageTabIndex > index) list.systemMessageTabIndex--;
-    this.keepSystemTabIndexInList(list);
-  }
-
-  /** Holds the place the system messages go to among the tabs there are, as the tab settings do. */
-  private keepSystemTabIndexInList(list: ChatTabList): void {
-    if (list.systemMessageTabIndex >= list.children.length) list.systemMessageTabIndex = list.children.length - 1;
-    if (list.systemMessageTabIndex < 0) list.systemMessageTabIndex = 0;
+    if (!this.tabEdit.delete(tab)) throw new AgentToolError('not_allowed', 'This seat may not take this tab away.');
   }
 
   private chatTabList(): AgentKind<ChatTabList> {
@@ -480,37 +439,17 @@ export class AgentRoomKinds {
             },
             ['tab', 'to']
           ),
-          run: (list, args) => this.moveTab(list, args),
+          run: (_list, args) => this.moveTab(args),
         },
       ],
     };
   }
 
-  private moveTab(list: ChatTabList, args: AgentArgs): unknown {
+  private moveTab(args: AgentArgs): unknown {
     const tab = this.tabNamed(textArg(args, 'tab'));
     if (tab.isSystemTab) throw new AgentToolError('not_allowed', 'The system tab stays where it is.');
-    const tabs = this.viewableTabs();
-    const target = tabs[Math.min(tabs.length, numberArg(args, 'to', 1)) - 1];
-    const to = list.children.indexOf(target);
-    let at = list.children.indexOf(tab);
-    while (at !== to) {
-      this.stepTab(list, tab, at < to ? 1 : -1);
-      at = list.children.indexOf(tab);
-    }
+    this.tabEdit.moveTo(tab, numberArg(args, 'to', 1));
     return { tabs: this.viewableTabs().map((each) => ({ id: each.identifier, name: each.name })) };
-  }
-
-  /** Moves a tab one place up or down the list, the place the system messages go to staying on the same tab. */
-  private stepTab(list: ChatTabList, tab: ChatTab, direction: 1 | -1): void {
-    const siblings = list.children;
-    const index = siblings.indexOf(tab);
-    const to = index + direction;
-    if (to < 0 || to >= siblings.length) return;
-    if (direction < 0) list.insertBefore(tab, siblings[to]);
-    else list.insertBefore(siblings[to], tab);
-    if (list.systemMessageTabIndex === index) list.systemMessageTabIndex += direction;
-    else if (list.systemMessageTabIndex === to) list.systemMessageTabIndex -= direction;
-    this.keepSystemTabIndexInList(list);
   }
 
   private chatReaction(): AgentKind<SeatReactions> {
@@ -562,12 +501,10 @@ export class AgentRoomKinds {
     };
   }
 
-  /** A line of chat this seat reads, in a tab it may read, by identifier; null for any other. */
+  /** A line of chat this seat reads, in a tab it may read, by identifier, as the AI is handed lines; null for any other. */
   private lineRead(identifier: string): ChatMessage | null {
     const message = this.objectStore.get(identifier.trim());
-    if (!(message instanceof ChatMessage) || this.views.lineRead(message) === null) return null;
-    const tab = message.parent;
-    return tab instanceof ChatTab && canRoleViewTab(tab, this.permission.role()) ? message : null;
+    return message instanceof ChatMessage && this.views.lineRead(message) !== null ? message : null;
   }
 
   private myRecords(): ChatReaction[] {
@@ -811,7 +748,7 @@ export class AgentRoomKinds {
           null,
           (vote) => vote.isSecret
         ),
-        flagField<Vote>('open', 'Whether it is being answered now.', null, (vote) => this.voteOpen(vote)),
+        flagField<Vote>('open', 'Whether it is being answered now.', null, (vote) => vote.isOpen()),
         textField<Vote>('chair', 'The seat that started it.', null, (vote) => peerFaceOf(vote.chairId).name),
         textField<Vote>('tab', 'The chat tab it is said in; empty for the system tab.', null, (vote) =>
           this.tabNameOf(vote.chatTabIdentifier)
@@ -875,12 +812,7 @@ export class AgentRoomKinds {
           access: 'write',
           input: objectInput(),
           run: (vote) => {
-            if (!this.voteOpen(vote)) throw new AgentToolError('failed', 'There is no vote being answered.');
-            if (!vote.isChair()) throw new AgentToolError('not_allowed', 'Only the chair may end the vote early.');
-            if (PeerCursor.isMyselfKeptOffTable) {
-              throw new AgentToolError('not_allowed', 'A guest on a room server may not end a vote.');
-            }
-            vote.finishByChair();
+            this.refuseVote(this.votes.finish(), 'end a vote');
             return { finished: vote.voteTitle };
           },
         },
@@ -888,8 +820,20 @@ export class AgentRoomKinds {
     };
   }
 
-  private voteOpen(vote: Vote): boolean {
-    return vote.initTimeStamp > 0 && !vote.isFinish;
+  /** Throws why the vote service turned a call down, naming what was asked; nothing where it was done. */
+  private refuseVote(refusal: VoteRefusal | null, asked: string): void {
+    if (refusal === null) return;
+    const reasons: Record<VoteRefusal, [AgentToolError['code'], string]> = {
+      guest: ['not_allowed', `A guest may not ${asked}.`],
+      noSeat: ['invalid_input', 'Ask at least one seat that may answer; a guest answers nothing.'],
+      closed: ['failed', 'There is no vote being answered.'],
+      notAsked: ['not_allowed', 'This seat was not asked.'],
+      answered: ['not_allowed', 'This seat has answered already.'],
+      notOffered: ['invalid_input', 'That is not one of the choices.'],
+      notChair: ['not_allowed', 'Only the chair may end the vote early.'],
+    };
+    const [code, message] = reasons[refusal];
+    throw new AgentToolError(code, message);
   }
 
   /**
@@ -917,59 +861,40 @@ export class AgentRoomKinds {
     return [...new Set([...chosen, ...(includeSelf && me ? [me] : [])])];
   }
 
-  /** Starts a vote as the vote menu does: the vote set up, opened on every screen, and said in chat. */
+  /** Starts a vote through the vote menu's own {@link VoteService.start}, said in chat as the AI's words. */
   private startVote(vote: Vote, args: AgentArgs): unknown {
-    if (PeerCursor.isMyselfKeptOffTable) {
-      throw new AgentToolError('not_allowed', 'A guest on a room server may not start a vote.');
-    }
     const rollCall = args['type'] === 'roll_call';
-    const secret = args['secret'] === true;
     const tab = this.tabIdentifierOf(textArg(args, 'tab'));
     const asked = this.seatsAsked(args['to'], args['include_self'] === true);
-    if (asked.length < 1) throw new AgentToolError('invalid_input', 'Ask at least one seat.');
-    const given = ((args['choices'] as string[] | undefined) ?? [])
-      .map((choice) => choice.trim())
-      .filter((choice) => choice.length > 0);
-    const title = rollCall
-      ? this.t('feature.vote.rollCall')
-      : textArg(args, 'title').trim() || this.t('feature.vote.voteTitlePlaceholder');
-    const choices = rollCall
-      ? this.t('feature.vote.rollCallReady').split(/\s+/)
-      : given.length > 0
-        ? given
-        : this.t('feature.vote.rollCallDefault').split(/\s+/);
-    const startMessage = rollCall
-      ? encodeI18nMessage('feature.vote.rollCallStart')
-      : encodeI18nMessage(secret ? 'feature.vote.voteStartSecret' : 'feature.vote.voteStart', { title });
-    vote.makeVote(PeerCursor.myCursor.peerId, title, asked, choices, rollCall, tab, secret);
-    vote.startVote();
-    this.chat.asAiWords(() => this.chat.sendSystemMessageAsLastSpeaker(startMessage, tab));
-    return { started: title, asked: asked.map((peerId) => peerFaceOf(peerId).name), choices };
+    const refusal = this.chat.asAiWords(() =>
+      this.votes.start({
+        rollCall,
+        title: textArg(args, 'title'),
+        choices: (args['choices'] as string[] | undefined) ?? [],
+        asked,
+        secret: args['secret'] === true,
+        tabIdentifier: tab,
+      })
+    );
+    this.refuseVote(refusal, 'start a vote');
+    return {
+      started: vote.voteTitle,
+      asked: vote.targetPeerId.map((peerId) => peerFaceOf(peerId).name),
+      choices: vote.choices,
+    };
   }
 
-  /** Answers a vote as its widget does, and says in chat that this seat answered, and what where it may. */
+  /** Answers a vote through its widget's own {@link VoteService.answer}, said in chat as the AI's words. */
   private answerVote(vote: Vote, args: AgentArgs): unknown {
-    const me = PeerCursor.myCursor?.peerId ?? '';
-    if (!this.voteOpen(vote)) throw new AgentToolError('failed', 'There is no vote being answered.');
-    if (!vote.chkToMe()) throw new AgentToolError('not_allowed', 'This seat was not asked.');
-    if (vote.isVoteEnd(me)) throw new AgentToolError('not_allowed', 'This seat has answered already.');
-    const abstain = args['abstain'] === true;
+    this.refuseVote(this.votes.answerRefusal(), 'answer a vote');
     const named = textArg(args, 'choice').trim();
-    const choice = abstain ? null : named || (vote.isRollCall ? vote.choices[0] : '');
+    const choice = args['abstain'] === true ? null : named || (vote.isRollCall ? vote.choices[0] : '');
     if (choice !== null && !vote.choices.includes(choice)) {
       throw new AgentToolError('invalid_input', `Answer one of ${vote.choices.join(', ')}, or abstain.`);
     }
-    vote.voting(choice, me);
-    const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
-    const prefix = encodeI18nMessage(vote.isRollCall ? 'feature.vote.rollCallPrefix' : 'feature.vote.votePrefix');
-    const said =
-      choice === null
-        ? encodeI18nMessage(vote.isSecret ? 'feature.vote.secretAnswered' : 'feature.vote.abstainResult', counts)
-        : vote.isSecret
-          ? encodeI18nMessage('feature.vote.secretAnswered', counts)
-          : encodeI18nMessage('feature.vote.voteResult', { choice, ...counts });
-    this.chat.asAiWords(() =>
-      this.chat.sendSystemMessageAsLastSpeaker(encodeI18nList([prefix, said], ''), vote.chatTabIdentifier)
+    this.refuseVote(
+      this.chat.asAiWords(() => this.votes.answer(choice)),
+      'answer a vote'
     );
     return { answered: choice ?? 'abstained' };
   }
@@ -1027,32 +952,25 @@ export class AgentRoomKinds {
     };
   }
 
-  /** Sets the alarm as the alarm menu does: set up for its seats, said in chat, and started here. */
+  /** Sets the alarm through the alarm menu's own {@link AlarmService.set}, said in chat as the AI's words. */
   private startAlarm(alarm: Alarm, args: AgentArgs): unknown {
-    if (PeerCursor.isMyselfKeptOffTable) {
-      throw new AgentToolError('not_allowed', 'A guest on a room server may not set the alarm.');
-    }
-    const seconds = Math.max(0, Math.min(3600, numberArg(args, 'seconds', 60)));
-    const title = textArg(args, 'title').trim() || this.t('feature.alarm.defaultTitle');
-    const to = this.seatsAsked(args['to'], args['include_self'] !== false);
-    if (to.length < 1) throw new AgentToolError('invalid_input', 'Set it for at least one seat.');
-    const target =
-      getPeerContexts().length + 1 === to.length
-        ? encodeI18nMessage('feature.alarm.targetAll')
-        : ` >${to.map((peerId) => `${peerFaceOf(peerId).name} `).join('')}`;
-    const startMessage = encodeI18nList([encodeI18nMessage('feature.alarm.setMessage', { seconds }), target], '');
-    alarm.makeAlarm(
-      seconds,
-      title,
-      to,
-      PeerCursor.myCursor.peerId,
-      target,
-      args['sound'] !== false,
-      args['popup'] !== false
+    const refusal = this.chat.asAiWords(() =>
+      this.alarms.set({
+        title: textArg(args, 'title'),
+        seconds: numberArg(args, 'seconds', 60),
+        to: this.seatsAsked(args['to'], args['include_self'] !== false),
+        sound: args['sound'] !== false,
+        popup: args['popup'] !== false,
+      })
     );
-    this.chat.asAiWords(() => this.chat.sendSystemMessageAsLastSpeaker(startMessage));
-    alarm.startAlarm();
-    return { set: title, seconds, to: to.map((peerId) => peerFaceOf(peerId).name) };
+    if (refusal === 'guest') throw new AgentToolError('not_allowed', 'A guest may not set the alarm.');
+    if (refusal === 'noSeat') throw new AgentToolError('invalid_input', 'Set it for at least one seat.');
+    if (refusal === 'missing') throw new AgentToolError('failed', 'The room has no alarm yet.');
+    return {
+      set: alarm.alarmTitle,
+      seconds: alarm.alarmTime,
+      to: alarm.targetPeerId.map((peerId) => peerFaceOf(peerId).name),
+    };
   }
 
   private scenarioText(): AgentKind<ScenarioText> {
@@ -1086,15 +1004,17 @@ export class AgentRoomKinds {
           'The folder it is filed in, as a path like 第1話/導入; empty for none.',
           'gm',
           (passage) => passage.folderName,
-          (passage, value) => fileInto(passage, value)
+          (passage, value) => {
+            this.scenarioTexts.fileInto(passage, value);
+          }
         ),
         numberField<ScenarioText>(
           'position',
           'Its place among the texts of its folder, from 1.',
           'gm',
           { minimum: 1, integer: true },
-          (passage) => folderSiblings(ScenarioText.all(), passage).indexOf(passage) + 1,
-          (passage, value) => moveInFolder(ScenarioText.all(), passage, value)
+          (passage) => folderSiblingsOf(ScenarioText.all(), passage).indexOf(passage) + 1,
+          (passage, value) => this.scenarioTexts.moveInFolder(passage, value - 1)
         ),
         choiceField<ScenarioText, ScenarioTextSpeaker>(
           'send_as',
@@ -1230,8 +1150,7 @@ export class AgentRoomKinds {
           [...BATTLE_SIDES, 'none'],
           (party) => asBattleSide(party.battleSide) ?? 'none',
           (party, value) => {
-            party.battleSide = value === 'none' ? '' : value;
-            this.objectChange.notifyChanged(party.identifier);
+            this.parties.setBattleSide(party, asBattleSide(value));
           }
         ),
         {
@@ -1354,15 +1273,17 @@ export class AgentRoomKinds {
           'The folder it is filed in, as a path like 第1話/村; empty for none.',
           'gm',
           (scene) => scene.folderName,
-          (scene, value) => fileInto(scene, value)
+          (scene, value) => {
+            this.scenes.fileInto(scene, value);
+          }
         ),
         numberField<BoardScene>(
           'position',
           'Its place among the scenes of its folder, from 1.',
           'gm',
           { minimum: 1, integer: true },
-          (scene) => folderSiblings(BoardScene.all(), scene).indexOf(scene) + 1,
-          (scene, value) => moveInFolder(BoardScene.all(), scene, value)
+          (scene) => folderSiblingsOf(BoardScene.all(), scene).indexOf(scene) + 1,
+          (scene, value) => this.scenes.moveInFolder(scene, value - 1)
         ),
         textField<BoardScene>(
           'table',
@@ -1437,6 +1358,36 @@ export class AgentRoomKinds {
     return this.roomRules.rulesFor(TableSelecter.instance.viewTable);
   }
 
+  /** What a room setting is read from and written to, as the room settings read them. */
+  private readonly settingSources: RoomSettingSources = {
+    config: () => Config.instance,
+    rules: () => this.rules(),
+    zone: () => this.roomRules.zoneRules(),
+  };
+
+  /**
+   * A field of the room's settings, read and written through its entry in {@link ROOM_SETTINGS} as the
+   * room settings read and write it, and written by the seats the panel lets write it. `taken` turns
+   * what the AI gave into the value written, where more than its schema decides that.
+   */
+  private settingField<K extends RoomSettingKey>(
+    key: K,
+    name: string,
+    description: string,
+    schema: AgentSchema,
+    taken: (value: unknown) => RoomSettingValue<K> = (value) => value as RoomSettingValue<K>
+  ): AgentKindField<Config> {
+    const setting = roomSettingOf(key);
+    return {
+      name,
+      description,
+      schema,
+      access: SETTING_ACCESS[setting.writer],
+      read: () => setting.read(this.settingSources),
+      put: (_config, value) => setting.write(this.settingSources, taken(value)),
+    };
+  }
+
   private config(): AgentKind<Config> {
     return {
       kind: CONFIG_ALIAS,
@@ -1473,123 +1424,78 @@ export class AgentRoomKinds {
           }
         ),
         {
-          ...textField<Config>(
+          ...this.settingField(
+            'defaultDiceBot',
             'dice_system',
             'The id of the dice system the room rolls under by default, as list_assets with kind dice_systems gives it.',
-            'gm',
-            (config) => config.defaultDiceBot,
-            (config, value) => {
-              config.defaultDiceBot = this.diceSystem(value);
-            },
-            100
+            { type: 'string', maxLength: 100 },
+            (value) => this.diceSystem(`${value}`)
           ),
           refuse: (_config, value) => refusalOf(() => this.diceSystem(`${value}`)),
         },
-        choiceField<Config, (typeof TURN_ORDER_MODES)[number]>(
+        this.settingField(
+          'turnOrderMode',
           'turn_order',
           'How the round decides whose turn it is: by initiative, or side by side (faction).',
-          'write',
-          TURN_ORDER_MODES,
-          (config) => config.turnOrderMode,
-          (config, value) => {
-            config.turnOrderMode = value;
-          }
+          { type: 'string', enum: TURN_ORDER_MODES }
         ),
-        choiceField<Config, (typeof FACTION_PHASE_MODES)[number]>(
+        this.settingField(
+          'factionPhaseMode',
           'faction_phase',
           "When the round goes side by side, how a side's pieces take their phase: freely, or by initiative.",
-          'write',
-          FACTION_PHASE_MODES,
-          (config) => config.factionPhaseMode,
-          (config, value) => {
-            config.factionPhaseMode = value;
-          }
+          { type: 'string', enum: FACTION_PHASE_MODES }
         ),
-        flagField<Config>(
+        this.settingField(
+          'factionSkipUnassigned',
           'faction_skip_unassigned',
           'When the round goes side by side, whether pieces in no party sit it out.',
-          'write',
-          (config) => config.factionSkipUnassigned,
-          (config, value) => {
-            config.factionSkipUnassigned = value;
-          }
+          { type: 'boolean' }
         ),
-        flagField<Config>(
+        this.settingField(
+          'moveRangeEnabled',
           'move_range',
           'Whether a piece picked up shows the squares it can move to.',
-          'write',
-          () => this.rules().moveRangeEnabled,
-          (config, value) => {
-            config.moveRangeEnabled = value;
-          }
+          { type: 'boolean' }
         ),
-        flagField<Config>(
+        this.settingField(
+          'moveStrict',
           'move_strict',
           'Whether a piece set down walks the cheapest way there, stopping at walls and where its movement runs out.',
-          'write',
-          (config) => config.moveStrict,
-          (config, value) => {
-            config.moveStrict = value;
-          }
+          { type: 'boolean' }
         ),
-        choiceField<Config, (typeof DIAGONAL_MOVES)[number]>(
+        this.settingField(
+          'diagonalMove',
           'diagonal_move',
           'How a step across a corner counts on a square grid: not allowed, the same as a side, every second one double, or double.',
-          'write',
-          DIAGONAL_MOVES,
-          () => this.rules().diagonalMove,
-          (config, value) => {
-            config.diagonalMove = asDiagonalMove(value) ?? DEFAULT_DIAGONAL_MOVE;
-          }
+          { type: 'string', enum: DIAGONAL_MOVES }
         ),
-        flagField<Config>(
+        this.settingField(
+          'piecesShareCells',
           'pieces_share_squares',
           'Whether two pieces may end a move on one square.',
-          'write',
-          () => this.rules().piecesShareCells,
-          (config, value) => {
-            config.piecesShareCells = value;
-          }
+          { type: 'boolean' }
         ),
-        numberField<Config>(
+        this.settingField(
+          'jumpCells',
           'jump_squares',
           'How many squares one leap carries; 0 carries as far as the move has left.',
-          'write',
-          { minimum: 0, maximum: 999, integer: true },
-          () => this.rules().jumpCells,
-          (config, value) => {
-            config.jumpCells = wholeCellsOrNone(value);
-          }
+          { type: 'integer', minimum: 0, maximum: 999 }
         ),
-        choiceField<Config, (typeof ZOC_MODES)[number]>(
+        this.settingField(
+          'zocMode',
           'zone_of_control',
           'What the ground around an enemy does to a piece walking into it: nothing, stops it, blocks it, or costs extra.',
-          'write',
-          ZOC_MODES,
-          () => this.rules().zocMode,
-          (config, value) => {
-            config.zocMode = asZocMode(value);
-          }
+          { type: 'string', enum: ZOC_MODES }
         ),
-        numberField<Config>(
+        this.settingField(
+          'zocRange',
           'zone_of_control_reach',
           'How many squares out from an enemy the ground it holds reaches.',
-          'write',
-          { minimum: 0, maximum: 99, integer: true },
-          () => this.rules().zocRange,
-          (config, value) => {
-            config.zocRange = wholeCellsOrNone(value);
-          }
+          { type: 'integer', minimum: 0, maximum: 99 }
         ),
-        flagField<Config>(
-          'engagement_zones',
-          'Whether the room plays engagement zones.',
-          'write',
-          (config) => config.zoneEnabled === true,
-          (config, value) => {
-            config.zoneEnabled = value ? true : null;
-          }
-        ),
+        this.settingField('zoneEnabled', 'engagement_zones', 'Whether the room plays engagement zones.', {
+          type: 'boolean',
+        }),
       ],
       actions: [
         {
@@ -1775,12 +1681,16 @@ export class AgentRoomKinds {
           input: objectInput({ name: text('Its name, one word.', 50), ...AILMENT_PARTS }, ['name']),
           run: (_catalog, args) => {
             const name = textArg(args, 'name').trim();
-            if (!/^[^\s:]+$/.test(name)) {
-              throw new AgentToolError('invalid_input', "A state's name is one word, without a colon.");
+            const refusal = this.ailments.nameRefusal(name);
+            if (refusal === 'taken')
+              throw new AgentToolError('invalid_input', `There is a state called ${name} already.`);
+            if (refusal) throw new AgentToolError('invalid_input', "A state's name is one word, without a colon.");
+            const next = this.withAilmentParts(newStatusAilment(name), args);
+            if (!isStatusAilmentWritable(next)) throw new AgentToolError('invalid_input', AILMENT_FIELD_HELD);
+            if (!this.ailments.add(name) || !this.ailments.change(name, next)) {
+              throw new AgentToolError('not_allowed', 'This seat may not change the states.');
             }
-            const added = this.ailments.add(name);
-            if (!added) throw new AgentToolError('invalid_input', `There is a state called ${name} already.`);
-            return this.changeAilment(added, args);
+            return this.ailmentNamed(name);
           },
         },
         {
@@ -1843,6 +1753,16 @@ export class AgentRoomKinds {
    * or takes them away with it.
    */
   private changeAilment(ailment: StatusAilment, args: AgentArgs): StatusAilment {
+    const next = this.withAilmentParts(ailment, args);
+    if (!isStatusAilmentWritable(next)) throw new AgentToolError('invalid_input', AILMENT_FIELD_HELD);
+    if (!this.ailments.change(ailment.name, next)) {
+      throw new AgentToolError('not_allowed', 'This seat may not change the states.');
+    }
+    return this.ailmentNamed(ailment.name);
+  }
+
+  /** A state with the parts given written over it, as {@link changeAilment} writes them. */
+  private withAilmentParts(ailment: StatusAilment, args: AgentArgs): StatusAilment {
     let next: StatusAilment = { ...ailment };
     if (typeof args['color'] === 'string') next.color = args['color'];
     if (typeof args['icon'] === 'string') next.icon = args['icon'].trim();
@@ -1863,7 +1783,6 @@ export class AgentRoomKinds {
     }
     if (typeof args['op'] === 'string') next.op = args['op'];
     if (typeof args['amount'] === 'string') next.amount = args['amount'];
-    this.ailments.save(this.ailments.ailments().map((entry) => (entry.name === ailment.name ? next : entry)));
-    return this.ailmentNamed(ailment.name);
+    return next;
   }
 }

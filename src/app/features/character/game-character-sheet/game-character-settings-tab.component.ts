@@ -28,7 +28,7 @@ import {
   findElementTemplateHolder,
   readElementTemplates,
 } from '@axe/domain/data/data-element-templates';
-import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
+import { fileUnderFolder } from '@axe/domain/folder/folder-path';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import {
   readSeatHeight,
@@ -299,21 +299,16 @@ export class GameCharacterSettingsTabComponent {
   }
 
   /**
-   * Files the character under the folder path typed into the folder field.
-   *
-   * The path is normalised and written back into the field. Users who may not edit the table change
-   * nothing, and an unchanged path is not written.
+   * Files the character under the folder path typed into the folder field, as {@link fileUnderFolder}
+   * files it, and writes the path as it is stored back into the field. Users who may not edit the table
+   * change nothing.
    */
   onSetFolder(event: Event): void {
     if (!this.rolePermission.canEditTabletop()) return;
     const character = this.character();
     const input = event.target as HTMLInputElement;
-    const folderName = normalizeFolderPath(input.value);
-    input.value = folderName;
-    if (character.folderName === folderName) return;
-    // The synchronised setter announces the change on its way through; saying so again here made
-    // every listener do its work twice.
-    character.folderName = folderName;
+    fileUnderFolder(character, input.value);
+    input.value = character.folderName;
   }
 
   /**

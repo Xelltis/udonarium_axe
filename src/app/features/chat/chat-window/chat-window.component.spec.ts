@@ -7,7 +7,6 @@ import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.s
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { Network } from '@axe/core/network/network';
 import { childrenChanged$, objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { withdraw } from '@axe/core/sync/object-synchronizer';
@@ -71,14 +70,13 @@ describe('ChatWindowComponent', () => {
     character.destroy();
   });
 
-  it('offers a guest on a room server no vote or alarm, which the server would take back', () => {
+  it('offers a guest no vote or alarm, among peers too', () => {
     const buttons = () =>
       [...fixture.nativeElement.querySelectorAll('button[title]')].map((button) => button.getAttribute('title'));
     fixture.detectChanges();
     expect(buttons()).toEqual(expect.arrayContaining(['点呼・投票', 'アラーム']));
 
     PeerCursor.myCursor.role = PeerRole.Guest;
-    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     objectChange.notifyChanged(PeerCursor.myCursor.identifier);
     fixture.detectChanges();
     try {

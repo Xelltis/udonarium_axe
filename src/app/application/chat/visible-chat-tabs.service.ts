@@ -23,10 +23,16 @@ export class VisibleChatTabsService {
     this.objectChange.collectionOf(ChatTab.aliasName)();
     this.objectChange.versionOf(ChatTabList.instance.identifier)();
     this.objectChange.trackMyCursor();
-    const role = PeerCursor.myRole;
-    return this.chatMessageService.chatTabs.filter((tab) => {
-      this.objectChange.versionOf(tab.identifier)();
-      return canRoleViewTab(tab, role);
-    });
+    for (const tab of this.chatMessageService.chatTabs) this.objectChange.versionOf(tab.identifier)();
+    return this.readableNow();
   });
+
+  /**
+   * The same list read afresh rather than as last followed, for whatever changes the tabs and reads
+   * them again in the same turn, before the room has announced the change.
+   */
+  readableNow(): ChatTab[] {
+    const role = PeerCursor.myRole;
+    return this.chatMessageService.chatTabs.filter((tab) => canRoleViewTab(tab, role));
+  }
 }

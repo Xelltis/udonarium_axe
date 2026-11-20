@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { browsableImageTags, canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 
 describe('ImageTag', () => {
   let store: ObjectStore;
@@ -134,5 +134,47 @@ describe('canBrowseImage()', () => {
     expect(canBrowseImage(tag({ tag: 'ボス' }), { canSeeSecret: true, hidesTag: keptFromMe }, true)).toBe(false);
     expect(canBrowseImage(tag({ tag: 'コマ' }), { canSeeSecret: false, hidesTag: keptFromMe }, true)).toBe(true);
     expect(canBrowseImage(null, { canSeeSecret: false, hidesTag: keptFromMe }, true)).toBe(true);
+  });
+});
+
+describe('browsableImageTags()', () => {
+  const sees = (canSeeSecret: boolean, hidesTag = (_tag: string) => false) => ({ canSeeSecret, hidesTag });
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    const filed = (identifier: string, name: string, isSecret = false) => {
+      const tag = ImageTag.create(identifier);
+      tag.tag = name;
+      tag.isSecret = isSecret;
+    };
+    filed('forest', '森');
+    filed('boss', 'ボス', true);
+    filed('boss-too', '森', true);
+    filed('sample', SYSTEM_RESERVED_TAG);
+    filed('locked', '宝');
+  });
+
+  afterEach(() => {
+    for (const tag of ObjectStore.instance.getObjects<ImageTag>(ImageTag)) tag.destroy();
+  });
+
+  const images = ['forest', 'boss', 'boss-too', 'sample', 'locked', 'untagged'].map((identifier) => ({ identifier }));
+
+  it('names no tag only the pictures the master keeps back carry, to anyone but the master', () => {
+    expect(browsableImageTags(images, sees(false))).toEqual(['森', '宝']);
+    expect(browsableImageTags(images, sees(true))).toEqual(['森', 'ボス', '宝']);
+  });
+
+  it('names none while the master has the kept pictures folded away', () => {
+    expect(browsableImageTags(images, sees(true), false)).toEqual(['森', '宝']);
+  });
+
+  it('names no tag kept from whoever looks, nor the tool’s own', () => {
+    expect(
+      browsableImageTags(
+        images,
+        sees(true, (tag) => tag === '宝')
+      )
+    ).toEqual(['森', 'ボス']);
   });
 });

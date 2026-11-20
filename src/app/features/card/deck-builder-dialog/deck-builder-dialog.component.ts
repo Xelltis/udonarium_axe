@@ -5,7 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { trackEvery } from '@axe/application/sync/track-every';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { browsableImageTags, canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface DeckBuilderResult {
@@ -29,16 +29,10 @@ export class DeckBuilderDialogComponent {
   readonly selectedTag = signal('');
   readonly useImageName = signal(true);
 
+  /** The tags a deck can be built from, those of the pictures this seat may browse, in the order of their words. */
   readonly tags = computed(() => {
     this.followPictures();
-    const tags = new Set<string>();
-    for (const image of this.imageStorage.images) {
-      const imageTag = ImageTag.get(image.identifier) ?? null;
-      if (!canBrowseImage(imageTag, this.tagLock.sight())) continue;
-      const tag = imageTag?.tag ?? '';
-      if (tag.length > 0 && tag !== SYSTEM_RESERVED_TAG) tags.add(tag);
-    }
-    return [...tags].sort((a, b) => a.localeCompare(b));
+    return browsableImageTags(this.imageStorage.images, this.tagLock.sight()).sort((a, b) => a.localeCompare(b));
   });
 
   readonly cardCount = computed(() => {

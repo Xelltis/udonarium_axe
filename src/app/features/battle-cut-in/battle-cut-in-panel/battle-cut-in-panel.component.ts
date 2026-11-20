@@ -26,7 +26,7 @@ import {
 import { putOnBattleSide, standingBattleSide } from '@axe/domain/battle/battle-side';
 import { BATTLE_STAGE_SIZE_LABEL_KEYS, BATTLE_STAGE_SIZES } from '@axe/domain/battle/battle-stage-window';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { EffectPreset, presetsShownTo } from '@axe/domain/effect/effect-preset';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
@@ -216,8 +216,7 @@ export class BattleCutInPanelComponent {
   readonly effectGroups = computed<EffectGroup[]>(() => {
     const master = this.isGameMaster();
     const groups = new Map<string, string[]>();
-    for (const preset of this.library.presets()) {
-      if (preset.gmOnly && !master) continue;
+    for (const preset of presetsShownTo(this.library.presets(), master)) {
       const name = preset.name.trim();
       if (name.length < 1) continue;
       const tag = preset.tagName.trim();
@@ -266,9 +265,7 @@ export class BattleCutInPanelComponent {
   /** Puts a party on a side of the stage, or on neither, for every member not put on one of its own. */
   setPartySide(identifier: string, side: BattleSide | null): void {
     const party = this.objectStore.get(identifier);
-    if (!(party instanceof Party) || !this.isGameMaster()) return;
-    party.battleSide = side ?? '';
-    this.objectChange.notifyChanged(party.identifier);
+    if (party instanceof Party) this.partyService.setBattleSide(party, side);
   }
 
   setEffect(name: string): void {

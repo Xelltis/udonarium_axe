@@ -3,7 +3,10 @@ import {
   collectFolderPaths,
   descendantFolderPaths,
   type FolderNode,
+  folderSiblingsOf,
+  numberInOrder,
   withFolderInOrder,
+  withMovedInFolder,
 } from '@axe/domain/folder/folder-tree';
 
 interface Item {
@@ -136,5 +139,39 @@ describe('withFolderInOrder()', () => {
     const [a, b, c, d, e] = list;
 
     expect(withFolderInOrder(list, (entry) => entry.folder, '村', [e, a, c])).toEqual([e, b, a, d, c]);
+  });
+});
+
+describe('withMovedInFolder()', () => {
+  const filed = (name: string, folderName = '') => ({ name, folderName, order: 0 });
+
+  it('moves a thing to a place among the others of its folder, the rest left where they stand', () => {
+    const list = [filed('a', '村'), filed('b'), filed('c', '村'), filed('d', '洞窟'), filed('e', ' 村 ')];
+    const [a, b, c, d, e] = list;
+
+    expect(folderSiblingsOf(list, a)).toEqual([a, c, e]);
+    expect(withMovedInFolder(list, e, 0)).toEqual([e, b, a, d, c]);
+    expect(withMovedInFolder(list, a, Infinity)).toEqual([c, b, e, d, a]);
+    expect(withMovedInFolder(list, c, -3)).toEqual([c, b, a, d, e]);
+  });
+
+  it('numbers the list from 1, writing only the numbers that change', () => {
+    const list = [filed('a'), filed('b'), filed('c')];
+    list[1].order = 2;
+    const written: string[] = [];
+    const watched = list.map((each) =>
+      Object.defineProperty({ ...each }, 'order', {
+        get: () => each.order,
+        set: (value: number) => {
+          written.push(each.name);
+          each.order = value;
+        },
+      })
+    );
+
+    numberInOrder(watched);
+
+    expect(list.map((each) => each.order)).toEqual([1, 2, 3]);
+    expect(written).toEqual(['a', 'c']);
   });
 });

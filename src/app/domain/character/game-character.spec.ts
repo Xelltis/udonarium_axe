@@ -432,6 +432,42 @@ CC&lt;=50</chat-palette><chat-palette dicebot="">回復
       expect(restored.children.some((child) => child.aliasName === 'sub-palette')).toBe(false);
     });
 
+    it('gives the chat palette, never the buff palette before it, and folds the kept palettes into that one', () => {
+      const xml = `<character>
+    <data name="character">
+    <data name="image"><data name="imageIdentifier" type="image"></data></data>
+    <data name="common"></data>
+    <data name="detail"></data>
+    </data>
+    <buff-palette dicebot="">マッスルベアー DB+2 3</buff-palette>
+    <chat-palette dicebot="">2d6 攻撃</chat-palette>
+    <sub-palette><chat-palette dicebot="">探索
+CC&lt;=50</chat-palette></sub-palette>
+    </character>`;
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as GameCharacter;
+
+      expect(restored.chatPalette).not.toBe(restored.remoteController);
+      expect(restored.chatPalette!.getPalette()).toEqual(['2d6 攻撃', '◆◆探索', '探索', 'CC<=50']);
+      expect(restored.remoteController!.getPalette()).toEqual(['マッスルベアー DB+2 3']);
+    });
+
+    it('gives a piece with only a buff palette no chat palette until one is made for it', () => {
+      const xml = `<character>
+    <data name="character">
+    <data name="image"><data name="imageIdentifier" type="image"></data></data>
+    <data name="common"></data>
+    <data name="detail"></data>
+    </data>
+    <buff-palette dicebot="">マッスルベアー DB+2 3</buff-palette>
+    </character>`;
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as GameCharacter;
+
+      expect(restored.chatPalette).toBeNull();
+      expect(restored.remoteController).not.toBeNull();
+    });
+
     it('names a tab by the heading a kept palette opens with, and gives a piece with no palette one', () => {
       const xml = `<character>
     <data name="character">

@@ -127,4 +127,21 @@ describe('ScenarioTextService', () => {
     expect([copy.title, copy.text, copy.folderName, copy.sendAs]).toEqual(['描写のコピー', '雨', '第1話', 'system']);
     expect(copy.order).toBeGreaterThan(3);
   });
+
+  describe('filing and ordering', () => {
+    it('files a text and moves it among those of its folder, the game master alone', () => {
+      const first = textOf({ title: '一', folderName: '第1話', order: 1 });
+      const loose = textOf({ title: '外', order: 2 });
+      const second = textOf({ title: '二', order: 3 });
+
+      expect(service.fileInto(second, ' 第1話 ')).toBe(true);
+      service.moveInFolder(second, 0);
+      expect([second.order, loose.order, first.order]).toEqual([1, 2, 3]);
+
+      PeerCursor.myCursor.role = PeerRole.Player;
+      expect(service.fileInto(first, '')).toBe(false);
+      service.moveInFolder(first, 0);
+      expect([first.folderName, first.order]).toEqual(['第1話', 3]);
+    });
+  });
 });

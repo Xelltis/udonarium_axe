@@ -165,6 +165,17 @@ describe('AgentAssetKinds', () => {
       expect(act('image-tag-lock', 'ボス', 'toggle')).toEqual({ tag: 'ボス', locked: false });
     });
 
+    it('names no tag only the pictures the master keeps back carry, but to the master', () => {
+      holdFourPictures();
+      ImageTag.get(SECRET)!.tag = '黒幕';
+      ImageTag.create(FOREST).tag = '森';
+      playAs(PeerRole.Player);
+
+      expect(ids('image-tag-lock')).toEqual(['森']);
+      playAs(PeerRole.GameMaster);
+      expect(ids('image-tag-lock')).toEqual(['森', '黒幕', 'ボス']);
+    });
+
     it('lets a seat that only watches lock nothing', () => {
       holdFourPictures();
       ImageTag.create(FOREST).tag = '森';

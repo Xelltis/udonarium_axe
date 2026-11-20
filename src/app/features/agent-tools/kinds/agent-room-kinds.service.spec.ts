@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
+import { ROOM_SETTINGS, type RoomSetting, type RoomSettingKey } from '@axe/application/tabletop/room-settings';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import { Network } from '@axe/core/network/network';
 import type { IPeerContext } from '@axe/core/network/peer-context';
@@ -223,6 +224,17 @@ describe('AgentRoomKinds', () => {
       expect(view('chat-reaction').put_on).toEqual([]);
     });
 
+    it('puts no stamp on for a guest, among peers as on a room server', () => {
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const line = tab.addMessage({ from: 'user-b', name: 'Bob', text: 'こんにちは', timestamp: 1000 });
+      beSeat(PeerRole.Guest);
+
+      expect(() => act('chat-reaction', 'toggle', { line: line.identifier, stamp: 'sfx:laugh' })).toThrow(
+        /may not put stamps/
+      );
+      expect(ObjectStore.instance.getObjects(ChatReaction)).toEqual([]);
+    });
+
     it('refuses a stamp the room denies or does not know, and a line this seat does not read', () => {
       const tab = ChatTabList.instance.addChatTab('メイン');
       const line = tab.addMessage({ from: 'user-b', name: 'Bob', text: 'こんにちは', timestamp: 1000 });
@@ -375,12 +387,23 @@ describe('AgentRoomKinds', () => {
       expect(() => act('Vote', 'finish')).toThrow(/Only the chair/);
     });
 
-    it('lets a guest on a room server start no vote', () => {
-      onRoomServer();
+    it('lets a guest start and answer no vote, among peers as on a room server', () => {
+      vote.makeVote('peer-b', '行き先', ['peer-b', 'ai-peer'], ['北', '南'], false);
       beSeat(PeerRole.Guest);
+      const started = vote.initTimeStamp;
 
-      expect(() => act('Vote', 'start', { title: '行き先' })).toThrow(/guest on a room server/);
-      expect(vote.initTimeStamp).toBe(0);
+      expect(() => act('Vote', 'start', { title: '行き先' })).toThrow(/guest may not start/);
+      expect(() => act('Vote', 'answer', { choice: '北' })).toThrow(/guest may not answer/);
+      onRoomServer();
+      expect(() => act('Vote', 'start', { title: '行き先' })).toThrow(/guest may not start/);
+      expect([vote.initTimeStamp, vote.isVoteEnd('ai-peer')]).toEqual([started, false]);
+    });
+
+    it('asks no guest, who could not answer', () => {
+      PeerCursor.findByPeerId('peer-b')!.role = PeerRole.Guest;
+
+      expect(() => act('Vote', 'start', { title: '行き先', to: ['Bob'] })).toThrow(/at least one seat/);
+      expect(act('Vote', 'start', { title: '行き先', include_self: true })).toMatchObject({ asked: ['AI'] });
     });
   });
 
@@ -405,11 +428,12 @@ describe('AgentRoomKinds', () => {
       expect(() => act('Alarm', 'start', { to: ['Carol'] })).toThrow(/no seat named Carol/);
     });
 
-    it('lets a guest on a room server set no alarm', () => {
-      onRoomServer();
+    it('lets a guest set no alarm, among peers as on a room server', () => {
       beSeat(PeerRole.Guest);
 
-      expect(() => act('Alarm', 'start', { to: ['Bob'], include_self: false })).toThrow(/guest on a room server/);
+      expect(() => act('Alarm', 'start', { to: ['Bob'], include_self: false })).toThrow(/guest may not set/);
+      onRoomServer();
+      expect(() => act('Alarm', 'start', { to: ['Bob'], include_self: false })).toThrow(/guest may not set/);
       expect(alarm.initTimeStamp).toBe(0);
     });
   });
@@ -596,6 +620,72 @@ describe('AgentRoomKinds', () => {
     });
   });
 
+  describe('the room settings it offers', () => {
+    /** The room settings the AI's config offers, by field, and the config field each is kept in. */
+    const OFFERED: Readonly<Record<string, RoomSettingKey>> = {
+      dice_system: 'defaultDiceBot',
+      turn_order: 'turnOrderMode',
+      faction_phase: 'factionPhaseMode',
+      faction_skip_unassigned: 'factionSkipUnassigned',
+      move_range: 'moveRangeEnabled',
+      move_strict: 'moveStrict',
+      diagonal_move: 'diagonalMove',
+      pieces_share_squares: 'piecesShareCells',
+      jump_squares: 'jumpCells',
+      zone_of_control: 'zocMode',
+      zone_of_control_reach: 'zocRange',
+      engagement_zones: 'zoneEnabled',
+    };
+
+    /** What the AI writes into each, which is not what the room starts with. */
+    const WRITTEN: Readonly<Record<string, unknown>> = {
+      dice_system: 'DiceBot',
+      turn_order: 'faction',
+      faction_phase: 'initiative',
+      faction_skip_unassigned: true,
+      move_range: false,
+      move_strict: true,
+      diagonal_move: 'double',
+      pieces_share_squares: false,
+      jump_squares: 2,
+      zone_of_control: 'stop',
+      zone_of_control_reach: 2,
+      engagement_zones: true,
+    };
+
+    const entry = (key: RoomSettingKey) => ROOM_SETTINGS[key] as RoomSetting<RoomSettingKey, unknown>;
+
+    it('lets write each the seats the room settings let write it, and offers no other but the clock', () => {
+      const [config] = call('describe_kinds', { kind: 'config' }) as {
+        fields: { name: string; written_by: string }[];
+      }[];
+
+      expect(config.fields.map((field) => field.name).filter((name) => name !== 'clock')).toEqual(Object.keys(OFFERED));
+      for (const field of config.fields.filter((each) => each.name in OFFERED)) {
+        expect(field.written_by, field.name).toBe(entry(OFFERED[field.name]).writer === 'shared' ? 'gm' : 'write');
+      }
+    });
+
+    it('reads and writes each through the one entry the room settings read and write it by', () => {
+      DiceBot.diceBotInfos = [
+        { id: 'DiceBot', name: 'DiceBot', className: 'DiceBot', sortKey: 'a', locale: 'ja', superClassName: 'Base' },
+      ];
+      const reads = Object.values(OFFERED).map((key) => [key, vi.spyOn(entry(key), 'read')] as const);
+      const writes = Object.values(OFFERED).map((key) => [key, vi.spyOn(entry(key), 'write')] as const);
+
+      view('config');
+      call('change_object', { kind: 'config', fields: WRITTEN });
+
+      expect(reads.filter(([, read]) => read.mock.calls.length < 1).map(([key]) => key)).toEqual([]);
+      expect(writes.filter(([, write]) => write.mock.calls.length < 1).map(([key]) => key)).toEqual([]);
+      expect([Config.instance.moveStrict, Config.instance.zocMode, Config.instance.jumpCells]).toEqual([
+        true,
+        'stop',
+        2,
+      ]);
+    });
+  });
+
   describe('summary-setting', () => {
     it("sets the inventory's order, items, columns and folders, and keeps its aliases to the game master", () => {
       beSeat(PeerRole.Player);
@@ -660,6 +750,19 @@ describe('AgentRoomKinds', () => {
       ]);
       call('change_object', { kind: 'status-ailment-catalog', fields: { plays_effect: true } });
       expect(StatusAilmentCatalog.instance.playsEffectOnPlant).toBe(true);
+    });
+
+    it('adds and changes no state that would not read back as written, as the panel refuses it', () => {
+      expect(() => act('status-ailment-catalog', 'add', { name: '毒:強' })).toThrow(/without a colon/);
+      expect(() => act('status-ailment-catalog', 'add', { name: '毒', icon: '☠ ☠' })).toThrow(/effect may hold spaces/);
+      act('status-ailment-catalog', 'add', { name: '毒' });
+      expect(() => act('status-ailment-catalog', 'change', { name: '毒', stat: '移動 力' })).toThrow(
+        /effect may hold spaces/
+      );
+
+      expect(StatusAilmentCatalog.instance.ailments.map((each) => [each.name, each.icon, each.stat])).toEqual([
+        ['毒', '', ''],
+      ]);
     });
   });
 });

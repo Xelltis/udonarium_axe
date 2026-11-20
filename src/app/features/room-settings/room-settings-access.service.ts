@@ -2,10 +2,17 @@ import { computed, inject, Injectable } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import {
+  ROOM_SETTINGS,
+  type RoomSettingKey,
+  roomSettingOf,
+  type RoomSettingSources,
+  type RoomSettingValue,
+  type RoomSettingWriter,
+} from '@axe/application/tabletop/room-settings';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Config } from '@axe/domain/peer/config';
-import { ConfigRuleAnswers } from '@axe/domain/peer/config-rule-answers';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -18,25 +25,15 @@ export interface SettingField<T> {
   value: T;
 }
 
-/** Who may change a setting: whoever may edit the table, or only the master, for what every screen shows. */
-export type SettingWriter = 'table' | 'shared';
-
-/** The rules of play the panel offers as the rules in force have them, which the room can answer. */
-type OfferedRule = keyof RoomRules & keyof Config;
-
-/** The rules the room answers with a word, a number, or a yes or no. */
-type AnswerOf<T> = { [Rule in keyof ConfigRuleAnswers]: ConfigRuleAnswers[Rule] extends T | null ? Rule : never };
-type TextRule = AnswerOf<string>[keyof ConfigRuleAnswers];
-type NumberRule = AnswerOf<number>[keyof ConfigRuleAnswers];
-type FlagRule = AnswerOf<boolean>[keyof ConfigRuleAnswers];
-
 /**
  * What every part of the room settings reads the room through, and who may change what.
  *
  * Every read goes through the versions of what it reads, so a part drawn on push draws again when
  * the room, the table in view or this screen changes. Every write is turned away for a reader who
  * may not make it: the rules of play take being able to edit the table, and what every screen
- * shows takes being the master. What this screen alone shows needs nobody's leave.
+ * shows takes being the master. A setting the room's config keeps is read and written as its entry
+ * in {@link ROOM_SETTINGS} says, which is where who may write it is said. What this screen alone
+ * shows needs nobody's leave.
  */
 @Injectable({ providedIn: 'root' })
 export class RoomSettingsAccessService {
@@ -55,10 +52,25 @@ export class RoomSettingsAccessService {
   /** The settings one screen changes for every screen, which only the master may. */
   readonly isSharedReadOnly = computed(() => !this.rolePermission.canEditShared());
 
-  /** Whether this reader may write a setting of the given writer's. */
-  mayWrite(writer: SettingWriter): boolean {
+  /**
+   * Whether this reader may write something of the given writer's, for what the room settings change
+   * that the room's config does not keep, as the table in view or the round.
+   */
+  mayWrite(writer: RoomSettingWriter): boolean {
     return writer === 'shared' ? !this.isSharedReadOnly() : !this.isReadOnly();
   }
+
+  /** Whether this reader may write a setting of the room's config, as its entry in {@link ROOM_SETTINGS} says. */
+  mayChange(key: RoomSettingKey): boolean {
+    return this.mayWrite(ROOM_SETTINGS[key].writer);
+  }
+
+  /** What a setting is read from, each part read so that a change to it draws the part again. */
+  private readonly sources: RoomSettingSources = {
+    config: () => this.config(),
+    rules: () => this.rules(),
+    zone: () => this.zoneRules(),
+  };
 
   /** The room's config, read so that a change to it draws the part again. */
   config(): Config {
@@ -112,68 +124,15 @@ export class RoomSettingsAccessService {
   }
 
   /**
-   * A rule of play as the rules in force have it, which writing hands to the room as its own answer,
-   * passed through `written` on the way.
+   * A setting of the room's config, read and written as its entry in {@link ROOM_SETTINGS} says, and
+   * written only by a reader the entry's writer lets.
    */
-  ruleField<R extends OfferedRule>(
-    rule: R,
-    written: (value: RoomRules[R]) => Config[R] = (value) => value as Config[R],
-    writer: SettingWriter = 'table'
-  ): SettingField<RoomRules[R]> {
+  setting<K extends RoomSettingKey>(key: K): SettingField<RoomSettingValue<K>> {
+    const entry = roomSettingOf(key);
     return this.field(
-      () => this.rules()[rule],
+      () => entry.read(this.sources),
       (value) => {
-        if (this.mayWrite(writer)) Config.instance[rule] = written(value);
-      }
-    );
-  }
-
-  /** A setting the config holds, read as it holds it, written by whoever the writer allows. */
-  configField<K extends keyof Config>(
-    key: K,
-    writer: SettingWriter = 'table',
-    written: (value: Config[K]) => Config[K] = (value) => value
-  ): SettingField<Config[K]> {
-    return this.field(
-      () => this.config()[key],
-      (value) => {
-        if (this.mayWrite(writer)) Config.instance[key] = written(value);
-      }
-    );
-  }
-
-  /** A word the room answers with, empty while it has written none; an empty box takes the answer back. */
-  answerText(rule: TextRule): SettingField<string> {
-    return this.field(
-      () => this.config()[rule] ?? '',
-      (value) => {
-        if (this.mayWrite('table')) Config.instance[rule] = value.trim().length > 0 ? value.trim() : null;
-      }
-    );
-  }
-
-  /**
-   * A number the room answers with, shown as `shown` has it; a number the rule does not `take` hands
-   * the answer back.
-   */
-  answerNumber(rule: NumberRule, shown: () => number, takes: (value: number) => boolean): SettingField<number> {
-    return this.field(
-      () => {
-        this.config();
-        return shown();
-      },
-      (value) => {
-        if (this.mayWrite('table')) Config.instance[rule] = Number.isFinite(value) && takes(value) ? value : null;
-      }
-    );
-  }
-
-  /** A yes the room answers with; no takes the answer back. */
-  answerYes(rule: FlagRule): SettingField<boolean> {
-    return this.field(
-      () => this.config()[rule] === true,
-      (value) => {
-        if (this.mayWrite('table')) Config.instance[rule] = value ? true : null;
+        if (this.mayChange(key)) entry.write(this.sources, value);
       }
     );
   }

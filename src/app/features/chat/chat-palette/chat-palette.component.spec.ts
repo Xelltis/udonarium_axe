@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
+import { ChatPaletteWriteService } from '@axe/application/chat/chat-palette-write.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -430,6 +431,25 @@ describe('ChatPaletteComponent', () => {
       component.gameType = 'Cthulhu7th';
 
       expect(component.gameType).toBe('Cthulhu7th');
+      expect(char.chatPalette!.dicebot).toBe('DiceBot');
+    });
+
+    it('opens, writes back and sets the dice bot only as the rule every palette panel writes through allows', () => {
+      const write = TestBed.inject(ChatPaletteWriteService);
+      const writeLines = vi.spyOn(write, 'writeLines');
+      fixture.detectChanges();
+      component.toggleEditMode();
+      component.editPalette.set('1d100 書き換え');
+      component.toggleEditMode();
+
+      expect(writeLines).toHaveBeenCalledWith(char.chatPalette, '1d100 書き換え');
+      expect(char.chatPalette!.value).toBe('1d100 書き換え');
+
+      vi.spyOn(write, 'mayWrite').mockReturnValue(false);
+      component.toggleEditMode();
+      component.gameType = 'Cthulhu7th';
+
+      expect(component.isEdit()).toBe(false);
       expect(char.chatPalette!.dicebot).toBe('DiceBot');
     });
 

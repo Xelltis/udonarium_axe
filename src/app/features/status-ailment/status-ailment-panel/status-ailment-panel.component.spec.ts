@@ -57,6 +57,34 @@ describe('StatusAilmentPanelComponent', () => {
     expect(service.ailments()).toHaveLength(1);
   });
 
+  it('adds no state under a name it could not read back, and says why under the box', () => {
+    component.newName.set('毒:強');
+    fixture.detectChanges();
+
+    component.add();
+    fixture.detectChanges();
+
+    expect(service.ailments()).toEqual([]);
+    expect(component.newName()).toBe('毒:強');
+    const said = fixture.nativeElement.querySelector('[data-testid="status-ailment-name-refused"]');
+    expect(said?.textContent).toContain('コロン');
+  });
+
+  it('keeps a mark with a space in it from the state, and says why beside it', () => {
+    service.add('毒');
+
+    component.setIcon(service.ailments()[0], '☠ ☠');
+    fixture.detectChanges();
+
+    expect(service.ailments()[0].icon).toBe('');
+    expect(fixture.nativeElement.querySelector('[data-testid="status-ailment-change-refused"]')).toBeTruthy();
+
+    component.setIcon(service.ailments()[0], '☠');
+    fixture.detectChanges();
+    expect(service.ailments()[0].icon).toBe('☠');
+    expect(fixture.nativeElement.querySelector('[data-testid="status-ailment-change-refused"]')).toBeNull();
+  });
+
   it('dresses a state the way it is set', () => {
     service.add('毒');
 

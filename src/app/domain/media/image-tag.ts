@@ -95,6 +95,25 @@ export function canBrowseImage(tag: ImageTag | null, sight: ImageSight, showSecr
   return true;
 }
 
+/**
+ * The tags a list of pictures offers to filter by, each once in the order first met: the tag of each
+ * picture the seat `sight` may browse, as {@link canBrowseImage} has it, with `showSecret` as it says
+ * there. A tag carried only by pictures kept from the seat is not offered, since its name says there
+ * is something there to find.
+ */
+export function browsableImageTags(
+  images: readonly { readonly identifier: string }[],
+  sight: ImageSight,
+  showSecret = true
+): string[] {
+  const tags = new Set<string>();
+  for (const image of images) {
+    const imageTag = ImageTag.get(image.identifier);
+    if (imageTag?.tag && canBrowseImage(imageTag, sight, showSecret)) tags.add(imageTag.tag);
+  }
+  return [...tags];
+}
+
 /** Whether a tag's pictures are kept from whoever is looking. */
 export type TagHidden = (tag: string) => boolean;
 

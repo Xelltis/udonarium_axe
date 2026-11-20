@@ -136,6 +136,32 @@ describe('RemoteControllerComponent', () => {
     });
   });
 
+  it('writes nothing back of an edit open when its seat is made a guest and the panel goes', () => {
+    const char = createChar('テスト');
+    char.remoteController!.setPalette('HP-1');
+    PeerCursor.myCursor.role = PeerRole.Player;
+    component.character.set(char);
+    component.toggleEditMode();
+    component.editPalette = '書き換え';
+
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    fixture.destroy();
+
+    expect(char.remoteController!.getPalette()).toEqual(['HP-1']);
+    PeerCursor.myCursor.role = PeerRole.Player;
+  });
+
+  it('opens no edit for a guest', () => {
+    const char = createChar('テスト');
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    component.character.set(char);
+
+    component.toggleEditMode();
+
+    expect(component.isEdit()).toBe(false);
+    PeerCursor.myCursor.role = PeerRole.Player;
+  });
+
   it('shows each palette line as written, with nothing before or after it', () => {
     const char = createChar('テスト');
     char.remoteController!.setPalette('HP-1\n//回復=3');

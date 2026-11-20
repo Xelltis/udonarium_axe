@@ -10,9 +10,8 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
-import { GameObject } from '@axe/core/sync/game-object';
 import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
-import { withFolderInOrder } from '@axe/domain/folder/folder-tree';
+import { folderSiblingsOf } from '@axe/domain/folder/folder-tree';
 import { Config } from '@axe/domain/peer/config';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { type BoardScenePart, scenePartsOf, scenePictureIn } from '@axe/domain/scene/board-scene-parts';
@@ -261,10 +260,8 @@ export class ScenePanelComponent {
     event.stopPropagation();
     const { held, over, side } = dropped;
     this.shelf.fileInto([held], over.folderName);
-    const siblings = this.siblingsOf(held).filter((scene) => scene !== held);
-    const at = siblings.indexOf(over) + (side === 'after' ? 1 : 0);
-    siblings.splice(at, 0, held);
-    this.putInOrder(held, siblings);
+    const others = this.siblingsOf(held).filter((scene) => scene !== held);
+    this.scenes.moveInFolder(held, others.indexOf(over) + (side === 'after' ? 1 : 0));
   }
 
   /** A scene dropped on a folder goes into it, last. */
@@ -273,7 +270,7 @@ export class ScenePanelComponent {
     this.reorder.cancel();
     if (!held) return;
     this.shelf.fileInto([held], path);
-    this.putInOrder(held, [...this.siblingsOf(held).filter((scene) => scene !== held), held]);
+    this.scenes.moveInFolder(held, Infinity);
   }
 
   protected dragEnd(): void {
@@ -286,29 +283,11 @@ export class ScenePanelComponent {
 
   /** The scenes in the same folder as this one, in the list order, itself among them. */
   private siblingsOf(scene: BoardScene): BoardScene[] {
-    const folder = normalizeFolderPath(scene.folderName);
-    return BoardScene.all().filter((candidate) => normalizeFolderPath(candidate.folderName) === folder);
+    return folderSiblingsOf(BoardScene.all(), scene);
   }
 
   private moveWithin(scene: BoardScene, to: number): void {
-    const siblings = this.siblingsOf(scene).filter((candidate) => candidate !== scene);
-    siblings.splice(Math.max(0, Math.min(siblings.length, to)), 0, scene);
-    this.putInOrder(scene, siblings);
-  }
-
-  /**
-   * Puts the scenes of one folder in the order given, the rest of the list left where it stands:
-   * the whole list is numbered afresh with the folder's scenes in the places they held together.
-   */
-  private putInOrder(moved: BoardScene, ordered: readonly BoardScene[]): void {
-    if (!this.canEdit()) return;
-    const folder = normalizeFolderPath(moved.folderName);
-    const list = withFolderInOrder(BoardScene.all(), (scene) => scene.folderName, folder, ordered);
-    GameObject.batch(() => {
-      list.forEach((scene, index) => {
-        if (Number(scene.order) !== index + 1) scene.order = index + 1;
-      });
-    });
+    this.scenes.moveInFolder(scene, to);
   }
 
   private thumbnailOf(scene: BoardScene): string {

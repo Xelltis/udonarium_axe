@@ -4,6 +4,7 @@ import type { AgentHandler } from '@axe/application/agent/agent-tool-runner.serv
 import { type AgentChatLine, AgentViews } from '@axe/application/agent/agent-views.service';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -15,7 +16,6 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -58,6 +58,7 @@ export class AgentReadTools {
   private readonly tagLock = inject(ImageTagLockService);
   private readonly chat = inject(ChatMessageService);
   private readonly activeTab = inject(ActiveChatTabService);
+  private readonly visibleTabs = inject(VisibleChatTabsService);
   private readonly effects = inject(EffectLibraryService);
   private readonly objectStore = inject(ObjectStore);
   private readonly audioStorage = inject(AudioStorage);
@@ -92,12 +93,16 @@ export class AgentReadTools {
     );
   }
 
-  /** A chat tab by id or name, or the tab this seat has open where none is named. */
+  /**
+   * A chat tab this seat may read, by id or name, or the tab this seat has open where none is named,
+   * the first it may read where the one open is not. A tab kept from this seat's role is not found,
+   * as the chat does not show it either.
+   */
   tab(reference: string): ChatTab {
-    const tabs = ChatTabList.instance.chatTabs;
+    const tabs = this.visibleTabs.readableNow();
     if (reference.trim() === '') {
-      const open = this.activeTab.current() ?? tabs[0];
-      if (!open) throw new AgentToolError('not_found', 'The room has no chat tab.');
+      const open = this.openTab(tabs) ?? tabs[0];
+      if (!open) throw new AgentToolError('not_found', 'This seat may read no chat tab.');
       return open;
     }
     return findOne(
@@ -107,6 +112,12 @@ export class AgentReadTools {
       (tab) => tab.name,
       'chat tab'
     );
+  }
+
+  /** The tab this seat has open, where it is among the tabs given; null otherwise. */
+  private openTab(tabs: readonly ChatTab[]): ChatTab | null {
+    const open = this.activeTab.current();
+    return open && tabs.includes(open) ? open : null;
   }
 
   /** The dice system lines are rolled under, as the chat box rolls them. */
@@ -124,7 +135,8 @@ export class AgentReadTools {
     const progress = this.turns.progress();
     const current = progress.currentIdentifier ? this.objectStore.get<GameCharacter>(progress.currentIdentifier) : null;
     const system = this.diceSystem();
-    const open = this.activeTab.current();
+    const tabs = this.visibleTabs.readableNow();
+    const open = this.openTab(tabs);
     return {
       seat: {
         name: PeerCursor.myCursor?.name ?? '',
@@ -148,7 +160,7 @@ export class AgentReadTools {
             ? { id: current.identifier, name: this.views.nameOf(current) }
             : null,
       },
-      chat_tabs: ChatTabList.instance.chatTabs.map((tab) => ({
+      chat_tabs: tabs.map((tab) => ({
         id: tab.identifier,
         name: tab.name,
         ...(tab === open ? { open: true } : {}),

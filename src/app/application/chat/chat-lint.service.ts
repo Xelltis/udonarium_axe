@@ -45,6 +45,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { checkRollLine, isSecretRollLine, rollableText, type RollCheck } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { isPresetShownTo } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -318,7 +319,7 @@ export class ChatLintService {
       stampAllowed: (stampId: string) => this.stampRules.allows('line', stampId),
       hasEffect: (name: string) => {
         const needle = name.trim();
-        return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || isGameMaster));
+        return presets.some((preset) => preset.name.trim() === needle && isPresetShownTo(preset, isGameMaster));
       },
       hasPieceNamed: (name: string) => pieceNames.has(name.trim()),
       nameOf: (piece: GameCharacter) => this.names.shown(piece),

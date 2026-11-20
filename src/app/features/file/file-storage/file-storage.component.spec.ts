@@ -582,6 +582,20 @@ describe('FileStorageComponent', () => {
       ).not.toBeNull();
     });
 
+    it('lists no tag only the pictures the master keeps back carry for a player, and it for the master', async () => {
+      const twist = ImageTag.create(TestBed.inject(ImageStorage).add('the-twist').identifier);
+      twist.tag = '黒幕';
+      twist.isSecret = true;
+      playing(PeerRole.Player);
+      await fixture.whenStable();
+
+      expect(component.tagList()).not.toContain('黒幕');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      await fixture.whenStable();
+      expect(component.tagList()).toContain('黒幕');
+    });
+
     it('keeps the tag picked to this seat from its button, and frees it again', async () => {
       playing(PeerRole.Player);
       component.selectTag.set('雑魚');

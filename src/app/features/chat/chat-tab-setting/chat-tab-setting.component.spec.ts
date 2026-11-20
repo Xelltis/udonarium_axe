@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
@@ -181,49 +182,69 @@ describe('ChatTabSettingComponent', () => {
     });
   });
 
-  describe('saves the log whatever the role, in good faith', () => {
+  describe('saves only the logs the reader may read, whatever the role', () => {
     let saveData: SaveDataService;
+    let open: ChatTab;
+    let closed: ChatTab;
 
     beforeEach(() => {
       saveData = TestBed.inject(SaveDataService);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      open = ChatTabList.instance.addChatTab('雑談');
+      closed = ChatTabList.instance.addChatTab('GM用');
+      closed.guestCanView = false;
     });
 
     afterEach(() => {
+      open.destroy();
+      closed.destroy();
+      ChatTabList.forget();
       PeerCursor.myCursor = null!;
       vi.restoreAllMocks();
     });
 
-    it('lets a spectator save a tab they cannot read', () => {
-      PeerCursor.createMyCursor();
-      PeerCursor.myCursor.role = PeerRole.Guest;
-      const tab = new ChatTab();
-      tab.initialize();
-      tab.guestCanView = false;
-      component.selectedTab.set(tab);
+    it('lets a spectator save a tab they may read', () => {
+      component.selectedTab.set(open);
       const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
 
       component.saveLog();
 
       expect(spy).toHaveBeenCalledOnce();
       expect(spy.mock.calls[0][1]).toBe('tab');
-      expect(spy.mock.calls[0][2]).toEqual([tab]);
+      expect(spy.mock.calls[0][2]).toEqual([open]);
     });
 
-    it('lets them save every tab, unfiltered', () => {
-      PeerCursor.createMyCursor();
-      PeerCursor.myCursor.role = PeerRole.Guest;
+    it('saves, shows and hands out nothing of a tab kept from them', async () => {
+      component.selectedTab.set(closed);
+      const log = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
+      const whole = vi.spyOn(saveData, 'saveGameObjectAsync').mockResolvedValue(undefined);
+      const panel = vi.spyOn(TestBed.inject(PanelService), 'open');
+
+      component.saveLog();
+      await component.save();
+      component.openLogPreview();
+
+      expect(log).not.toHaveBeenCalled();
+      expect(whole).not.toHaveBeenCalled();
+      expect(panel).not.toHaveBeenCalled();
+    });
+
+    it('saves every tab they may read, and none kept from them', () => {
       const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
 
       component.saveAllLog();
 
       expect(spy).toHaveBeenCalledOnce();
       expect(spy.mock.calls[0][1]).toBe('all');
-      expect(spy.mock.calls[0][2]).toEqual(component.chatTabs);
+      expect(spy.mock.calls[0][2]).toContain(open);
+      expect(spy.mock.calls[0][2]).not.toContain(closed);
     });
   });
 
   describe('the style of the log', () => {
     let saveData: SaveDataService;
+    const made: ChatTab[] = [];
 
     beforeEach(() => {
       localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
@@ -232,14 +253,15 @@ describe('ChatTabSettingComponent', () => {
     });
 
     afterEach(() => {
+      for (const tab of made.splice(0)) tab.destroy();
       localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
       localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
       vi.restoreAllMocks();
     });
 
     it('saves in the style picked', () => {
-      const tab = new ChatTab();
-      tab.initialize();
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      made.push(tab);
       component.selectedTab.set(tab);
       const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
 
@@ -250,8 +272,8 @@ describe('ChatTabSettingComponent', () => {
     });
 
     it('keeps deleted lines in until asked to leave them out, for one tab or all', () => {
-      const tab = new ChatTab();
-      tab.initialize();
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      made.push(tab);
       component.selectedTab.set(tab);
       const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
 
@@ -480,18 +502,18 @@ describe('ChatTabSettingComponent', () => {
     it('lets a player change who may speak where they may read, but not who may read', () => {
       beSeat(PeerRole.Player);
       const tab = ChatTabList.instance.addChatTab('test');
-      tab.plCanView = false;
+      tab.plCanView = true;
       tab.plCanSpeak = false;
       tab.guestCanView = true;
       tab.guestCanSpeak = false;
       component.selectedTab.set(tab);
 
-      component.setPerm('plCanView', true);
+      component.setPerm('plCanView', false);
       component.setPerm('plCanSpeak', true);
       component.setPerm('guestCanView', false);
       component.setPerm('guestCanSpeak', true);
 
-      expect([tab.plCanView, tab.plCanSpeak, tab.guestCanView, tab.guestCanSpeak]).toEqual([false, false, true, true]);
+      expect([tab.plCanView, tab.plCanSpeak, tab.guestCanView, tab.guestCanSpeak]).toEqual([true, true, true, true]);
       expect(component.canEditPerm('plCanView')).toBe(false);
       expect(component.canEditPerm('guestCanSpeak')).toBe(true);
     });
@@ -507,16 +529,21 @@ describe('ChatTabSettingComponent', () => {
       expect(tab.plCanView).toBe(true);
     });
 
-    it('lets a player among peers change who may read, as before', () => {
+    it('lets a player among peers change who may read a tab they may read, and no other', () => {
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
       beSeat(PeerRole.Player);
       const tab = ChatTabList.instance.addChatTab('test');
-      tab.plCanView = false;
-      component.selectedTab.set(tab);
+      const closed = ChatTabList.instance.addChatTab('closed');
+      closed.plCanView = false;
 
+      component.selectedTab.set(tab);
+      component.setPerm('guestCanView', false);
+      component.selectedTab.set(closed);
       component.setPerm('plCanView', true);
 
-      expect(tab.plCanView).toBe(true);
+      expect(tab.guestCanView).toBe(false);
+      expect(closed.plCanView).toBe(false);
+      expect(component.canEditPerm('plCanView')).toBe(false);
     });
 
     it('lets a player delete no tab holding dice the server rolled, and says why', () => {
@@ -690,6 +717,7 @@ describe('ChatTabSettingComponent', () => {
       expect(component.chatTabs).toContain(open);
       expect(component.chatTabs).not.toContain(closed);
       PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
       expect(component.chatTabs).toContain(closed);
     });
 
@@ -704,6 +732,77 @@ describe('ChatTabSettingComponent', () => {
 
       expect(open.chatMessages.map((message) => message.isSystemMessage)).toEqual([true]);
       expect(closed.chatMessages).toEqual([]);
+    });
+  });
+
+  describe('among peers, holds a player to the tabs they may read', () => {
+    let open: ChatTab;
+    let closed: ChatTab;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+      open = ChatTabList.instance.addChatTab('雑談');
+      closed = ChatTabList.instance.addChatTab('GM用');
+      closed.plCanView = false;
+      closed.addMessage({ from: 'gm', name: 'GM', text: '秘密の発言', timestamp: 1000 });
+    });
+
+    afterEach(() => {
+      for (const tab of [open, closed]) if (ObjectStore.instance.get(tab.identifier)) tab.destroy();
+      ChatTabList.forget();
+      PeerCursor.myCursor = null!;
+      vi.restoreAllMocks();
+    });
+
+    it('lists only the tabs the player may read, and every tab for the game master', () => {
+      expect(component.chatTabs).toContain(open);
+      expect(component.chatTabs).not.toContain(closed);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+      expect(component.chatTabs).toContain(closed);
+    });
+
+    it('renames, moves, deletes, clears and opens up nothing of a tab kept from the player', () => {
+      component.selectedTab.set(closed);
+      component.allowDeleteTab = true;
+      component.allowDeleteLog = true;
+
+      component.tabName = '覗いた';
+      component.setPerm('plCanView', true);
+      component.upTabIndex();
+      component.deleteLog();
+      component.delete();
+
+      expect(component.isEditable).toBe(false);
+      expect(component.isMovable).toBe(false);
+      expect(component.isDeletable).toBe(false);
+      expect([closed.name, closed.plCanView]).toEqual(['GM用', false]);
+      expect(ObjectStore.instance.get(closed.identifier)).toBe(closed);
+      expect(closed.chatMessages.map((line) => line.text)).toEqual(['秘密の発言']);
+    });
+
+    it('clears the logs of every tab but those kept from the player', () => {
+      open.addMessage({ from: 'pl', name: 'PL', text: '消える発言', timestamp: 1000 });
+      component.allowDeleteLog = true;
+
+      component.deleteLogALL();
+
+      expect(open.chatMessages.filter((line) => !line.isSystemMessage)).toEqual([]);
+      expect(closed.chatMessages.map((line) => line.text)).toEqual(['秘密の発言']);
+    });
+
+    it('moves a tab past one kept from the player, as if it were not there', () => {
+      const plan = ChatTabList.instance.addChatTab('作戦');
+      component.selectedTab.set(plan);
+
+      component.upTabIndex();
+
+      const order = ChatTabList.instance.chatTabs.filter((tab) => [open, closed, plan].includes(tab));
+      expect(order).toEqual([plan, open, closed]);
+      plan.destroy();
     });
   });
 

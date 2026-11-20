@@ -1,4 +1,9 @@
-import { canRoleSpeakTab, canRoleViewTab, ChatTabPermission } from '@axe/domain/chat/chat-tab-permission';
+import {
+  canRoleManageTab,
+  canRoleSpeakTab,
+  canRoleViewTab,
+  ChatTabPermission,
+} from '@axe/domain/chat/chat-tab-permission';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
 const tab = (overrides: Partial<ChatTabPermission> = {}): ChatTabPermission => ({
@@ -36,5 +41,13 @@ describe('chat-tab-permission', () => {
     expect(canRoleSpeakTab(tab(), PeerRole.Guest)).toBe(false);
     expect(canRoleViewTab(tab({ guestCanView: false }), PeerRole.Guest)).toBe(false);
     expect(canRoleSpeakTab(tab({ guestCanSpeak: true }), PeerRole.Guest)).toBe(true);
+  });
+
+  it('lets a role manage only a tab it may read, and a guest none', () => {
+    const closed = tab({ plCanView: false, plCanSpeak: false, guestCanView: false });
+    expect(canRoleManageTab(closed, PeerRole.GameMaster)).toBe(true);
+    expect(canRoleManageTab(closed, PeerRole.Player)).toBe(false);
+    expect(canRoleManageTab(tab(), PeerRole.Player)).toBe(true);
+    expect(canRoleManageTab(tab(), PeerRole.Guest)).toBe(false);
   });
 });

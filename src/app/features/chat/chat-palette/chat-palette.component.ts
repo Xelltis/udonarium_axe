@@ -20,6 +20,7 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
+import { ChatPaletteWriteService } from '@axe/application/chat/chat-palette-write.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
@@ -94,6 +95,7 @@ export class ChatPaletteComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly paletteWrite = inject(ChatPaletteWriteService);
   private readonly names = inject(PieceNameService);
   private readonly hotbarFill = inject(HotbarFillService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -229,8 +231,8 @@ export class ChatPaletteComponent {
     return this.character()?.chatPalette ?? null;
   }
 
-  /** Whether this seat may rewrite the palette and its dice bot, which every role but a guest may. */
-  readonly mayEdit = computed(() => this.rolePermission.canEditTabletop());
+  /** Whether this seat may rewrite the palette and its dice bot, as {@link ChatPaletteWriteService.mayWrite} says. */
+  readonly mayEdit = computed(() => this.paletteWrite.mayWrite());
 
   private readonly _gameType = linkedSignal(() => this.character()?.chatPalette?.dicebot ?? '');
 
@@ -249,7 +251,7 @@ export class ChatPaletteComponent {
   set gameType(gameType: string) {
     this._gameType.set(gameType);
     const char = this.character();
-    if (char?.chatPalette && this.mayEdit()) char.chatPalette.dicebot = gameType;
+    if (char?.chatPalette) this.paletteWrite.setDiceBot(char.chatPalette, gameType);
   }
 
   /**
@@ -674,7 +676,7 @@ export class ChatPaletteComponent {
    * opens nothing, and writes nothing back.
    */
   toggleEditMode() {
-    if (!this.isEdit() && !this.mayEdit()) return;
+    if (!this.isEdit() && !this.paletteWrite.mayWrite()) return;
     this.isEdit.update((v) => !v);
     if (!this.palette) return;
     if (this.isEdit()) {
@@ -684,7 +686,7 @@ export class ChatPaletteComponent {
       afterNextRender(() => this.editor.scrollToList(), { injector: this.injector });
     } else {
       this.editor.closed();
-      if (this.mayEdit()) this.palette.setPalette(this.editPalette());
+      this.paletteWrite.writeLines(this.palette, this.editPalette());
     }
   }
 

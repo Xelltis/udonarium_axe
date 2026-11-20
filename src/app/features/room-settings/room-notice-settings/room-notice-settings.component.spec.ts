@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -85,5 +86,19 @@ describe('RoomNoticeSettingsComponent', () => {
 
     expect(Config.instance.systemNotices).toEqual(DEFAULT_SYSTEM_NOTICES);
     expect(choice('round').disabled).toBe(true);
+  });
+
+  it('names to a player no tab kept from them, showing a kind sent there as sent to such a tab', async () => {
+    const secret = ChatTabList.instance.addChatTab('GM相談');
+    secret.plCanView = false;
+    Config.instance.systemNotices = { round: secret.identifier };
+    PeerCursor.myCursor.role = PeerRole.Player;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(optionsOf(choice('card'))).not.toContain('GM相談');
+    expect(optionsOf(choice('round'))).not.toContain('GM相談');
+    expect(choice('round').selectedOptions[0].textContent!.trim()).toBe('見られないタブ');
   });
 });
