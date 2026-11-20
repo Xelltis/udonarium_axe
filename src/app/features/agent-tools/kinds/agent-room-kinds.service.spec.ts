@@ -217,6 +217,7 @@ describe('AgentRoomKinds', () => {
       });
       vi.spyOn(edit, 'mayRearrange').mockReturnValue(false);
       expect(() => act('chat-tab-list', 'move_tab', { tab: 'B', to: 1 })).toThrow(/not this seat’s to move/);
+      expect(() => act('chat-tab-list', 'move_tab', { tab: 'A', to: 1 })).toThrow(/not this seat’s to move/);
       expect(list.chatTabs.map((tab) => tab.name)).toEqual(['A', 'B']);
     });
   });

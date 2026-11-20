@@ -118,26 +118,28 @@ export class AgentKindTools {
   }
 
   /**
-   * Writes every field given, in one batch. Where one throws partway, the fields written before it are
-   * put back as they read before, so a call changes all it names or none of it, and the error thrown is
-   * the one answered.
+   * Writes every field given, in one batch. Every value was checked against its field before any is
+   * written, so a field throwing as it is written is the field's own failure: nothing is written back,
+   * as what a field reads is what the AI is shown rather than what is held (a rule in force, a name kept
+   * hidden), and writing that back would change what was never asked. The AI is told instead which
+   * fields were written before the one that failed, so it is never told nothing changed where something
+   * did.
    */
   private putAll(thing: Thing, fields: readonly { field: AgentKindField<Thing>; value: unknown }[]): void {
-    const before = fields.map(({ field }) => field.read(thing));
-    const written: number[] = [];
-    try {
-      GameObject.batch(() => {
-        fields.forEach(({ field, value }, index) => {
+    const written: string[] = [];
+    GameObject.batch(() => {
+      for (const { field, value } of fields) {
+        try {
           field.put!(thing, value);
-          written.push(index);
-        });
-      });
-    } catch (reason) {
-      GameObject.batch(() => {
-        for (const index of written.reverse()) fields[index].field.put!(thing, before[index]);
-      });
-      throw reason;
-    }
+        } catch (reason) {
+          const why = reason instanceof Error ? reason.message : String(reason);
+          const before =
+            written.length > 0 ? `${written.join(', ')} ${written.length > 1 ? 'were' : 'was'} written; ` : '';
+          throw new AgentToolError('failed', `${before}${field.name} could not be written: ${why}`);
+        }
+        written.push(field.name);
+      }
+    });
   }
 
   private remove(args: AgentArgs): unknown {

@@ -205,7 +205,7 @@ describe('AgentKindTools', () => {
     expect(kind.list().map((thing) => thing.label)).toEqual(['kept']);
   });
 
-  it('puts back the fields written before one that fails as it is written, and takes back a thing just made', () => {
+  it('tells which fields were written before one that fails, writing none back, and takes back a thing just made', () => {
     const kinds = TestBed.inject(AgentKinds);
     const things: { level: number; label: string; destroyed?: boolean }[] = [{ level: 1, label: 'kept' }];
     const kind: AgentKind<(typeof things)[number]> = {
@@ -250,9 +250,9 @@ describe('AgentKindTools', () => {
     vi.spyOn(kinds, 'of').mockReturnValue(anyKind(kind));
 
     expect(() => call('change_object', { kind: 'probe', id: 'kept', fields: { level: 5, broken: 1 } })).toThrow(
-      /cannot write it/
+      /level was written; broken could not be written: cannot write it/
     );
-    expect(things[0].level).toBe(1);
+    expect(things[0].level).toBe(5);
     expect(() => call('create_object', { kind: 'probe', fields: { level: 5, broken: 1 } })).toThrow(/cannot write it/);
     expect(kind.list().map((thing) => thing.label)).toEqual(['kept']);
   });

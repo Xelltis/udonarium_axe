@@ -448,11 +448,13 @@ export class AgentRoomKinds {
   private moveTab(args: AgentArgs): unknown {
     const tab = this.tabNamed(textArg(args, 'tab'));
     if (tab.isSystemTab) throw new AgentToolError('not_allowed', 'The system tab stays where it is.');
+    if (!this.tabEdit.mayRearrange(tab))
+      throw new AgentToolError('not_allowed', 'That tab is not this seat’s to move.');
     const place = numberArg(args, 'to', 1);
     const tabs = this.viewableTabs();
     const already = tabs.indexOf(tab) === Math.max(0, Math.min(tabs.length - 1, Math.trunc(place) - 1));
     if (!this.tabEdit.moveTo(tab, place) && !already) {
-      throw new AgentToolError('not_allowed', 'That tab is not this seat’s to move.');
+      throw new AgentToolError('failed', 'That tab could not be moved there.');
     }
     return { tabs: this.viewableTabs().map((each) => ({ id: each.identifier, name: each.name })) };
   }
