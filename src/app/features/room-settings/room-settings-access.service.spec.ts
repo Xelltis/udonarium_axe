@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { TestBed } from '@angular/core/testing';
+import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -57,6 +58,17 @@ describe('RoomSettingsAccessService', () => {
       access.setting('zocEngages').value = true;
 
       expect(Config.instance.zocEngages).toBe(true);
+    });
+
+    it('is told of at once as it is written, so a part reading it reads it anew in the same turn', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const sliders = TestBed.inject(ResourceSliderService);
+      expect(sliders.roomDefault()).toBe(false);
+
+      access.setting('resourceSliderByDefault').value = true;
+
+      expect(sliders.roomDefault()).toBe(true);
+      access.setting('resourceSliderByDefault').value = false;
     });
 
     it('is not written by somebody watching', () => {

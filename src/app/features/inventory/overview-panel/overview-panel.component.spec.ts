@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -16,6 +15,7 @@ import {
 } from '@axe/domain/data/data-element';
 import { MarkDown } from '@axe/domain/data/mark-down';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -820,16 +820,15 @@ describe('OverviewPanelComponent', () => {
 
       it('draws one for a resource that says nothing of its own where the room gives every resource one', () => {
         resource.removeAttribute(DataElementAttribute.RESOURCE_SLIDER);
-        const sliders = TestBed.inject(ResourceSliderService);
         fixture.detectChanges();
         expect(slider()).toBeNull();
 
-        sliders.setRoomDefault(true);
+        Config.instance.resourceSliderByDefault = true;
         try {
           fixture.detectChanges();
           expect(slider()).not.toBeNull();
         } finally {
-          sliders.setRoomDefault(false);
+          Config.instance.resourceSliderByDefault = false;
         }
       });
 
