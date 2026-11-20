@@ -331,14 +331,15 @@ describe('StatusAccessor', () => {
   });
 
   describe('changeByBuff', () => {
-    it('finds the item once, moving it and noting what it leaves where buffs noted it before', () => {
+    it('moves the items found for the buff without finding them again, noting what it leaves where buffs noted it before', () => {
       const memo = detailDataElement.getFirstElementByName('器用度')!;
       memo.setAttribute('cs-buff-left', '>24');
+      const target = accessor.targetOf('器用度')!;
       const finds = vi.spyOn(accessor as unknown as { findAll: (name: string) => DataElement[] }, 'findAll');
 
-      accessor.changeByBuff('器用度', 'now', 2);
+      accessor.changeByBuff(target, 'now', 2);
 
-      expect(finds).toHaveBeenCalledTimes(1);
+      expect(finds).not.toHaveBeenCalled();
       expect(memo.value).toBe(26);
       expect(memo.getAttribute('cs-buff-left')).toBe('>26');
     });
@@ -347,7 +348,7 @@ describe('StatusAccessor', () => {
       const memo = detailDataElement.getFirstElementByName('器用度')!;
       memo.setAttribute('cs-buff-left', '>20');
 
-      accessor.changeByBuff('器用度', 'now', 2);
+      accessor.changeByBuff(accessor.targetOf('器用度')!, 'now', 2);
 
       expect(memo.value).toBe(26);
       expect(memo.getAttribute('cs-buff-left')).toBe('>20');

@@ -2,6 +2,16 @@ import { ObjectNode } from '@axe/core/sync/object-node';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
 import { buffKindMarkOf, writeBuffKindMark } from '@axe/domain/character/buff-kind';
+import {
+  holdsHandWords,
+  isWrittenOtherwise,
+  type ItemLayer,
+  moveGround,
+  numberIn,
+  settleItem,
+  shownOn,
+  takeInItem,
+} from '@axe/domain/character/buff-layers';
 import { adoptBuffItem, dropBuffItem } from '@axe/domain/character/buff-made-items';
 import {
   BuffModifier,
@@ -10,8 +20,6 @@ import {
   clearBuffTextModifier,
   describeStandingModifier,
   holdsRequestedStatus,
-  isWrittenOtherwise,
-  laidOn,
   movesSameStatus,
   ParsedBuffModifierRequest,
   readBuffModifier,
@@ -31,13 +39,20 @@ import {
   isBuffEffectDueAt,
   writeBuffEffectTiming,
 } from '@axe/domain/character/buff-timing';
-import { landingOfRequest, namedRequest } from '@axe/domain/character/item-landing';
+import {
+  type BuffRequestOutcome,
+  type BuffTarget,
+  landingOfRequest,
+  laysLayersOn,
+  makesItemFor,
+  outcomeOfLanding,
+} from '@axe/domain/character/item-landing';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
-/** The attribute of a piece's buffs that keeps the latest order words were written at. */
-const WORDS_WRITTEN = 'cs-buff-words-written';
+/** The attribute of a piece's buffs that keeps the latest order a layer was laid at (see `buff-layers`). */
+const LAST_LAID = 'cs-buff-laid';
 
 /** Everything one buff is, as plain data, so a step of the round can be put back as it was. */
 export interface BuffSnapshotEntry {
@@ -46,7 +61,7 @@ export interface BuffSnapshotEntry {
   info: string;
   appearance: BuffAppearance;
   modifier: BuffModifier | null;
-  /** The words the buff wrote into an item while it stands, and what the item held before; none where it wrote none. */
+  /** The words the buff writes into an item while it stands, and how late it laid them; none where it writes none. */
   words?: BuffTextModifier | null;
   /**
    * Whether the item the buff moves or writes into was made by a buff for itself, which putting the
@@ -62,10 +77,18 @@ export interface BuffSnapshotEntry {
 }
 
 export class BuffManager {
-  /** How many changes to the buffs are under way, one inside another, so made items are swept once the outermost is done. */
+  /** How many changes to the buffs are under way, one inside another, so items are laid out once the outermost is done. */
   private changing = 0;
-  /** The items buffs let go of in the change under way, which alone are swept once it is done. */
+  /**
+   * The names of the items buffs let go of in the change under way: a buff's record names its item, so
+   * the items a buff made that go by these names are the only ones swept once it is done.
+   */
   private readonly released = new Set<string>();
+  /**
+   * The items holding words or a choice whose layers the change under way lays again, as found when it
+   * first touched each, by the name the buffs record; each is laid out once it is done.
+   */
+  private readonly touched = new Map<string, BuffTarget>();
 
   /**
    * @param buffElement The piece's buff element, or how to read it as it stands each time: a piece's
@@ -84,11 +107,12 @@ export class BuffManager {
   }
 
   /**
-   * Makes a change to the piece's buffs, and once it is done, with every change it is part of, takes
+   * Makes a change to the piece's buffs, and once it is done, with every change it is part of, lays out
+   * again every item holding words or a choice whose layers it changed (see `settleItem`), then takes
    * away every item a buff made that no buff uses any more (see {@link sweepMadeItems}). Every change
    * to the buffs is made in one; a change made of several, as a buff the chat lays again is taken off
-   * and laid, is made whole in one, so the item it stands on is not swept halfway. A change that fails
-   * partway sweeps nothing, and its error is the one thrown.
+   * and laid, is made whole in one, so the item it stands on is neither laid out nor swept halfway. A
+   * change that fails partway lays out and sweeps nothing, and its error is the one thrown.
    */
   alter<T>(change: () => T): T {
     this.changing++;
@@ -100,8 +124,13 @@ export class BuffManager {
     } finally {
       this.changing--;
       if (this.changing === 0) {
-        if (done) this.sweepMadeItems();
-        else this.released.clear();
+        if (done) {
+          this.settleTouched();
+          this.sweepMadeItems();
+        } else {
+          this.touched.clear();
+          this.released.clear();
+        }
       }
     }
   }
@@ -204,154 +233,155 @@ export class BuffManager {
   }
 
   /**
-   * Moves a status by what the buff asks for and writes down how far it moved, so the
-   * same distance goes back when the buff runs out, or writes the words it asks for into an item and
-   * writes down what the item held, so that goes back. Where the value lands is the sheet's to say
-   * (see {@link landingOn}): words go only into an item that takes words or among a choice's choices,
-   * and an amount moves a number, or is written as words into an item holding words no number is read
-   * from.
+   * Moves a status by what the buff asks for and writes down how far it moved, so the same distance
+   * goes back when the buff runs out, or lays the words it asks for on an item. Where the value lands is
+   * the sheet's to say (see `landingOn`): words go only into an item that takes words or among a
+   * choice's choices, and an amount moves a number, or is laid as words on an item holding words no
+   * number is read from. The item is found once, by the name the request gives (see `BuffTarget`).
    *
    * Where the sheet has no such item and the buff is to make it, as one written in the chat is, one is
-   * made at its foot for the buff, holding nothing and then moved, or holding the words, and it goes
-   * again once no buff needs it. Not for a buff that leaves its status moved, nor for the far side of a
-   * resource, which a made item has none of; nor for a status ailment, whose status a piece's sheet may
-   * well not have. Null where the value lands nowhere, which leaves the buff a plain note.
+   * made at its foot for the buff (see `makesItemFor`), and it goes again once no buff needs it. An item
+   * a buff made that this change let go of and no buff uses is made again for a buff that needs it of
+   * the other kind, as one laid again with words where it moved a number. Answers what laying it came to.
    */
-  applyModifier(
-    data: DataElement,
-    asked: ParsedBuffModifierRequest,
-    makesMissing = false
-  ): BuffModifier | BuffTextModifier | null {
+  applyModifier(data: DataElement, asked: ParsedBuffModifierRequest, makesMissing = false): BuffRequestOutcome {
     return this.alter(() => {
       const status = this.status();
-      if (!status) return null;
-      const request = namedRequest(status, asked);
-      const landing = landingOfRequest(status, request);
-      if (landing.kind === 'missing') {
-        if (!makesMissing || request.lasting || request.slot !== 'now') return null;
-        if (!status.makeForBuff(request.target, request.text ?? 0)) return null;
-        if (request.text !== undefined) return this.recordWords(data, request.target, request.text, '');
-      } else if (landing.kind === 'words') {
-        return this.writeWords(data, request.target, landing.words);
-      } else if (landing.kind !== 'number') {
-        return null;
-      }
-      const moved = this.moveStatus(request);
-      return moved == null ? null : this.writeModifier(data, request, moved);
+      if (!status) return { kind: 'missing' };
+      return this.lay(data, this.free(status.targetOf(asked.target), asked), asked, makesMissing);
     });
   }
 
-  /**
-   * Writes words into an item the sheet has for the buff, and records what the item held, and whether
-   * that was written into it otherwise (see `BuffTextModifier.onHand`).
-   */
-  private writeWords(data: DataElement, target: string, words: string): BuffTextModifier | null {
-    const status = this.status();
-    const before = status?.getText(target);
-    if (!status || before == null) return null;
-    const onHand = this.writtenByHand(target);
-    status.setText(target, words);
-    return this.recordWords(data, target, words, before, onHand);
-  }
-
-  /**
-   * Records on the buff the words it wrote and what the item held before, as the latest to write, and
-   * notes on the item that the buffs leave those words there (see {@link writtenByHand}).
-   */
-  private recordWords(
+  /** Lays a request on the item found for it (see {@link applyModifier}). */
+  private lay(
     data: DataElement,
-    target: string,
-    words: string,
-    before: string,
-    onHand = false
-  ): BuffTextModifier {
-    const order = this.nextWordsOrder();
-    const modifier: BuffTextModifier = { target, text: words, before, order, ...(onHand ? { onHand } : {}) };
-    writeBuffTextModifier(data, modifier);
-    this.status()?.noteLeftByBuffs(target);
-    return modifier;
+    found: BuffTarget | null,
+    asked: ParsedBuffModifierRequest,
+    makesMissing: boolean
+  ): BuffRequestOutcome {
+    const request = found ? { ...asked, target: found.name } : asked;
+    const landing = landingOfRequest(found, request);
+    if (landing.kind === 'missing') {
+      const made =
+        makesItemFor(request, makesMissing) &&
+        this.status()?.makeForBuff(request.target, request.text !== undefined ? 'words' : 'number');
+      if (!made) return { kind: 'missing' };
+      if (request.text !== undefined) this.layWords(data, made, request.text);
+      else if (!this.layMove(data, made, request)) return { kind: 'noNumber' };
+      return { kind: 'makes' };
+    }
+    if (landing.kind === 'words') {
+      this.layWords(data, found!, landing.words);
+      return { kind: 'lands' };
+    }
+    const outcome = outcomeOfLanding(landing, true, false);
+    if (landing.kind !== 'number') return outcome;
+    return this.layMove(data, found!, request) ? outcome : { kind: 'noNumber' };
   }
 
   /**
-   * The order the next buff of the piece to write words writes them at: past every order handed out
-   * before, kept on the piece, so a buff laid after another went never shares its order should that
+   * The item found for a request, or none where it is an item a buff made that this change let go of,
+   * that no buff uses, and that holds the other kind than the request needs, words for a number or a
+   * number for words: that one is taken away, to be made again of the kind needed.
+   */
+  private free(found: BuffTarget | null, asked: ParsedBuffModifierRequest): BuffTarget | null {
+    const [item] = found?.items ?? [];
+    if (!found?.made || !item || !this.released.has(found.name) || this.isUsed(found.name)) return found;
+    if (laysLayersOn(found) === (asked.text !== undefined)) return found;
+    this.touched.delete(found.name);
+    dropBuffItem(item);
+    return null;
+  }
+
+  /** Lays words on an item as the latest layer, written down on the buff. */
+  private layWords(data: DataElement, target: BuffTarget, words: string): void {
+    this.touch(target);
+    writeBuffTextModifier(data, { target: target.name, text: words, order: this.nextOrder() });
+  }
+
+  /** Moves the item by what the request asks for and writes down how far it moved; false where it holds no number. */
+  private layMove(data: DataElement, target: BuffTarget, request: ParsedBuffModifierRequest): boolean {
+    this.touch(target);
+    const moved = this.moveStatus(target, request);
+    if (moved == null) return false;
+    this.writeModifier(data, target, request, moved, laysLayersOn(target) ? this.nextOrder() : undefined);
+    return true;
+  }
+
+  /**
+   * The order the next layer laid on an item of the piece is laid at: past every order handed out
+   * before, kept on the piece, so a layer laid after another went never shares its order should that
    * one come back.
    */
-  private nextWordsOrder(): number {
+  private nextOrder(): number {
     const container = this.ensureContainer();
-    const handed = Number(container?.getAttribute(WORDS_WRITTEN) ?? 0);
-    const standing = this.list().reduce((latest, row) => Math.max(latest, readBuffTextModifier(row)?.order ?? 0), 0);
+    const handed = Number(container?.getAttribute(LAST_LAID) ?? 0);
+    const standing = this.list().reduce(
+      (latest, row) => Math.max(latest, readBuffTextModifier(row)?.order ?? 0, readBuffModifier(row)?.order ?? 0),
+      0
+    );
     const next = Math.max(Number.isFinite(handed) ? handed : 0, standing) + 1;
-    container?.setAttribute(WORDS_WRITTEN, String(next));
+    container?.setAttribute(LAST_LAID, String(next));
     return next;
   }
 
-  /**
-   * Lets go of the words a buff wrote. Where a buff wrote words into the same item after it, that one
-   * now stands on what this one found there, so it puts that back when it goes, unless it stands on
-   * words written otherwise (see `laidOn`). Where none did, the item goes back to what it held, moved
-   * by what buffs moving its number moved it since (see `putBackFrom`), unless someone wrote into it by
-   * hand (see {@link writtenByHand}), and what it holds then is what the buffs left, even once none
-   * writes into it: words written after, while none stands, are told as written by hand should one of
-   * them be put back. Words written otherwise that the buff found there go back as written so.
-   */
-  private revertWords(data: DataElement, words: BuffTextModifier): void {
-    clearBuffTextModifier(data);
-    this.released.add(words.target);
-    const status = this.status();
-    if (!status) return;
-    const above = this.nextWordsOn(words.target, words.order, data.identifier);
-    if (above) {
-      writeBuffTextModifier(above.row, laidOn(above.written, words));
-      return;
+  /** The layers the piece's buffs lay on an item, by the name they record it by. */
+  private layersOn(name: string): ItemLayer[] {
+    const layers: ItemLayer[] = [];
+    for (const row of this.list()) {
+      const words = readBuffTextModifier(row);
+      if (words?.target === name)
+        layers.push({ kind: 'words', text: words.text, order: words.order, tie: row.identifier });
+      const modifier = readBuffModifier(row);
+      if (modifier?.target === name) {
+        layers.push({ kind: 'move', by: modifier.applied, order: modifier.order ?? 0, tie: row.identifier });
+      }
     }
-    if (this.writtenByHand(words.target)) return;
-    status.setText(words.target, putBackFrom(status.getText(words.target) ?? '', words));
-    if (!words.onHand) status.noteLeftByBuffs(words.target);
+    return layers;
+  }
+
+  /** Whether any buff of the piece moves or writes into the item that goes by a name. */
+  private isUsed(name: string): boolean {
+    return this.list().some((row) => (readBuffModifier(row)?.target ?? readBuffTextModifier(row)?.target) === name);
   }
 
   /**
-   * Whether someone wrote into an item by hand, or by a command, since buffs last left what they did
-   * in it, as noted on the item (see {@link isWrittenOtherwise}). Words written so stay as they are,
-   * whichever of the buffs goes or comes back, until a buff writes into the item again; a number
-   * written so is moved back by what a buff moved as it goes, and stays noted as written by hand.
+   * Marks an item holding words or a choice as one whose layers this change lays again, the first time
+   * it does, taking in what it holds before any layer changes (see `takeInItem`): words written into it
+   * otherwise since become a layer of their own. It is laid out once the change is done.
    */
-  private writtenByHand(target: string): boolean {
-    return this.status()?.writtenOtherwise(target) ?? false;
+  private touch(target: BuffTarget): void {
+    const [item] = target.items;
+    if (!item || !laysLayersOn(target) || this.touched.has(target.name)) return;
+    this.touched.set(target.name, target);
+    takeInItem(item, this.layersOn(target.name), () => this.nextOrder());
   }
 
-  /**
-   * Changes a number a buff moves, noting what it leaves in the item where the note is read (see
-   * `StatusAccessor.changeByBuff`), as on an item a buff made (see {@link sweepMadeItems}).
-   */
-  private changeByBuff(target: string, slot: ResourceSlot, by: number): void {
-    this.status()?.changeByBuff(target, slot, by);
+  /** Lays out again every item the change just done laid layers on, as it found them, from the layers standing now. */
+  private settleTouched(): void {
+    const touched = [...this.touched.values()];
+    this.touched.clear();
+    for (const target of touched) settleItem(target.items, this.layersOn(target.name));
   }
 
   /**
    * Takes away every item a buff made for itself that a buff let go of in the change just done and no
    * buff of the piece moves or writes into any more, one that leaves what it moved included, and the
-   * section such items are kept in once it holds none. One written into otherwise since the buffs
-   * left what they did in it, by hand or by a command, is kept as the sheet's own (see
-   * `isWrittenOtherwise`). Each is taken as itself, not by name. An item the sheet had all along is never taken,
-   * nor one no buff let go of here, as one another device has just made for a buff that has yet to reach
-   * this one. Nothing is taken where the buffs cannot be read, as on a device the piece's buffs have not
-   * reached yet: the container they are kept in, made with the first buff and never taken away, is not
-   * there.
+   * section such items are kept in once it holds none. One written into otherwise since the buffs left
+   * what they did in it, by hand or by a command, is kept as the sheet's own (see `isWrittenOtherwise`).
+   * Each is taken as itself, not by name. An item the sheet had all along is never taken, nor one no
+   * buff let go of here, as one another device has just made for a buff that has yet to reach this one.
+   * Nothing is taken where the buffs cannot be read, as on a device the piece's buffs have not reached
+   * yet: the container they are kept in, made with the first buff and never taken away, is not there.
    */
   private sweepMadeItems(): void {
     const released = new Set(this.released);
     this.released.clear();
     const status = this.status();
-    if (released.size < 1 || !this.container || !status?.keepsBuffItems()) return;
-    const used = new Set<string>();
-    for (const row of this.list()) {
-      const target = readBuffModifier(row)?.target ?? readBuffTextModifier(row)?.target;
-      if (target !== undefined) used.add(target);
-    }
+    if (released.size < 1 || !this.container || !status) return;
     for (const item of status.madeItems()) {
-      if (!released.has(item.name) || used.has(item.name)) continue;
-      if (isWrittenOtherwise(item)) adoptBuffItem(item);
+      if (!released.has(item.name) || this.isUsed(item.name)) continue;
+      if (isWrittenOtherwise(item) || holdsHandWords(item)) adoptBuffItem(item);
       else dropBuffItem(item);
     }
     status.tidyBuffItems();
@@ -364,53 +394,82 @@ export class BuffManager {
    * A buff standing on some other status, or giving back what this one leaves moved or the other way
    * about, has nothing in common with this one, so what it moved goes back before the new one is
    * laid, which leaves this the same as applying it fresh. One
-   * holding the same status at a value keeps holding it there, and nothing is moved. Null where the
-   * sheet has no such status, as for a buff laid fresh.
+   * holding the same status at a value keeps holding it there, and nothing is moved. Answers what
+   * laying it came to, as {@link applyModifier} does.
    */
-  stackModifier(
-    data: DataElement,
-    asked: ParsedBuffModifierRequest,
-    makesMissing = false
-  ): BuffModifier | BuffTextModifier | null {
+  stackModifier(data: DataElement, asked: ParsedBuffModifierRequest, makesMissing = false): BuffRequestOutcome {
     return this.alter(() => {
       const status = this.status();
-      const request = status ? namedRequest(status, asked) : asked;
+      if (!status) return { kind: 'missing' };
+      const found = status.targetOf(asked.target);
+      const request = found ? { ...asked, target: found.name } : asked;
       const standing = readBuffModifier(data);
       if (!standing || !movesSameStatus(standing, request)) {
         this.revertModifier(data);
-        return this.applyModifier(data, request, makesMissing);
+        return this.lay(data, this.free(found, request), request, makesMissing);
       }
+      if (!found) return { kind: 'missing' };
+      this.touch(found);
       if (holdsRequestedStatus(standing, request)) {
-        return this.status()?.getValue(request.target, request.slot) == null ? null : standing;
+        return this.valueNow(found, request.slot) == null ? { kind: 'noNumber' } : { kind: 'lands' };
       }
-
-      const moved = this.moveStatus(request);
-      if (moved == null) return null;
-      return this.writeModifier(data, { ...request, step: request.step ?? standing.step }, standing.applied + moved);
+      const moved = this.moveStatus(found, request);
+      if (moved == null) return { kind: 'noNumber' };
+      this.writeModifier(
+        data,
+        found,
+        { ...request, step: request.step ?? standing.step },
+        standing.applied + moved,
+        standing.order
+      );
+      return { kind: 'lands' };
     });
   }
 
-  /** Moves the status by what the request asks for and answers how far it actually went. */
-  private moveStatus(request: ParsedBuffModifierRequest): number | null {
-    const status = this.status();
-    if (!status) return null;
-    const before = status.getValue(request.target, request.slot);
-    if (before == null) return null;
-
-    const wanted = request.operator === 'set' ? request.amount - before : request.amount;
-    this.changeByBuff(request.target, request.slot, wanted);
-    const after = status.getValue(request.target, request.slot);
-    return (after ?? before) - before;
+  /**
+   * The number a slot of the item holds now: for one holding words or a choice taken in by the change
+   * under way, what its layers show (see `shownOn`), which it is written with once the change is done.
+   */
+  private valueNow(target: BuffTarget, slot: ResourceSlot): number | null {
+    const [item] = target.items;
+    if (!item || !laysLayersOn(target) || !this.touched.has(target.name))
+      return this.status()?.valueOf(target, slot) ?? null;
+    return slot === 'now' ? numberIn(shownOn(item, this.layersOn(target.name))) : null;
   }
 
-  private writeModifier(data: DataElement, request: ParsedBuffModifierRequest, applied: number): BuffModifier {
+  /**
+   * Moves the status by what the request asks for and answers how far it went: on a number, as far as
+   * its bounds let it; on an item holding words or a choice, all of it, laid as a layer once the change
+   * is done. Null where the item holds no number there.
+   */
+  private moveStatus(
+    target: BuffTarget,
+    request: Pick<ParsedBuffModifierRequest, 'slot' | 'operator' | 'amount'>
+  ): number | null {
+    const before = this.valueNow(target, request.slot);
+    if (before == null) return null;
+    const wanted = request.operator === 'set' ? request.amount - before : request.amount;
+    if (laysLayersOn(target)) return wanted;
+    const status = this.status()!;
+    status.changeByBuff(target, request.slot, wanted);
+    return (status.valueOf(target, request.slot) ?? before) - before;
+  }
+
+  private writeModifier(
+    data: DataElement,
+    target: BuffTarget,
+    request: ParsedBuffModifierRequest,
+    applied: number,
+    order: number | undefined
+  ): BuffModifier {
     const modifier: BuffModifier = {
-      target: request.target,
+      target: target.name,
       slot: request.slot,
       operator: request.operator,
       applied,
       ...(request.step ? { step: request.step } : {}),
       ...(request.lasting ? { lasting: request.lasting } : {}),
+      ...(order !== undefined ? { order } : {}),
     };
     writeBuffModifier(data, modifier);
     return modifier;
@@ -429,12 +488,10 @@ export class BuffManager {
     const modifier = readBuffModifier(data);
     if (!modifier?.step || modifier.operator !== 'add') return null;
     if (runsOut && !modifier.lasting) return null;
-    const moved = this.moveStatus({
-      target: modifier.target,
-      slot: modifier.slot,
-      operator: 'add',
-      amount: modifier.step,
-    });
+    const target = this.status()?.targetOf(modifier.target);
+    if (!target) return null;
+    this.touch(target);
+    const moved = this.moveStatus(target, { slot: modifier.slot, operator: 'add', amount: modifier.step });
     if (moved == null) return null;
     const standing = { ...modifier, applied: modifier.applied + moved };
     writeBuffModifier(data, standing);
@@ -443,18 +500,43 @@ export class BuffManager {
   }
 
   /**
-   * Lets go of what the buff moved, moving it back unless the buff leaves it moved, and of the words
-   * it wrote, putting back what the item held. An item made for the buff is left for
-   * {@link sweepMadeItems}, run once the change this is part of is done (see {@link alter}).
+   * Lets go of what the buff moved, moving it back unless the buff leaves it moved, and of the words it
+   * wrote: their layers go, and the item is laid out again from those left once the change is done
+   * (see {@link alter}). A move left in place as its buff goes is moved into the ground of an item
+   * holding words or a choice. An item made for the buff is left for {@link sweepMadeItems}, run once
+   * the change this is part of is done.
    */
   private revertModifier(data: DataElement): void {
+    this.revertWords(data);
+    this.revertMove(data);
+  }
+
+  /** Lets go of the words the buff wrote: its layer goes (see {@link revertModifier}). */
+  private revertWords(data: DataElement): void {
     const words = readBuffTextModifier(data);
-    if (words) this.revertWords(data, words);
+    if (!words) return;
+    const target = this.status()?.targetOf(words.target);
+    if (target) this.touch(target);
+    this.released.add(words.target);
+    clearBuffTextModifier(data);
+  }
+
+  /** Lets go of what the buff moved, moving it back unless the buff leaves it moved (see {@link revertModifier}). */
+  private revertMove(data: DataElement): void {
+    const status = this.status();
     const modifier = readBuffModifier(data);
     if (!modifier) return;
-    if (!modifier.lasting) this.changeByBuff(modifier.target, modifier.slot, -modifier.applied);
-    clearBuffModifier(data);
+    const target = status?.targetOf(modifier.target);
+    if (target) {
+      this.touch(target);
+      if (laysLayersOn(target)) {
+        if (modifier.lasting && target.items[0]) moveGround(target.items[0], modifier.applied);
+      } else if (!modifier.lasting) {
+        status!.changeByBuff(target, modifier.slot, -modifier.applied);
+      }
+    }
     this.released.add(modifier.target);
+    clearBuffModifier(data);
   }
 
   /**
@@ -630,15 +712,25 @@ export class BuffManager {
   }
 
   private snapshotOf(rows: readonly DataElement[]): BuffSnapshotEntry[] {
-    return rows.map((data) => ({
-      name: data.name,
-      value: data.value,
-      info: `${data.currentValue ?? ''}`,
-      appearance: readAppearance(data),
-      modifier: readBuffModifier(data),
-      words: readBuffTextModifier(data),
-      made: this.makesItsItem(data),
-    }));
+    const made = new Set(
+      this.status()
+        ?.madeItems()
+        .map((item) => item.name) ?? []
+    );
+    return rows.map((data) => {
+      const modifier = readBuffModifier(data);
+      const words = readBuffTextModifier(data);
+      const target = modifier?.target ?? words?.target;
+      return {
+        name: data.name,
+        value: data.value,
+        info: `${data.currentValue ?? ''}`,
+        appearance: readAppearance(data),
+        modifier,
+        words,
+        made: target !== undefined && made.has(target),
+      };
+    });
   }
 
   /**
@@ -699,9 +791,11 @@ export class BuffManager {
    *
    * A buff that leaves its status moved left it moved when it went, so a record of it gone is taken
    * to stand where it last moved it. One that comes back after going, `cameBackMoving` being how far
-   * the count it ran out at moved the status, has that given back as well. An item a buff made, made
-   * again here as it has gone, has had nothing moved on it yet, whatever the row says it moved. What
-   * the row moved that the record does not is let go of first (see {@link letGoOfStale}).
+   * the count it ran out at moved the status, has that given back as well. On an item holding words
+   * or a choice, where such a move went into the ground as it went, it comes out of the ground again
+   * as its layer comes back. An item a buff made, made again here as it has gone, has had nothing
+   * moved on it yet, whatever the row says it moved. What the row moved that the record does not is
+   * let go of first (see {@link letGoOfStale}).
    */
   private restoreModifier(
     data: DataElement,
@@ -710,98 +804,51 @@ export class BuffManager {
     made: boolean
   ): void {
     if (!wanted) return;
-    const remade = made && (this.status()?.makeForBuff(wanted.target, 0) ?? false);
-    const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
-    const applied = remade ? left : (readBuffModifier(data)?.applied ?? left);
-    if (applied !== wanted.applied) {
-      this.changeByBuff(wanted.target, wanted.slot, wanted.applied - applied);
+    const status = this.status();
+    const found = status?.targetOf(wanted.target) ?? null;
+    const target = found ?? (made ? (status?.makeForBuff(wanted.target, 'number') ?? null) : null);
+    if (target) {
+      this.touch(target);
+      const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
+      const standing = found ? readBuffModifier(data)?.applied : undefined;
+      if (laysLayersOn(target)) {
+        if (standing === undefined && left !== 0 && target.items[0]) moveGround(target.items[0], -left);
+      } else {
+        const applied = standing ?? left;
+        if (applied !== wanted.applied) status!.changeByBuff(target, wanted.slot, wanted.applied - applied);
+      }
     }
-    writeBuffModifier(data, wanted);
+    writeBuffModifier(data, target ? { ...wanted, target: target.name } : wanted);
   }
 
   /**
    * Lets go of what a row holds now that the record it is put back to does not, before either is laid
-   * again: words it no longer writes, or a number it no longer moves, as a buff laid again under the
-   * same name with other words or a move holds. Each goes back as it would as the buff goes.
+   * again: words on another item or none, or a number it no longer moves, as a buff laid again under
+   * the same name with other words or a move holds. Each goes back as it would as the buff goes.
    */
   private letGoOfStale(data: DataElement, entry: BuffSnapshotEntry): void {
     const words = readBuffTextModifier(data);
-    if (words && (!entry.words || words.target !== entry.words.target)) this.revertWords(data, words);
+    if (words && (!entry.words || words.target !== entry.words.target)) this.revertWords(data);
     const modifier = readBuffModifier(data);
-    if (modifier && (!entry.modifier || !movesSameStatus(modifier, entry.modifier))) this.revertModifier(data);
+    if (modifier && (!entry.modifier || !movesSameStatus(modifier, entry.modifier))) this.revertMove(data);
   }
 
   /**
-   * Writes the words a buff wrote back as they stood, and lays the buffs that write into that item in
-   * the order they wrote again (see {@link relinkWords}). Words it no longer writes were let go of first
-   * (see {@link letGoOfStale}). An item made by a buff for these words is made again where it has gone;
-   * any other gone stays gone, and the words with it.
+   * Lays the words a buff wrote back on the item as the record has them, at the order it laid them,
+   * among the layers standing there however they were put back. An item made by a buff for these words
+   * is made again where it has gone; any other gone stays gone, and the words with it.
    */
   private restoreWords(data: DataElement, wanted: BuffTextModifier | null, made: boolean): void {
     if (!wanted) return;
     const status = this.status();
-    if (!status) return;
-    if (status.getText(wanted.target) == null && !(made && status.makeForBuff(wanted.target, wanted.text))) {
+    const target =
+      status?.targetOf(wanted.target) ?? (made ? (status?.makeForBuff(wanted.target, 'words') ?? null) : null);
+    if (!target) {
       clearBuffTextModifier(data);
       return;
     }
-    writeBuffTextModifier(data, wanted);
-    this.relinkWords(wanted.target);
-  }
-
-  /**
-   * Lays the buffs that write into an item in the order they wrote: the first stands on what the item
-   * held before any of them, each later one on the words of the one before it but where it found words
-   * written otherwise (see `laidOn`), and the item shows the words of the last, unless someone wrote
-   * into it by hand (see {@link writtenByHand}). Run as buffs are put back, whichever of them were and
-   * in whatever order.
-   */
-  private relinkWords(target: string): void {
-    const chain = this.wordsOn(target);
-    if (chain.length < 1) return;
-    let below: Pick<BuffTextModifier, 'before' | 'onHand'> = chain[0].written;
-    for (const { row, written } of chain) {
-      writeBuffTextModifier(row, laidOn(written, below));
-      below = { before: written.text };
-    }
-    const status = this.status();
-    if (!status || this.writtenByHand(target)) return;
-    if (status.getText(target) !== below.before) status.setText(target, below.before);
-    status.noteLeftByBuffs(target);
-  }
-
-  /**
-   * The buffs that write into an item, in the order they wrote, with what each wrote. Two that wrote at
-   * the same order, as two devices laying one each at once may, go by their rows' identifiers, the
-   * same way on every device.
-   */
-  private wordsOn(target: string): { row: DataElement; written: BuffTextModifier }[] {
-    return this.list()
-      .map((row) => ({ row, written: readBuffTextModifier(row) }))
-      .filter((each): each is { row: DataElement; written: BuffTextModifier } => each.written?.target === target)
-      .sort((a, b) => a.written.order - b.written.order || compareIdentifiers(a.row, b.row));
-  }
-
-  /**
-   * The buff that wrote words into the item next after one that wrote at an order, its row the one
-   * named, in the order {@link wordsOn} lays them; none where none did.
-   */
-  private nextWordsOn(
-    target: string,
-    order: number,
-    identifier: string
-  ): { row: DataElement; written: BuffTextModifier } | null {
-    return (
-      this.wordsOn(target).find(
-        ({ row, written }) => written.order > order || (written.order === order && row.identifier > identifier)
-      ) ?? null
-    );
-  }
-
-  /** Whether the item a buff moves or writes into was made by a buff for itself. */
-  private makesItsItem(data: DataElement): boolean {
-    const target = readBuffModifier(data)?.target ?? readBuffTextModifier(data)?.target;
-    return target !== undefined && (this.status()?.madeByBuff(target) ?? false);
+    this.touch(target);
+    writeBuffTextModifier(data, { ...wanted, target: target.name });
   }
 
   private ensureContainer(): DataElement | null {
@@ -902,25 +949,6 @@ export class BuffManager {
       data.value = Number.isFinite(standing) ? settle(standing, round) : round;
     });
   }
-}
-
-/**
- * What an item a buff wrote words into goes back to as the buff goes: what it held before, moved by
- * what buffs moving its number have moved it since the words were written, where both are numbers, as
- * a level held at 3 and moved to 4 goes back from 1 to 2; else what it held before.
- */
-function putBackFrom(held: string, words: BuffTextModifier): string {
-  const number = (text: string) => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : null);
-  const now = number(held);
-  const wrote = number(words.text);
-  const before = number(words.before);
-  if (now === null || wrote === null || before === null || now === wrote) return words.before;
-  return String(before + now - wrote);
-}
-
-/** Two buff rows in the order of their identifiers. */
-function compareIdentifiers(a: DataElement, b: DataElement): number {
-  return a.identifier < b.identifier ? -1 : a.identifier > b.identifier ? 1 : 0;
 }
 
 /** Whether this is one buff rather than something buffs are kept in. */

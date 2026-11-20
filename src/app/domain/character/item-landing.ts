@@ -1,5 +1,6 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modifier';
+import type { DataElement } from '@axe/domain/data/data-element';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
 
 /**
@@ -82,32 +83,33 @@ export function landingOn(item: ItemTakes | null, slot: ResourceSlot, written: s
   return { kind: 'words', words };
 }
 
-/** What a sheet answers about its items, as far as where a value lands goes. */
-export interface ItemsLandedOn {
-  /**
-   * The name an item is found by, as written or in half-width characters, of the two the one finding
-   * an item a value can be written into first; null where neither finds one.
-   */
-  nameOf(reference: string): string | null;
-  landingOf(name: string, slot: ResourceSlot, written: string, as: WrittenAs): ItemLanding;
-  /** The number the slot of an item holds, or null where it holds none. */
-  getValue(name: string, slot: ResourceSlot): number | null;
-  /** Whether a buff may make an item of this name, there being none. */
-  canMakeForBuff(name: string): boolean;
+/**
+ * An item a buff names, found once by its name as the request is laid, which every step of laying it
+ * goes by after: the name it is recorded by, of the two the one finding an item a value can be written
+ * into first (as written, or in half-width characters); the items the name stands for, the first read
+ * and every one written, the room's aliases counted; what the first takes; and whether a buff made it
+ * for itself and it is the buff's still.
+ */
+export interface BuffTarget {
+  readonly name: string;
+  readonly items: readonly DataElement[];
+  readonly takes: ItemTakes;
+  readonly made: boolean;
 }
 
-/**
- * A request naming its item by the name the sheet finds it by (see {@link ItemsLandedOn.nameOf}), so
- * one written with full-width letters is the item its half-width name finds, and records that name;
- * as written where neither finds one. The chat's lint, the report of laying a buff and laying it all
- * name the item here, so the three find the same one.
- */
-export function namedRequest<T extends { readonly target: string }>(
-  sheet: Pick<ItemsLandedOn, 'nameOf'>,
-  request: T
-): T {
-  const named = sheet.nameOf(request.target);
-  return named === null || named === request.target ? request : { ...request, target: named };
+/** Whether buffs lay their layers on the item rather than move it (see `buff-layers`): it holds words or a choice. */
+export function laysLayersOn(target: BuffTarget): boolean {
+  return target.takes.takes === 'words' || target.takes.takes === 'choice';
+}
+
+/** What a sheet answers about its items, as far as where a value lands goes. */
+export interface ItemsLandedOn {
+  /** The item a name finds, found once (see {@link BuffTarget}); null where neither spelling finds one. */
+  targetOf(reference: string): BuffTarget | null;
+  /** The number a slot of the item holds, or null where it holds none. */
+  valueOf(target: BuffTarget, slot: ResourceSlot): number | null;
+  /** Whether a buff may make an item of this name, there being none. */
+  canMakeForBuff(name: string): boolean;
 }
 
 /**
@@ -134,48 +136,69 @@ export type BuffRequestOutcome =
   | { readonly kind: 'noNumber' }
   | { readonly kind: 'missing' };
 
+/** What a request is asked as, for where it lands. */
+type LaidRequest = Pick<ParsedBuffModifierRequest, 'slot' | 'operator' | 'amount' | 'text' | 'lasting'>;
+
 /**
- * What laying a `&!` request comes to on a sheet (see {@link BuffRequestOutcome}). An item the sheet
- * lacks is made only for a buff that is to make one, as one written in the chat is, that gives back
- * what it moves and moves the item's value, where a buff may make one by that name.
+ * Where what a `&!` buff asks for lands on the item found for it (see {@link BuffTarget}): its words as
+ * words, an amount it holds the item at as an amount written, and one it moves the item by as a move;
+ * nowhere where one `:` asks to leave would be written in as a value (see {@link RequestLanding}).
  */
-export function buffRequestOutcome(
-  sheet: ItemsLandedOn,
-  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text' | 'lasting'>,
-  makesMissing: boolean
-): BuffRequestOutcome {
-  const named = namedRequest(sheet, request);
-  const landing = landingOfRequest(sheet, named);
+export function landingOfRequest(target: BuffTarget | null, request: LaidRequest): RequestLanding {
+  const landing =
+    request.text !== undefined
+      ? landingOn(target?.takes ?? null, request.slot, request.text, 'words')
+      : landingOn(
+          target?.takes ?? null,
+          request.slot,
+          String(request.amount),
+          request.operator === 'set' ? 'amount' : 'moveBy'
+        );
+  return request.lasting && landing.kind === 'words' ? { kind: 'lastingWords' } : landing;
+}
+
+/**
+ * Whether a buff may make an item for a request the sheet has no item for: one that is to make one, as
+ * one written in the chat is, that gives back what it moves and moves the item's value.
+ */
+export function makesItemFor(request: LaidRequest, makesMissing: boolean): boolean {
+  return makesMissing && !request.lasting && request.slot === 'now';
+}
+
+/**
+ * What a request lands as, told as what laying it comes to (see {@link BuffRequestOutcome}): `holdsNumber`
+ * is whether the item holds a number to move, and `makes` whether an item would be made where there is
+ * none. Laying a buff and the chat's lint both go by it.
+ */
+export function outcomeOfLanding(landing: RequestLanding, holdsNumber: boolean, makes: boolean): BuffRequestOutcome {
   switch (landing.kind) {
     case 'words':
       return { kind: 'lands' };
     case 'number':
-      return sheet.getValue(named.target, named.slot) == null ? { kind: 'noNumber' } : { kind: 'lands' };
+      return holdsNumber ? { kind: 'lands' } : { kind: 'noNumber' };
     case 'noSlot':
       return { kind: 'noNumber' };
     case 'missing':
-      return makesMissing && !named.lasting && named.slot === 'now' && sheet.canMakeForBuff(named.target)
-        ? { kind: 'makes' }
-        : { kind: 'missing' };
+      return makes ? { kind: 'makes' } : { kind: 'missing' };
     default:
       return landing;
   }
 }
 
 /**
- * Where what a `&!` buff asks for lands on a sheet, on the item its name finds (see
- * {@link namedRequest}): its words as words, an amount it holds the item at as an amount written, and
- * one it moves the item by as a move; nowhere where one `:` asks to leave would be written in as a
- * value (see {@link RequestLanding}).
+ * What laying a `&!` request comes to on a sheet (see {@link BuffRequestOutcome}), its item found once.
+ * An item the sheet lacks is made only as {@link makesItemFor} says, where a buff may make one by that name.
  */
-export function landingOfRequest(
+export function buffRequestOutcome(
   sheet: ItemsLandedOn,
-  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'operator' | 'amount' | 'text' | 'lasting'>
-): RequestLanding {
-  const { target } = namedRequest(sheet, request);
-  const landing =
-    request.text !== undefined
-      ? sheet.landingOf(target, request.slot, request.text, 'words')
-      : sheet.landingOf(target, request.slot, String(request.amount), request.operator === 'set' ? 'amount' : 'moveBy');
-  return request.lasting && landing.kind === 'words' ? { kind: 'lastingWords' } : landing;
+  request: Pick<ParsedBuffModifierRequest, 'target'> & LaidRequest,
+  makesMissing: boolean
+): BuffRequestOutcome {
+  const target = sheet.targetOf(request.target);
+  const landing = landingOfRequest(target, request);
+  return outcomeOfLanding(
+    landing,
+    target !== null && sheet.valueOf(target, request.slot) != null,
+    makesItemFor(request, makesMissing) && sheet.canMakeForBuff(target?.name ?? request.target)
+  );
 }

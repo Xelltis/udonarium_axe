@@ -1,5 +1,6 @@
 import { GameObject } from '@axe/core/sync/game-object';
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { heldTextOf, isNotedByBuffs, isWrittenOtherwise, noteLeftByBuffs } from '@axe/domain/character/buff-layers';
 import {
   buffItemsIn,
   dropBuffItem,
@@ -8,8 +9,14 @@ import {
   makeBuffItem,
   tidyBuffItems,
 } from '@axe/domain/character/buff-made-items';
-import { heldTextOf, isNotedByBuffs, isWrittenOtherwise, noteLeftByBuffs } from '@axe/domain/character/buff-modifier';
-import { type ItemLanding, type ItemTakes, landingOn, type WrittenAs } from '@axe/domain/character/item-landing';
+import {
+  type BuffTarget,
+  type ItemLanding,
+  type ItemsLandedOn,
+  type ItemTakes,
+  landingOn,
+  type WrittenAs,
+} from '@axe/domain/character/item-landing';
 import { allowsOverResource } from '@axe/domain/character/over-resource';
 import {
   DataElement,
@@ -126,7 +133,7 @@ export function heldWithinBounds(data: DataElement, type: 'value' | 'currentValu
  * stands for on this sheet, and a value written under it goes to every one of them: the first is
  * written, and the others are given what the first came to hold, each within its own bounds.
  */
-export class StatusAccessor {
+export class StatusAccessor implements ItemsLandedOn {
   /**
    * @param detailElement The piece's sheet, or how to read it as it stands each time: a piece's own
    *   accessor is kept, and reads the sheet the piece holds now.
@@ -312,18 +319,40 @@ export class StatusAccessor {
   }
 
   /**
-   * Moves a number a buff moves, as {@link changeValue} does, and notes what it leaves in the item
-   * where the note is read: on an item a buff made, and on one buffs write words into, so a move is
-   * not taken for a hand's as those words go; unless someone had written into the item otherwise,
-   * which stays noted so (see {@link isWrittenOtherwise}). The item is found by its name once.
+   * Moves a number a buff moves on the items found for it, as {@link changeValue} does, and notes what
+   * it leaves in the item where the note is read: on an item a buff made, so a move is not taken for a
+   * hand's as the buff goes; unless someone had written into the item otherwise, which stays noted so
+   * (see {@link isWrittenOtherwise}).
    */
-  changeByBuff(name: string, nowOrMax: ResourceSlot, by: number): void {
-    const found = this.findAll(name);
-    const [item] = found;
+  changeByBuff(target: BuffTarget, nowOrMax: ResourceSlot, by: number): void {
+    const [item] = target.items;
     if (!item) return;
     const byHand = isWrittenOtherwise(item);
-    this.changeFound(found, nowOrMax, by);
+    this.changeFound(target.items, nowOrMax, by);
     if (!byHand && (this.isMadeByBuff(item) || isNotedByBuffs(item))) noteLeftByBuffs(item);
+  }
+
+  /** The number a slot of the first item found for a buff holds, or null where it holds none. */
+  valueOf(target: BuffTarget, slot: ResourceSlot): number | null {
+    const [item] = target.items;
+    return item ? StatusAccessor.readSlot(item, slot) : null;
+  }
+
+  /**
+   * The item a buff names, found once (see {@link BuffTarget}): of the name as written and in
+   * half-width characters, the one finding an item a value can be written into, else the one finding
+   * any item, as written first. Null where neither finds one.
+   */
+  targetOf(reference: string): BuffTarget | null {
+    const detail = this.detailDataElement;
+    if (!detail) return null;
+    const finding = [...new Set([reference, toHalfWidth(reference)])]
+      .map((name) => ({ name, items: findReferencedElements(detail, name, this.aliases?.()) }))
+      .filter((found) => found.items.length > 0);
+    const picked = finding.find((found) => isChangeableElementType(found.items[0].type)) ?? finding[0];
+    if (!picked) return null;
+    const [item] = picked.items;
+    return { name: picked.name, items: picked.items, takes: this.takesOfItem(item), made: this.isMadeByBuff(item) };
   }
 
   /** Moves a slot of the items a name found by an amount, as {@link changeValue} does. */
@@ -368,7 +397,11 @@ export class StatusAccessor {
    */
   takesOf(name: string): ItemTakes | null {
     const data = this.findData(name);
-    if (!data) return null;
+    return data ? this.takesOfItem(data) : null;
+  }
+
+  /** What an item takes written into it (see {@link takesOf}). */
+  private takesOfItem(data: DataElement): ItemTakes {
     if (!isChangeableElementType(data.type)) return { takes: 'nothing' };
     const takes =
       data.type === DataElementType.NOTE
@@ -379,7 +412,7 @@ export class StatusAccessor {
     if (takes === 'choice') {
       return { takes: 'choice', choices: parseSelectChoices(data.getAttribute(DataElementAttribute.CHOICES) ?? '') };
     }
-    if (takes === 'words') return { takes: 'words', holdsNumber: this.getValue(name, 'now') != null };
+    if (takes === 'words') return { takes: 'words', holdsNumber: StatusAccessor.readSlot(data, 'now') != null };
     return { takes };
   }
 
@@ -394,18 +427,6 @@ export class StatusAccessor {
     return data ? heldTextOf(data) : null;
   }
 
-  /** Whether an item was written into otherwise since buffs last left what they did in it (see {@link isWrittenOtherwise}). */
-  writtenOtherwise(name: string): boolean {
-    const item = this.findData(name);
-    return item !== null && isWrittenOtherwise(item);
-  }
-
-  /** Notes on an item what it holds now as what the buffs left there (see {@link noteLeftByBuffs}). */
-  noteLeftByBuffs(name: string): void {
-    const item = this.findData(name);
-    if (item) noteLeftByBuffs(item);
-  }
-
   /**
    * Whether a buff may make an item of this name at the foot of the sheet: no item of the sheet goes by
    * it, not even two that it cannot tell apart, and the name is no alias of the room's, which would read
@@ -417,17 +438,19 @@ export class StatusAccessor {
   }
 
   /**
-   * Makes an item at the foot of the sheet for a buff to move, where one may be made (see
-   * {@link canMakeForBuff}): a line of text holding the words, or a number field holding the number.
-   * One the name does not find once made, as one of items it cannot tell apart, is taken away again,
-   * which would leave one made again at every buff. False where nothing is made.
+   * Makes an item at the foot of the sheet for a buff, where one may be made (see
+   * {@link canMakeForBuff}): a line of text holding nothing for words, or a number field holding 0 for
+   * a number to move, and answers it as found for the buff. One the name does not find once made, as
+   * one of items it cannot tell apart, is taken away again, which would leave one made again at every
+   * buff. Null where nothing is made.
    */
-  makeForBuff(name: string, value: string | number): boolean {
-    if (!this.detailDataElement || !this.canMakeForBuff(name)) return false;
-    const made = makeBuffItem(this.detailDataElement, name, value);
-    if (this.findData(name) === made) return true;
+  makeForBuff(name: string, holds: 'words' | 'number'): BuffTarget | null {
+    if (!this.detailDataElement || !this.canMakeForBuff(name)) return null;
+    const made = makeBuffItem(this.detailDataElement, name, holds === 'words' ? '' : 0);
+    const target = this.targetOf(name);
+    if (target?.items[0] === made) return target;
     dropBuffItem(made);
-    return false;
+    return null;
   }
 
   /** Whether the sheet keeps any item a buff made for itself, which a sheet seldom does. */
@@ -443,12 +466,6 @@ export class StatusAccessor {
   /** The items buffs made for themselves that the sheet keeps, themselves rather than by name. */
   madeItems(): DataElement[] {
     return this.detailDataElement ? buffItemsIn(this.detailDataElement) : [];
-  }
-
-  /** Whether the item that goes by the name was made by a buff for itself, and is the buff's still. */
-  madeByBuff(name: string): boolean {
-    const data = this.findData(name);
-    return data != null && this.isMadeByBuff(data);
   }
 
   /** Whether an item of the sheet was made by a buff for itself, and is the buff's still. */
@@ -480,11 +497,7 @@ export class StatusAccessor {
    * check box named in full-width beside a resource of the half-width name leaves the resource found.
    */
   nameOf(reference: string): string | null {
-    const detail = this.detailDataElement;
-    if (!detail) return null;
-    const names = [...new Set([reference, toHalfWidth(reference)])];
-    const finding = names.filter((name) => findReferencedElements(detail, name, this.aliases?.()).length > 0);
-    return finding.find((name) => this.canChangeName(name)) ?? finding[0] ?? null;
+    return this.targetOf(reference)?.name ?? null;
   }
 
   /** Whether any item of the sheet goes by a name, as written or in half-width, found by it or not, as one of two by one name is not. */

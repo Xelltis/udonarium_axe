@@ -1,6 +1,6 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
-import { isAmountWritten, type ItemsLandedOn, namedRequest } from '@axe/domain/character/item-landing';
-import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import { isAmountWritten, type ItemsLandedOn } from '@axe/domain/character/item-landing';
+import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { evalCalcFormula } from '@axe/domain/data/data-element-calc';
 import {
   asResourceSlot,
@@ -28,6 +28,12 @@ export interface BuffModifier {
    * moves its status at every count, the last one it runs out at included.
    */
   lasting?: true;
+  /**
+   * How late it laid its move among the layers laid on an item that holds words or a choice (see
+   * `buff-layers`); none on a number, and on a move laid before such items were laid out in layers,
+   * which lies beneath every other layer.
+   */
+  order?: number;
 }
 
 const OPERATOR_TOKENS: Record<string, { operator: BuffModifierOperator; sign: number; repeats?: boolean }> = {
@@ -67,41 +73,16 @@ export interface ParsedBuffModifierRequest {
 }
 
 /**
- * What a buff that writes words into an item while it stands wrote, and what the item held before,
- * so that taking it away can put that back.
+ * What a buff that writes words into an item while it stands wrote: the item, the words, and how late
+ * it laid them among the layers laid on the item (see `buff-layers`), which say what the item shows
+ * and what it goes back to as the buff goes.
  */
 export interface BuffTextModifier {
   target: string;
   /** The words the buff wrote. */
   text: string;
-  /** What the item held before the buff wrote them. */
-  before: string;
-  /**
-   * How late the buff wrote them, among the buffs of the piece that write words: the one written last
-   * is the one whose words the item shows, and the one above another is the one next written after it.
-   */
+  /** How late the buff laid them among the layers laid on the item: the latest is the one the item shows. */
   order: number;
-  /**
-   * Whether what the item held before was written into it otherwise, by hand or by a command, since
-   * the buffs last left what they did in it: the buff stands on those words rather than on the words
-   * of a buff that wrote before it, which no buff going or coming back takes from under it, and puts
-   * them back as written so as it goes.
-   */
-  onHand?: true;
-}
-
-/**
- * A buff's record of the words it wrote, standing on what it now stands on, `standing`: the words a
- * buff below it wrote, or those the item held before the one below it went. One that stands on words
- * written otherwise stands on them still (see {@link BuffTextModifier.onHand}). Letting a buff go and
- * laying the buffs that write into an item again both lay each on what is below it here.
- */
-export function laidOn(
-  written: BuffTextModifier,
-  standing: Pick<BuffTextModifier, 'before' | 'onHand'>
-): BuffTextModifier {
-  if (written.onHand) return written;
-  return { ...written, before: standing.before, ...(standing.onHand ? { onHand: true } : {}) };
 }
 
 const LASTING_MARK = /^[:：]/;
@@ -246,17 +227,20 @@ export function movesSameStatus(
 /**
  * Whether a note piled on a buff speaks of nothing but the status the buff holds at a value, as
  * `HP+2` does on a buff holding HP, `ＨＰ+2` too, each status of the note named as the sheet finds it
- * (see `namedRequest`). Such a note would only hide the value the status is held at.
+ * (see `BuffTarget`). Such a note would only hide the value the status is held at.
  */
 export function speaksOnlyOfHeldStatus(
   modifier: BuffModifier | null,
   note: string,
-  sheet: Pick<ItemsLandedOn, 'nameOf'> | null
+  sheet: Pick<ItemsLandedOn, 'targetOf'> | null
 ): boolean {
   if (modifier?.operator !== 'set') return false;
   const items = parseBuffModifierItems(note);
   return (
-    items !== null && items.every((item) => holdsRequestedStatus(modifier, sheet ? namedRequest(sheet, item) : item))
+    items !== null &&
+    items.every((item) =>
+      holdsRequestedStatus(modifier, { ...item, target: sheet?.targetOf(item.target)?.name ?? item.target })
+    )
   );
 }
 
@@ -334,7 +318,15 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
     applied: lasting ? kept : applied,
     ...(operator === 'add' && Number.isFinite(step) && step !== 0 ? { step } : {}),
     ...(lasting ? { lasting } : {}),
+    ...orderOf(element.getAttribute(DataElementAttribute.BUFF_MOD_ORDER)),
   };
+}
+
+/** An order a record keeps, as a field to spread into it; none where it keeps none that reads as one. */
+function orderOf(text: string | null | undefined): { order?: number } {
+  const trimmed = `${text ?? ''}`.trim();
+  const order = trimmed.length > 0 ? Number(trimmed) : NaN;
+  return Number.isFinite(order) ? { order } : {};
 }
 
 /**
@@ -353,6 +345,11 @@ export function writeBuffModifier(element: DataElement, modifier: BuffModifier):
   keepAmount(element, DataElementAttribute.BUFF_MOD_STEP, modifier.lasting ? 0 : modifier.step);
   keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT, modifier.lasting ? String(modifier.applied) : null);
   keepAmount(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, modifier.lasting ? modifier.step : 0);
+  keepRecord(
+    element,
+    DataElementAttribute.BUFF_MOD_ORDER,
+    modifier.order === undefined ? null : String(modifier.order)
+  );
 }
 
 /**
@@ -378,59 +375,25 @@ function keepAmount(element: DataElement, name: string, amount: number | undefin
 export function readBuffTextModifier(element: DataElement): BuffTextModifier | null {
   const target = (element.getAttribute(DataElementAttribute.BUFF_TEXT_TARGET) ?? '').trim();
   if (target.length < 1) return null;
-  const order = Number(element.getAttribute(DataElementAttribute.BUFF_TEXT_ORDER) ?? '');
   return {
     target,
     text: element.getAttribute(DataElementAttribute.BUFF_TEXT_SET) ?? '',
-    before: element.getAttribute(DataElementAttribute.BUFF_TEXT_BEFORE) ?? '',
-    order: Number.isFinite(order) ? order : 0,
-    ...(element.getAttribute(DataElementAttribute.BUFF_TEXT_ON_HAND) === '1' ? { onHand: true } : {}),
+    order: orderOf(element.getAttribute(DataElementAttribute.BUFF_TEXT_ORDER)).order ?? 0,
   };
 }
 
-/** Records on the buff the words it wrote into an item and what the item held before. */
+/** Records on the buff the words it writes into an item and how late it laid them. */
 export function writeBuffTextModifier(element: DataElement, modifier: BuffTextModifier): void {
   keepRecord(element, DataElementAttribute.BUFF_TEXT_TARGET, modifier.target);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, modifier.text);
-  keepRecord(element, DataElementAttribute.BUFF_TEXT_BEFORE, modifier.before);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
-  keepRecord(element, DataElementAttribute.BUFF_TEXT_ON_HAND, modifier.onHand ? '1' : null);
-}
-
-/** What an item holds, as text: a resource's amount left, anything else's value. */
-export function heldTextOf(item: DataElement): string {
-  return `${item.type === DataElementType.NUMBER_RESOURCE ? item.currentValue : item.value}`;
-}
-
-/**
- * Notes on an item what it holds now as what the buffs writing into it or moving it left there.
- * Written after a `>`, so a note of nothing is told from none being noted.
- */
-export function noteLeftByBuffs(item: DataElement): void {
-  keepRecord(item, DataElementAttribute.BUFF_LEFT, `>${heldTextOf(item)}`);
-}
-
-/**
- * Whether an item was written into otherwise, by hand or by a command, since buffs last left what
- * they did in it: it holds anything but what was noted then. Never for one no buff has touched.
- */
-export function isWrittenOtherwise(item: DataElement): boolean {
-  const noted = item.getAttribute(DataElementAttribute.BUFF_LEFT) ?? '';
-  return noted.startsWith('>') && heldTextOf(item) !== noted.slice(1);
-}
-
-/** Whether buffs have noted on an item what they left in it, as a buff writing words into it does. */
-export function isNotedByBuffs(item: DataElement): boolean {
-  return (item.getAttribute(DataElementAttribute.BUFF_LEFT) ?? '').startsWith('>');
 }
 
 /** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */
 export function clearBuffTextModifier(element: DataElement): void {
   keepRecord(element, DataElementAttribute.BUFF_TEXT_TARGET, null);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, null);
-  keepRecord(element, DataElementAttribute.BUFF_TEXT_BEFORE, null);
   keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, null);
-  keepRecord(element, DataElementAttribute.BUFF_TEXT_ON_HAND, null);
 }
 
 /**
@@ -444,4 +407,5 @@ export function clearBuffModifier(element: DataElement): void {
   keepRecord(element, DataElementAttribute.BUFF_MOD_STEP, null);
   keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT, null);
   keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_ORDER, null);
 }

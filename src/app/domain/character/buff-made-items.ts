@@ -1,4 +1,4 @@
-import { noteLeftByBuffs } from '@axe/domain/character/buff-modifier';
+import { noteLeftByBuffs } from '@axe/domain/character/buff-layers';
 import {
   DataElement,
   DataElementAttribute,

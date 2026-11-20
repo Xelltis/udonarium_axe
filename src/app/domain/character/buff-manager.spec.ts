@@ -1,6 +1,7 @@
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
+import { noteLeftByBuffs } from '@axe/domain/character/buff-layers';
 import { BuffManager, type BuffSnapshotEntry } from '@axe/domain/character/buff-manager';
 import {
   parseBuffModifierRequest,
@@ -123,16 +124,14 @@ describe('BuffManager', () => {
     });
 
     it('moves nothing on the sheet when the same state is put back twice', () => {
+      let held = 10;
+      const target = { name: '筋力', items: [], takes: { takes: 'numbers' }, made: false };
       const status = {
-        getValue: vi.fn(() => 10),
-        getText: vi.fn(() => '10'),
-        landingOf: vi.fn(() => ({ kind: 'number' })),
-        madeByBuff: vi.fn(() => false),
-        keepsBuffItems: vi.fn(() => false),
-        writtenOtherwise: vi.fn(() => false),
-        noteLeftByBuffs: vi.fn(),
-        nameOf: vi.fn((name: string) => name),
-        changeByBuff: vi.fn(),
+        targetOf: vi.fn(() => target),
+        valueOf: vi.fn(() => held),
+        changeByBuff: vi.fn((_target: unknown, _slot: unknown, by: number) => (held += by)),
+        madeItems: vi.fn(() => []),
+        tidyBuffItems: vi.fn(),
       } as unknown as StatusAccessor;
       const withStatus = new BuffManager(buffDataElement, undefined, () => status);
       withStatus.addRound('筋力強化', '', 3);
@@ -1389,7 +1388,7 @@ describe('BuffManager', () => {
         })
       ).toThrow('partway');
 
-      expect(status.madeByBuff('武器属性')).toBe(true);
+      expect(status.targetOf('武器属性')?.made).toBe(true);
     });
 
     it('notes what buffs leave in a number only on an item a buff made', () => {
@@ -1454,10 +1453,9 @@ describe('BuffManager', () => {
         a.identifier < b.identifier ? -1 : 1
       );
       const below = readBuffTextModifier(lower)!;
-      writeBuffTextModifier(lower, { ...below, before: '無属性' });
-      writeBuffTextModifier(upper, { ...readBuffTextModifier(upper)!, before: below.text, order: below.order });
+      writeBuffTextModifier(upper, { ...readBuffTextModifier(upper)!, order: below.order });
       status.setText('属性', readBuffTextModifier(upper)!.text);
-      status.noteLeftByBuffs('属性');
+      noteLeftByBuffs(detail.getFirstElementByName('属性')!);
 
       sheeted.removeWhole(lower);
       expect(status.getText('属性')).toBe(readBuffTextModifier(upper)!.text);
@@ -1505,12 +1503,12 @@ describe('BuffManager', () => {
     });
 
     it('writes into an item holding a choice only one of its choices', () => {
-      expect(grant('構え直し', '構え', '=', '攻勢')).not.toBeNull();
+      expect(grant('構え直し', '構え', '=', '攻勢')).toEqual({ kind: 'lands' });
       expect(status.getText('構え')).toBe('攻勢');
       sheeted.delete('構え直し');
       expect(status.getText('構え')).toBe('通常');
 
-      expect(grant('構え直し', '構え', '=', '突撃')).toBeNull();
+      expect(grant('構え直し', '構え', '=', '突撃')).toMatchObject({ kind: 'notAChoice' });
       expect(status.getText('構え')).toBe('通常');
     });
 
@@ -1665,8 +1663,8 @@ describe('BuffManager', () => {
       });
 
       it('makes none for a buff that leaves what it moves, nor for the far side of a resource', () => {
-        expect(grant('毒', ':気力', '+', '0~-3')).toBeNull();
-        expect(grant('鼓舞', '気力^', '+', '2')).toBeNull();
+        expect(grant('毒', ':気力', '+', '0~-3')).toEqual({ kind: 'missing' });
+        expect(grant('鼓舞', '気力^', '+', '2')).toEqual({ kind: 'missing' });
         expect(madeSection()).toBeUndefined();
       });
 
@@ -1711,10 +1709,12 @@ describe('BuffManager', () => {
 
       it('makes none for a buff not asked to, as a status ailment is not', () => {
         sheeted.addRound('麻痺', '', 2);
-        expect(sheeted.applyModifier(sheeted.find('麻痺')!, parseBuffModifierRequest('移動', '=', '0')!)).toBeNull();
+        expect(sheeted.applyModifier(sheeted.find('麻痺')!, parseBuffModifierRequest('移動', '=', '0')!)).toEqual({
+          kind: 'missing',
+        });
         expect(
           sheeted.applyModifier(sheeted.find('麻痺')!, parseBuffModifierRequest('構えの名', '=', '伏せ')!)
-        ).toBeNull();
+        ).toEqual({ kind: 'missing' });
         expect(madeSection()).toBeUndefined();
       });
 
@@ -1722,8 +1722,8 @@ describe('BuffManager', () => {
         const group = detail.getFirstElementByName('命中')!.parent as DataElement;
         group.appendChild(DataElement.create('命中', 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: '5' }));
 
-        expect(grant('猛攻撃', '命中', '+', '2')).toBeNull();
-        expect(grant('猛攻撃', '命中', '+', '2')).toBeNull();
+        expect(grant('猛攻撃', '命中', '+', '2')).toEqual({ kind: 'missing' });
+        expect(grant('猛攻撃', '命中', '+', '2')).toEqual({ kind: 'missing' });
         expect(madeSection()).toBeUndefined();
       });
 
@@ -1740,9 +1740,9 @@ describe('BuffManager', () => {
         );
         buffs.addRound('身かわし', '', 2);
 
-        expect(
-          buffs.applyModifier(buffs.find('身かわし')!, parseBuffModifierRequest('回避', '+', '2')!, true)
-        ).toBeNull();
+        expect(buffs.applyModifier(buffs.find('身かわし')!, parseBuffModifierRequest('回避', '+', '2')!, true)).toEqual(
+          { kind: 'missing' }
+        );
         expect(madeSection()).toBeUndefined();
         expect(aliased.canMakeForBuff('回避')).toBe(false);
         expect(aliased.canMakeForBuff('隠密')).toBe(true);
@@ -1770,7 +1770,7 @@ describe('BuffManager', () => {
         sheeted.expireOneRound();
 
         expect(status.getValue('気力', 'now')).toBe(8);
-        expect(status.madeByBuff('気力')).toBe(false);
+        expect(status.targetOf('気力')?.made ?? false).toBe(false);
       });
 
       it('takes an item it made away as itself, though the sheet holds another of its name above it', () => {
@@ -1797,7 +1797,7 @@ describe('BuffManager', () => {
         sheeted.delete('炎の剣');
 
         expect(status.getText('武器属性')).toBe('氷');
-        expect(status.madeByBuff('武器属性')).toBe(false);
+        expect(status.targetOf('武器属性')?.made ?? false).toBe(false);
         grant('雷の剣', '武器属性', '=', '雷');
         sheeted.delete('雷の剣');
         expect(status.getText('武器属性')).toBe('氷');
@@ -1837,7 +1837,7 @@ describe('BuffManager', () => {
         sheeted.delete('鼓舞');
 
         expect(status.getValue('気力', 'now')).toBe(5);
-        expect(status.madeByBuff('気力')).toBe(false);
+        expect(status.targetOf('気力')?.made ?? false).toBe(false);
       });
 
       it('moves an item a buff made, made again as a step is undone, from nothing, though its row stayed', () => {

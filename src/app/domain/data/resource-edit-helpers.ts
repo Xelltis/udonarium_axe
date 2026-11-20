@@ -36,12 +36,7 @@ import {
 } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
-import {
-  type BuffRequestOutcome,
-  buffRequestOutcome,
-  isAmountWritten,
-  type ItemLanding,
-} from '@axe/domain/character/item-landing';
+import { type BuffRequestOutcome, isAmountWritten, type ItemLanding } from '@axe/domain/character/item-landing';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -575,13 +570,11 @@ function grantCalculatedBuff(
       if (!data) return;
       // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
       if (!isAimedAtStatus(request.target)) {
-        const outcome = buffRequestOutcome(character.status, request, true);
-        const applied = rowStacking
+        const outcome = rowStacking
           ? character.buffs.stackModifier(data, request, true)
           : character.buffs.applyModifier(data, request, true);
-        if (applied) {
-          if (outcome.kind === 'makes') made.push(request.target);
-        } else {
+        if (outcome.kind === 'makes') made.push(request.target);
+        else if (outcome.kind !== 'lands') {
           const said = refusalOf(outcome, request);
           if (said) refused.push(said);
           else missing.push(request.target);
@@ -605,7 +598,7 @@ function grantCalculatedBuff(
 
 /**
  * What the report of laying a `&!` buff says of a request it laid nowhere (see
- * {@link buffRequestOutcome}), as the chat's lint says it; null for an item the sheet lacks, which the
+ * `buffRequestOutcome`), as the chat's lint says it; null for an item the sheet lacks, which the
  * report names among those not found.
  */
 function refusalOf(outcome: BuffRequestOutcome, request: ParsedBuffModifierRequest): string | null {

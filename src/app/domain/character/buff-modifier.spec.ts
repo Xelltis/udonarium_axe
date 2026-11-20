@@ -1,10 +1,10 @@
+import { noteLeftByBuffs } from '@axe/domain/character/buff-layers';
 import {
   clearBuffModifier,
   clearBuffTextModifier,
   describeBuffModifier,
   describeBuffModifierTarget,
   describeStandingModifier,
-  noteLeftByBuffs,
   parseBuffModifierItems,
   parseBuffModifierRequest,
   readBuffAmount,
@@ -305,7 +305,7 @@ describe('buff-modifier', () => {
       const buff = makeBuff();
       const item = DataElement.create('属性', '炎');
       const lasting = { target: 'HP', slot: 'now', operator: 'add', applied: -3, step: -3, lasting: true } as const;
-      const words = { target: '属性', text: '炎', before: '無属性', order: 2 };
+      const words = { target: '属性', text: '炎', order: 2 };
       const writes = [
         () => writeBuffModifier(buff, { target: '命中', slot: 'now', operator: 'add', applied: 2, step: 1 }),
         () => writeBuffModifier(buff, lasting),

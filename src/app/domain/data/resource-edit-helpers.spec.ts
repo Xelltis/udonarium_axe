@@ -1332,6 +1332,18 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getValue('物理D増加', 'now')).toBe(0);
     });
 
+    it('lays a buff of one name again with words where it moved a number, making its item again for the words', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      expect(edit('&!X/新+2/3')).toBe('Xを付与 新+2/3R (新をバフの項目に作りました)    ');
+      expect(edit('&!X/新=炎/3')).toBe('Xを付与 新=炎/3R (新をバフの項目に作りました)    ');
+      expect(character.status.getText('新')).toBe('炎');
+
+      edit('&X-');
+
+      expect(character.status.getText('新')).toBeNull();
+    });
+
     it('makes an item the piece lacks at the foot of its sheet, says so, and takes it away with the buff', () => {
       const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
 
