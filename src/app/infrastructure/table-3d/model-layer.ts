@@ -390,12 +390,12 @@ export class ModelLayer {
   }
 
   /**
-   * Notes when each model read stopped being laid, and has those that have gone unused long enough
-   * let go of then. A model laid again before that is kept as though it had never gone.
+   * Notes when each model read stopped being laid, one that could not be read as well, and has those
+   * that have gone unused long enough let go of then, to be read again should one be laid again. A
+   * model laid again before that is kept as though it had never gone.
    */
   private noteUnused(): void {
-    const read = [...this.loaded].filter(([, loaded]) => loaded !== null).map(([url]) => url);
-    this.unused.note(read, new Set(this.laid.map(modelReadKeyOf)), performance.now());
+    this.unused.note([...this.loaded.keys()], new Set(this.laid.map(modelReadKeyOf)), performance.now());
     this.sweepLater();
   }
 

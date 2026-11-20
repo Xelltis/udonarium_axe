@@ -12,6 +12,7 @@ import {
   spinPlacedAt,
   spoutsOf,
   standingBoxOf,
+  UNUSED_MODEL_KEEP_MS,
 } from '@axe/infrastructure/table-3d/model-layer';
 import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
@@ -629,6 +630,31 @@ describe('ModelLayer', () => {
 
     layer.set([knight({ model: { ...running, idle: '' }, walking: false })]);
     expect(layer.motionOf('knight')).toBe('Idle');
+  });
+
+  it('lets go of a model it could not read once it has gone unused, as of one it read', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, unknown>;
+      readUrls: Map<string, string>;
+      sweep: () => void;
+    };
+    vi.spyOn(internals.reader, 'read').mockRejectedValue(new Error('unreadable'));
+    layer.set([knight()]);
+    await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeNull());
+
+    layer.set([]);
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + UNUSED_MODEL_KEEP_MS + 1);
+    internals.sweep();
+
+    expect([internals.loaded.size, internals.readUrls.size]).toEqual([0, 0]);
+    vi.restoreAllMocks();
+    layer.dispose();
   });
 
   it('lets go of a model read after the layer was, rather than standing it in the layer', async () => {
