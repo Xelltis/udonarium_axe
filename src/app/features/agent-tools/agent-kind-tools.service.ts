@@ -34,8 +34,8 @@ export class AgentKindTools {
       const kind = this.kind(args);
       return this.view(kind, this.thing(kind, textArg(args, 'id')));
     },
-    create_object: (args) => this.create(args),
-    change_object: (args) => this.change(args),
+    create_object: (args, { signal }) => this.create(args, signal),
+    change_object: (args, { signal }) => this.change(args, signal),
     remove_object: (args) => this.remove(args),
     act_on_object: (args) => this.act(args),
   };
@@ -77,9 +77,10 @@ export class AgentKindTools {
 
   /**
    * Makes a thing of a kind with the fields given, once what the kind needs has come in (see
-   * `AgentKind.ready`): at once where nothing has to, so a call answers as it is made.
+   * `AgentKind.ready`), and nothing where the call was given up meanwhile: at once where nothing has
+   * to, so a call answers as it is made.
    */
-  private create(args: AgentArgs): unknown {
+  private create(args: AgentArgs, signal: AbortSignal): unknown {
     const kind = this.kind(args);
     const making = kind.create;
     if (!making) throw new AgentToolError('not_allowed', `A ${kind.kind} cannot be made here.`);
@@ -90,7 +91,7 @@ export class AgentKindTools {
     this.fieldsToPut(kind, given);
     const ready = kind.ready?.(null, given) ?? null;
     const now = () => this.createNow(kind, making, options, given);
-    return ready ? ready.then(now) : now();
+    return ready ? this.afterReady(ready, signal, now) : now();
   }
 
   private createNow(
@@ -122,9 +123,10 @@ export class AgentKindTools {
 
   /**
    * Writes the fields given into a thing, once what its kind needs has come in (see `AgentKind.ready`),
-   * the thing found again then as it stands: at once where nothing has to.
+   * the thing found again then as it stands, and nothing where the call was given up meanwhile: at
+   * once where nothing has to.
    */
-  private change(args: AgentArgs): unknown {
+  private change(args: AgentArgs, signal: AbortSignal): unknown {
     const kind = this.kind(args);
     const id = textArg(args, 'id');
     const given = this.record(args['fields']);
@@ -132,7 +134,16 @@ export class AgentKindTools {
     if (fields.length < 1) throw new AgentToolError('invalid_input', 'Give at least one field to change.');
     const ready = kind.ready?.(this.changeable(kind, id), given) ?? null;
     const now = () => this.changeNow(kind, id, given);
-    return ready ? ready.then(now) : now();
+    return ready ? this.afterReady(ready, signal, now) : now();
+  }
+
+  /** Does what a call asked once what it waited on has come in, and nothing where the call was given up meanwhile. */
+  private async afterReady(ready: Promise<unknown>, signal: AbortSignal, then: () => unknown): Promise<unknown> {
+    await ready;
+    if (signal.aborted) {
+      throw new AgentToolError('timeout', 'The call was given up before anything was written; nothing was.');
+    }
+    return then();
   }
 
   private changeNow(kind: AnyAgentKind, id: string, given: AgentArgs): unknown {
@@ -218,10 +229,14 @@ export class AgentKindTools {
   /**
    * The fields to write and their values, each known to the kind, written by someone and by this
    * seat, and fitting its schema. Every field is checked before any is written, so a call that names
-   * one wrongly changes nothing.
+   * one wrongly changes nothing. They are written in the order the kind lists its fields, whatever
+   * order they were given in, so a field others are worked out from, as a cut-in's picture is for its
+   * kept aspect, is written before them.
    */
   private fieldsToPut(kind: AnyAgentKind, given: AgentArgs): { field: AgentKindField<Thing>; value: unknown }[] {
-    return Object.entries(given).map(([name, value]) => {
+    const order = (name: string) => kind.fields.findIndex((each) => each.name === name);
+    const entries = Object.entries(given).sort(([a], [b]) => order(a) - order(b));
+    return entries.map(([name, value]) => {
       const field = kind.fields.find((each) => each.name === name);
       if (!field) {
         const known = kind.fields.map((each) => each.name).join(', ');

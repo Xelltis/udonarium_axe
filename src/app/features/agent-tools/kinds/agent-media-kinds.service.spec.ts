@@ -210,6 +210,49 @@ describe('AgentMediaKinds', () => {
       expect(reading).toHaveBeenCalledOnce();
     });
 
+    it('writes a new picture before the size it keeps the aspect of, whatever order the call gives them in', () => {
+      usePictures(['wide', ''], ['tall', '']);
+      const own: Record<string, { width: number; height: number }> = {
+        wide: { width: 1600, height: 900 },
+        tall: { width: 300, height: 400 },
+      };
+      vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf').mockImplementation((url) => own[url] ?? null);
+      const cutIn = cutInNamed('差し替え');
+      cutIn.imageIdentifier = 'wide';
+      cutIn.keepImageAspect = true;
+      cutIn.setSize(800, 450);
+
+      call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { width: 600, picture: 'tall' } });
+
+      expect([cutIn.imageIdentifier, cutIn.width, cutIn.height]).toEqual(['tall', 600, 800]);
+    });
+
+    it('writes nothing once the call it waited for a picture on was given up', async () => {
+      usePictures(['slow', '']);
+      const sizes = TestBed.inject(PictureSizeService);
+      vi.spyOn(sizes, 'sizeOf').mockReturnValue(null);
+      let come: () => void = () => undefined;
+      vi.spyOn(sizes, 'read').mockReturnValue(
+        new Promise((resolve) => (come = () => resolve({ width: 100, height: 100 })))
+      );
+      const cutIn = cutInNamed('遅い');
+      cutIn.imageIdentifier = 'slow';
+      cutIn.setSize(480, 320);
+      const giveUp = new AbortController();
+
+      const changing = Promise.resolve(
+        tools.handlers['change_object'](
+          { kind: 'cut-in', id: cutIn.identifier, fields: { width: 600 } },
+          { signal: giveUp.signal }
+        )
+      );
+      giveUp.abort();
+      come();
+
+      await expect(changing).rejects.toThrow(/given up/);
+      expect([cutIn.width, cutIn.height]).toEqual([480, 320]);
+    });
+
     it('holds the size as it is while the cut-in is shown at its picture’s own size', () => {
       const cutIn = cutInNamed('雷');
       cutIn.originalSize = true;

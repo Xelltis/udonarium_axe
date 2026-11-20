@@ -375,6 +375,34 @@ export class AgentMediaKinds {
           200
         ),
         {
+          ...textField<CutIn>(
+            'picture',
+            'The picture it shows, by id (a name is taken when written; see list_assets). Empty for none.',
+            'write',
+            (cutIn) => cutIn.imageIdentifier,
+            (cutIn, value) => {
+              cutIn.imageIdentifier = this.picture(value);
+            },
+            200
+          ),
+          refuse: (_cutIn, value) => refusalOf(() => this.picture(value as string)),
+        },
+        flagField<CutIn>(
+          'video',
+          'Whether it plays the YouTube video at video_url instead of showing its picture. Becoming a video sets the size to 640 by 360.',
+          'write',
+          (cutIn) => cutIn.isVideoCutIn,
+          (cutIn, value) => resizingOnKindChange(cutIn, () => (cutIn.isVideoCutIn = value))
+        ),
+        textField<CutIn>(
+          'video_url',
+          'The YouTube video it plays while video is on: a watch, shorts or youtu.be link.',
+          'write',
+          (cutIn) => cutIn.videoUrl,
+          (cutIn, value) => resizingOnKindChange(cutIn, () => (cutIn.videoUrl = value)),
+          2000
+        ),
+        {
           ...numberField<CutIn>(
             'width',
             'How wide it is shown, in pixels: 10 to 1920 for a picture, 448 to 1920 for a video. With keep_aspect on, the height follows.',
@@ -450,19 +478,6 @@ export class AgentMediaKinds {
         ),
         {
           ...textField<CutIn>(
-            'picture',
-            'The picture it shows, by id (a name is taken when written; see list_assets). Empty for none.',
-            'write',
-            (cutIn) => cutIn.imageIdentifier,
-            (cutIn, value) => {
-              cutIn.imageIdentifier = this.picture(value);
-            },
-            200
-          ),
-          refuse: (_cutIn, value) => refusalOf(() => this.picture(value as string)),
-        },
-        {
-          ...textField<CutIn>(
             'sound',
             'The sound it plays, by id (a name is taken when written). Empty for none.',
             'write',
@@ -518,21 +533,6 @@ export class AgentMediaKinds {
           (cutIn, value) => {
             cutIn.chatActivate = value;
           }
-        ),
-        flagField<CutIn>(
-          'video',
-          'Whether it plays the YouTube video at video_url instead of showing its picture. Becoming a video sets the size to 640 by 360.',
-          'write',
-          (cutIn) => cutIn.isVideoCutIn,
-          (cutIn, value) => resizingOnKindChange(cutIn, () => (cutIn.isVideoCutIn = value))
-        ),
-        textField<CutIn>(
-          'video_url',
-          'The YouTube video it plays while video is on: a watch, shorts or youtu.be link.',
-          'write',
-          (cutIn) => cutIn.videoUrl,
-          (cutIn, value) => resizingOnKindChange(cutIn, () => (cutIn.videoUrl = value)),
-          2000
         ),
         numberField<CutIn>(
           'video_volume',
