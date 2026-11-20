@@ -7358,7 +7358,8 @@
         "noRow": "There is no row",
         "blankName": "A column or row has no name",
         "sameName": "Two columns have the same name",
-        "sameRowName": "Two rows have the same name"
+        "sameRowName": "Two rows have the same name",
+        "changedSince": "Someone changed this table's rows or columns while it was open. Open it again."
       },
       "lost": "Building removes {{count}} cells holding a value",
       "renameNote": "A column's name is what {name} refers to. When you change it, also fix the formulas and chat palettes that use the old name",

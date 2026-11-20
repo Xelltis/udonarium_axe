@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -66,6 +67,21 @@ describe('TableBuilderLauncher', () => {
       rows: opened[1].option.shape.rows.slice(0, 1),
     });
     expect(table.children.map((row) => row.name)).toEqual(['1']);
+  });
+
+  it('builds nothing, and says why, where another seat changed the table while the builder was open', async () => {
+    const container = section();
+    const table = (await launcher.addTable(container))!;
+    const said = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+    answer = (option) => {
+      table.children[0].destroy();
+      return option.shape;
+    };
+
+    await expect(launcher.buildTable(table)).resolves.toBe(false);
+
+    expect(said).toHaveBeenCalledWith(expect.stringContaining('ほかの人がこの表の行か列を変えました'));
+    expect(table.children.map((row) => row.name)).toEqual(['2', '3']);
   });
 
   it('builds nothing where the builder is let go', async () => {

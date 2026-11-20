@@ -122,10 +122,13 @@ function standingApart(table: DataElement, shape: TableShape): { rows: string[];
 
 /**
  * What keeps a shape from being built on a table as it stands now (see {@link tableShapeProblems}):
- * besides what is wrong with the shape itself, a row or column taking the name of one the table holds
- * apart from it, a gap column or one added since the shape was read.
+ * a row or column the shape was read from that the table no longer has under its name or identifier, as
+ * another seat took it away or named it again while the shape was being built, which builds nothing
+ * rather than guessing which is which; and besides what is wrong with the shape itself, a row or column
+ * taking the name of one the table holds apart from it, a gap column or one added since the shape was read.
  */
 export function tableBuildProblems(table: DataElement, shape: TableShape): TableShapeProblem[] {
+  if (changedSince(table, shape)) return ['changedSince'];
   const apart = standingApart(table, shape);
   const gaps = getTableColumns(table)
     .filter((column) => isGapColumn(column))
@@ -135,6 +138,15 @@ export function tableBuildProblems(table: DataElement, shape: TableShape): Table
     gaps: [...gaps, ...apart.columns],
     rows: [...shape.rows, ...apart.rows.map((name) => ({ name, from: null }))],
   });
+}
+
+/** Whether a row or column the shape was read from is gone from the table, by its identifier or its name. */
+function changedSince(table: DataElement, shape: TableShape): boolean {
+  const seen = shape.seen;
+  if (!seen) return false;
+  const rows = new Set(getTableBodyRows(table).map((row) => row.identifier));
+  const columns = new Set(getTableColumns(table).map((column) => column.name));
+  return seen.rows.some((row) => !rows.has(row)) || seen.columns.some((column) => !columns.has(column));
 }
 
 /**
@@ -150,7 +162,7 @@ export function canBuildTable(element: DataElement): boolean {
  * What keeps a table from being built: no column, no row, a blank name, two columns of one name, gap
  * columns counted, or two rows of one name, as two groups side by side may not share one.
  */
-export type TableShapeProblem = 'noColumn' | 'noRow' | 'blankName' | 'sameName' | 'sameRowName';
+export type TableShapeProblem = 'noColumn' | 'noRow' | 'blankName' | 'sameName' | 'sameRowName' | 'changedSince';
 
 /** What is wrong with a table as it is to be built, one line for each thing: none for one that may be built. */
 export function tableShapeProblems(shape: TableShape): TableShapeProblem[] {

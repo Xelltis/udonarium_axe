@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import type { DataElement } from '@axe/domain/data/data-element';
 import { newTableColumn, newTableRow, type TableShape } from '@axe/domain/data/table-shape';
 import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
@@ -16,15 +17,26 @@ export class TableBuilderLauncher {
   private readonly modalService = inject(ModalService);
   private readonly edit = inject(DataElementEditService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
 
-  /** Opens the builder on a group or section's table as it stands, and builds the table it answers; whether it was built. */
+  /**
+   * Opens the builder on a group or section's table as it stands, and builds the table it answers;
+   * whether it was built. Where the table changed under the builder, as by another seat, nothing is
+   * built and a notice says why (see `tableBuildProblems`).
+   */
   async buildTable(element: DataElement): Promise<boolean> {
     const shape = await this.open({
       title: this.t('feature.dataElement.tableBuilder.titleBuild'),
       shape: this.edit.tableShapeOf(element),
       cellsLostBy: (wanted) => this.edit.cellsLostBy(element, wanted),
     });
-    return shape ? this.edit.buildTable(element, shape) : false;
+    if (!shape) return false;
+    const [problem] = this.edit.tableBuildProblems(element, shape);
+    if (problem) {
+      this.snackbar.show(this.t(`feature.dataElement.tableBuilder.problems.${problem}`));
+      return false;
+    }
+    return this.edit.buildTable(element, shape);
   }
 
   /**

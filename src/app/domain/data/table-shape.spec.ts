@@ -114,6 +114,21 @@ describe('table-shape', () => {
     }
   });
 
+  it('builds nothing where a row or column the shape was read from has gone or been named again since', () => {
+    for (const change of [
+      (table: DataElement) => getTableBodyRows(table)[0].destroy(),
+      (table: DataElement) => {
+        for (const row of table.children) for (const each of row.children) if (each.name === '技巧') each.name = '器用';
+      },
+    ]) {
+      const table = skillTable();
+      const shape = tableShapeOf(table);
+      change(table);
+
+      expect(tableBuildProblems(table, shape)).toEqual(['changedSince']);
+    }
+  });
+
   it('keeps the rows and columns added since the shape was read, and builds no name onto them', () => {
     const table = skillTable();
     const shape = tableShapeOf(table);
