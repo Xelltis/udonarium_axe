@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatTabEditService } from '@axe/application/chat/chat-tab-edit.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { ROOM_SETTINGS, type RoomSetting, type RoomSettingKey } from '@axe/application/tabletop/room-settings';
 import { AgentToolError } from '@axe/core/agent/agent-error';
@@ -203,6 +204,20 @@ describe('AgentRoomKinds', () => {
 
       expect(() => act('chat-tab-list', 'move_tab', { tab: 'システム', to: 2 })).toThrow(/system tab stays/);
       expect(() => act('chat-tab-list', 'move_tab', { tab: 'GM相談', to: 1 })).toThrow(/no chat tab named/);
+    });
+
+    it('says so where a tab could not be moved, and answers as moved one already where it was asked to go', () => {
+      const list = ChatTabList.instance;
+      list.addChatTab('A');
+      list.addChatTab('B');
+      const edit = TestBed.inject(ChatTabEditService);
+
+      expect(act('chat-tab-list', 'move_tab', { tab: 'A', to: 1 })).toMatchObject({
+        tabs: [{ name: 'A' }, { name: 'B' }],
+      });
+      vi.spyOn(edit, 'mayRearrange').mockReturnValue(false);
+      expect(() => act('chat-tab-list', 'move_tab', { tab: 'B', to: 1 })).toThrow(/not this seat’s to move/);
+      expect(list.chatTabs.map((tab) => tab.name)).toEqual(['A', 'B']);
     });
   });
 

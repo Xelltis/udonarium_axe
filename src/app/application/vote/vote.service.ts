@@ -13,7 +13,8 @@ import { Vote } from '@axe/domain/vote/vote';
  * is no vote being answered, the seat was not asked, it has answered already, the answer is not one of
  * the choices, or the seat is not in the chair.
  */
-export type VoteRefusal = 'guest' | 'noSeat' | 'closed' | 'notAsked' | 'answered' | 'notOffered' | 'notChair';
+export type VoteRefusal =
+  'guest' | 'missing' | 'noSeat' | 'closed' | 'notAsked' | 'answered' | 'notOffered' | 'notChair';
 
 /** What starting a vote or a roll call takes. */
 export interface VoteCall {
@@ -75,7 +76,7 @@ export class VoteService {
   start(call: VoteCall): VoteRefusal | null {
     const vote = this.vote;
     if (!this.mayCall()) return 'guest';
-    if (!vote) return 'closed';
+    if (!vote) return 'missing';
     const asked = [...new Set(call.asked)].filter((peerId) => this.mayBeAsked(peerId));
     if (asked.length < 1) return 'noSeat';
     const given = call.choices.map((choice) => choice.trim()).filter((choice) => choice.length > 0);

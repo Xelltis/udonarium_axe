@@ -448,7 +448,12 @@ export class AgentRoomKinds {
   private moveTab(args: AgentArgs): unknown {
     const tab = this.tabNamed(textArg(args, 'tab'));
     if (tab.isSystemTab) throw new AgentToolError('not_allowed', 'The system tab stays where it is.');
-    this.tabEdit.moveTo(tab, numberArg(args, 'to', 1));
+    const place = numberArg(args, 'to', 1);
+    const tabs = this.viewableTabs();
+    const already = tabs.indexOf(tab) === Math.max(0, Math.min(tabs.length - 1, Math.trunc(place) - 1));
+    if (!this.tabEdit.moveTo(tab, place) && !already) {
+      throw new AgentToolError('not_allowed', 'That tab is not this seat’s to move.');
+    }
     return { tabs: this.viewableTabs().map((each) => ({ id: each.identifier, name: each.name })) };
   }
 
@@ -826,6 +831,7 @@ export class AgentRoomKinds {
     const reasons: Record<VoteRefusal, [AgentToolError['code'], string]> = {
       guest: ['not_allowed', `A guest may not ${asked}.`],
       noSeat: ['invalid_input', 'Ask at least one seat that may answer; a guest answers nothing.'],
+      missing: ['failed', 'The room holds no vote yet; it comes with the room once it is open.'],
       closed: ['failed', 'There is no vote being answered.'],
       notAsked: ['not_allowed', 'This seat was not asked.'],
       answered: ['not_allowed', 'This seat has answered already.'],

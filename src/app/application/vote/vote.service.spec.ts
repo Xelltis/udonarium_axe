@@ -57,6 +57,13 @@ describe('VoteService', () => {
     expect(said).toHaveBeenCalledOnce();
   });
 
+  it('says the room holds no vote yet, rather than that none is being answered, where there is none to start', () => {
+    ObjectStore.instance.remove(vote);
+
+    expect(service.start(call(['my-peer']))).toBe('missing');
+    expect(said).not.toHaveBeenCalled();
+  });
+
   it('starts none that would ask nobody but a guest', () => {
     expect(service.start(call(['guest-peer']))).toBe('noSeat');
     expect(vote.initTimeStamp).toBe(0);
