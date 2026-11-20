@@ -26,17 +26,29 @@ function placesOf(number: string): number {
   return point < 0 ? 0 : number.length - point - 1;
 }
 
+/** How far a sum of amounts may be worked to, past which the places are only the arithmetic's own. */
+const SUM_PLACES = 10;
+
 /**
  * Words with the number they lead with moved by an amount, in its place: what follows it, as a unit,
- * kept as it is, and written to as many places after the point as the two had; words leading with no
- * number as they are.
+ * kept as it is, and the number written as it was written, to as many places after the point as it
+ * and the amount had (an amount worked out to no more than {@link SUM_PLACES}), a plus sign kept, and
+ * the noughts a number written with them led with kept to its width; words leading with no number as
+ * they are.
  */
 export function movedBy(text: string, by: number): string {
   const found = LEADING_NUMBER.exec(text);
   if (!found || by === 0) return text;
-  const places = Math.max(placesOf(found[2]), placesOf(String(by)));
-  const moved = Number(found[2]) + by;
-  return `${found[1]}${places > 0 ? moved.toFixed(places) : String(moved)}${text.slice(found[0].length)}`;
+  const written = found[2];
+  const amount = Number(by.toFixed(SUM_PLACES));
+  const places = Math.max(placesOf(written), placesOf(String(amount)));
+  const moved = Number((Number(written) + amount).toFixed(places));
+  const integer = written.replace(/^[+-]/, '').split('.')[0];
+  const digits = integer.length > 1 && integer.startsWith('0') ? integer.length : 0;
+  const whole = Math.abs(moved).toFixed(places);
+  const padded = whole.padStart(whole.length - whole.split('.')[0].length + digits, '0');
+  const sign = moved < 0 ? '-' : written.startsWith('+') ? '+' : '';
+  return `${found[1]}${sign}${padded}${text.slice(found[0].length)}`;
 }
 
 /**

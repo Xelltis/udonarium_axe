@@ -42,6 +42,12 @@ describe('buff-layers', () => {
       expect(composeLayers('10m', [move(1, 1)])).toBe('11m');
       expect(composeLayers('0.1', [move(0.2, 1)])).toBe('0.3');
       expect(composeLayers(' -3 点', [move(5, 1)])).toBe(' 2 点');
+      expect(composeLayers('12', [move(0.1, 1), move(0.2, 2)])).toBe('12.3');
+      expect(composeLayers('12.3', [move(-(0.1 + 0.2), 1)])).toBe('12.0');
+      expect(composeLayers('+3', [move(1, 1)])).toBe('+4');
+      expect(composeLayers('07', [move(1, 1)])).toBe('08');
+      expect(composeLayers('10', [move(-3, 1)])).toBe('7');
+      expect(composeLayers('2', [move(-5, 1)])).toBe('-3');
     });
 
     it('takes words written otherwise as a layer of their own, over those laid before and under those laid after', () => {
