@@ -159,6 +159,16 @@ export class CutIn extends GameObject implements InnerXml {
   }
 
   /**
+   * The proportions keeping the cut-in's aspect keeps (see {@link resizeSide}): a video's default size,
+   * or its picture's own size where that is known, both sides above 0; null where neither is, as for a
+   * picture not read yet. Never the size the cut-in has, which is rounded and held to its bounds.
+   */
+  ownShape(picture: { width: number; height: number } | null): { width: number; height: number } | null {
+    if (this.playsVideo) return { width: this.defVideoSizeWidth, height: this.defVideoSizeHeight };
+    return picture && picture.width > 0 && picture.height > 0 ? { width: picture.width, height: picture.height } : null;
+  }
+
+  /**
    * Takes the size of the cut-in's own picture or video as it is while original size is on, which the
    * bounds do not apply to; nothing while it is off, nor for a side not known yet (not above 0).
    */

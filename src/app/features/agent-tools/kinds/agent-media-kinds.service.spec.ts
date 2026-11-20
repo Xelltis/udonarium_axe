@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { PictureSizeService } from '@axe/application/media/picture-size.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
@@ -172,7 +173,10 @@ describe('AgentMediaKinds', () => {
     });
 
     it('holds the side that follows a kept aspect inside the bounds, the side given following it back', () => {
+      usePictures(['tall', '']);
+      vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf').mockReturnValue({ width: 100, height: 1000 });
       const cutIn = cutInNamed('縦長');
+      cutIn.imageIdentifier = 'tall';
       cutIn.originalSize = false;
       cutIn.width = 100;
       cutIn.height = 1000;
@@ -180,6 +184,30 @@ describe('AgentMediaKinds', () => {
       call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { keep_aspect: true, width: 1900 } });
 
       expect([cutIn.width, cutIn.height]).toEqual([120, 1200]);
+    });
+
+    it('keeps the proportions of the picture itself, read before anything is written, however often it is resized', async () => {
+      usePictures(['wide', '']);
+      const sizes = TestBed.inject(PictureSizeService);
+      let read = false;
+      vi.spyOn(sizes, 'sizeOf').mockImplementation((url) => (read && url ? { width: 1000, height: 333 } : null));
+      const reading = vi.spyOn(sizes, 'read').mockImplementation(async () => {
+        read = true;
+        return { width: 1000, height: 333 };
+      });
+      const cutIn = cutInNamed('横長');
+      cutIn.imageIdentifier = 'wide';
+      cutIn.setSize(480, 320);
+
+      await call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { keep_aspect: true } });
+      expect(reading).toHaveBeenCalledOnce();
+      expect([cutIn.width, cutIn.height]).toEqual([480, 159]);
+
+      for (const width of [1919, 10, 1919]) {
+        await call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { width } });
+      }
+      expect([cutIn.width, cutIn.height]).toEqual([1919, 639]);
+      expect(reading).toHaveBeenCalledOnce();
     });
 
     it('holds the size as it is while the cut-in is shown at its picture’s own size', () => {

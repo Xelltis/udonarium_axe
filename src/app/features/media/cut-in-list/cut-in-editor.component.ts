@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { PictureSizeService } from '@axe/application/media/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { emitStartCutIn } from '@axe/core/event/domain-events';
@@ -45,6 +46,7 @@ export class CutInEditorComponent {
   private readonly names = inject(PieceNameService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly cutIns = inject(CutInService);
+  private readonly pictureSizes = inject(PictureSizeService);
 
   readonly cutIn = input<CutIn | null>(null);
   readonly isEditable = input(false);
@@ -112,26 +114,13 @@ export class CutInEditorComponent {
     return file ? file : ImageFile.Empty;
   });
 
-  /** The cut-in's picture's own size once it has come, with where it was read from. */
-  private readonly pictureSize = signal<{
-    readonly url: string;
-    readonly width: number;
-    readonly height: number;
-  } | null>(null);
-
   /**
-   * Reads the cut-in's picture for its own size. A picture the page already shows answers at once,
-   * but one it does not, as the board of a table drawn on a canvas, has to come in first.
+   * Sizes the cut-in to its picture while original size is on, once the picture's own size has come in
+   * (see `PictureSizeService`, which the AI link reads it from as well).
    */
-  private readonly measurePicture = effect(() => {
-    const url = this.cutInImage().url;
-    if (!url || untracked(this.pictureSize)?.url === url) return;
-    const picture = new Image();
-    picture.onload = () => {
-      this.pictureSize.set({ url, width: picture.naturalWidth, height: picture.naturalHeight });
-      this.fitToOriginal();
-    };
-    picture.src = url;
+  private readonly fitOnceRead = effect(() => {
+    if (!this.pictureSizes.sizeOf(this.cutInImage().url)) return;
+    untracked(() => this.fitToOriginal());
   });
 
   readonly cutInImageUrl = computed(() => {
@@ -198,9 +187,7 @@ export class CutInEditorComponent {
    * side that is not known yet.
    */
   private ownSize(cutIn: CutIn): { width: number; height: number } {
-    if (cutIn.videoId) return { width: cutIn.defVideoSizeWidth, height: cutIn.defVideoSizeHeight };
-    if (!this.cutInImage().url) return { width: 0, height: 0 };
-    return { width: this.originalImgWidth(), height: this.originalImgHeight() };
+    return cutIn.ownShape(this.originalImgSize()) ?? { width: 0, height: 0 };
   }
 
   /**
@@ -442,15 +429,9 @@ export class CutInEditorComponent {
     return this.originalImgSize().height;
   }
 
-  /** The cut-in's picture's own size: as read once it came, or as the page holds it already, or nothing. */
+  /** The cut-in's picture's own size once it has come in (see `PictureSizeService`), or nothing. */
   private originalImgSize(): { width: number; height: number } {
-    const imageurl = this.cutInImage().url;
-    if (imageurl.length < 1) return { width: 0, height: 0 };
-    const size = this.pictureSize();
-    if (size?.url === imageurl) return size;
-    const img = new Image();
-    img.src = imageurl;
-    return { width: img.width, height: img.height };
+    return this.pictureSizes.sizeOf(this.cutInImage().url) ?? { width: 0, height: 0 };
   }
 
   /**

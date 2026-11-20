@@ -3,11 +3,13 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { PictureSizeService } from '@axe/application/media/picture-size.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { AgentSchema } from '@axe/core/agent/agent-schema';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import type { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { BEAM_LOOKS } from '@axe/domain/effect/beam-looks';
@@ -220,6 +222,8 @@ export class AgentMediaKinds {
   private readonly ambient = inject(BackgroundSoundPlaybackService);
   private readonly effects = inject(EffectLibraryService);
   private readonly tagLock = inject(ImageTagLockService);
+  private readonly pictureSizes = inject(PictureSizeService);
+  private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
 
   /** The identifiers the sample cut-ins, their scenes and their layers are made under. */
@@ -240,6 +244,30 @@ export class AgentMediaKinds {
    * The picture a reference names among those this seat may come across, as the screen's picker lists
    * them; empty for none.
    */
+  /**
+   * The reading of the pictures whose own size a kept aspect works from, where a call sizes a cut-in
+   * or keeps its aspect: the one it shows and the one it is given, those not read yet; null where none
+   * has to be read first (see `PictureSizeService`).
+   */
+  private picturesSized(cutIn: CutIn | null, fields: Readonly<Record<string, unknown>>): Promise<unknown> | null {
+    if (!['width', 'height', 'keep_aspect'].some((name) => name in fields)) return null;
+    const unread = [cutIn?.imageIdentifier ?? '', this.pictureOrNone(fields['picture'])]
+      .map((identifier) => (identifier ? (this.imageStorage.get(identifier)?.url ?? '') : ''))
+      .filter((url) => url && !this.pictureSizes.sizeOf(url));
+    return unread.length > 0 ? Promise.all(unread.map((url) => this.pictureSizes.read(url))) : null;
+  }
+
+  /** The picture a reference names, or none where it is no text or names none, which its field refuses in turn. */
+  private pictureOrNone(reference: unknown): string {
+    if (typeof reference !== 'string') return '';
+    try {
+      return this.picture(reference);
+    } catch (error) {
+      if (error instanceof AgentToolError) return '';
+      throw error;
+    }
+  }
+
   private picture(reference: string): string {
     if (!reference.trim()) return '';
     return findOne(
@@ -310,10 +338,7 @@ export class AgentMediaKinds {
       write();
       if (!wasVideo && isVideo(cutIn)) cutIn.setSize(cutIn.defVideoSizeWidth, cutIn.defVideoSizeHeight);
     };
-    const proportion = (cutIn: CutIn) =>
-      isVideo(cutIn)
-        ? { width: cutIn.defVideoSizeWidth, height: cutIn.defVideoSizeHeight }
-        : { width: cutIn.width, height: cutIn.height };
+    const proportion = (cutIn: CutIn) => cutIn.ownShape(this.pictureSizes.sizeOf(cutIn.cutInImage.url));
     const setWidth = (cutIn: CutIn, value: number) =>
       cutIn.resizeSide('width', value, cutIn.keepImageAspect ? proportion(cutIn) : null);
     const setHeight = (cutIn: CutIn, value: number) =>
@@ -335,6 +360,7 @@ export class AgentMediaKinds {
         "A cut-in: a picture or a YouTube video, with an optional sound, shown over everyone's screen when played. " +
         "Its layered animation is its cut-in-scene and that scene's cut-in-layers. Play and stop it with the actions.",
       list: () => this.objectStore.getObjects<CutIn>(CutIn),
+      ready: (cutIn, fields) => this.picturesSized(cutIn, fields),
       idOf: (cutIn) => cutIn.identifier,
       nameOf: (cutIn) => cutIn.name,
       fields: [
@@ -387,7 +413,8 @@ export class AgentMediaKinds {
             (cutIn) => cutIn.keepImageAspect,
             (cutIn, value) => {
               cutIn.keepImageAspect = value;
-              if (value && isVideo(cutIn)) cutIn.resizeSide('width', cutIn.width, proportion(cutIn));
+              const shape = value ? proportion(cutIn) : null;
+              if (shape) cutIn.resizeSide('width', cutIn.width, shape);
             }
           ),
           refuse: sizeFollowsPicture,

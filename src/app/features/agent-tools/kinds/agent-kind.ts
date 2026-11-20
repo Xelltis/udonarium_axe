@@ -81,6 +81,12 @@ export interface AgentKind<T> {
    * seat, as a note whose words it is not shown is not its to write; null where it may.
    */
   refuse?(object: T): string | null;
+  /**
+   * What has to come in before fields are written into a thing of the kind, or one made with them
+   * (null for one being made), as a picture's own size its kept aspect is worked out from; null where
+   * nothing has to. The fields are written once it has, on the thing as it then stands.
+   */
+  ready?(object: T | null, fields: AgentArgs): Promise<unknown> | null;
   idOf(object: T): string;
   nameOf(object: T): string;
   readonly create?: AgentKindCreate<T>;

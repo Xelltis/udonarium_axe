@@ -75,6 +75,10 @@ export class AgentKindTools {
     }));
   }
 
+  /**
+   * Makes a thing of a kind with the fields given, once what the kind needs has come in (see
+   * `AgentKind.ready`): at once where nothing has to, so a call answers as it is made.
+   */
   private create(args: AgentArgs): unknown {
     const kind = this.kind(args);
     const making = kind.create;
@@ -82,7 +86,20 @@ export class AgentKindTools {
     this.allow(making.access, `make a ${kind.kind}`);
     const options = this.record(args['options']);
     this.check(making.input, options, 'options');
-    const fields = this.fieldsToPut(kind, this.record(args['fields']));
+    const given = this.record(args['fields']);
+    this.fieldsToPut(kind, given);
+    const ready = kind.ready?.(null, given) ?? null;
+    const now = () => this.createNow(kind, making, options, given);
+    return ready ? ready.then(now) : now();
+  }
+
+  private createNow(
+    kind: AnyAgentKind,
+    making: NonNullable<AnyAgentKind['create']>,
+    options: AgentArgs,
+    given: AgentArgs
+  ): unknown {
+    const fields = this.fieldsToPut(kind, given);
     const made = GameObject.batch(() => making.make(options) as Thing);
     const refused = fields
       .map(({ field, value }) => field.refuse?.(made, value) ?? null)
@@ -103,11 +120,24 @@ export class AgentKindTools {
     return this.view(kind, made);
   }
 
+  /**
+   * Writes the fields given into a thing, once what its kind needs has come in (see `AgentKind.ready`),
+   * the thing found again then as it stands: at once where nothing has to.
+   */
   private change(args: AgentArgs): unknown {
     const kind = this.kind(args);
-    const thing = this.changeable(kind, textArg(args, 'id'));
-    const fields = this.fieldsToPut(kind, this.record(args['fields']));
+    const id = textArg(args, 'id');
+    const given = this.record(args['fields']);
+    const fields = this.fieldsToPut(kind, given);
     if (fields.length < 1) throw new AgentToolError('invalid_input', 'Give at least one field to change.');
+    const ready = kind.ready?.(this.changeable(kind, id), given) ?? null;
+    const now = () => this.changeNow(kind, id, given);
+    return ready ? ready.then(now) : now();
+  }
+
+  private changeNow(kind: AnyAgentKind, id: string, given: AgentArgs): unknown {
+    const thing = this.changeable(kind, id);
+    const fields = this.fieldsToPut(kind, given);
     const refused = fields
       .map(({ field, value }) => field.refuse?.(thing, value) ?? null)
       .find((reason) => reason !== null);
