@@ -89,17 +89,35 @@ describe('AgentMapTools', () => {
     expect((discard.mock.calls[0][0] as GeneratedMap).table.identifier).toBe(kept);
   });
 
-  it('takes the map made last away once however many calls ask to replace it at once', async () => {
+  it('keeps the map made last where making the one to take its place throws', async () => {
     await call({ kind: 'dungeon' });
     const kept = `table-${made}`;
+    build.mockRejectedValueOnce(new Error('canvas lost'));
 
-    await Promise.all([
-      call({ kind: 'dungeon', replace_previous: true, switch_to: false }),
-      call({ kind: 'dungeon', replace_previous: true, switch_to: false }),
-    ]);
+    await expect(call({ kind: 'dungeon', replace_previous: true })).rejects.toThrow(/canvas lost/);
+    expect(discard).not.toHaveBeenCalled();
 
-    expect(discard).toHaveBeenCalledOnce();
+    await call({ kind: 'dungeon', replace_previous: true, switch_to: false });
     expect((discard.mock.calls[0][0] as GeneratedMap).table.identifier).toBe(kept);
+  });
+
+  it('makes one map at a time, refusing a call while one is being made, which leaves every map tracked', async () => {
+    await call({ kind: 'dungeon' });
+    const first = `table-${made}`;
+    let finish: () => void = () => undefined;
+    build.mockImplementationOnce(() => new Promise<GeneratedMap>((resolve) => (finish = () => resolve(mapOf()))));
+
+    const making = call({ kind: 'dungeon', replace_previous: true, switch_to: false });
+    await expect(call({ kind: 'dungeon', replace_previous: true, switch_to: false })).rejects.toThrow(
+      /still being made/
+    );
+    expect(build).toHaveBeenCalledTimes(2);
+    finish();
+    await making;
+    const second = `table-${made}`;
+    await call({ kind: 'dungeon', replace_previous: true, switch_to: false });
+
+    expect(discard.mock.calls.map(([map]) => (map as GeneratedMap).table.identifier)).toEqual([first, second]);
   });
 
   it('stands the party it names at the way in, and refuses a map too large', async () => {

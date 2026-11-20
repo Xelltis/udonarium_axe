@@ -37,12 +37,15 @@ export const AGENT_MAP_GRIDS: Readonly<Record<string, GridType>> = {
  * a dungeon or open country from its atmosphere, size and seed, built as a table of its own, the party
  * stood at the way in where one is named. The map this seat's AI made last can be thrown away as a new
  * one is made, as the panel throws its own away when it rolls again; one the panel made is never taken.
+ * One map is made at a time: a call while one is being made is refused, and which map was made last
+ * changes only as a map is made, so a map that fails to be made, however it fails, leaves it as it was.
  */
 @Injectable({ providedIn: 'root' })
 export class AgentMapTools {
   private readonly mapGeneration = inject(MapGenerationService);
   private readonly parties = inject(PartyService);
   private last: GeneratedMap | null = null;
+  private making = false;
 
   readonly handlers: Readonly<Record<string, AgentHandler>> = {
     generate_map: (args) => this.generate(args),
@@ -60,22 +63,31 @@ export class AgentMapTools {
           'party'
         ).identifier
       : '';
-    const previous = args['replace_previous'] === true ? this.last : null;
-    if (previous) this.last = null;
-    const built = await this.mapGeneration.build(settings, {
-      name: this.mapGeneration.nameOf(settings, textArg(args, 'name')),
-      fogEnabled: args['fog'] === true,
-      musterParty,
-      lightMotion: '',
-    });
+    if (this.making) {
+      throw new AgentToolError(
+        'failed',
+        'A map is still being made for this seat. Wait for it to be made, then ask for the next one.'
+      );
+    }
+    this.making = true;
+    let built: GeneratedMap | null;
+    try {
+      built = await this.mapGeneration.build(settings, {
+        name: this.mapGeneration.nameOf(settings, textArg(args, 'name')),
+        fogEnabled: args['fog'] === true,
+        musterParty,
+        lightMotion: '',
+      });
+    } finally {
+      this.making = false;
+    }
     if (!built) {
-      if (previous && this.last === null) this.last = previous;
       throw new AgentToolError(
         'failed',
         'That map has more terrain than a table may hold. Ask for fewer rooms, a smaller or sparser field, or squares rather than hexes.'
       );
     }
-    if (previous) this.mapGeneration.discard(previous);
+    if (args['replace_previous'] === true) this.mapGeneration.discard(this.last);
     this.last = built;
     const switched = args['switch_to'] !== false;
     if (switched) emitSelectGameTable({ identifier: built.table.identifier });

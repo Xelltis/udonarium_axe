@@ -686,7 +686,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     access: 'gm',
     timeoutMs: 180_000,
     description:
-      "Make a map as the map generator panel does, built as a table of its own: a dungeon of rooms and passages or open country, from an atmosphere, a size and a seed (the same seed makes the same map). An atmosphere it does not know is answered with the list of those it does. Everyone is switched to the new table unless switch_to is false. replace_previous takes away the map this seat's AI made last. Answers the table, the seed and the master's notes on the map (rooms, hazards, what stands where).",
+      "Make a map as the map generator panel does, built as a table of its own: a dungeon of rooms and passages or open country, from an atmosphere, a size and a seed (the same seed makes the same map). An atmosphere it does not know is answered with the list of those it does. Everyone is switched to the new table unless switch_to is false. replace_previous takes away the map this seat's AI made last, once the new one is made. One map is made at a time: a call while one is being made is refused. Answers the table, the seed and the master's notes on the map (rooms, hazards, what stands where).",
     input: input(
       {
         kind: { type: 'string', enum: ['dungeon', 'field'] },
