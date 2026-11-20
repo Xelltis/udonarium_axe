@@ -7100,7 +7100,7 @@
     "refused": {
       "guest": "A guest cannot set an alarm",
       "missing": "The room's alarm has not arrived yet; wait a moment and set it again",
-      "noSeat": "There is nobody to tell (guests are not told)"
+      "noSeat": "Nobody is picked to be told"
     },
     "panelTitle": "Alarm timer",
     "alarmTitlePrefix": "Alarm {{title}}",

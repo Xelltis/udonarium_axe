@@ -351,6 +351,15 @@ describe('CutInEditorComponent', () => {
     await fixture.whenStable();
 
     expect(cutIn.width).toBe(640);
+
+    for (const typed of ['99999', '']) {
+      box.value = typed;
+      box.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(box.value, typed).toBe(String(cutIn.width));
+    }
+    expect(cutIn.width).toBe(1920);
   });
 
   it('leaves the size as it is when a field is cleared', () => {
