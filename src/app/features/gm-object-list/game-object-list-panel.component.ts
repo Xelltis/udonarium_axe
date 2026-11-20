@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
@@ -15,6 +17,7 @@ import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabl
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CharacterSheetTarget } from '@axe/domain/tabletop/character-sheet-target';
 import { TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -50,6 +53,8 @@ export class GameObjectListPanelComponent {
   private readonly tableFocus = inject(TableFocusService);
   private readonly npcDrag = inject(NpcDragService);
   private readonly pieceGhost = inject(PieceDragGhostService);
+  private readonly disclosure = inject(DisclosureService);
+  private readonly diceRoll = inject(DiceRollService);
   protected readonly t = inject(TRANSLATE_FN);
 
   private dragPending: { row: ObjectRow; startX: number; startY: number; dragging: boolean } | null = null;
@@ -331,7 +336,10 @@ export class GameObjectListPanelComponent {
       buildCopyAction(object, gridSize, this.t)
     );
 
-    if (isDisclosable(object)) actions.push(...buildDisclosureContextMenu(object, this.t));
+    if (isDisclosable(object)) {
+      const clearOwner = object instanceof DiceSymbol ? () => this.diceRoll.reveal(object) : undefined;
+      actions.push(...buildDisclosureContextMenu(object, this.t, this.disclosure, clearOwner));
+    }
 
     actions.push(ContextMenuSeparator, {
       name: this.t('feature.gmObjectList.menu.delete'),

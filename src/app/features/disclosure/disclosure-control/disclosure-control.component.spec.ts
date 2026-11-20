@@ -1,8 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -145,5 +148,25 @@ describe('DisclosureControlComponent', () => {
     expect(fixture.componentInstance.audienceCandidates().map((candidate) => candidate.userId)).toEqual([
       'old-account',
     ]);
+  });
+
+  it('shows a die kept to a seat to everyone through the dice service when its owner is taken away, the chat saying its face', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    PeerCursor.myCursor = { userId: 'gm', name: 'gm', role: PeerRole.GameMaster, isGameMaster: true } as PeerCursor;
+    const notice = vi
+      .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
+      .mockReturnValue(null as unknown as ChatMessage);
+    const die = DiceSymbol.create('隠しダイス', DiceType.D6, 1);
+    die.location.name = 'table';
+    die.face = '4';
+    die.owner = 'p2';
+    made.push(die);
+    const fixture = TestBed.createComponent(DisclosureControlComponent);
+    fixture.componentRef.setInput('object', die);
+
+    fixture.componentInstance.setOwner('');
+
+    expect(die.owner).toBe('');
+    expect(notice).toHaveBeenCalledWith('diceReveal', expect.stringContaining('4'));
   });
 });

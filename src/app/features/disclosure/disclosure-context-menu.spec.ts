@@ -1,3 +1,4 @@
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -5,6 +6,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
 
 const t = (key: string) => key;
+const rules = new DisclosureService();
 
 function setMe(userId: string, role: PeerRole) {
   PeerCursor.myCursor = { userId, role, name: userId, isGameMaster: role === PeerRole.GameMaster } as PeerCursor;
@@ -30,7 +32,7 @@ describe('buildDisclosureContextMenu', () => {
 
   it('offers a player ownership of an unowned character, but not who may see it', () => {
     setMe('p1', PeerRole.Player);
-    const menu = buildDisclosureContextMenu(obj(''), t);
+    const menu = buildDisclosureContextMenu(obj(''), t, rules);
     expect(find(menu, 'feature.disclosure.owner')).toBeTruthy();
     expect(find(menu, 'feature.disclosure.label')).toBeFalsy();
   });
@@ -41,9 +43,9 @@ describe('buildDisclosureContextMenu', () => {
     const note = TextNote.create('メモ', '本文');
     note.disclosureMode = 'gm';
     try {
-      expect(buildDisclosureContextMenu(note, t)).toEqual([]);
+      expect(buildDisclosureContextMenu(note, t, rules)).toEqual([]);
       expect(
-        find(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t), 'feature.disclosure.owner')
+        find(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t, rules), 'feature.disclosure.owner')
       ).toBeTruthy();
     } finally {
       note.destroy();
@@ -54,7 +56,7 @@ describe('buildDisclosureContextMenu', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
     setMe('p1', PeerRole.Player);
     expect(
-      find(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t), 'feature.disclosure.owner')
+      find(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'gm' }, t, rules), 'feature.disclosure.owner')
     ).toBeTruthy();
   });
 
@@ -69,10 +71,30 @@ describe('buildDisclosureContextMenu', () => {
     setMe('p1', PeerRole.Player);
     const note = TextNote.create('メモ', '本文');
     const choices = (object: Parameters<typeof buildDisclosureContextMenu>[0]) =>
-      find(buildDisclosureContextMenu(object, t), 'feature.disclosure.owner')?.subActions?.map((s) => s.name);
+      find(buildDisclosureContextMenu(object, t, rules), 'feature.disclosure.owner')?.subActions?.map((s) => s.name);
     try {
       expect(choices(note)).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1']);
       expect(choices(obj(''))).toEqual(['☑ feature.disclosure.ownerNone', '☐ p1', '☐ p2']);
+    } finally {
+      note.destroy();
+    }
+  });
+
+  it('offers the player owning a note on a room server everyone to hand it to, as its sheet does', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([{ peerId: 'peer-2' }] as never);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({
+      userId: 'acct_p2',
+      name: 'p2',
+      isMine: false,
+    } as PeerCursor);
+    setMe('p1', PeerRole.Player);
+    const note = TextNote.create('メモ', '本文');
+    note.owner = 'p1';
+    try {
+      expect(
+        find(buildDisclosureContextMenu(note, t, rules), 'feature.disclosure.owner')?.subActions?.map((s) => s.name)
+      ).toEqual(['☐ feature.disclosure.ownerNone', '☑ p1', '☐ p2']);
     } finally {
       note.destroy();
     }
@@ -89,7 +111,7 @@ describe('buildDisclosureContextMenu', () => {
       isGameMaster: false,
     } as PeerCursor);
     setMe('acct_gm', PeerRole.GameMaster);
-    const menu = buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t);
+    const menu = buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t, rules);
     const names = (fragment: string) => find(menu, fragment)?.subActions?.map((s) => s.name) ?? [];
 
     expect(names('feature.disclosure.owner').some((name) => name.includes(' g'))).toBe(false);
@@ -108,7 +130,7 @@ describe('buildDisclosureContextMenu', () => {
     } as PeerCursor);
     setMe('acct_gm', PeerRole.GameMaster);
     const chosen = { ...obj('old-account'), disclosureMode: 'selected', disclosureUserIds: ['old-account'] };
-    const menu = buildDisclosureContextMenu(chosen, t);
+    const menu = buildDisclosureContextMenu(chosen, t, rules);
     const names = (fragment: string) => find(menu, fragment)?.subActions?.map((s) => s.name) ?? [];
     const audience = find(menu, 'feature.disclosure.label')?.subActions?.find((s) => s.name.includes('selected'));
 
@@ -127,7 +149,7 @@ describe('buildDisclosureContextMenu', () => {
       isGameMaster: false,
     } as PeerCursor);
     setMe('acct_gm', PeerRole.GameMaster);
-    const names = JSON.stringify(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t));
+    const names = JSON.stringify(buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t, rules));
 
     expect(names).toContain('feature.disclosure.noLoggedInPlayers');
     expect(names).not.toContain('feature.disclosure.noPlayers');
@@ -144,7 +166,9 @@ describe('buildDisclosureContextMenu', () => {
       isGameMaster: true,
     } as PeerCursor);
     setMe('acct_pl', PeerRole.Player);
-    const names = JSON.stringify(buildDisclosureContextMenu({ ...obj('acct_pl'), disclosureMode: 'selected' }, t));
+    const names = JSON.stringify(
+      buildDisclosureContextMenu({ ...obj('acct_pl'), disclosureMode: 'selected' }, t, rules)
+    );
 
     expect(names).toContain('feature.disclosure.noPlayers');
     expect(names).not.toContain('feature.disclosure.noLoggedInPlayers');
@@ -160,36 +184,49 @@ describe('buildDisclosureContextMenu', () => {
       isGameMaster: false,
     } as PeerCursor);
     setMe('gm', PeerRole.GameMaster);
-    const menu = buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t);
+    const menu = buildDisclosureContextMenu({ ...obj(''), disclosureMode: 'selected' }, t, rules);
 
     expect(find(menu, 'feature.disclosure.owner')?.subActions?.some((s) => s.name.includes(' g'))).toBe(true);
   });
 
   it('offers a player nothing on somebody elses character', () => {
     setMe('p1', PeerRole.Player);
-    expect(buildDisclosureContextMenu(obj('p2'), t)).toEqual([]);
+    expect(buildDisclosureContextMenu(obj('p2'), t, rules)).toEqual([]);
   });
 
-  it('lets the owner set who may see it, without offering ownership', () => {
+  it('lets a player who owns a piece set who may see it and hand it on, as its sheet does', () => {
     setMe('p1', PeerRole.Player);
-    const menu = buildDisclosureContextMenu(obj('p1'), t);
+    const menu = buildDisclosureContextMenu(obj('p1'), t, rules);
     expect(find(menu, 'feature.disclosure.label')).toBeTruthy();
-    expect(find(menu, 'feature.disclosure.owner')).toBeFalsy();
+    expect(find(menu, 'feature.disclosure.owner')).toBeTruthy();
+  });
+
+  it('offers what the rules it is given allow and nothing it decides of its own', () => {
+    setMe('gm', PeerRole.GameMaster);
+    const answering = (canEdit: boolean, canSetOwner: boolean) =>
+      buildDisclosureContextMenu(obj('p2'), t, { canEdit: () => canEdit, canSetOwner: () => canSetOwner });
+    const offered = (menu: ReturnType<typeof buildDisclosureContextMenu>) =>
+      ['feature.disclosure.label', 'feature.disclosure.owner'].map((name) => find(menu, name) !== undefined);
+
+    expect(offered(answering(true, true))).toEqual([true, true]);
+    expect(offered(answering(false, true))).toEqual([false, true]);
+    expect(offered(answering(true, false))).toEqual([true, false]);
+    expect(answering(false, false)).toEqual([]);
   });
 
   it('offers a guest left owning a piece nothing of it, a guest writing no piece', () => {
     setMe('g1', PeerRole.Guest);
-    expect(buildDisclosureContextMenu(obj('g1'), t)).toEqual([]);
+    expect(buildDisclosureContextMenu(obj('g1'), t, rules)).toEqual([]);
   });
 
   it('offers a guest no ownership even of an unowned character', () => {
     setMe('g1', PeerRole.Guest);
-    expect(buildDisclosureContextMenu(obj(''), t)).toEqual([]);
+    expect(buildDisclosureContextMenu(obj(''), t, rules)).toEqual([]);
   });
 
   it('offers the game master both', () => {
     setMe('gm', PeerRole.GameMaster);
-    const menu = buildDisclosureContextMenu(obj('p2'), t);
+    const menu = buildDisclosureContextMenu(obj('p2'), t, rules);
     expect(find(menu, 'feature.disclosure.label')).toBeTruthy();
     expect(find(menu, 'feature.disclosure.owner')).toBeTruthy();
   });
@@ -197,10 +234,22 @@ describe('buildDisclosureContextMenu', () => {
   it('lets a player take an unowned character', () => {
     setMe('p1', PeerRole.Player);
     const o = obj('');
-    const ownerMenu = find(buildDisclosureContextMenu(o, t), 'feature.disclosure.owner');
+    const ownerMenu = find(buildDisclosureContextMenu(o, t, rules), 'feature.disclosure.owner');
     const mine = ownerMenu?.subActions?.find((s) => s.name.includes('p1'));
     expect(mine).toBeTruthy();
     mine!.action();
     expect(o.owner).toBe('p1');
+  });
+
+  it('clears the owner through what it is given in place of writing it, as a kept die is shown with its face said', () => {
+    setMe('gm', PeerRole.GameMaster);
+    const kept = obj('p2');
+    const clearOwner = vi.fn();
+    const ownerMenu = find(buildDisclosureContextMenu(kept, t, rules, clearOwner), 'feature.disclosure.owner');
+
+    ownerMenu!.subActions!.find((s) => s.name.includes('feature.disclosure.ownerNone'))!.action();
+
+    expect(clearOwner).toHaveBeenCalledOnce();
+    expect(kept.owner).toBe('p2');
   });
 });

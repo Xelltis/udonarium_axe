@@ -173,6 +173,7 @@ export class GameCharacterMenuService {
       gridSize,
       this.inventoryService,
       {
+        disclosure: this.disclosureService,
         onShowDetail: () => this.showDetail(char),
         onShowMemo: () => this.showMemo(char),
         onShowChatPalette: () => this.showChatPalette(char),

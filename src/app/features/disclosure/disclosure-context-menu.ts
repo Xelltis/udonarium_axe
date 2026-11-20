@@ -1,9 +1,9 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
+import type { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { Network } from '@axe/core/network/network';
+import { Card } from '@axe/domain/card/card';
 import {
-  canClaimOwnership,
-  canEditDisclosure,
   Disclosable,
   DisclosureMode,
   normalizeDisclosureMode,
@@ -11,9 +11,7 @@ import {
 } from '@axe/domain/disclosure/disclosure';
 import { mayBeChosen, mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
-import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
 
 interface DisclosableObject extends Disclosable {
@@ -21,7 +19,14 @@ interface DisclosableObject extends Disclosable {
   update(): void;
 }
 
-interface DisclosureCandidate {
+/**
+ * Who may change an object's disclosure and who owns it, as {@link DisclosureService} answers it: the
+ * menu offers what these answers allow and decides nothing of its own.
+ */
+export type DisclosureRules = Pick<DisclosureService, 'canEdit' | 'canSetOwner'>;
+
+/** A user an owner or audience choice offers, by user id and the name shown for them. */
+export interface DisclosureCandidate {
   userId: string;
   name: string;
 }
@@ -60,19 +65,27 @@ function audienceCandidates(object: DisclosableObject): DisclosureCandidate[] {
 }
 
 /**
- * Who the owner submenu offers: this user first, then every other connected user who may be chosen
- * or owns the piece now. A room server lets anyone but the game master give a note, a die or a card
- * nobody owns to themselves alone, so there it offers only this user for those.
+ * Who an owner choice offers, the right-click menu's and the sheet's alike: this user first, then
+ * every other connected user who may be chosen or owns the object now, each named by their cursor or
+ * a short id.
+ *
+ * A room server lets anyone but the game master take a note or a die nobody owns for themselves
+ * alone, and a card only for themselves or nobody, so there it offers only this user for those,
+ * besides the owner the object has now. Who owns anything else is left free.
  */
-function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
+export function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
   const result: DisclosureCandidate[] = [];
   const myCursor = PeerCursor.myCursor;
   if (myCursor) result.push({ userId: myCursor.userId, name: candidateName(myCursor) });
-  const narrowed = heldToGameMasterByServer();
-  if (narrowed && ownerRuledByServer(object)) return result;
+  const owner = object.owner ?? '';
+  if (heldToGameMasterByServer() && ownerRuledByServer(object) && (!owner || object instanceof Card)) {
+    const holder = owner && owner !== myCursor?.userId ? PeerCursor.findByUserId(owner) : null;
+    if (holder) result.push({ userId: holder.userId, name: candidateName(holder) });
+    return result;
+  }
   for (const context of Network.instance.peerContexts) {
     const cursor = PeerCursor.findByPeerId(context.peerId);
-    if (!cursor || cursor.isMine || !mayBeOffered(cursor, [object.owner ?? ''])) continue;
+    if (!cursor || cursor.isMine || !mayBeOffered(cursor, [owner])) continue;
     result.push({ userId: cursor.userId, name: candidateName(cursor) });
   }
   return result;
@@ -81,24 +94,25 @@ function ownerCandidates(object: DisclosableObject): DisclosureCandidate[] {
 /**
  * The disclosure and owner entries appended to a piece's right-click menu.
  *
- * Whoever may edit the piece's disclosure gets a submenu of who can see it: everyone, chosen players
- * (listing the connected players who are not game masters) or the game master only. The game master,
- * or a player who may claim the piece, gets a submenu to set its owner. Every choice writes the piece
- * and sends it to the room. Gives an empty list when neither applies, and otherwise leads with a
- * separator.
+ * Whoever `rules` lets change the piece's disclosure gets a submenu of who can see it: everyone,
+ * chosen players (listing the connected players who are not game masters) or the game master only.
+ * Whoever `rules` lets change its owner, the game master, its owner or a seat that may claim it, gets
+ * a submenu to set its owner. Every choice writes the piece and sends it to the room. Gives an empty
+ * list when neither applies, and otherwise leads with a separator.
+ *
+ * `clearOwner`, where given, takes the place of plainly clearing the owner: a die kept to a seat is
+ * shown through the dice service, which says the face it shows in the chat.
  */
-export function buildDisclosureContextMenu(object: DisclosableObject, t: TranslateFn): ContextMenuAction[] {
+export function buildDisclosureContextMenu(
+  object: DisclosableObject,
+  t: TranslateFn,
+  rules: DisclosureRules,
+  clearOwner?: () => void
+): ContextMenuAction[] {
   const ownerUserId = object.owner ?? '';
-  const myUserId = PeerCursor.myCursor?.userId ?? '';
-  const isGameMaster = PeerCursor.isMyselfGameMaster;
-  const viewer = { userId: myUserId, isGameMaster, ownerUserId };
-  const canEdit = canEditDisclosure(viewer) && canRoleEdit(PeerCursor.myRole);
-  const canClaim =
-    myUserId.length > 0 &&
-    canClaimOwnership(object, viewer, Network.instance.authorityPeerId !== null && object instanceof TextNote) &&
-    canRoleEdit(PeerCursor.myRole);
-  const showOwnerMenu = isGameMaster || canClaim;
-  if (!canEdit && !showOwnerMenu) return [];
+  const canEdit = rules.canEdit(object);
+  const canSetOwner = rules.canSetOwner(object);
+  if (!canEdit && !canSetOwner) return [];
 
   const entries: ContextMenuAction[] = [];
 
@@ -141,13 +155,17 @@ export function buildDisclosureContextMenu(object: DisclosableObject, t: Transla
     });
   }
 
-  if (showOwnerMenu) {
+  if (canSetOwner) {
     entries.push({
       name: t('feature.disclosure.owner'),
       subActions: [
         {
           name: mark(ownerUserId === '') + t('feature.disclosure.ownerNone'),
           action: () => {
+            if (clearOwner) {
+              clearOwner();
+              return;
+            }
             object.owner = '';
             object.update();
           },
