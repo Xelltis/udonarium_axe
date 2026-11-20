@@ -248,18 +248,25 @@ export class GameDataElementTableViewComponent {
    */
   private async build(shape: TableShape): Promise<boolean> {
     const element = this.element();
-    const [problem] = this.edit.tableBuildProblems(element, shape);
-    if (problem) {
-      this.editProblem.set(problem);
-      return false;
-    }
+    if (!this.mayBuild(element, shape)) return false;
     const lost = this.edit.cellsLostBy(element, shape);
     if (lost > 0) {
       const sure = await this.confirm.ask(this.t('feature.dataElement.tableView.edit.confirmLost', { count: lost }));
-      if (!sure) return false;
+      if (!sure || !this.mayBuild(element, shape)) return false;
     }
     this.editProblem.set(null);
     return this.edit.buildTable(element, shape);
+  }
+
+  /**
+   * Whether a shape may be built on the table as it stands now, the bar told why not where it may not
+   * (see `tableBuildProblems`): asked again once the question of the cells to lose is answered, as
+   * another seat may change the table while it stands open.
+   */
+  private mayBuild(element: DataElement, shape: TableShape): boolean {
+    const [problem] = this.edit.tableBuildProblems(element, shape);
+    if (problem) this.editProblem.set(problem);
+    return !problem;
   }
 
   /**

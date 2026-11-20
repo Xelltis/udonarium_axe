@@ -332,6 +332,22 @@ describe('GameDataElementTableViewComponent', () => {
       ]);
     });
 
+    it('says the table changed, and builds nothing, where another seat changed it while the question stood open', async () => {
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockImplementation(async () => {
+        for (const row of component.element().children)
+          component.getTableCell(row as DataElement, 'skill')!.name = 'renamed';
+        return true;
+      });
+      await press(find('table-edit-column-button')[1]);
+
+      await press(find('table-edit-remove-column')[0]);
+
+      expect(bodyCells()[0]).toEqual(['renamed', 'gap', 'stat']);
+      expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+        'ほかの人がこの表の行か列を変えました'
+      );
+    });
+
     it('asks before taking away a column whose cells hold something, and keeps it where the answer is no', async () => {
       const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
       await press(find('table-edit-column-button')[1]);
