@@ -1,13 +1,10 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, isAbsolute, relative, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path';
 
-import type { AgentFileContent, AgentToolDefinition } from '@axe/core/agent/agent-tools';
+import { type AgentFileContent, type AgentToolDefinition, MAX_AGENT_FILE_BYTES } from '@axe/core/agent/agent-tools';
 
 import type { CallOutcome } from './tab-link';
-
-/** The most a file handed to the tab may weigh, room saves with every picture included. */
-export const MAX_FILE_BYTES = 96 * 1024 * 1024;
 
 /** The media type a file is handed to the tab with, by its extension. */
 const TYPES: Readonly<Record<string, string>> = {
@@ -59,7 +56,9 @@ export class LocalFiles {
     this.within(real, path);
     const facts = await stat(real);
     if (!facts.isFile()) throw new LocalFileRefused(`${path} is not a file.`);
-    if (facts.size > MAX_FILE_BYTES) throw new LocalFileRefused(`${path} is larger than ${MAX_FILE_BYTES} bytes.`);
+    if (facts.size > MAX_AGENT_FILE_BYTES) {
+      throw new LocalFileRefused(`${path} is larger than ${MAX_AGENT_FILE_BYTES} bytes.`);
+    }
     const bytes = await readFile(real);
     return {
       name: basename(real),
@@ -68,13 +67,23 @@ export class LocalFiles {
     };
   }
 
-  /** Writes a file the tab handed back to a path inside the folder, where no file is yet; answers where. */
-  async write(path: string, file: AgentFileContent): Promise<{ readonly path: string; readonly bytes: number }> {
+  /**
+   * Refuses a path a file may not be written to: one leading out of the folder, by a link too, one with
+   * no folder to go in, or one a file is at already. Run before the tab is asked for the file, so a
+   * path refused costs the tab nothing, and again as the file is written.
+   */
+  checkWritable(path: string): string {
     const full = this.inside(path);
     if (existsSync(full)) throw new LocalFileRefused(`A file is already at ${path}; give a path with none.`);
     const folder = dirname(full);
     if (!existsSync(folder)) throw new LocalFileRefused(`There is no folder for ${path} in ${this.root}.`);
     this.within(realpathSync(folder), path, true);
+    return full;
+  }
+
+  /** Writes a file the tab handed back to a path inside the folder, where no file is yet (see {@link checkWritable}); answers where. */
+  async write(path: string, file: AgentFileContent): Promise<{ readonly path: string; readonly bytes: number }> {
+    const full = this.checkWritable(path);
     const bytes = Buffer.from(file.base64, 'base64');
     await writeFile(full, bytes, { flag: 'wx' });
     return { path: full, bytes: bytes.length };
@@ -90,7 +99,8 @@ export class LocalFiles {
   /** Refuses a path that leads out of the folder, or to the folder itself unless that is allowed, as for where a file goes. */
   private within(full: string, path: string, rootAllowed = false): void {
     const step = relative(this.root, full);
-    if ((step === '' && !rootAllowed) || step.startsWith('..') || isAbsolute(step)) {
+    const leaves = step === '..' || step.startsWith(`..${sep}`) || isAbsolute(step);
+    if ((step === '' && !rootAllowed) || leaves) {
       throw new LocalFileRefused(`${path} is outside ${this.root}, the folder the bridge was started with.`);
     }
   }
@@ -117,6 +127,7 @@ export function withLocalFiles(call: ToolCall, files: LocalFiles, tools: readonl
     if (!local || typeof path !== 'string' || path.length < 1) return call(tool, args, timeoutMs, signal);
     try {
       if (local.mode === 'read') return await call(tool, { ...args, file: await files.read(path) }, timeoutMs, signal);
+      files.checkWritable(path);
       const outcome = await call(tool, args, timeoutMs, signal);
       if (!outcome.ok) return outcome;
       const { file, ...rest } = (outcome.value ?? {}) as { file?: AgentFileContent };

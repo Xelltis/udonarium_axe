@@ -4,6 +4,7 @@ import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { MAX_AGENT_FILE_BYTES } from '@axe/core/agent/agent-tools';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { AgentFileTools } from '@axe/features/agent-tools/agent-file-tools.service';
@@ -66,6 +67,15 @@ describe('AgentFileTools', () => {
     expect(await call('save_room', { path: 'room.zip' })).toMatchObject({ file: ZIP });
     expect(await call('save_room', { path: 'room.zip', everything: true })).toMatchObject({ file: { base64: 'BA==' } });
     expect(whole).toHaveBeenCalledOnce();
+  });
+
+  it('hands the bridge no room larger than a message to it carries, saying how to save it instead', async () => {
+    const save = TestBed.inject(SaveDataService);
+    const large = { size: MAX_AGENT_FILE_BYTES + 1, arrayBuffer: vi.fn() } as unknown as Blob;
+    vi.spyOn(save, 'createWholeRoomArchiveAsync').mockResolvedValue(large);
+
+    await expect(call('save_room', { path: 'room.zip', everything: true })).rejects.toThrow(/more than the 96.0 MB/);
+    expect(large.arrayBuffer).not.toHaveBeenCalled();
   });
 
   it('puts a saved room in only once the person at the seat agrees on their screen', async () => {

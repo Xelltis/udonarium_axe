@@ -29,6 +29,16 @@ export interface AgentToolDefinition {
   readonly openWorld?: true;
 }
 
+/**
+ * The most a file the bridge and the tab hand each other may weigh, either way: a file the bridge reads
+ * for a tool, and a room the tab saves for one. Sent as base64 in one message, it fits
+ * {@link MAX_AGENT_MESSAGE_BYTES}, which the bridge takes.
+ */
+export const MAX_AGENT_FILE_BYTES = 96 * 1024 * 1024;
+
+/** The most a message between the bridge and the tab may weigh: the largest file as base64, with room for the rest. */
+export const MAX_AGENT_MESSAGE_BYTES = Math.ceil(MAX_AGENT_FILE_BYTES / 3) * 4 + 1024 * 1024;
+
 /** A file as the bridge and the tab hand it to each other: its name, its media type and its bytes. */
 export interface AgentFileContent {
   readonly name: string;

@@ -7,7 +7,7 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
-import type { AgentFileContent } from '@axe/core/agent/agent-tools';
+import { type AgentFileContent, MAX_AGENT_FILE_BYTES } from '@axe/core/agent/agent-tools';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -22,6 +22,11 @@ const STORED_NAME = /^[0-9a-f]{64}\./i;
 
 /** Room data, which `load_room` puts in and `import_asset` never does. */
 const ROOM_DATA = /\.(zip|xml)$/i;
+
+/** A number of bytes in megabytes, to one decimal place. */
+function megabytes(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1);
+}
 
 /** What a failed character import is told as. */
 const IMPORT_FAILURES: Readonly<Record<string, string>> = {
@@ -95,6 +100,13 @@ export class AgentFileTools {
       args['everything'] === true
         ? await this.saveData.createWholeRoomArchiveAsync()
         : await this.saveData.createRoomArchiveAsync();
+    if (blob.size > MAX_AGENT_FILE_BYTES) {
+      throw new AgentToolError(
+        'failed',
+        `The room comes to ${megabytes(blob.size)} MB, more than the ${megabytes(MAX_AGENT_FILE_BYTES)} MB the bridge takes at once. ` +
+          'Save it without everything, or from the room’s own save menu.'
+      );
+    }
     const file: AgentFileContent = {
       name: 'room.zip',
       type: 'application/zip',

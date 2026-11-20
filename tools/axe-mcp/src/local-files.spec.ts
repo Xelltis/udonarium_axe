@@ -43,6 +43,15 @@ describe('LocalFiles', () => {
     expect([...readFileSync(join(root, 'art', 'room.zip'))]).toEqual([1, 2, 3]);
     await expect(files.write('art/goblin.png', { name: 'x', type: 'y', base64: 'AA==' })).rejects.toThrow(/already/);
   });
+
+  it('takes a name beginning with two dots inside the folder as inside it', async () => {
+    writeFileSync(join(root, '..notes.png'), Buffer.from([1]));
+    mkdirSync(join(root, '..draft'));
+
+    expect((await files.read('..notes.png')).base64).toBe('AQ==');
+    expect(files.checkWritable('..draft/map.zip')).toBe(join(files.folder, '..draft', 'map.zip'));
+    await expect(files.read('..')).rejects.toThrow(/outside/);
+  });
 });
 
 describe('withLocalFiles', () => {
@@ -82,13 +91,21 @@ describe('withLocalFiles', () => {
     expect(seen[2]).toEqual({ tool: 'get_room', path: 'goblin.png' });
   });
 
-  it('answers a path refused as the AI’s mistake, without calling the tab', async () => {
+  it('answers a path refused as the AI’s mistake, without calling the tab, to read or to write', async () => {
     const tab = vi.fn();
+    const call = withLocalFiles(tab, files, AGENT_TOOLS);
 
-    expect(await withLocalFiles(tab, files, AGENT_TOOLS)('import_asset', { path: '../x.png' }, 1000)).toEqual({
-      ok: false,
-      error: { code: 'invalid_input', message: expect.stringMatching(/outside/) },
-    });
+    for (const [tool, path, said] of [
+      ['import_asset', '../x.png', /outside/],
+      ['save_room', '../room.zip', /outside/],
+      ['save_room', 'goblin.png', /already/],
+      ['save_room', 'nowhere/room.zip', /no folder/],
+    ] as const) {
+      expect(await call(tool, { path }, 1000), `${tool} ${path}`).toEqual({
+        ok: false,
+        error: { code: 'invalid_input', message: expect.stringMatching(said) },
+      });
+    }
     expect(tab).not.toHaveBeenCalled();
   });
 });

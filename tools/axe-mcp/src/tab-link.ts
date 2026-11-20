@@ -12,7 +12,7 @@ import {
   type GmTabMessage,
   readTabMessage,
 } from '@axe/core/agent/agent-protocol';
-import { AGENT_TOOLS, agentToolsDigest } from '@axe/core/agent/agent-tools';
+import { AGENT_TOOLS, agentToolsDigest, MAX_AGENT_MESSAGE_BYTES } from '@axe/core/agent/agent-tools';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import { type LocalFiles, type ToolCall, withLocalFiles } from './local-files';
@@ -54,9 +54,6 @@ export interface TabLinkOptions {
    */
   readonly files?: LocalFiles;
 }
-
-/** The most a message from the tab may weigh: a saved room handed back as base64 with room to spare. */
-const MAX_MESSAGE_BYTES = 160 * 1024 * 1024;
 
 /** How long a call waits for a tab to connect, unless told otherwise. */
 const TAB_GRACE_MS = 8000;
@@ -103,7 +100,7 @@ export class TabLink {
       const server = new WebSocketServer({
         host: '127.0.0.1',
         port: this.options.port,
-        maxPayload: MAX_MESSAGE_BYTES,
+        maxPayload: MAX_AGENT_MESSAGE_BYTES,
         path: AGENT_BRIDGE_PATH,
         verifyClient: ({ origin, req }: { origin: string; req: IncomingMessage }) => this.admits(origin, req),
       });
@@ -157,10 +154,6 @@ export class TabLink {
   }
 
   /**
-   * Hands the tab a call and waits for its answer, giving it up after the time given or once the
-   * caller gives up on it, and telling the tab so.
-   */
-  /**
    * Hands the tab a call and answers what came of it, the files a tool names read and written on the
    * way (see `withLocalFiles`), for the MCP clients and the bridge's own game master alike.
    */
@@ -177,6 +170,10 @@ export class TabLink {
       : callTab(tool, args, timeoutMs, signal);
   }
 
+  /**
+   * Hands the tab a call and waits for its answer, giving it up after the time given or once the
+   * caller gives up on it, and telling the tab so.
+   */
   private async callTab(
     tool: string,
     args: Readonly<Record<string, unknown>>,
