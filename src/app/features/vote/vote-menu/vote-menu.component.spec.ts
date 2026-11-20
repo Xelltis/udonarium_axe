@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { VoteService } from '@axe/application/vote/vote.service';
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -61,12 +62,14 @@ describe('VoteMenuComponent', () => {
     PeerCursor.myCursor = { peerId: 'my-peer-id', role: PeerRole.Guest } as unknown as PeerCursor;
     component.includSelf = true;
 
+    const told = vi.spyOn(TestBed.inject(SnackbarService), 'show');
     component.send();
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     component.send();
 
     expect(vote.makeVote).not.toHaveBeenCalled();
     expect(said).not.toHaveBeenCalled();
+    expect(told).toHaveBeenCalledWith('見学は投票や点呼を始められません');
   });
 
   it('closes once its seat is made a guest', () => {

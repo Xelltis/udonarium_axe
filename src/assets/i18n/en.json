@@ -7097,6 +7097,11 @@
     }
   },
   "feature.alarm": {
+    "refused": {
+      "guest": "A guest cannot set an alarm",
+      "missing": "The room's alarm has not arrived yet; wait a moment and set it again",
+      "noSeat": "There is nobody to tell (guests are not told)"
+    },
     "panelTitle": "Alarm timer",
     "alarmTitlePrefix": "Alarm {{title}}",
     "defaultTitle": "Timer",
@@ -7117,6 +7122,11 @@
     "timeUpMessage": "Alarm ({{seconds}}s) elapsed{{target}}{{title}}"
   },
   "feature.vote": {
+    "refused": {
+      "guest": "A guest cannot start a vote or a roll call",
+      "missing": "The room's vote has not arrived yet; wait a moment and send again",
+      "noSeat": "There is nobody to ask (guests are not asked)"
+    },
     "panelTitle": "Roll call / Vote",
     "windowTitle": "Roll call / Vote",
     "rollCall": "Roll call",

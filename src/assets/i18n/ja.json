@@ -7097,6 +7097,11 @@
     }
   },
   "feature.alarm": {
+    "refused": {
+      "guest": "見学はアラームをセットできません",
+      "missing": "部屋のアラームがまだ届いていません。少し待ってからセットしてください",
+      "noSeat": "アラームを知らせる相手がいません（見学には知らせません）"
+    },
     "panelTitle": "アラームタイマ",
     "alarmTitlePrefix": "アラーム {{title}}",
     "defaultTitle": "タイマ",
@@ -7117,6 +7122,11 @@
     "timeUpMessage": "アラーム({{seconds}}秒)経過{{target}}{{title}}"
   },
   "feature.vote": {
+    "refused": {
+      "guest": "見学は投票や点呼を始められません",
+      "missing": "部屋の投票がまだ届いていません。少し待ってから送ってください",
+      "noSeat": "聞ける相手がいません（見学は聞かれません）"
+    },
     "panelTitle": "点呼/投票設定",
     "windowTitle": "点呼/投票",
     "rollCall": "点呼",

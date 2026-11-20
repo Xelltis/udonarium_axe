@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { clampAlarmSeconds } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -23,6 +24,7 @@ export class AlarmMenuComponent {
   private readonly alarms = inject(AlarmService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
 
   /** The peer ids ticked in the list, in the order they were ticked. */
   protected readonly checkedPeers = signal<readonly string[]>([]);
@@ -83,7 +85,8 @@ export class AlarmMenuComponent {
 
   /**
    * Sets the alarm for the chosen peers through {@link AlarmService.set}, which announces it in chat
-   * and starts it, and closes the panel once it is set. The time is clamped first.
+   * and starts it, and closes the panel once it is set; where it was not set, a notice says why. The
+   * time is clamped first.
    */
   send() {
     this.changeAlarmTime();
@@ -95,6 +98,7 @@ export class AlarmMenuComponent {
       popup: this.isPopUp,
     });
     if (refusal === null) this.panelService.close();
+    else this.snackbar.show(this.t(`feature.alarm.refused.${refusal}`));
   }
 
   /**

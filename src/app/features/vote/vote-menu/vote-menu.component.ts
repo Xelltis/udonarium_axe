@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { trackEvery } from '@axe/application/sync/track-every';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { VoteService } from '@axe/application/vote/vote.service';
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -23,6 +24,7 @@ export class VoteMenuComponent {
   private readonly votes = inject(VoteService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
 
   /** The peer ids ticked in the list, in the order they were ticked. */
   protected readonly checkedPeers = signal<readonly string[]>([]);
@@ -82,7 +84,8 @@ export class VoteMenuComponent {
 
   /**
    * Starts a roll call or vote for the chosen users through {@link VoteService.start}, which announces
-   * it in the chat tab, and closes the menu once it has started.
+   * it in the chat tab, and closes the menu once it has started; where it was not started, a notice
+   * says why (a guest, the room's vote not here yet, nobody left to ask).
    *
    * A vote takes its choices from the choices field split on spaces.
    */
@@ -96,6 +99,10 @@ export class VoteMenuComponent {
       tabIdentifier: this.chatTabidentifier,
     });
     if (refusal === null) this.panelService.close();
+    else
+      this.snackbar.show(
+        this.t(`feature.vote.refused.${refusal === 'guest' || refusal === 'missing' ? refusal : 'noSeat'}`)
+      );
   }
 
   /** Switches the menu between a roll call and a vote, from the type radio buttons. */

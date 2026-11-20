@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AlarmService } from '@axe/application/alarm/alarm.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -46,6 +47,7 @@ describe('AlarmMenuComponent', () => {
     const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageAsLastSpeaker');
     const original = PeerCursor.myCursor;
     PeerCursor.myCursor = { peerId: 'my-peer-id', role: PeerRole.Guest } as unknown as PeerCursor;
+    const told = vi.spyOn(TestBed.inject(SnackbarService), 'show');
     try {
       component.send();
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
@@ -53,6 +55,7 @@ describe('AlarmMenuComponent', () => {
 
       expect(alarm.makeAlarm).not.toHaveBeenCalled();
       expect(said).not.toHaveBeenCalled();
+      expect(told).toHaveBeenCalledWith('見学はアラームをセットできません');
     } finally {
       PeerCursor.myCursor = original;
       vi.restoreAllMocks();
