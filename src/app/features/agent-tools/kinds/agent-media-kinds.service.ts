@@ -241,10 +241,6 @@ export class AgentMediaKinds {
   ];
 
   /**
-   * The picture a reference names among those this seat may come across, as the screen's picker lists
-   * them; empty for none.
-   */
-  /**
    * The reading of the pictures whose own size a kept aspect works from, where a call sizes a cut-in
    * or keeps its aspect: the one it shows and the one it is given, those not read yet; null where none
    * has to be read first (see `PictureSizeService`).
@@ -268,6 +264,10 @@ export class AgentMediaKinds {
     }
   }
 
+  /**
+   * The picture a reference names among those this seat may come across, as the screen's picker lists
+   * them; empty for none.
+   */
   private picture(reference: string): string {
     if (!reference.trim()) return '';
     return findOne(
