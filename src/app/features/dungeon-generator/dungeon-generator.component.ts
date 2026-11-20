@@ -444,13 +444,18 @@ export class DungeonGeneratorComponent {
     return this.mapGeneration.nameOf(this.settings(), this.tableName());
   }
 
+  /**
+   * Builds the map the panel is set to, and once it is built throws the one built before away, so a
+   * shelf of rejected tables never builds up; where everyone was looking at that one, everyone is shown
+   * the new one instead (see `MapGenerationService.replace`). A map that fails to be built leaves the
+   * one before as it was.
+   */
   protected async generate(): Promise<void> {
     if (!this.canEdit || this.busy() || this.tooMany()) return;
     this.busy.set(true);
     this.progress.set(0);
     try {
-      // Rolling again throws the last one away, so a shelf of rejected tables never builds up.
-      this.discardPrevious();
+      const previous = this.built();
       const built = await this.mapGeneration.build(
         this.settings(),
         {
@@ -462,8 +467,10 @@ export class DungeonGeneratorComponent {
         // A map with nothing standing on it is finished the moment it starts, not NaN done.
         (done, total) => this.progress.set(total > 0 ? Math.round((done / total) * 100) : 100)
       );
+      if (!built) return;
+      this.mapGeneration.replace(previous, built);
       this.built.set(built);
-      this.summary.set(built?.summary ?? '');
+      this.summary.set(built.summary);
       this.copied.set(false);
     } finally {
       this.busy.set(false);

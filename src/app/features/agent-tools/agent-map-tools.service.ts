@@ -87,10 +87,10 @@ export class AgentMapTools {
         'That map has more terrain than a table may hold. Ask for fewer rooms, a smaller or sparser field, or squares rather than hexes.'
       );
     }
-    if (args['replace_previous'] === true) this.mapGeneration.discard(this.last);
+    const shownInstead = args['replace_previous'] === true && this.mapGeneration.replace(this.last, built);
     this.last = built;
-    const switched = args['switch_to'] !== false;
-    if (switched) emitSelectGameTable({ identifier: built.table.identifier });
+    const switched = shownInstead || args['switch_to'] !== false;
+    if (switched && !shownInstead) emitSelectGameTable({ identifier: built.table.identifier });
     return {
       table: { id: built.table.identifier, name: built.table.name },
       seed: settings.seed,

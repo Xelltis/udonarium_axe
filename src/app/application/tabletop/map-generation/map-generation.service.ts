@@ -1,8 +1,10 @@
 import { inject, Injectable } from '@angular/core';
+import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PartyService } from '@axe/application/party/party.service';
 import { DUNGEON_GRID_SIZE, DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
+import { GameTableService } from '@axe/application/tabletop/game-table.service';
 import { describeDungeon } from '@axe/application/tabletop/map-generation/dungeon-notes';
 import { describeField } from '@axe/application/tabletop/map-generation/field-notes';
 import { buildGroundScene } from '@axe/application/tabletop/map-generation/ground-scene';
@@ -14,6 +16,7 @@ import {
   mapWallHeightOf,
   mapWallOf,
 } from '@axe/application/tabletop/map-generation/map-settings';
+import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import type { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -22,6 +25,7 @@ import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
 import type { FieldPlan } from '@axe/domain/tabletop/field/field-generator';
 import type { GameTable } from '@axe/domain/tabletop/game-table';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import type { GeneratedLightMotion } from '@axe/domain/tabletop/vision-types';
 
 /** What a map is built with besides its settings: its name, whether fog covers it, who walks in, how its lights move. */
@@ -51,6 +55,8 @@ export class MapGenerationService {
   private readonly dungeonBuild = inject(DungeonBuildService);
   private readonly partyService = inject(PartyService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly tables = inject(GameTableService);
+  private readonly assetRemoval = inject(AssetRemovalService);
   private readonly exportScene = inject(SCENE_IMAGE_EXPORTER);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -106,11 +112,33 @@ export class MapGenerationService {
     return { table: built.table, floorImage, summary: built.summary };
   }
 
-  /** Takes a map built here away: its table, which takes everything on it, and its painted floor, a child of nothing. */
-  discard(map: GeneratedMap | null): void {
-    if (!map) return;
-    map.table.destroy();
-    if (map.floorImage) this.imageStorage.delete(map.floorImage);
+  /**
+   * Takes a map built here away as any table is taken away (`GameTableService.remove`): only a table
+   * still in the room and not its last, with everything on it, on a seat that may change the table.
+   * Its painted floor, a child of nothing, goes with it only where nothing left in the room uses the
+   * picture, as a map made again from the same seed, or a room loaded since, may. Answers whether the
+   * table was taken away.
+   */
+  discard(map: GeneratedMap | null): boolean {
+    if (!map) return false;
+    const removed = this.tables.remove(map.table);
+    if (map.floorImage && this.assetRemoval.countUses([map.floorImage]) === 0) this.imageStorage.delete(map.floorImage);
+    return removed;
+  }
+
+  /**
+   * Takes away the map another was made in place of (see {@link discard}), and where everyone was
+   * looking at it, shows everyone the one made in its place instead, before it goes, rather than
+   * whichever table is left first; answers whether it did.
+   */
+  replace(previous: GeneratedMap | null, made: GeneratedMap): boolean {
+    const shownInstead =
+      previous !== null &&
+      this.tables.mayRemove(previous.table) &&
+      TableSelecter.instance.tableInView === previous.table;
+    if (shownInstead) emitSelectGameTable({ identifier: made.table.identifier });
+    this.discard(previous);
+    return shownInstead;
   }
 
   /**

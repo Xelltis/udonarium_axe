@@ -77,6 +77,20 @@ describe('AgentMapTools', () => {
     expect(switched).toEqual([`table-${made - 1}`]);
   });
 
+  it('answers that everyone was switched where they were looking at the map it replaced, though told not to', async () => {
+    await call({ kind: 'dungeon', switch_to: false });
+    const replace = vi.spyOn(TestBed.inject(MapGenerationService), 'replace').mockReturnValue(true);
+    const switched: string[] = [];
+    const off = selectGameTable$.subscribe((event) => switched.push(event.identifier));
+
+    const answer = await call({ kind: 'dungeon', replace_previous: true, switch_to: false });
+    off();
+
+    expect(replace).toHaveBeenCalledOnce();
+    expect(answer).toMatchObject({ switched: true });
+    expect(switched).toEqual([]);
+  });
+
   it('keeps the map made last where the one to take its place cannot be made', async () => {
     await call({ kind: 'dungeon' });
     const kept = `table-${made}`;

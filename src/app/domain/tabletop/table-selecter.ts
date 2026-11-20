@@ -54,14 +54,27 @@ export class TableSelecter extends GameObject {
    * chosen, announcing the selection, if the stored choice was empty or deleted.
    */
   get viewTable(): GameTable | null {
-    let table: GameTable | null = ObjectStore.instance.get<GameTable>(this.viewTableIdentifier);
-    if (!table) {
-      table = ObjectStore.instance.getObjects<GameTable>(GameTable)[0] ?? null;
-      if (table && (this.viewTableIdentifier.length < 1 || ObjectStore.instance.isDeleted(this.viewTableIdentifier))) {
-        this.viewTableIdentifier = table.identifier;
-        emitSelectGameTable({ identifier: table.identifier });
-      }
+    const table = this.tableInView;
+    if (
+      table &&
+      table.identifier !== this.viewTableIdentifier &&
+      (this.viewTableIdentifier.length < 1 || ObjectStore.instance.isDeleted(this.viewTableIdentifier))
+    ) {
+      this.viewTableIdentifier = table.identifier;
+      emitSelectGameTable({ identifier: table.identifier });
     }
     return table;
+  }
+
+  /**
+   * The table being viewed, as {@link viewTable} answers it, the first table where the chosen one cannot
+   * be found, read without adopting that one as chosen; null when the room has no table.
+   */
+  get tableInView(): GameTable | null {
+    return (
+      ObjectStore.instance.get<GameTable>(this.viewTableIdentifier) ??
+      ObjectStore.instance.getObjects<GameTable>(GameTable)[0] ??
+      null
+    );
   }
 }
