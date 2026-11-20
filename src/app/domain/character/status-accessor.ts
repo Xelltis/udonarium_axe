@@ -28,7 +28,7 @@ import {
 import type { ElementAliasTable } from '@axe/domain/data/element-alias';
 import { findReferencedElements, isAliasName } from '@axe/domain/data/element-reference';
 import type { ResourceSlot } from '@axe/domain/data/resource-slot';
-import { parseSelectChoices } from '@axe/domain/data/table-layout';
+import { parseSelectChoices } from '@axe/domain/data/select-choices';
 
 type SlotType = 'value' | 'currentValue' | 'maxBase' | 'maxCorrection' | 'minBase' | 'minCorrection';
 

@@ -1,4 +1,5 @@
 import { DataElement, DataElementAttribute, DataElementRole, DataElementViewMode } from '@axe/domain/data/data-element';
+import { parseSelectChoices } from '@axe/domain/data/select-choices';
 
 export interface TableColumn {
   name: string;
@@ -137,14 +138,6 @@ export function getCellLabel(cell: DataElement): string {
 export function getCellUnit(cell: DataElement): string {
   const unit = cell.getAttribute(DataElementAttribute.UNIT).trim();
   return unit ? ` ${unit}` : '';
-}
-
-/** Splits a select field's choices on line breaks or commas, trimming each and dropping blanks. */
-export function parseSelectChoices(choices: string): string[] {
-  return choices
-    .split(/\r?\n|,/)
-    .map((choice) => choice.trim())
-    .filter((choice) => choice.length > 0);
 }
 
 /** The choices a select cell offers. */

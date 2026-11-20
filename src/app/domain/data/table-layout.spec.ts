@@ -10,7 +10,6 @@ import {
   isGapColumn,
   isSelectValueListed,
   nextCheckCellValue,
-  parseSelectChoices,
   type TableColumn,
 } from '@axe/domain/data/table-layout';
 
@@ -87,18 +86,6 @@ describe('table-layout cell helpers', () => {
     });
     it('returns nothing, and no space, when there is none', () => {
       expect(getCellUnit(makeCell('hp'))).toBe('');
-    });
-  });
-
-  describe('parseSelectChoices()', () => {
-    it('reads the options apart by both lines and commas', () => {
-      expect(parseSelectChoices('a,b\nc,d')).toEqual(['a', 'b', 'c', 'd']);
-    });
-    it('leaves the empty ones out', () => {
-      expect(parseSelectChoices('a,,b\n\nc')).toEqual(['a', 'b', 'c']);
-    });
-    it('trims their ends', () => {
-      expect(parseSelectChoices(' a , b\n c ')).toEqual(['a', 'b', 'c']);
     });
   });
 

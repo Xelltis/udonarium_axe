@@ -103,7 +103,9 @@
   } @error {
     <ng-container appReloadNotice />
   }
-  <replay-indicator />
+  @defer (when widgets.recording()) {
+    <replay-indicator />
+  }
   <replay-board-banner />
   @defer (when visualNovel.active()) {
     @if (visualNovel.active()) {
