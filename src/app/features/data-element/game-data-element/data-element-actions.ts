@@ -8,11 +8,14 @@ export type DataElementActionId =
   | 'fieldOptions'
   | 'addSibling'
   | 'tableView'
+  | 'buildTable'
+  | 'editAsRows'
   | 'tableSettings'
   | 'duplicate'
   | 'saveTemplate'
   | 'addImage'
   | 'addGroup'
+  | 'addTable'
   | 'addFromTemplate'
   | 'addField'
   | 'moveToTop'
@@ -55,6 +58,12 @@ export interface ContainerActionContext {
   isPopup: boolean;
   canToggleTableView: boolean;
   isTableView: boolean;
+  /** Whether the group or section may be built as a table from the table builder (see `canBuildTable`). */
+  canBuildTable: boolean;
+  /** Whether the group or section is drawn as a table, which may then be edited as its rows and fields instead. */
+  drawsAsTable: boolean;
+  /** Whether the table is being edited as its rows and fields rather than as the table it shows. */
+  editsAsRows: boolean;
   hasTableSettings: boolean;
   settingsOpen: boolean;
   canDuplicate: boolean;
@@ -139,6 +148,23 @@ export function buildContainerActions(ctx: ContainerActionContext): DataElementA
       inline: true,
     });
   }
+  if (ctx.isTableView && ctx.canBuildTable) {
+    actions.push({
+      id: 'buildTable',
+      icon: 'grid_on',
+      labelKey: 'feature.dataElement.action.buildTable',
+      inline: true,
+    });
+  }
+  if (ctx.isTableView && ctx.drawsAsTable) {
+    actions.push({
+      id: 'editAsRows',
+      icon: 'view_list',
+      labelKey: 'feature.dataElement.action.editAsRows',
+      pressed: ctx.editsAsRows,
+      inline: true,
+    });
+  }
   actions.push({
     id: 'togglePopup',
     icon: 'open_in_new',
@@ -170,6 +196,12 @@ export function buildContainerActions(ctx: ContainerActionContext): DataElementA
         id: 'addGroup',
         icon: 'create_new_folder',
         labelKey: 'feature.dataElement.action.addGroup',
+        inline: true,
+      });
+      actions.push({
+        id: 'addTable',
+        icon: 'table_view',
+        labelKey: 'feature.dataElement.action.addTable',
         inline: true,
       });
     }

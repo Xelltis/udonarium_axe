@@ -6450,6 +6450,9 @@
         "deleteSection": "이 섹션 삭제",
         "normalView": "일반 표시",
         "tableView": "테이블 표시",
+        "buildTable": "표 구성",
+        "editAsRows": "행과 항목으로 편집",
+        "addTable": "표 추가",
         "duplicate": "복제",
         "saveTemplate": "템플릿으로 저장",
         "addFromTemplate": "템플릿에서 추가",
@@ -6465,10 +6468,58 @@
         "flesh": "생체",
         "mech": "메카"
       },
+      "tableBuilder": {
+        "titleBuild": "표 구성",
+        "titleNew": "표 추가",
+        "newTable": "표",
+        "newColumn": "열",
+        "hint": "열과 행을 늘어놓고 결정하면 표시가 테이블인 섹션으로 구성됩니다. 기법을 쓸 필요는 없습니다.",
+        "columns": "열",
+        "rows": "행",
+        "name": "이름",
+        "label": "머리글 문자",
+        "labelHint": "머리글 문자(비우면 이름)",
+        "group": "열 그룹",
+        "kind": "종류",
+        "kinds": {
+          "check": "체크",
+          "text": "문자",
+          "number": "수",
+          "select": "선택"
+        },
+        "choices": "선택지(1줄 또는 쉼표 구분)",
+        "moveUp": "위로",
+        "moveDown": "아래로",
+        "removeColumn": "열 삭제",
+        "removeRow": "행 삭제",
+        "addColumn": "열 추가",
+        "addRow": "행 추가",
+        "problems": {
+          "noColumn": "열이 하나도 없습니다",
+          "noRow": "행이 하나도 없습니다",
+          "blankName": "이름이 빈 열이나 행이 있습니다",
+          "sameName": "같은 이름의 열이 두 개 있습니다",
+          "sameRowName": "같은 이름의 행이 두 개 있습니다"
+        },
+        "lost": "결정하면 값이 들어 있는 셀 {{count}}개가 사라집니다",
+        "renameNote": "열 이름은 {이름}으로 참조할 때의 이름입니다. 바꿨을 때는 옛 이름을 쓰는 식이나 채팅 팔레트도 고쳐 주세요",
+        "cancel": "취소",
+        "apply": "결정"
+      },
       "tableView": {
         "judgeCalc": "판정 산출 모드",
         "skillLearned": "기능 습득 모드",
-        "checkColumn": "이 열을 한꺼번에 체크"
+        "checkColumn": "이 열을 한꺼번에 체크",
+        "edit": {
+          "editColumn": "열 「{{name}}」 편집",
+          "editRow": "행 「{{name}}」 편집",
+          "addColumn": "열 추가",
+          "addRow": "행 추가",
+          "moveLeft": "왼쪽으로",
+          "moveRight": "오른쪽으로",
+          "close": "닫기",
+          "confirmLost": "값이 들어 있는 셀 {{count}}개가 사라집니다. 계속할까요?"
+        }
       },
       "judgement": {
         "title": "{{label}}의 판정 후보",

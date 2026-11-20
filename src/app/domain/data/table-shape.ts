@@ -8,6 +8,7 @@ import {
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
 import {
+  canRenderAsTable,
   getTableBodyRows,
   getTableColumns,
   isCheckCellChecked,
@@ -40,10 +41,14 @@ export interface TableShapeRow {
   readonly from: string | null;
 }
 
-/** A table as it is built: its columns and its rows, in order. */
+/**
+ * A table as it is built: its columns and its rows, in order, and the names of the gap columns the
+ * table keeps as they are, which no column may go by.
+ */
 export interface TableShape {
   readonly columns: readonly TableShapeColumn[];
   readonly rows: readonly TableShapeRow[];
+  readonly gaps?: readonly string[];
 }
 
 const KIND_OF_FIELD: Readonly<Record<string, TableCellKind>> = {
@@ -84,19 +89,62 @@ export function tableShapeOf(table: DataElement): TableShape {
         from: column.name,
       };
     });
-  return { columns, rows: rows.map((row) => ({ name: row.name, from: row.identifier })) };
+  const gaps = getTableColumns(table)
+    .filter((column) => isGapColumn(column))
+    .map((column) => column.name);
+  return { columns, rows: rows.map((row) => ({ name: row.name, from: row.identifier })), gaps };
 }
 
+/**
+ * Whether a group or section may be built as a table: one that reads as a table already, or one that
+ * holds nothing yet. One holding fields, or groups of another shape, may not, as building it would
+ * leave what it holds stranded beside the table's rows.
+ */
+export function canBuildTable(element: DataElement): boolean {
+  return element.fieldRole !== DataElementRole.FIELD && (element.children.length < 1 || canRenderAsTable(element));
+}
+
+/**
+ * What keeps a table from being built: no column, no row, a blank name, two columns of one name, gap
+ * columns counted, or two rows of one name, as two groups side by side may not share one.
+ */
+export type TableShapeProblem = 'noColumn' | 'noRow' | 'blankName' | 'sameName' | 'sameRowName';
+
 /** What is wrong with a table as it is to be built, one line for each thing: none for one that may be built. */
-export function tableShapeProblems(shape: TableShape): ('noColumn' | 'noRow' | 'blankName' | 'sameName')[] {
-  const problems: ('noColumn' | 'noRow' | 'blankName' | 'sameName')[] = [];
+export function tableShapeProblems(shape: TableShape): TableShapeProblem[] {
+  const problems: TableShapeProblem[] = [];
   if (shape.columns.length < 1) problems.push('noColumn');
   if (shape.rows.length < 1) problems.push('noRow');
   const names = [...shape.columns.map((column) => column.name.trim()), ...shape.rows.map((row) => row.name.trim())];
   if (names.some((name) => name.length < 1)) problems.push('blankName');
-  const columnNames = shape.columns.map((column) => column.name.trim());
+  const columnNames = [...shape.columns.map((column) => column.name.trim()), ...(shape.gaps ?? [])];
   if (new Set(columnNames).size !== columnNames.length) problems.push('sameName');
+  const rowNames = shape.rows.map((row) => row.name.trim());
+  if (new Set(rowNames).size !== rowNames.length) problems.push('sameRowName');
   return problems;
+}
+
+/** A column of checks to add at the end of a table, named `base` and the first number from its place on that no column goes by. */
+export function newTableColumn(shape: TableShape, base: string): TableShapeColumn {
+  const names = new Set([...shape.columns.map((column) => column.name.trim()), ...(shape.gaps ?? [])]);
+  let number = shape.columns.length + 1;
+  while (names.has(`${base}${number}`)) number++;
+  return { name: `${base}${number}`, label: '', group: '', kind: 'check', choices: '', from: null };
+}
+
+/** A row to add at the end of a table, numbered on from the highest row named by a number, or by its place where none is. */
+export function newTableRow(shape: TableShape): TableShapeRow {
+  const numbers = shape.rows.map((row) => Number(row.name.trim())).filter((number) => Number.isInteger(number));
+  return { name: `${numbers.length > 0 ? Math.max(...numbers) + 1 : shape.rows.length + 1}`, from: null };
+}
+
+/** A list with the thing at `index` moved a place towards its start or its end, or as it was where it cannot go. */
+export function movedAPlace<T>(list: readonly T[], index: number, by: -1 | 1): readonly T[] {
+  const to = index + by;
+  if (index < 0 || index >= list.length || to < 0 || to >= list.length) return list;
+  const next = [...list];
+  [next[index], next[to]] = [next[to], next[index]];
+  return next;
 }
 
 /** Whether a cell holds anything: a ticked check, or any other value or words beside it. */

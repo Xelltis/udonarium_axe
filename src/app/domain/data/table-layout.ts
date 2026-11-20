@@ -1,4 +1,4 @@
-import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementRole, DataElementViewMode } from '@axe/domain/data/data-element';
 
 export interface TableColumn {
   name: string;
@@ -47,6 +47,19 @@ export function isTableControlRow(row: DataElement): boolean {
 /** The rows a table shows as data, leaving out control rows. */
 export function getTableBodyRows(element: DataElement): DataElement[] {
   return getRawTableRows(element).filter((row) => !isTableControlRow(row));
+}
+
+/**
+ * Whether a group or section is drawn as a table: set to show as one, laid out as one, and with a row
+ * and a column to show. One set to show as a table that is not drawn as one shows as its rows.
+ */
+export function drawsAsTable(element: DataElement): boolean {
+  return (
+    element.viewMode === DataElementViewMode.TABLE &&
+    canRenderAsTable(element) &&
+    getTableBodyRows(element).length > 0 &&
+    getTableColumns(element).length > 0
+  );
 }
 
 function createTableColumn(cell: DataElement): TableColumn {

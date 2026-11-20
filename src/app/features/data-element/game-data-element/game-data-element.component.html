@@ -657,6 +657,7 @@
           [isJudgeModeEnabled]="isJudgeModeEnabled()"
           [loopHorizontal]="loopHorizontal"
           [loopVertical]="loopVertical"
+          [editable]="isEdit() && !isReadOnly()"
         ></game-data-element-table-view>
       } @else if (gameDataElement().children.length) {
         <div class="elm-child-list relative box-border flex w-full min-w-0 flex-col gap-0.5 pl-2.25">

@@ -23,6 +23,9 @@ const container = (overrides: Partial<ContainerActionContext> = {}): ContainerAc
   isPopup: false,
   canToggleTableView: true,
   isTableView: false,
+  canBuildTable: true,
+  drawsAsTable: true,
+  editsAsRows: false,
   hasTableSettings: false,
   settingsOpen: false,
   canDuplicate: true,
@@ -90,6 +93,7 @@ describe('buildContainerActions', () => {
       'duplicate',
       'saveTemplate',
       'addGroup',
+      'addTable',
       'addFromTemplate',
       'addField',
       'delete',
@@ -100,6 +104,22 @@ describe('buildContainerActions', () => {
     const actions = buildContainerActions(container({ isTableView: true, hasTableSettings: true }));
     expect(ids(actions).slice(0, 2)).toEqual(['tableView', 'tableSettings']);
     expect(actions[0].labelKey).toBe('feature.dataElement.action.normalView');
+  });
+
+  it('offers building the table and editing it as rows only while the group is a table', () => {
+    const table = buildContainerActions(container({ isTableView: true, hasTableSettings: true, editsAsRows: true }));
+
+    expect(ids(table).slice(0, 4)).toEqual(['tableView', 'tableSettings', 'buildTable', 'editAsRows']);
+    expect(table.find((action) => action.id === 'editAsRows')?.pressed).toBe(true);
+    expect(ids(buildContainerActions(container()))).not.toContain('buildTable');
+    expect(ids(buildContainerActions(container()))).not.toContain('editAsRows');
+  });
+
+  it('offers no building on a group that may not be built as a table, and no switch where no table is drawn', () => {
+    const actions = buildContainerActions(container({ isTableView: true, canBuildTable: false, drawsAsTable: false }));
+
+    expect(ids(actions)).not.toContain('buildTable');
+    expect(ids(actions)).not.toContain('editAsRows');
   });
 
   it('offers only adding a picture in an image list', () => {

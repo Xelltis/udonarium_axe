@@ -1,0 +1,170 @@
+<form
+  class="box-border flex w-136 max-w-full flex-col gap-3 p-2 text-[12px]"
+  (ngSubmit)="apply()"
+  data-testid="table-builder"
+>
+  <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.dataElement.tableBuilder.hint' | transloco }}</p>
+
+  <section class="flex flex-col gap-1.5">
+    <h3 class="text-ui-muted m-0 text-[12px] font-bold">
+      {{ 'feature.dataElement.tableBuilder.columns' | transloco }}
+    </h3>
+    @for (column of columns(); track column.key; let i = $index, first = $first, last = $last) {
+      <div
+        class="border-ui-border-panel flex flex-wrap items-center gap-1 rounded-sm border border-solid p-1"
+        data-testid="table-builder-column"
+      >
+        <input
+          class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_7em] rounded-xs border border-solid px-1.5 py-1"
+          [name]="'column-name-' + column.key"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.name' | transloco"
+          [placeholder]="'feature.dataElement.tableBuilder.name' | transloco"
+          [ngModel]="column.name"
+          (ngModelChange)="setColumn(column.key, { name: $event })"
+        />
+        <input
+          class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_6em] rounded-xs border border-solid px-1.5 py-1"
+          [name]="'column-label-' + column.key"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.label' | transloco"
+          [placeholder]="'feature.dataElement.tableBuilder.labelHint' | transloco"
+          [ngModel]="column.label"
+          (ngModelChange)="setColumn(column.key, { label: $event })"
+        />
+        <input
+          class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_5em] rounded-xs border border-solid px-1.5 py-1"
+          [name]="'column-group-' + column.key"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.group' | transloco"
+          [placeholder]="'feature.dataElement.tableBuilder.group' | transloco"
+          [ngModel]="column.group"
+          (ngModelChange)="setColumn(column.key, { group: $event })"
+        />
+        <select
+          class="bg-ui-input border-ui-border-panel cursor-pointer rounded-xs border border-solid p-1"
+          [name]="'column-kind-' + column.key"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.kind' | transloco"
+          [ngModel]="column.kind"
+          (ngModelChange)="setColumn(column.key, { kind: $event })"
+        >
+          @for (kind of kinds; track kind) {
+            <option [ngValue]="kind">{{ 'feature.dataElement.tableBuilder.kinds.' + kind | transloco }}</option>
+          }
+        </select>
+        @if (column.kind === 'select') {
+          <input
+            class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_100%] rounded-xs border border-solid px-1.5 py-1"
+            [name]="'column-choices-' + column.key"
+            [attr.aria-label]="'feature.dataElement.tableBuilder.choices' | transloco"
+            [placeholder]="'feature.dataElement.tableBuilder.choices' | transloco"
+            [ngModel]="column.choices"
+            (ngModelChange)="setColumn(column.key, { choices: $event })"
+          />
+        }
+        <span class="ml-auto flex gap-0.5">
+          <button
+            type="button"
+            class="inline-flex size-6 items-center justify-center p-0"
+            [disabled]="first"
+            [attr.aria-label]="'feature.dataElement.tableBuilder.moveUp' | transloco"
+            (click)="moveColumn(i, -1)"
+          >
+            <i class="material-icons text-[16px]!">arrow_upward</i>
+          </button>
+          <button
+            type="button"
+            class="inline-flex size-6 items-center justify-center p-0"
+            [disabled]="last"
+            [attr.aria-label]="'feature.dataElement.tableBuilder.moveDown' | transloco"
+            (click)="moveColumn(i, 1)"
+          >
+            <i class="material-icons text-[16px]!">arrow_downward</i>
+          </button>
+          <button
+            type="button"
+            class="hover:text-ui-danger inline-flex size-6 items-center justify-center p-0"
+            [attr.aria-label]="'feature.dataElement.tableBuilder.removeColumn' | transloco"
+            (click)="removeColumn(column.key)"
+            data-testid="table-builder-remove-column"
+          >
+            <i class="material-icons text-[16px]!">close</i>
+          </button>
+        </span>
+      </div>
+    }
+    <button type="button" class="self-start px-2 py-1" (click)="addColumn()" data-testid="table-builder-add-column">
+      <i class="material-icons align-middle text-[15px]!">add</i>
+      {{ 'feature.dataElement.tableBuilder.addColumn' | transloco }}
+    </button>
+  </section>
+
+  <section class="flex flex-col gap-1.5">
+    <h3 class="text-ui-muted m-0 text-[12px] font-bold">{{ 'feature.dataElement.tableBuilder.rows' | transloco }}</h3>
+    @for (row of rows(); track row.key; let i = $index, first = $first, last = $last) {
+      <div class="flex items-center gap-1" data-testid="table-builder-row">
+        <input
+          class="bg-ui-input border-ui-border-panel min-w-0 flex-1 rounded-xs border border-solid px-1.5 py-1"
+          [name]="'row-name-' + row.key"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.name' | transloco"
+          [ngModel]="row.name"
+          (ngModelChange)="setRow(row.key, { name: $event })"
+        />
+        <button
+          type="button"
+          class="inline-flex size-6 items-center justify-center p-0"
+          [disabled]="first"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.moveUp' | transloco"
+          (click)="moveRow(i, -1)"
+        >
+          <i class="material-icons text-[16px]!">arrow_upward</i>
+        </button>
+        <button
+          type="button"
+          class="inline-flex size-6 items-center justify-center p-0"
+          [disabled]="last"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.moveDown' | transloco"
+          (click)="moveRow(i, 1)"
+        >
+          <i class="material-icons text-[16px]!">arrow_downward</i>
+        </button>
+        <button
+          type="button"
+          class="hover:text-ui-danger inline-flex size-6 items-center justify-center p-0"
+          [attr.aria-label]="'feature.dataElement.tableBuilder.removeRow' | transloco"
+          (click)="removeRow(row.key)"
+          data-testid="table-builder-remove-row"
+        >
+          <i class="material-icons text-[16px]!">close</i>
+        </button>
+      </div>
+    }
+    <button type="button" class="self-start px-2 py-1" (click)="addRow()" data-testid="table-builder-add-row">
+      <i class="material-icons align-middle text-[15px]!">add</i>
+      {{ 'feature.dataElement.tableBuilder.addRow' | transloco }}
+    </button>
+  </section>
+
+  @for (problem of problems(); track problem) {
+    <p class="text-ui-danger m-0 text-[11px]" role="alert">
+      {{ 'feature.dataElement.tableBuilder.problems.' + problem | transloco }}
+    </p>
+  }
+  @if (cellsLost() > 0) {
+    <p class="text-ui-warning m-0 text-[11px]" role="status" data-testid="table-builder-lost">
+      {{ 'feature.dataElement.tableBuilder.lost' | transloco: { count: cellsLost() } }}
+    </p>
+  }
+  <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.dataElement.tableBuilder.renameNote' | transloco }}</p>
+
+  <div class="flex justify-end gap-2">
+    <button class="px-2.5 py-1.25" type="button" (click)="cancel()">
+      {{ 'feature.dataElement.tableBuilder.cancel' | transloco }}
+    </button>
+    <button
+      class="border-ui-accent bg-ui-accent-solid px-2.5 py-1.25 text-white"
+      type="submit"
+      [disabled]="problems().length > 0"
+      data-testid="table-builder-apply"
+    >
+      {{ 'feature.dataElement.tableBuilder.apply' | transloco }}
+    </button>
+  </div>
+</form>

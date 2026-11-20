@@ -7302,6 +7302,9 @@
       "deleteSection": "このセクションを削除",
       "normalView": "通常表示",
       "tableView": "テーブル表示",
+      "buildTable": "表を組む",
+      "editAsRows": "行と項目で編集",
+      "addTable": "表を追加",
       "duplicate": "複製",
       "saveTemplate": "テンプレートとして保存",
       "addFromTemplate": "テンプレートから追加",
@@ -7317,10 +7320,58 @@
       "flesh": "生身",
       "mech": "メカ"
     },
+    "tableBuilder": {
+      "titleBuild": "表を組む",
+      "titleNew": "表を追加",
+      "newTable": "表",
+      "newColumn": "列",
+      "hint": "列と行を並べて決定すると、表示がテーブルのセクションとして組まれます。記法を書く必要はありません。",
+      "columns": "列",
+      "rows": "行",
+      "name": "名前",
+      "label": "見出しの文字",
+      "labelHint": "見出しの文字（空なら名前）",
+      "group": "列グループ",
+      "kind": "種類",
+      "kinds": {
+        "check": "チェック",
+        "text": "文字",
+        "number": "数",
+        "select": "選択"
+      },
+      "choices": "選択肢（1行またはカンマ区切り）",
+      "moveUp": "上へ",
+      "moveDown": "下へ",
+      "removeColumn": "列を消す",
+      "removeRow": "行を消す",
+      "addColumn": "列を足す",
+      "addRow": "行を足す",
+      "problems": {
+        "noColumn": "列が1つもありません",
+        "noRow": "行が1つもありません",
+        "blankName": "名前が空の列か行があります",
+        "sameName": "同じ名前の列が2つあります",
+        "sameRowName": "同じ名前の行が2つあります"
+      },
+      "lost": "決定すると、値の入ったセルが{{count}}個消えます",
+      "renameNote": "列の名前は {名前} で参照するときの名前です。変えたときは、古い名前を使っている式やチャットパレットも直してください",
+      "cancel": "キャンセル",
+      "apply": "決定"
+    },
     "tableView": {
       "judgeCalc": "判定算出モード",
       "skillLearned": "技能習得モード",
-      "checkColumn": "この列をまとめてチェック"
+      "checkColumn": "この列をまとめてチェック",
+      "edit": {
+        "editColumn": "列「{{name}}」を編集",
+        "editRow": "行「{{name}}」を編集",
+        "addColumn": "列を足す",
+        "addRow": "行を足す",
+        "moveLeft": "左へ",
+        "moveRight": "右へ",
+        "close": "閉じる",
+        "confirmLost": "値の入ったセルが{{count}}個消えます。よろしいですか？"
+      }
     },
     "judgement": {
       "title": "{{label}} の判定候補",

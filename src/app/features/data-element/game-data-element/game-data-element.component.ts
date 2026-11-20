@@ -44,16 +44,7 @@ import {
   DataElementViewMode,
 } from '@axe/domain/data/data-element';
 import { calcSourceIdentifiers, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
-import {
-  buildTableColumnHeaderGroups,
-  canRenderAsTable as canRenderAsTableShared,
-  getRawTableRows,
-  getSelectOptions,
-  getTableColumns as getTableColumnsShared,
-  isTableControlRow as isTableControlRowShared,
-  type TableColumn as DataElementTableColumn,
-  type TableColumnHeaderGroup as DataElementTableColumnHeaderGroup,
-} from '@axe/domain/data/table-layout';
+import { getSelectOptions } from '@axe/domain/data/table-layout';
 import {
   openAddFieldPicker,
   openDataElementEditor,
@@ -96,6 +87,7 @@ import {
 } from '@axe/features/data-element/game-data-element/value-stepper';
 import { GameDataElementFieldOptionsComponent } from '@axe/features/data-element/game-data-element-field-options/game-data-element-field-options.component';
 import { GameDataElementRangeShapeComponent } from '@axe/features/data-element/game-data-element-range-shape/game-data-element-range-shape.component';
+import { TableBuilderLauncher } from '@axe/features/data-element/table-builder/table-builder-launcher.service';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -156,6 +148,7 @@ export class GameDataElementComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly edit = inject(DataElementEditService);
+  private readonly tableBuilder = inject(TableBuilderLauncher);
   private readonly bottomSheet = inject(BottomSheetService);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   /** Whether the screen is a touch screen, where a handle is dragged by the finger rather than the browser. */
@@ -209,33 +202,10 @@ export class GameDataElementComponent {
     }
   }
 
-  readonly tableRows = computed(() => {
+  /** Whether this group or section may be built as a table from the table builder (see `canBuildTable`). */
+  protected readonly canBuildTable = computed(() => {
     this.trackTableDependencies();
-    return getRawTableRows(this.gameDataElement());
-  });
-
-  readonly tableBodyRows = computed(() => this.tableRows().filter((row) => !isTableControlRowShared(row)));
-
-  readonly canRenderTableRows = computed(() => {
-    this.trackTableDependencies();
-    return canRenderAsTableShared(this.gameDataElement());
-  });
-
-  readonly tableColumns = computed<DataElementTableColumn[]>(() => {
-    this.trackTableDependencies();
-    return getTableColumnsShared(this.gameDataElement());
-  });
-
-  readonly hasTableColumnGroups = computed(() => this.tableColumns().some((column) => column.group.length > 0));
-
-  readonly tableColumnHeaderGroups = computed<DataElementTableColumnHeaderGroup[]>(() =>
-    buildTableColumnHeaderGroups(this.tableColumns())
-  );
-
-  readonly tableRowHeaderLabel = computed(() => {
-    const element = this.gameDataElement();
-    this.objectChange.versionOf(element.identifier)();
-    return element.getAttribute(DataElementAttribute.ROW_HEADER_LABEL).trim();
+    return this.canToggleTableViewMode() && this.edit.canBuildTable(this.gameDataElement());
   });
 
   /** The element's name, value and current value as it holds them, read through its version. */
@@ -861,6 +831,9 @@ export class GameDataElementComponent {
       isPopup: this.isPopupDataElement(),
       canToggleTableView: this.canToggleTableViewMode(),
       isTableView: this.isTableViewMode(),
+      canBuildTable: this.canBuildTable(),
+      drawsAsTable: this.drawsAsTable(),
+      editsAsRows: this.editsAsRows(),
       hasTableSettings: this.shouldShowContainerOptions(),
       settingsOpen: this.fieldOptionsOpen(),
       canDuplicate: this.canDuplicateElement(),
@@ -894,6 +867,15 @@ export class GameDataElementComponent {
         return this.addSiblingElement();
       case 'tableView':
         return this.toggleTableViewMode();
+      case 'buildTable':
+        void this.tableBuilder.buildTable(this.gameDataElement());
+        return;
+      case 'editAsRows':
+        this.edit.toggleEditAsRows(this.gameDataElement());
+        return;
+      case 'addTable':
+        void this.tableBuilder.addTable(this.gameDataElement());
+        return;
       case 'duplicate':
         return this.duplicateElement();
       case 'saveTemplate':
@@ -1150,18 +1132,23 @@ export class GameDataElementComponent {
   get loopVertical(): boolean {
     return this.attrText(DataElementAttribute.LOOP_VERTICAL) === 'true';
   }
+  /** Whether this table is edited as its rows and fields (see `DataElementEditService.editsAsRows`). */
+  protected editsAsRows(): boolean {
+    return this.edit.editsAsRows(this.gameDataElement());
+  }
+
+  /** Whether this element is drawn as a table (see `drawsAsTable`). */
+  protected readonly drawsAsTable = computed(() => {
+    this.trackTableDependencies();
+    return this.isTableViewMode() && this.edit.drawsAsTable(this.gameDataElement());
+  });
+
   /**
-   * Whether this element is drawn as a table rather than as rows: out of edit mode, set to show as
-   * a table, and with rows and columns to show.
+   * Whether this element is drawn as a table rather than as rows: as `drawsAsTable` says, unless it is
+   * switched to being edited as its rows in edit mode.
    */
   shouldRenderTableView(): boolean {
-    return (
-      !this.isEdit() &&
-      this.isTableViewMode() &&
-      this.canRenderTableRows() &&
-      this.tableBodyRows().length > 0 &&
-      this.tableColumns().length > 0
-    );
+    return (!this.isEdit() || !this.editsAsRows()) && this.drawsAsTable();
   }
 
   /**

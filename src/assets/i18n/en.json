@@ -7302,6 +7302,9 @@
       "deleteSection": "Delete this section",
       "normalView": "Normal view",
       "tableView": "Table view",
+      "buildTable": "Build the table",
+      "editAsRows": "Edit as rows and fields",
+      "addTable": "Add a table",
       "duplicate": "Duplicate",
       "saveTemplate": "Save as template",
       "addFromTemplate": "Add from template",
@@ -7317,10 +7320,58 @@
       "flesh": "Flesh",
       "mech": "Mech"
     },
+    "tableBuilder": {
+      "titleBuild": "Build the table",
+      "titleNew": "Add a table",
+      "newTable": "Table",
+      "newColumn": "Column",
+      "hint": "Lay out the columns and rows and press Build: the section is made into a table, with no notation to write.",
+      "columns": "Columns",
+      "rows": "Rows",
+      "name": "Name",
+      "label": "Heading",
+      "labelHint": "Heading (the name when empty)",
+      "group": "Column group",
+      "kind": "Kind",
+      "kinds": {
+        "check": "Check",
+        "text": "Text",
+        "number": "Number",
+        "select": "Select"
+      },
+      "choices": "Choices (one per line or comma separated)",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeColumn": "Remove the column",
+      "removeRow": "Remove the row",
+      "addColumn": "Add a column",
+      "addRow": "Add a row",
+      "problems": {
+        "noColumn": "There is no column",
+        "noRow": "There is no row",
+        "blankName": "A column or row has no name",
+        "sameName": "Two columns have the same name",
+        "sameRowName": "Two rows have the same name"
+      },
+      "lost": "Building removes {{count}} cells holding a value",
+      "renameNote": "A column's name is what {name} refers to. When you change it, also fix the formulas and chat palettes that use the old name",
+      "cancel": "Cancel",
+      "apply": "Build"
+    },
     "tableView": {
       "judgeCalc": "Judge calc mode",
       "skillLearned": "Skill learn mode",
-      "checkColumn": "Tick the whole column"
+      "checkColumn": "Tick the whole column",
+      "edit": {
+        "editColumn": "Edit the column \"{{name}}\"",
+        "editRow": "Edit the row \"{{name}}\"",
+        "addColumn": "Add a column",
+        "addRow": "Add a row",
+        "moveLeft": "Move left",
+        "moveRight": "Move right",
+        "close": "Close",
+        "confirmLost": "{{count}} cells holding a value will be removed. Go ahead?"
+      }
     },
     "judgement": {
       "title": "Judgement candidates for {{label}}",

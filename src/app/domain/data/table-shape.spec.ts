@@ -9,8 +9,12 @@ import {
 import { getTableBodyRows, getTableColumns } from '@axe/domain/data/table-layout';
 import {
   applyTableShape,
+  canBuildTable,
   cellsLostBy,
   createShapedTable,
+  movedAPlace,
+  newTableColumn,
+  newTableRow,
   type TableShape,
   tableShapeOf,
   tableShapeProblems,
@@ -69,7 +73,7 @@ describe('table-shape', () => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
-  it('reads a table as it stands, its gap columns and the row that holds their settings left out', () => {
+  it('reads a table as it stands, its gap columns kept aside and the row that holds their settings left out', () => {
     const table = skillTable();
 
     expect(tableShapeOf(table)).toEqual({
@@ -81,6 +85,7 @@ describe('table-shape', () => {
         { name: '2', from: table.children[1].identifier },
         { name: '3', from: table.children[2].identifier },
       ],
+      gaps: ['間'],
     });
   });
 
@@ -183,5 +188,49 @@ describe('table-shape', () => {
       'blankName',
       'sameName',
     ]);
+    expect(
+      tableShapeProblems({
+        columns: [column],
+        rows: [
+          { name: '2', from: null },
+          { name: ' 2', from: null },
+        ],
+      })
+    ).toEqual(['sameRowName']);
+  });
+
+  it('builds a table only on a group that reads as one already, or holds nothing', () => {
+    const group = DataElement.create('能力', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+
+    expect(canBuildTable(skillTable())).toBe(true);
+    expect(canBuildTable(group)).toBe(true);
+    group.appendChild(cell('HP', 10));
+    expect(canBuildTable(group)).toBe(false);
+    expect(canBuildTable(cell('HP', 10))).toBe(false);
+  });
+
+  it('refuses a column taking the name of a gap column the table keeps', () => {
+    const table = skillTable();
+    const shape = tableShapeOf(table);
+
+    expect(tableShapeProblems({ ...shape, columns: [{ ...shape.columns[0], name: '間' }, shape.columns[1]] })).toEqual([
+      'sameName',
+    ]);
+  });
+
+  it('names a new column apart from every other, gap columns included, and numbers a new row on', () => {
+    const shape = tableShapeOf(skillTable());
+
+    expect(newTableColumn(shape, '列')).toMatchObject({ name: '列3', kind: 'check', from: null });
+    expect(newTableColumn({ ...shape, gaps: ['列3'] }, '列').name).toBe('列4');
+    expect(newTableRow(shape)).toEqual({ name: '4', from: null });
+    expect(newTableRow({ columns: [], rows: [{ name: '甲', from: null }] })).toEqual({ name: '2', from: null });
+  });
+
+  it('moves a thing a place either way, and leaves a list as it was where it cannot go', () => {
+    expect(movedAPlace(['a', 'b', 'c'], 0, 1)).toEqual(['b', 'a', 'c']);
+    expect(movedAPlace(['a', 'b', 'c'], 2, -1)).toEqual(['a', 'c', 'b']);
+    expect(movedAPlace(['a', 'b', 'c'], 0, -1)).toEqual(['a', 'b', 'c']);
+    expect(movedAPlace(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'b', 'c']);
   });
 });
