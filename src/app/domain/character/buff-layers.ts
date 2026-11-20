@@ -11,10 +11,32 @@ export type ItemLayer =
   | { readonly kind: 'move'; readonly by: number; readonly order: number; readonly tie: string }
   | { readonly kind: 'hand'; readonly text: string; readonly order: number; readonly tie: string };
 
-/** The number words hold, read as a line of text is read for a number: its leading whole number, or none. */
+/** The number words lead with, its sign and decimals with it, after any spaces before it. */
+const LEADING_NUMBER = /^(\s*)([+-]?\d+(?:\.\d+)?)/;
+
+/** The number words hold, read as a line of text is read for a number: the number it leads with, or none. */
 export function numberIn(text: string): number | null {
-  const number = parseInt(text, 10);
-  return Number.isFinite(number) ? number : null;
+  const found = LEADING_NUMBER.exec(text);
+  return found ? Number(found[2]) : null;
+}
+
+/** How many places after the point a number is written with. */
+function placesOf(number: string): number {
+  const point = number.indexOf('.');
+  return point < 0 ? 0 : number.length - point - 1;
+}
+
+/**
+ * Words with the number they lead with moved by an amount, in its place: what follows it, as a unit,
+ * kept as it is, and written to as many places after the point as the two had; words leading with no
+ * number as they are.
+ */
+export function movedBy(text: string, by: number): string {
+  const found = LEADING_NUMBER.exec(text);
+  if (!found || by === 0) return text;
+  const places = Math.max(placesOf(found[2]), placesOf(String(by)));
+  const moved = Number(found[2]) + by;
+  return `${found[1]}${places > 0 ? moved.toFixed(places) : String(moved)}${text.slice(found[0].length)}`;
 }
 
 /**
@@ -25,11 +47,7 @@ export function numberIn(text: string): number | null {
 export function composeLayers(ground: string, layers: readonly ItemLayer[]): string {
   return [...layers]
     .sort((a, b) => a.order - b.order || (a.tie < b.tie ? -1 : a.tie > b.tie ? 1 : 0))
-    .reduce((beneath, layer) => {
-      if (layer.kind !== 'move') return layer.text;
-      const number = numberIn(beneath);
-      return number === null ? beneath : String(number + layer.by);
-    }, ground);
+    .reduce((beneath, layer) => (layer.kind === 'move' ? movedBy(beneath, layer.by) : layer.text), ground);
 }
 
 /** What an item holds, as text: a resource's amount left, anything else's value. */
@@ -109,13 +127,8 @@ export function takeInItem(item: DataElement, standing: readonly ItemLayer[], or
   if (groundOf(item) !== null) return;
   const held = heldTextOf(item);
   const moved = standing.reduce((sum, layer) => sum + (layer.kind === 'move' ? layer.by : 0), 0);
-  const number = numberIn(held);
   const wordsStand = standing.some((layer) => layer.kind === 'words') || handOf(item) !== null;
-  keepNote(
-    item,
-    DataElementAttribute.BUFF_GROUND,
-    wordsStand || moved === 0 || number === null ? held : String(number - moved)
-  );
+  keepNote(item, DataElementAttribute.BUFF_GROUND, wordsStand ? held : movedBy(held, -moved));
 }
 
 /**
@@ -159,7 +172,6 @@ export function settleItem(items: readonly DataElement[], standing: readonly Ite
  */
 export function moveGround(item: DataElement, by: number): void {
   const ground = groundOf(item);
-  const number = ground === null ? null : numberIn(ground);
-  if (number === null || by === 0) return;
-  keepNote(item, DataElementAttribute.BUFF_GROUND, String(number + by));
+  if (ground === null) return;
+  keepNote(item, DataElementAttribute.BUFF_GROUND, movedBy(ground, by));
 }

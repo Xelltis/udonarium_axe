@@ -37,6 +37,13 @@ describe('buff-layers', () => {
       expect(composeLayers('x', [words('A', 1, 'b'), words('B', 1, 'a')])).toBe('A');
     });
 
+    it('moves the number words lead with in its place, keeping its places after the point and the unit after it', () => {
+      expect(composeLayers('1.5', [move(1, 1)])).toBe('2.5');
+      expect(composeLayers('10m', [move(1, 1)])).toBe('11m');
+      expect(composeLayers('0.1', [move(0.2, 1)])).toBe('0.3');
+      expect(composeLayers(' -3 点', [move(5, 1)])).toBe(' 2 点');
+    });
+
     it('takes words written otherwise as a layer of their own, over those laid before and under those laid after', () => {
       const item = DataElement.create('属性', '炎');
       noteLeftByBuffs(item);
