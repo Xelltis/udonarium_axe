@@ -61,6 +61,7 @@ export class AgentMapTools {
         ).identifier
       : '';
     const previous = args['replace_previous'] === true ? this.last : null;
+    if (previous) this.last = null;
     const built = await this.mapGeneration.build(settings, {
       name: this.mapGeneration.nameOf(settings, textArg(args, 'name')),
       fogEnabled: args['fog'] === true,
@@ -68,6 +69,7 @@ export class AgentMapTools {
       lightMotion: '',
     });
     if (!built) {
+      if (previous && this.last === null) this.last = previous;
       throw new AgentToolError(
         'failed',
         'That map has more terrain than a table may hold. Ask for fewer rooms, a smaller or sparser field, or squares rather than hexes.'

@@ -89,6 +89,19 @@ describe('AgentMapTools', () => {
     expect((discard.mock.calls[0][0] as GeneratedMap).table.identifier).toBe(kept);
   });
 
+  it('takes the map made last away once however many calls ask to replace it at once', async () => {
+    await call({ kind: 'dungeon' });
+    const kept = `table-${made}`;
+
+    await Promise.all([
+      call({ kind: 'dungeon', replace_previous: true, switch_to: false }),
+      call({ kind: 'dungeon', replace_previous: true, switch_to: false }),
+    ]);
+
+    expect(discard).toHaveBeenCalledOnce();
+    expect((discard.mock.calls[0][0] as GeneratedMap).table.identifier).toBe(kept);
+  });
+
   it('stands the party it names at the way in, and refuses a map too large', async () => {
     vi.spyOn(TestBed.inject(PartyService), 'parties').mockReturnValue([{ identifier: 'p1', name: '一行' } as Party]);
     build.mockResolvedValueOnce(null);
