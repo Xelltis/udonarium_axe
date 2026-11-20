@@ -185,6 +185,20 @@ describe('CutIn', () => {
       expect([cutIn.width, cutIn.height]).toEqual([300, 10]);
     });
 
+    it('changes nothing for a side given as no number, whether the other side follows a shape or not', () => {
+      for (const side of ['width', 'height'] as const) {
+        for (const value of [Number.NaN, null as unknown as number, Number.POSITIVE_INFINITY]) {
+          for (const shape of [{ width: 100, height: 1000 }, null]) {
+            cutIn.setSize(480, 320);
+
+            cutIn.resizeSide(side, value, shape);
+
+            expect([cutIn.width, cutIn.height], `${side} ${value} ${JSON.stringify(shape)}`).toEqual([480, 320]);
+          }
+        }
+      }
+    });
+
     it('plays a size given from elsewhere held inside the bounds, and at original size its own as it is', () => {
       cutIn.width = 5000;
       cutIn.height = 3;

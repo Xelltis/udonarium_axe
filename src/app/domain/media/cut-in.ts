@@ -134,9 +134,11 @@ export class CutIn extends GameObject implements InnerXml {
    * with both sides known, as keeping its aspect does; both are then held inside the bounds its kind
    * allows (see {@link setSize}). Where the side that follows would go past its bounds, it is held at
    * them and the side given follows it back, so the proportions stay; only where no size within both
-   * bounds has them is the cut-in sized to the nearest it can be.
+   * bounds has them is the cut-in sized to the nearest it can be. A side given as anything but a
+   * finite number, as a field left empty gives, changes nothing, the other side included.
    */
   resizeSide(side: 'width' | 'height', value: number, shape: { width: number; height: number } | null): void {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return;
     const given = this.clampSize(side === 'width' ? value : this.width, side === 'height' ? value : this.height);
     if (!shape || !(shape.width > 0) || !(shape.height > 0)) {
       this.setSize(given.width, given.height);

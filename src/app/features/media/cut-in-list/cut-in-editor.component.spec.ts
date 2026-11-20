@@ -374,6 +374,20 @@ describe('CutInEditorComponent', () => {
     expect([cutIn.width, cutIn.height]).toEqual([300, 200]);
   });
 
+  it('leaves the size as it is when a field is cleared while the aspect is kept', () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = true;
+    cutIn.width = 640;
+    cutIn.height = 480;
+
+    component.cutInWidth = Number.NaN;
+    component.cutInHeight = Number.NaN;
+
+    expect([cutIn.width, cutIn.height]).toEqual([640, 480]);
+  });
+
   it('writes no size while it may not be edited, not even the side the kept aspect would follow', async () => {
     cutIn.isVideoCutIn = true;
     cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
