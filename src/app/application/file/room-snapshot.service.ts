@@ -11,7 +11,6 @@ import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { RoomSnapshotMeta, RoomSnapshotStore, selectExpiredSnapshots } from '@axe/core/storage/room-snapshot-store';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 @Injectable({ providedIn: 'root' })
 export class RoomSnapshotService {
@@ -140,13 +139,11 @@ export class RoomSnapshotService {
       if (!record) return false;
 
       await this.startRoom.whenSettled();
-      const reloadCheck = this.objectStore.get<ReloadCheck>('ReloadCheck');
-      if (options.agreed) reloadCheck?.agreeInAdvance();
-      else reloadCheck?.reloadCheckStart(this.currentRoomName() !== '');
-
       const file = new File([record.blob], 'room-snapshot.zip', { type: 'application/zip' });
-      const { dataRead } = await this.fileArchiver.load([file]);
-      if (!dataRead && (reloadCheck?.isLoadOk() ?? true)) {
+      const { dataRead, declined } = await this.fileArchiver.load([file], undefined, {
+        check: options.agreed ? 'agreed' : 'ask',
+      });
+      if (!dataRead && !declined) {
         this.snackbar.show(this.t('feature.roomArchive.restoreUnreadable'));
       }
       return dataRead;

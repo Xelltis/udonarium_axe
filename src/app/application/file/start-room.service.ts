@@ -32,7 +32,6 @@ import { DEFAULT_CHAT_TABS } from '@axe/domain/chat/constants';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 /** How long the start waits on the browser to say whether it keeps a room to start on, at most. */
 const PREPARE_TIMEOUT_MS = 1500;
@@ -396,9 +395,8 @@ export class StartRoomService {
   private async setOutKept(blob: Blob | null): Promise<LoadResult | null> {
     if (!blob) return null;
     try {
-      this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(false);
       const file = new File([blob], 'start-room.zip', { type: 'application/zip' });
-      const result = await this.fileArchiver.load([file], undefined, { stillWanted: hasTableToItself });
+      const result = await this.fileArchiver.load([file], undefined, { stillWanted: hasTableToItself, check: 'quiet' });
       this.brought = { images: result.images, audios: result.audios };
       return result;
     } catch (reason) {

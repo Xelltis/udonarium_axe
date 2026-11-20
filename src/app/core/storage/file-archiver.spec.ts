@@ -80,6 +80,8 @@ describe('FileArchiver', () => {
     vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
       isLoadOk: () => true,
       reloadCheckStart: vi.fn(),
+      agreeInAdvance: vi.fn(),
+      reset: vi.fn(),
       answerWithheldCheck: () => true,
       answerCheck: () => true,
     } as unknown as ReturnType<typeof ObjectStore.instance.get>);
@@ -95,6 +97,34 @@ describe('FileArchiver', () => {
     FileArchiver.instance.destroy();
     (FileArchiver as unknown as { _instance: FileArchiver | undefined })._instance = undefined;
     vi.restoreAllMocks();
+  });
+
+  it("starts every load's check afresh as it says it was agreed, ends it with the load, and says whether it was declined", async () => {
+    let ok = true;
+    const guard = {
+      isLoadOk: () => ok,
+      reloadCheckStart: vi.fn(),
+      agreeInAdvance: vi.fn(),
+      reset: vi.fn(),
+      answerWithheldCheck: () => true,
+      answerCheck: () => true,
+    };
+    vi.spyOn(ObjectStore.instance, 'get').mockReturnValue(
+      guard as unknown as ReturnType<typeof ObjectStore.instance.get>
+    );
+    Object.defineProperty(Network.instance, 'peerContext', { get: () => ({ roomName: 'room' }), configurable: true });
+
+    await FileArchiver.instance.load([], undefined, { check: 'agreed' });
+    await FileArchiver.instance.load([]);
+    await FileArchiver.instance.load([], undefined, { check: 'quiet' });
+    ok = false;
+    const declined = await FileArchiver.instance.load([]);
+
+    expect(guard.agreeInAdvance).toHaveBeenCalledOnce();
+    expect(guard.reloadCheckStart.mock.calls).toEqual([[true], [false], [true]]);
+    expect(guard.reset).toHaveBeenCalledTimes(4);
+    expect(guard.reset.mock.invocationCallOrder[0]).toBeLessThan(guard.reloadCheckStart.mock.invocationCallOrder[0]);
+    expect(declined.declined).toBe(true);
   });
 
   describe('instance', () => {
@@ -437,9 +467,12 @@ describe('FileArchiver', () => {
     });
 
     it('takes a picture in though the last load of a room was declined', async () => {
-      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({ isLoadOk: () => false } as unknown as ReturnType<
-        typeof ObjectStore.instance.get
-      >);
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
+        isLoadOk: () => false,
+        reloadCheckStart: vi.fn(),
+        agreeInAdvance: vi.fn(),
+        reset: vi.fn(),
+      } as unknown as ReturnType<typeof ObjectStore.instance.get>);
       vi.spyOn(ImageStorage.instance, 'addAsync').mockResolvedValue(ImageFile.createEmpty('after-decline'));
 
       const taken = await FileArchiver.instance.loadAssets([
@@ -480,6 +513,8 @@ describe('FileArchiver', () => {
       vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
         isLoadOk: () => ok,
         reloadCheckStart: vi.fn(),
+        agreeInAdvance: vi.fn(),
+        reset: vi.fn(),
         answerWithheldCheck: () => {
           asked.push('withheld');
           ok = false;
@@ -527,6 +562,8 @@ describe('FileArchiver', () => {
       vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
         isLoadOk: () => false,
         reloadCheckStart: vi.fn(),
+        agreeInAdvance: vi.fn(),
+        reset: vi.fn(),
       } as unknown as ReturnType<typeof ObjectStore.instance.get>);
       const read: string[] = [];
       const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
@@ -698,6 +735,8 @@ describe('FileArchiver', () => {
       vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
         isLoadOk: () => false,
         reloadCheckStart: vi.fn(),
+        agreeInAdvance: vi.fn(),
+        reset: vi.fn(),
       } as unknown as ReturnType<typeof ObjectStore.instance.get>);
 
       const result = await FileArchiver.instance.loadImages([imageFile('a.png')]);

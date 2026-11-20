@@ -5,7 +5,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 /** How long the menu goes on showing a finished save, so the last of its count can be read. */
 const SAVED_SHOWN_MS = 500;
@@ -56,8 +55,7 @@ export class RoomFilesService {
    */
   async loadAgreed(file: File): Promise<boolean> {
     if (!this.rolePermission.canEditTabletop()) return false;
-    this.objectStore.get<ReloadCheck>('ReloadCheck')?.agreeInAdvance();
-    const { dataRead } = await this.fileArchiver.load([file]);
+    const { dataRead } = await this.fileArchiver.load([file], undefined, { check: 'agreed' });
     return dataRead;
   }
 
@@ -73,7 +71,6 @@ export class RoomFilesService {
       return;
     }
     const files = input.files;
-    this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(Network.peerContext.roomName !== '');
     if (files && files.length) this.fileArchiver.load(files);
     input.value = '';
   }

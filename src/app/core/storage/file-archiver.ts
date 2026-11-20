@@ -34,6 +34,8 @@ type UpdateCallback = (metadata: MetaData) => void;
  *  a singleton in the store answering to this shape. */
 interface LoadGuard extends GameObject {
   reloadCheckStart(isOnline: boolean): void;
+  agreeInAdvance(): void;
+  reset(): void;
   isLoadOk(): boolean;
   answerWithheldCheck(): boolean;
   answerCheck(): boolean;
@@ -64,7 +66,17 @@ export interface LoadResult {
   readonly audios: readonly string[];
   /** The identifiers of the 3D models the load took in. */
   readonly models: readonly string[];
+  /** True where the person declined the room data the load carried, which then took nothing in. */
+  readonly declined?: true;
 }
+
+/**
+ * How the room data a load may carry is asked about: `ask`, as any load is, before a room in play is
+ * overwritten and before a save withheld in part goes in; `agreed`, for a load the person agreed to
+ * before it began, as one an AI asks for is asked about on the seat's screen; `quiet`, for the room
+ * the app sets out itself as it starts, before anyone is in it.
+ */
+export type LoadCheck = 'ask' | 'agreed' | 'quiet';
 
 /** What one load carries along from file to file. */
 interface LoadRun {
@@ -207,9 +219,6 @@ export class FileArchiver {
     if (event.dataTransfer?.types?.includes(INTERNAL_DRAG_TYPE)) return;
     if (!this.mayLoadDrops()) return;
 
-    // A drop can arrive before startup finishes, or where no guard exists at all.
-    this.reloadCheck?.reloadCheckStart(this.networkService.peerContext?.roomName !== '');
-
     const files = event.dataTransfer?.files;
     if (!files) return;
     this.load(files, { x: event.clientX, y: event.clientY });
@@ -226,6 +235,9 @@ export class FileArchiver {
    * announced for placing on the table, the next one offset a little from the last. Images inside
    * a zip are not placed, and a zip exported as a CCFOLIA room is handed on whole instead.
    *
+   * The room data a load carries is asked about as `check` says (see {@link LoadCheck}), afresh for
+   * every load, an earlier load's answers holding nothing here.
+   *
    * A zip that cannot be read is logged rather than thrown, so whether a save's data was read at all
    * is answered in the result. Given `stillWanted`, it is asked before each file inside a zip, and the
    * rest is left once it answers false.
@@ -233,7 +245,32 @@ export class FileArchiver {
   async load(
     files: File[] | FileList,
     dropPoint?: { x: number; y: number },
-    options: { stillWanted?: () => boolean } = {}
+    options: { stillWanted?: () => boolean; check?: LoadCheck } = {}
+  ): Promise<LoadResult> {
+    const guard = this.reloadCheck;
+    this.beginCheck(guard, options.check ?? 'ask');
+    try {
+      const run = await this.loadRun(files, dropPoint, options);
+      return guard && !guard.isLoadOk() ? { ...run, declined: true } : run;
+    } finally {
+      guard?.reset();
+    }
+  }
+
+  /**
+   * Starts the check of one load afresh, however the load came, so no answer to an earlier load holds
+   * for it (see {@link LoadCheck}); a load ends it again (`reset`).
+   */
+  private beginCheck(guard: LoadGuard | null, check: LoadCheck): void {
+    if (!guard) return;
+    if (check === 'agreed') guard.agreeInAdvance();
+    else guard.reloadCheckStart(check === 'ask' && this.networkService.peerContext?.roomName !== '');
+  }
+
+  private async loadRun(
+    files: File[] | FileList,
+    dropPoint: { x: number; y: number } | undefined,
+    options: { stillWanted?: () => boolean }
   ): Promise<LoadResult> {
     const run: LoadRun = {
       tooLarge: [],
