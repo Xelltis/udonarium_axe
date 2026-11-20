@@ -374,6 +374,19 @@ describe('CutInEditorComponent', () => {
     expect([cutIn.width, cutIn.height]).toEqual([300, 200]);
   });
 
+  it('snaps a video to its own proportions as its aspect is kept, as the AI does', () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = false;
+    cutIn.width = 800;
+    cutIn.height = 300;
+
+    component.keepImageAspect = true;
+
+    expect([cutIn.width, cutIn.height]).toEqual([800, 450]);
+  });
+
   it('leaves the size as it is when a field is cleared while the aspect is kept', () => {
     cutIn.isVideoCutIn = true;
     cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';

@@ -3,6 +3,7 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { CutInSizingService } from '@axe/application/media/cut-in-sizing.service';
 import { PictureSizeService } from '@axe/application/media/picture-size.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { AgentSchema } from '@axe/core/agent/agent-schema';
@@ -213,6 +214,17 @@ const REPEAT_MODES: readonly RepeatMode[] = ['none', 'all', 'one'];
  * changed through what the screen's own controls go through, and what plays for the room is started by an
  * action, as a field written would not start it on the writer's own screen.
  */
+/** The fields of a cut-in that size it, which its picture's own size is read for first. */
+const SIZING_FIELDS: readonly string[] = [
+  'picture',
+  'video',
+  'video_url',
+  'original_size',
+  'keep_aspect',
+  'width',
+  'height',
+];
+
 @Injectable({ providedIn: 'root' })
 export class AgentMediaKinds {
   private readonly objectStore = inject(ObjectStore);
@@ -223,6 +235,7 @@ export class AgentMediaKinds {
   private readonly effects = inject(EffectLibraryService);
   private readonly tagLock = inject(ImageTagLockService);
   private readonly pictureSizes = inject(PictureSizeService);
+  private readonly sizing = inject(CutInSizingService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -241,12 +254,22 @@ export class AgentMediaKinds {
   ];
 
   /**
-   * The reading of the pictures whose own size a kept aspect works from, where a call sizes a cut-in
-   * or keeps its aspect: the one it shows and the one it is given, those not read yet; null where none
-   * has to be read first (see `PictureSizeService`).
+   * The reading of the pictures a cut-in's size is worked from, where a call writes a field that sizes
+   * it (`SIZING_FIELDS`, see `CutInSizingService`) on one that follows its own proportions or size, or
+   * will: the one it shows and the one it is given, those not read yet; null where none has to be read
+   * first (see `PictureSizeService`), so the call answers with the size it comes to.
    */
   private picturesSized(cutIn: CutIn | null, fields: Readonly<Record<string, unknown>>): Promise<unknown> | null {
-    if (!['width', 'height', 'keep_aspect'].some((name) => name in fields)) return null;
+    if (!SIZING_FIELDS.some((name) => name in fields)) return null;
+    const followsOwn =
+      !cutIn ||
+      cutIn.keepImageAspect ||
+      cutIn.originalSize ||
+      fields['keep_aspect'] === true ||
+      fields['original_size'] === true ||
+      'video' in fields ||
+      'video_url' in fields;
+    if (!followsOwn) return null;
     const unread = [cutIn?.imageIdentifier ?? '', this.pictureOrNone(fields['picture'])]
       .map((identifier) => (identifier ? (this.imageStorage.get(identifier)?.url ?? '') : ''))
       .filter((url) => url && !this.pictureSizes.sizeOf(url));
@@ -333,16 +356,9 @@ export class AgentMediaKinds {
     const isVideo = (cutIn: CutIn) => cutIn.playsVideo;
     const sizeFollowsPicture = (cutIn: CutIn) =>
       cutIn.originalSize ? 'Its size follows its own picture while original_size is on; turn that off first.' : null;
-    const resizingOnKindChange = (cutIn: CutIn, write: () => void) => {
-      const wasVideo = isVideo(cutIn);
-      write();
-      if (!wasVideo && isVideo(cutIn)) cutIn.setSize(cutIn.defVideoSizeWidth, cutIn.defVideoSizeHeight);
-    };
-    const proportion = (cutIn: CutIn) => cutIn.ownShape(this.pictureSizes.sizeOf(cutIn.cutInImage.url));
-    const setWidth = (cutIn: CutIn, value: number) =>
-      cutIn.resizeSide('width', value, cutIn.keepImageAspect ? proportion(cutIn) : null);
-    const setHeight = (cutIn: CutIn, value: number) =>
-      cutIn.resizeSide('height', value, cutIn.keepImageAspect ? proportion(cutIn) : null);
+    const resizingOnKindChange = (cutIn: CutIn, write: () => void) => this.sizing.changeKind(cutIn, write);
+    const setWidth = (cutIn: CutIn, value: number) => this.sizing.resize(cutIn, 'width', value);
+    const setHeight = (cutIn: CutIn, value: number) => this.sizing.resize(cutIn, 'height', value);
     const sizeRefusal = (side: 'wide' | 'tall') => (cutIn: CutIn, value: unknown) => {
       const followed = sizeFollowsPicture(cutIn);
       if (followed) return followed;
@@ -380,16 +396,14 @@ export class AgentMediaKinds {
             'The picture it shows, by id (a name is taken when written; see list_assets). Empty for none.',
             'write',
             (cutIn) => cutIn.imageIdentifier,
-            (cutIn, value) => {
-              cutIn.imageIdentifier = this.picture(value);
-            },
+            (cutIn, value) => this.sizing.setPicture(cutIn, this.picture(value)),
             200
           ),
           refuse: (_cutIn, value) => refusalOf(() => this.picture(value as string)),
         },
         flagField<CutIn>(
           'video',
-          'Whether it plays the YouTube video at video_url instead of showing its picture. Becoming a video sets the size to 640 by 360.',
+          'Whether it plays the YouTube video at video_url instead of showing its picture. Becoming a video sets the size to 640 by 360, and becoming a picture again sizes it to its picture.',
           'write',
           (cutIn) => cutIn.isVideoCutIn,
           (cutIn, value) => resizingOnKindChange(cutIn, () => (cutIn.isVideoCutIn = value))
@@ -426,12 +440,10 @@ export class AgentMediaKinds {
         },
         flagField<CutIn>(
           'original_size',
-          "Whether it is shown at its picture's own size, which holds width, height and keep_aspect as they are.",
+          "Whether it is shown at its picture's own size, which it is then sized to and which holds width, height and keep_aspect as they are.",
           'write',
           (cutIn) => cutIn.originalSize,
-          (cutIn, value) => {
-            cutIn.originalSize = value;
-          }
+          (cutIn, value) => this.sizing.setOriginalSize(cutIn, value)
         ),
         {
           ...flagField<CutIn>(
@@ -439,11 +451,7 @@ export class AgentMediaKinds {
             'Whether changing its width or height changes the other to keep its proportions (16:9 for a video).',
             'write',
             (cutIn) => cutIn.keepImageAspect,
-            (cutIn, value) => {
-              cutIn.keepImageAspect = value;
-              const shape = value ? proportion(cutIn) : null;
-              if (shape) cutIn.resizeSide('width', cutIn.width, shape);
-            }
+            (cutIn, value) => this.sizing.keepAspect(cutIn, value)
           ),
           refuse: sizeFollowsPicture,
         },

@@ -237,6 +237,7 @@ describe('AgentMediaKinds', () => {
       );
       const cutIn = cutInNamed('遅い');
       cutIn.imageIdentifier = 'slow';
+      cutIn.keepImageAspect = true;
       cutIn.setSize(480, 320);
       const giveUp = new AbortController();
 

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { CutInSizingService } from '@axe/application/media/cut-in-sizing.service';
 import { PictureSizeService } from '@axe/application/media/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -47,6 +48,7 @@ export class CutInEditorComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly cutIns = inject(CutInService);
   private readonly pictureSizes = inject(PictureSizeService);
+  private readonly sizing = inject(CutInSizingService);
 
   readonly cutIn = input<CutIn | null>(null);
   readonly isEditable = input(false);
@@ -153,7 +155,7 @@ export class CutInEditorComponent {
   set cutInWidth(cutInWidth: number) {
     const cutIn = this.c;
     if (!this.editable || !cutIn) return;
-    cutIn.resizeSide('width', cutInWidth, this.keepImageAspect ? this.ownSize(cutIn) : null);
+    this.sizing.resize(cutIn, 'width', cutInWidth);
   }
 
   get cutInWidth(): number {
@@ -173,7 +175,7 @@ export class CutInEditorComponent {
   set cutInHeight(cutInHeight: number) {
     const cutIn = this.c;
     if (!this.editable || !cutIn) return;
-    cutIn.resizeSide('height', cutInHeight, this.keepImageAspect ? this.ownSize(cutIn) : null);
+    this.sizing.resize(cutIn, 'height', cutInHeight);
   }
 
   get cutInHeight(): number {
@@ -197,8 +199,7 @@ export class CutInEditorComponent {
   private fitToOriginal(): void {
     const cutIn = this.c;
     if (!this.editable || !cutIn) return;
-    const { width, height } = this.ownSize(cutIn);
-    cutIn.fitOwnSize(width, height);
+    this.sizing.fitOwn(cutIn);
   }
 
   /**
@@ -206,7 +207,7 @@ export class CutInEditorComponent {
    * while not editable.
    *
    * Turning it on snaps the height to the video's or picture's proportions at the width the cut-in
-   * has, which waits for a picture whose size is not known yet.
+   * has, once a picture whose size is not known yet has been read (see `CutInSizingService`).
    */
   get keepImageAspect(): boolean {
     if (!this.editable || !this.c) return false;
@@ -215,10 +216,7 @@ export class CutInEditorComponent {
   set keepImageAspect(aspect: boolean) {
     const cutIn = this.c;
     if (!this.editable || !cutIn) return;
-    cutIn.keepImageAspect = aspect;
-    if (!aspect || !this.cutInImage().url) return;
-    const own = this.ownSize(cutIn);
-    if (own.width > 0 && own.height > 0) cutIn.resizeSide('width', cutIn.width, own);
+    this.sizing.keepAspect(cutIn, aspect);
   }
 
   /** Whether the cut-in is shown without its window frame. */
@@ -240,8 +238,7 @@ export class CutInEditorComponent {
   }
   set cutInOriginalSize(cutInOriginalSize: boolean) {
     if (!this.editable || !this.c) return;
-    this.c.originalSize = cutInOriginalSize;
-    this.fitToOriginal();
+    this.sizing.setOriginalSize(this.c, cutInOriginalSize);
   }
 
   /** Where the cut-in is placed across the screen, as a percentage from 0 to 100. */
@@ -321,10 +318,7 @@ export class CutInEditorComponent {
   }
 
   private resizingOnKindChange(cutIn: CutIn, write: () => void): void {
-    const wasVideo = !!cutIn.videoId;
-    write();
-    const isVideo = !!cutIn.videoId;
-    if (wasVideo !== isVideo) this.setDefaultControl(isVideo);
+    this.sizing.changeKind(cutIn, write);
   }
 
   /**
@@ -395,30 +389,6 @@ export class CutInEditorComponent {
     return this.audioStorage.get(this.cutInAudioIdentifier) !== null;
   }
 
-  /**
-   * Resets the cut-in's size to a video's default size or to its picture's own size; does nothing
-   * while not editable, and leaves the size as it is for a picture not measured yet.
-   */
-  private setDefaultControl(isVideo: boolean) {
-    if (!this.editable || !this.c) return;
-    if (isVideo) {
-      this.c.setSize(this.c.defVideoSizeWidth, this.c.defVideoSizeHeight);
-    } else {
-      this.writePictureSize(this.c);
-    }
-  }
-
-  /**
-   * Sizes a cut-in to its picture once the picture is measured: at original size the picture's own size
-   * as it is (see `CutIn.fitOwnSize`), and otherwise its proportions held inside a picture's bounds.
-   */
-  private writePictureSize(cutIn: CutIn): void {
-    const own = this.originalImgSize();
-    if (own.width <= 0 || own.height <= 0) return;
-    if (cutIn.originalSize) cutIn.fitOwnSize(own.width, own.height);
-    else cutIn.resizeSide('width', own.width, own);
-  }
-
   /** The natural width of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
   originalImgWidth(): number {
     return this.originalImgSize().width;
@@ -453,7 +423,7 @@ export class CutInEditorComponent {
       emitStartCutIn({ cutIn: this.c, speaker: this.trySpeaker() });
       return;
     }
-    this.fitToPicture(this.c);
+    this.sizing.fitOwn(this.c);
     this.cutInLauncher?.startCutInMySelf(this.c, this.trySpeaker());
   }
 
@@ -465,12 +435,8 @@ export class CutInEditorComponent {
    */
   playCutIn() {
     if (!this.c || PeerCursor.isMyselfKeptOffTable) return;
-    this.fitToPicture(this.c);
+    this.sizing.fitOwn(this.c);
     this.cutIns.launch(this.c, undefined, this.trySpeaker());
-  }
-
-  private fitToPicture(cutIn: CutIn): void {
-    if (cutIn.originalSize) this.writePictureSize(cutIn);
   }
 
   /** Stops the cut-in for everyone in the room; not for a guest on a room server. */
@@ -487,7 +453,7 @@ export class CutInEditorComponent {
     const cutIn = this.c;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
       if (!cutIn || value === undefined || value === null) return;
-      cutIn.imageIdentifier = value;
+      this.sizing.setPicture(cutIn, value);
     });
   }
 
