@@ -81,7 +81,7 @@ test.describe('adding to a character sheet on a wide screen', () => {
     await table.getByTestId('table-add-row').click();
     await expect(table.getByTestId('table-edit-row-button')).toHaveCount(4);
 
-    await edit.click();
+    await card.getByRole('button', { name: 'edit_off', exact: true }).click();
     const box = table.locator('tbody input[type="checkbox"]').first();
     await box.check();
     await expect(box).toBeChecked();
