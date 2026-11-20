@@ -7,6 +7,21 @@ import { AGENT_TOOLS } from '@axe/core/agent/agent-tools';
 import { LocalFiles, withLocalFiles } from './local-files';
 import type { CallOutcome } from './tab-link';
 
+/** The code the file system's reads and writes fail with while set, as a disk full or a file locked makes them. */
+const failing = vi.hoisted(() => ({ code: null as string | null }));
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  const failed = () => Object.assign(new Error(`${failing.code}: refused by the test`), { code: failing.code });
+  return {
+    ...actual,
+    readFile: (...args: Parameters<typeof actual.readFile>) =>
+      failing.code ? Promise.reject(failed()) : actual.readFile(...args),
+    writeFile: (...args: Parameters<typeof actual.writeFile>) =>
+      failing.code ? Promise.reject(failed()) : actual.writeFile(...args),
+  };
+});
+
 describe('LocalFiles', () => {
   let base: string;
   let root: string;
@@ -107,5 +122,57 @@ describe('withLocalFiles', () => {
       });
     }
     expect(tab).not.toHaveBeenCalled();
+  });
+});
+
+describe('LocalFiles where the file system fails', () => {
+  let base: string;
+  let files: LocalFiles;
+
+  beforeEach(() => {
+    base = mkdtempSync(join(tmpdir(), 'axe-mcp-fails-'));
+    writeFileSync(join(base, 'goblin.png'), Buffer.from([1, 2, 3]));
+    files = new LocalFiles(base);
+  });
+
+  afterEach(() => {
+    failing.code = null;
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  it('answers every failure of the file system as a tool failing, a file come to be at the path as a path refused', async () => {
+    const tab = vi.fn(async (tool: string): Promise<CallOutcome> =>
+      tool === 'save_room'
+        ? { ok: true, value: { file: { name: 'room.zip', type: 'application/zip', base64: 'AQID' } } }
+        : { ok: true, value: {} }
+    );
+    const call = withLocalFiles(tab, files, AGENT_TOOLS);
+
+    for (const [tool, path, code, answered] of [
+      ['import_asset', 'goblin.png', 'EACCES', 'failed'],
+      ['import_asset', 'goblin.png', 'EIO', 'failed'],
+      ['save_room', 'room.zip', 'ENOSPC', 'failed'],
+      ['save_room', 'room.zip', 'EACCES', 'failed'],
+      ['save_room', 'room.zip', 'EEXIST', 'invalid_input'],
+    ] as const) {
+      failing.code = code;
+
+      expect(await call(tool, { path }, 1000), `${tool} ${code}`).toEqual({
+        ok: false,
+        error: { code: answered, message: expect.stringContaining(path) },
+      });
+    }
+  });
+
+  it('leaves a fault that is not the file system’s as it is', async () => {
+    const call = withLocalFiles(
+      async () => {
+        throw new TypeError('the bridge itself');
+      },
+      files,
+      AGENT_TOOLS
+    );
+
+    await expect(call('import_asset', { path: 'goblin.png' }, 1000)).rejects.toThrow(TypeError);
   });
 });

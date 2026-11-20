@@ -29,12 +29,32 @@ const TYPES: Readonly<Record<string, string>> = {
   '.xml': 'application/xml',
 };
 
-/** Why a path is refused, as the AI is told. */
+/** Why a path is refused, as the AI is told: a path it may give otherwise. */
 export class LocalFileRefused extends Error {}
+
+/** Why the files of the person's computer could not be read or written at a path, as the AI is told. */
+export class LocalFileFailed extends Error {}
+
+/**
+ * What a failure of the file system at a path is answered as: a file come to be where one was to be
+ * written, as a path refused; any other, as the file not read or written, its reason told. Anything
+ * else, a fault of the bridge's own, is left as it is.
+ */
+function troubleOf(reason: unknown, path: string, doing: 'read' | 'write'): unknown {
+  const code = (reason as NodeJS.ErrnoException | null)?.code;
+  if (!(reason instanceof Error) || typeof code !== 'string') return reason;
+  if (doing === 'write' && code === 'EEXIST') {
+    return new LocalFileRefused(
+      `A file came to be at ${path} while the tab worked; nothing was written over it. Give a path with none.`
+    );
+  }
+  return new LocalFileFailed(`Could not ${doing} ${path}: ${reason.message}`);
+}
 
 /**
  * The files of the person's computer a call may read or write: only those inside the folder the
- * bridge was told, a link out of it followed and refused, and none written over.
+ * bridge was told, a link out of it followed and refused, and none written over. Every way the file
+ * system fails is answered as a {@link LocalFileRefused} or a {@link LocalFileFailed}.
  */
 export class LocalFiles {
   private readonly root: string;
@@ -50,6 +70,15 @@ export class LocalFiles {
 
   /** Reads a file inside the folder, as it is handed to the tab. */
   async read(path: string): Promise<AgentFileContent> {
+    try {
+      return await this.readInside(path);
+    } catch (reason) {
+      throw troubleOf(reason, path, 'read');
+    }
+  }
+
+  /** Reads a file inside the folder (see {@link read}), the file system's failures left as they are. */
+  private async readInside(path: string): Promise<AgentFileContent> {
     const full = this.inside(path);
     if (!existsSync(full)) throw new LocalFileRefused(`There is no file at ${path} in ${this.root}.`);
     const real = realpathSync(full);
@@ -73,6 +102,15 @@ export class LocalFiles {
    * path refused costs the tab nothing, and again as the file is written.
    */
   checkWritable(path: string): string {
+    try {
+      return this.writableInside(path);
+    } catch (reason) {
+      throw troubleOf(reason, path, 'write');
+    }
+  }
+
+  /** Refuses a path a file may not be written to (see {@link checkWritable}), the file system's failures left as they are. */
+  private writableInside(path: string): string {
     const full = this.inside(path);
     if (existsSync(full)) throw new LocalFileRefused(`A file is already at ${path}; give a path with none.`);
     const folder = dirname(full);
@@ -85,7 +123,11 @@ export class LocalFiles {
   async write(path: string, file: AgentFileContent): Promise<{ readonly path: string; readonly bytes: number }> {
     const full = this.checkWritable(path);
     const bytes = Buffer.from(file.base64, 'base64');
-    await writeFile(full, bytes, { flag: 'wx' });
+    try {
+      await writeFile(full, bytes, { flag: 'wx' });
+    } catch (reason) {
+      throw troubleOf(reason, path, 'write');
+    }
     return { path: full, bytes: bytes.length };
   }
 
@@ -117,8 +159,9 @@ export type ToolCall = (
 /**
  * A call that reads and writes the files a tool names (see `AgentToolDefinition.localFile`): the file
  * at the path a reading tool is given is read and handed on as `file`, and the `file` a writing tool
- * answers with is written to its path, the answer telling where in its place. Any other call goes on
- * as it is.
+ * answers with is written to its path, the answer telling where in its place. A path refused is
+ * answered as the AI's mistake, and a file the file system would not read or write as failed, the room
+ * the tab made for it not written. Any other call goes on as it is.
  */
 export function withLocalFiles(call: ToolCall, files: LocalFiles, tools: readonly AgentToolDefinition[]): ToolCall {
   return async (tool, args, timeoutMs, signal) => {
@@ -134,8 +177,10 @@ export function withLocalFiles(call: ToolCall, files: LocalFiles, tools: readonl
       if (!file) return outcome;
       return { ok: true, value: { ...rest, saved: await files.write(path, file) } };
     } catch (reason) {
-      if (!(reason instanceof LocalFileRefused)) throw reason;
-      return { ok: false, error: { code: 'invalid_input', message: reason.message } };
+      if (reason instanceof LocalFileRefused)
+        return { ok: false, error: { code: 'invalid_input', message: reason.message } };
+      if (reason instanceof LocalFileFailed) return { ok: false, error: { code: 'failed', message: reason.message } };
+      throw reason;
     }
   };
 }
