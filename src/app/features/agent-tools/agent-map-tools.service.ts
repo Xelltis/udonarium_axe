@@ -60,10 +60,7 @@ export class AgentMapTools {
           'party'
         ).identifier
       : '';
-    if (args['replace_previous'] === true) {
-      this.mapGeneration.discard(this.last);
-      this.last = null;
-    }
+    const previous = args['replace_previous'] === true ? this.last : null;
     const built = await this.mapGeneration.build(settings, {
       name: this.mapGeneration.nameOf(settings, textArg(args, 'name')),
       fogEnabled: args['fog'] === true,
@@ -76,6 +73,7 @@ export class AgentMapTools {
         'That map has more terrain than a table may hold. Ask for fewer rooms, a smaller or sparser field, or squares rather than hexes.'
       );
     }
+    if (previous) this.mapGeneration.discard(previous);
     this.last = built;
     const switched = args['switch_to'] !== false;
     if (switched) emitSelectGameTable({ identifier: built.table.identifier });

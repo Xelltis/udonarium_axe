@@ -253,7 +253,9 @@ describe('AgentKindTools', () => {
       /level was written; broken could not be written: cannot write it/
     );
     expect(things[0].level).toBe(5);
-    expect(() => call('create_object', { kind: 'probe', fields: { level: 5, broken: 1 } })).toThrow(/cannot write it/);
+    expect(() => call('create_object', { kind: 'probe', fields: { level: 5, broken: 1 } })).toThrow(
+      /^Nothing was made: broken could not be written: cannot write it$/
+    );
     expect(kind.list().map((thing) => thing.label)).toEqual(['kept']);
   });
 

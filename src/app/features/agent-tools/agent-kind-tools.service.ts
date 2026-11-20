@@ -95,11 +95,10 @@ export class AgentKindTools {
       takeBack();
       throw new AgentToolError('not_allowed', refused);
     }
-    try {
-      this.putAll(made, fields);
-    } catch (reason) {
+    const failed = this.putAll(made, fields);
+    if (failed) {
       takeBack();
-      throw reason;
+      throw new AgentToolError('failed', `Nothing was made: ${failed.field} could not be written: ${failed.why}`);
     }
     return this.view(kind, made);
   }
@@ -113,7 +112,14 @@ export class AgentKindTools {
       .map(({ field, value }) => field.refuse?.(thing, value) ?? null)
       .find((reason) => reason !== null);
     if (refused) throw new AgentToolError('not_allowed', refused);
-    this.putAll(thing, fields);
+    const failed = this.putAll(thing, fields);
+    if (failed) {
+      const before =
+        failed.written.length > 0
+          ? `${failed.written.join(', ')} ${failed.written.length > 1 ? 'were' : 'was'} written; `
+          : '';
+      throw new AgentToolError('failed', `${before}${failed.field} could not be written: ${failed.why}`);
+    }
     return this.view(kind, thing);
   }
 
@@ -121,24 +127,25 @@ export class AgentKindTools {
    * Writes every field given, in one batch. Every value was checked against its field before any is
    * written, so a field throwing as it is written is the field's own failure: nothing is written back,
    * as what a field reads is what the AI is shown rather than what is held (a rule in force, a name kept
-   * hidden), and writing that back would change what was never asked. The AI is told instead which
-   * fields were written before the one that failed, so it is never told nothing changed where something
-   * did.
+   * hidden), and writing that back would change what was never asked. It stops at the field that
+   * failed and answers it, why, and the fields written before it, for the caller to tell the AI as it
+   * stands: a change as partly made, a thing made as taken back. Null where every field was written.
    */
-  private putAll(thing: Thing, fields: readonly { field: AgentKindField<Thing>; value: unknown }[]): void {
+  private putAll(
+    thing: Thing,
+    fields: readonly { field: AgentKindField<Thing>; value: unknown }[]
+  ): { readonly field: string; readonly why: string; readonly written: readonly string[] } | null {
     const written: string[] = [];
-    GameObject.batch(() => {
+    return GameObject.batch(() => {
       for (const { field, value } of fields) {
         try {
           field.put!(thing, value);
         } catch (reason) {
-          const why = reason instanceof Error ? reason.message : String(reason);
-          const before =
-            written.length > 0 ? `${written.join(', ')} ${written.length > 1 ? 'were' : 'was'} written; ` : '';
-          throw new AgentToolError('failed', `${before}${field.name} could not be written: ${why}`);
+          return { field: field.name, why: reason instanceof Error ? reason.message : String(reason), written };
         }
         written.push(field.name);
       }
+      return null;
     });
   }
 

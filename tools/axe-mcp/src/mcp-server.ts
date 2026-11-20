@@ -15,7 +15,7 @@ import {
   RUN_SESSION_PROMPT_NAME,
 } from '@axe/core/agent/agent-guide';
 import { checkAgentInput } from '@axe/core/agent/agent-schema';
-import { AGENT_TOOLS, type AgentToolDefinition } from '@axe/core/agent/agent-tools';
+import { AGENT_TOOLS, type AgentToolDefinition, isReadOnlyTool } from '@axe/core/agent/agent-tools';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
@@ -91,7 +91,7 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
       inputSchema: { ...tool.input },
       annotations: {
         title: tool.title,
-        readOnlyHint: tool.access === 'read',
+        readOnlyHint: isReadOnlyTool(tool),
         destructiveHint: tool.destructive === true,
         openWorldHint: tool.openWorld === true,
       },

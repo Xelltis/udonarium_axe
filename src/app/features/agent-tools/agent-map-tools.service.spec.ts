@@ -77,6 +77,18 @@ describe('AgentMapTools', () => {
     expect(switched).toEqual([`table-${made - 1}`]);
   });
 
+  it('keeps the map made last where the one to take its place cannot be made', async () => {
+    await call({ kind: 'dungeon' });
+    const kept = `table-${made}`;
+    build.mockResolvedValueOnce(null);
+
+    await expect(call({ kind: 'dungeon', replace_previous: true })).rejects.toThrow(/more terrain/);
+    expect(discard).not.toHaveBeenCalled();
+
+    await call({ kind: 'dungeon', replace_previous: true, switch_to: false });
+    expect((discard.mock.calls[0][0] as GeneratedMap).table.identifier).toBe(kept);
+  });
+
   it('stands the party it names at the way in, and refuses a map too large', async () => {
     vi.spyOn(TestBed.inject(PartyService), 'parties').mockReturnValue([{ identifier: 'p1', name: '一行' } as Party]);
     build.mockResolvedValueOnce(null);

@@ -39,6 +39,16 @@ export const MAX_AGENT_FILE_BYTES = 96 * 1024 * 1024;
 /** The most a message between the bridge and the tab may weigh: the largest file as base64, with room for the rest. */
 export const MAX_AGENT_MESSAGE_BYTES = Math.ceil(MAX_AGENT_FILE_BYTES / 3) * 4 + 1024 * 1024;
 
+/**
+ * Whether a tool changes nothing at all, as an MCP client is told by its read-only hint: one that only
+ * reads the room, and writes no file to the computer the bridge runs on either. A tool that reads the
+ * room but saves it to a file is no read of the person's own disk, and a client that lets read-only
+ * tools run unasked must still ask for it.
+ */
+export function isReadOnlyTool(tool: Pick<AgentToolDefinition, 'access' | 'localFile'>): boolean {
+  return tool.access === 'read' && tool.localFile?.mode !== 'write';
+}
+
 /** A file as the bridge and the tab hand it to each other: its name, its media type and its bytes. */
 export interface AgentFileContent {
   readonly name: string;
