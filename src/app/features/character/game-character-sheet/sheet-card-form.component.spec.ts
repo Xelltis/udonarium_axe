@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Card, CardState } from '@axe/domain/card/card';
+import { DataElement } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { SheetCardFormComponent } from '@axe/features/character/game-character-sheet/sheet-card-form.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('SheetCardFormComponent', () => {
@@ -231,5 +235,55 @@ describe('SheetCardFormComponent', () => {
     } finally {
       card.destroy();
     }
+  });
+
+  describe('the front of a card turned face down while the sheet is open', () => {
+    let card: Card;
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      card = Card.create('秘密の鍵', 'front.png', 'back.png');
+      card.location.name = 'table';
+      card.detailDataElement!.appendChild(DataElement.create('効果', '地下室を開ける'));
+      fixture.componentRef.setInput('card', card);
+    });
+
+    afterEach(() => {
+      card.destroy();
+      PeerCursor.myCursor = null!;
+    });
+
+    async function shown(): Promise<{ front: boolean; name: boolean; data: boolean }> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return {
+        front: root().querySelector('[data-card-front-locked]') === null,
+        name: root().querySelector('input[type="text"]') !== null,
+        data: root().querySelector('[game-data-element]') !== null,
+      };
+    }
+
+    it('is kept from a player, picture, name and game data, and takes no new name', async () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      expect(await shown()).toEqual({ front: true, name: true, data: true });
+
+      card.faceDown();
+      expect(await shown()).toEqual({ front: false, name: false, data: false });
+      const typed = document.createElement('input');
+      typed.value = '偽物';
+      component.setCardOwnName(card, { target: typed } as unknown as Event);
+      expect(card.name).toBe('秘密の鍵');
+    });
+
+    it('is shown whole to the game master', async () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      card.state = CardState.BACK;
+      card.owner = 'another-user';
+
+      expect(await shown()).toEqual({ front: true, name: true, data: true });
+    });
   });
 });

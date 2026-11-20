@@ -1,5 +1,5 @@
 import { effectFamilyRank } from '@axe/domain/effect/effect-families';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { EffectPreset, presetsShownTo } from '@axe/domain/effect/effect-preset';
 import { matchesSearch } from '@axe/features/effect/effect-library-panel/effect-search';
 
 /** Sorting and narrowing the list, kept apart from the panel so the specs can pin it. */
@@ -49,12 +49,6 @@ function matchesReach(preset: EffectPreset, reach: ReachFilter | null): boolean 
   if (reach == null) return true;
   const own = reachOf(preset);
   return reach === 'single' ? own === 'single' || own === 'self' : own === reach;
-}
-
-/** The effects a reader of this role is shown at all: those kept for the game master are left out for anyone else. */
-export function presetsShownTo(presets: readonly EffectPreset[], isGameMaster: boolean): EffectPreset[] {
-  // What belongs to the game master is part of the preparation, so its name stays off the players' list.
-  return presets.filter((preset) => isGameMaster || !preset.gmOnly);
 }
 
 /**

@@ -156,7 +156,7 @@ describe('ResourceEditProcessor', () => {
       edit.target = '器用度';
       edit.replace = '30';
 
-      const result = processor.textEdit(edit, character);
+      const result = processor.textEdit(edit, character).full;
       expect(result).toContain('器用度');
       expect(result).toContain('30');
     });
@@ -1447,7 +1447,7 @@ describe('ResourceEditProcessor', () => {
       const result = processor.buffEdit(
         { command: '&マッスルベアー/筋B+2/3', object: character, targeted: false },
         character
-      );
+      ).full;
 
       expect(result).toContain('バフを付与');
       expect(result).toContain('マッスルベアー');
@@ -1455,33 +1455,33 @@ describe('ResourceEditProcessor', () => {
 
     it('counts a named buff down', () => {
       character.buffs.addRound('テストバフ', '', 3);
-      const result = processor.buffEdit({ command: '&R-', object: character, targeted: false }, character);
+      const result = processor.buffEdit({ command: '&R-', object: character, targeted: false }, character).full;
 
       expect(result).toContain('バフRを減少');
     });
 
     it('counts it up', () => {
       character.buffs.addRound('テストバフ', '', 3);
-      const result = processor.buffEdit({ command: '&R+', object: character, targeted: false }, character);
+      const result = processor.buffEdit({ command: '&R+', object: character, targeted: false }, character).full;
 
       expect(result).toContain('バフRを増加');
     });
 
     it('removes the buffs that have run out', () => {
-      const result = processor.buffEdit({ command: '&D', object: character, targeted: false }, character);
+      const result = processor.buffEdit({ command: '&D', object: character, targeted: false }, character).full;
 
       expect(result).toContain('0R以下のバフを消去');
     });
 
     it('removes a named buff', () => {
       character.buffs.addRound('消去対象', '', 3);
-      const result = processor.buffEdit({ command: '&消去対象-', object: character, targeted: false }, character);
+      const result = processor.buffEdit({ command: '&消去対象-', object: character, targeted: false }, character).full;
 
       expect(result).toContain('消去対象を消去');
     });
 
     it('names the character when it is aimed at one', () => {
-      const result = processor.buffEdit({ command: '&テストバフ', object: character, targeted: true }, character);
+      const result = processor.buffEdit({ command: '&テストバフ', object: character, targeted: true }, character).full;
 
       expect(result).toContain('テスト戦士');
     });

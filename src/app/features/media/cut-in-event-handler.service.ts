@@ -151,12 +151,13 @@ export class CutInEventHandlerService {
     }
 
     const chrome = cutInPanelChrome(cutIn);
+    const size = cutIn.shownSize;
     const faces = makeCutInMultiDirectionLayout({
       mode,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      cutInWidth: cutIn.width,
-      cutInHeight: cutIn.height,
+      cutInWidth: size.width,
+      cutInHeight: size.height,
       chromeHeight: chrome,
     });
     const panels: { component: CutInWindowComponent; primary: boolean }[] = [];

@@ -10,7 +10,7 @@ import { ModalContent, ModalService } from '@axe/application/ui/modal.service';
 import { emitSelectFile } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
+import { browsableImageTags, canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -52,7 +52,7 @@ export class FileSelecterComponent implements ModalContent {
   private mayShow(imageFile: ImageFile): boolean {
     if (isAccountAvatar(imageFile.context.identifier)) return imageFile.context.identifier === this.ownAvatar;
     const tag = ImageTag.get(imageFile.context.identifier) ?? null;
-    return canBrowseImage(tag, this.rolePermission.canSeeHidden(), true, this.tagLock.hides);
+    return canBrowseImage(tag, this.tagLock.sight());
   }
 
   /**
@@ -97,19 +97,8 @@ export class FileSelecterComponent implements ModalContent {
     this.objectChange.fileVersion();
     trackEvery(this.objectChange, 'image-tag');
     this.tagLock.track();
-    const tags: string[] = [];
-    for (const imageFile of this.imageStorage.images) {
-      // A tag whose pictures are every one of them kept back is not offered either: picking
-      // it would open on nothing, and its name says there is something there to find.
-      if (!this.mayShow(imageFile)) continue;
-      const imageTag = ImageTag.get(imageFile.context.identifier);
-      if (imageTag?.tag) tags.push(imageTag.tag);
-    }
-
-    const tags2: string[] = Array.from(new Set(tags));
-    tags2.unshift(this.allTag);
-    tags2.unshift('');
-    return tags2;
+    const images = this.imageStorage.images.filter((imageFile) => this.mayShow(imageFile));
+    return ['', this.allTag, ...browsableImageTags(images, this.tagLock.sight())];
   });
 
   readonly selectTag = signal('');

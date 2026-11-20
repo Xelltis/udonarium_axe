@@ -2,6 +2,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import {
   aliasMatesOf,
+  aliasNamed,
   type ElementAliasTable,
   elementReferredTo,
   elementsReferredTo,
@@ -33,6 +34,14 @@ export function findReferencedElements(
   aliases: ElementAliasTable = DataSummarySetting.aliasesInRoom()
 ): DataElement[] {
   return elementsReferredTo(root, reference, aliases);
+}
+
+/**
+ * Whether a name is one of the room's aliases, which is read from the items it stands for rather than
+ * from an item of its own name.
+ */
+export function isAliasName(name: string, aliases: ElementAliasTable = DataSummarySetting.aliasesInRoom()): boolean {
+  return aliasNamed(aliases, name) !== null;
 }
 
 /** The other items of the same sheet that take an item's value with it, by the room's aliases. */

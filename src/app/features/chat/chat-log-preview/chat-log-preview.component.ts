@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
@@ -35,7 +35,7 @@ interface PreparedPreview {
 })
 export class ChatLogPreviewComponent {
   private readonly saveDataService = inject(SaveDataService);
-  private readonly chatMessageService = inject(ChatMessageService);
+  private readonly visibleTabs = inject(VisibleChatTabsService);
   private readonly preference = inject(ChatLogStylePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -122,9 +122,14 @@ export class ChatLogPreviewComponent {
     }
   }
 
+  /**
+   * The tabs a log of the scope is made from: every tab this seat may read, or the one given where
+   * this seat may read it. A tab kept from the seat is never in its log.
+   */
   private sourceTabs(tab: ChatTab | null, scope: ChatLogScope): readonly ChatTab[] {
-    if (scope === 'all') return this.chatMessageService.chatTabs;
-    return tab ? [tab] : [];
+    const readable = this.visibleTabs.readableNow();
+    if (scope === 'all') return readable;
+    return tab && readable.includes(tab) ? [tab] : [];
   }
 
   private async load(tab: ChatTab | null, scope: ChatLogScope, omitDeleted: boolean): Promise<void> {

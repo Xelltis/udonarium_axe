@@ -15,7 +15,6 @@ import { HotbarSet } from '@axe/domain/hotbar/hotbar-set';
 import { HOTBAR_SLOTS_PER_PAGE } from '@axe/domain/hotbar/hotbar-size';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
@@ -91,10 +90,7 @@ describe('HotbarBarComponent', () => {
     localStorage.removeItem('ui-hotbar');
   });
 
-  it('loads a chosen file as a fresh load, whatever was answered to the one before', async () => {
-    const reloadCheck = new ReloadCheck('ReloadCheck');
-    reloadCheck.initialize();
-    const start = vi.spyOn(reloadCheck, 'reloadCheckStart');
+  it('loads a chosen file as any load is, which asks afresh whatever was answered to the one before', async () => {
     const load = vi
       .spyOn(TestBed.inject(FileArchiver), 'load')
       .mockResolvedValue({ dataRead: true, images: [], audios: [], models: [] });
@@ -105,9 +101,7 @@ describe('HotbarBarComponent', () => {
       target: input,
     } as unknown as Event);
 
-    expect(start).toHaveBeenCalledTimes(1);
-    expect(start.mock.invocationCallOrder[0]).toBeLessThan(load.mock.invocationCallOrder[0]);
-    reloadCheck.destroy();
+    expect(load).toHaveBeenCalledWith(input.files);
   });
 
   it('stays out of the way until it is asked for', () => {

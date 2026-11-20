@@ -1,27 +1,37 @@
+import type { CardGameService } from '@axe/application/card/card-game.service';
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
-import { Card, CardState } from '@axe/domain/card/card';
+import { Card } from '@axe/domain/card/card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
+
+/** Who may turn, peek at, take and edit a card, and the doing of each, as the card service holds them. */
+export type CardRules = Pick<
+  CardGameService,
+  'canHandle' | 'canOpenSheet' | 'faceUp' | 'faceDown' | 'peek' | 'takeToHand'
+>;
 
 /**
  * The right-click menu of a card on the table: lock, flip, peek, take into the hand, stack, flip
  * cut-in, target, edit, copy and delete.
  *
- * Entries that only touch the card act on it and play their sound here; anything that needs a
- * service goes through the callbacks. The lock mark entry appears only while the card is locked,
- * and clearing the target only while it has one. A copy is placed one grid step down and to the
- * right of the original.
+ * Turning the card over, peeking at it, taking it into the hand and gathering it into a stack are
+ * offered only where `cards` lets this seat handle it, which no seat may for a card another seat
+ * connected now peeks at, and the first three are done through it; editing it is open only where this
+ * seat may open its sheet. Other entries that
+ * only touch the card act on it and play their sound here, and anything else that needs a service
+ * goes through the callbacks. The lock mark entry appears only while the card is locked, and
+ * clearing the target only while it has one. A copy is placed one grid step down and to the right of
+ * the original.
  */
 export function buildCardContextMenu(
   card: Card,
   gridSize: number,
+  cards: CardRules,
   callbacks: {
     onCreateStack: () => void;
     onOverlappingToHand: () => void;
     onShowDetail: () => void;
-    onFlipToFront: () => void;
     onAssignCutIn: (cutInIdentifier: string) => void;
     onPickTarget: () => void;
     onClearTarget: () => void;
@@ -72,67 +82,33 @@ export function buildCardContextMenu(
 
   menuArray.push(ContextMenuSeparator);
 
-  menuArray.push(
-    !card.isVisible || card.isPeeking
-      ? {
-          name: t('feature.card.contextMenu.faceUp'),
-          action: () => {
-            card.faceUp();
-            SoundEffect.play(PresetSound.cardDraw);
-            callbacks.onFlipToFront();
-          },
-        }
-      : {
-          name: t('feature.card.contextMenu.faceDown'),
-          action: () => {
-            card.faceDown();
-            SoundEffect.play(PresetSound.cardDraw);
-          },
-        }
-  );
+  if (cards.canHandle(card)) {
+    menuArray.push(
+      !card.isVisible || card.isPeeking
+        ? { name: t('feature.card.contextMenu.faceUp'), action: () => cards.faceUp(card) }
+        : { name: t('feature.card.contextMenu.faceDown'), action: () => cards.faceDown(card) }
+    );
+    menuArray.push(
+      card.isPeeking
+        ? { name: t('feature.card.contextMenu.faceDown'), action: () => cards.faceDown(card) }
+        : { name: t('feature.card.contextMenu.showSelfOnly'), action: () => cards.peek(card) }
+    );
+    menuArray.push({ name: t('feature.card.contextMenu.toHand'), action: () => cards.takeToHand([card]) });
+    menuArray.push(ContextMenuSeparator);
+  }
 
-  menuArray.push(
-    card.isPeeking
-      ? {
-          name: t('feature.card.contextMenu.faceDown'),
-          action: () => {
-            card.faceDown();
-            SoundEffect.play(PresetSound.cardDraw);
-          },
-        }
-      : {
-          name: t('feature.card.contextMenu.showSelfOnly'),
-          action: () => {
-            SoundEffect.play(PresetSound.cardDraw);
-            card.state = CardState.BACK;
-            card.owner = PeerCursor.myUserId;
-          },
-        }
-  );
-
-  menuArray.push({
-    name: t('feature.card.contextMenu.toHand'),
-    action: () => {
-      card.toHand(PeerCursor.myUserId);
-      SoundEffect.play(PresetSound.cardDraw);
-    },
-  });
-
-  menuArray.push(ContextMenuSeparator);
-
-  menuArray.push({
-    name: t('feature.card.contextMenu.createStack'),
-    action: () => {
-      callbacks.onCreateStack();
-      SoundEffect.play(PresetSound.cardPut);
-    },
-  });
+  if (cards.canHandle(card)) {
+    menuArray.push({
+      name: t('feature.card.contextMenu.createStack'),
+      action: () => {
+        callbacks.onCreateStack();
+        SoundEffect.play(PresetSound.cardPut);
+      },
+    });
+  }
   menuArray.push({
     name: t('feature.card.contextMenu.overlappingToHand'),
-    action: () => {
-      callbacks.onOverlappingToHand();
-      SoundEffect.play(PresetSound.cardDraw);
-    },
+    action: () => callbacks.onOverlappingToHand(),
   });
   menuArray.push({
     name: t('feature.card.contextMenu.flipCutIn'),
@@ -167,6 +143,7 @@ export function buildCardContextMenu(
   }
   menuArray.push({
     name: t('feature.card.contextMenu.editCard'),
+    enabled: cards.canOpenSheet(card),
     action: () => {
       callbacks.onShowDetail();
     },

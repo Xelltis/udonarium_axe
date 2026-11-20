@@ -26,6 +26,23 @@ export function normalizeFolderPath(raw: string): string {
   return folderSegments(raw).join(FOLDER_SEPARATOR);
 }
 
+/** Something filed under a folder by its path, as a piece, a scenario text or a scene is. */
+export interface FiledInFolder {
+  folderName: string;
+}
+
+/**
+ * Files a thing under a folder, or under none for an empty path, the path written as it is stored,
+ * and only where it changes, the two paths compared as they read, so that filing a thing where it is
+ * already filed sends nothing, one an older save stored with spaces round it as well. Whether it changed.
+ */
+export function fileUnderFolder(item: FiledInFolder, path: string): boolean {
+  const folder = normalizeFolderPath(path);
+  if (normalizeFolderPath(item.folderName) === folder) return false;
+  item.folderName = folder;
+  return true;
+}
+
 /** The folder one level up. Empty for a top-level folder. */
 export function parentFolderPath(path: string): string {
   return folderSegments(path).slice(0, -1).join(FOLDER_SEPARATOR);

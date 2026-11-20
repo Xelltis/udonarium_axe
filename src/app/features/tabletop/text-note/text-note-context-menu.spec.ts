@@ -1,4 +1,5 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -6,6 +7,7 @@ import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
+const disclosure = new DisclosureService();
 
 function makeService(): GameObjectInventoryService {
   return { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService;
@@ -50,7 +52,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t,
       [surfaceAction]
     );
@@ -67,7 +69,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
     expect(menu[0].name).toBe('メモを編集');
@@ -86,7 +88,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
     const unlockEntry = menu.find((m) => m.name === '固定解除');
@@ -101,7 +103,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       standing as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
     expect(names(standingMenu)).toContain('寝かせる');
@@ -111,7 +113,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       laying as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
     expect(names(layingMenu)).toContain('直立させる');
@@ -124,7 +126,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail },
       t
     ).actions;
     menu.find((m) => m.name === 'メモを編集')!.action!();
@@ -137,7 +139,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
     menu.find((m) => m.name === '削除する')!.action!();
@@ -151,7 +153,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
 
@@ -169,7 +171,7 @@ describe('buildTextNoteContextMenuModel()', () => {
       note as unknown as TextNote,
       50,
       makeService(),
-      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn() },
       t
     ).actions;
     expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(2);
@@ -183,7 +185,7 @@ describe('buildTextNoteContextMenuModel()', () => {
         { ...makeTextNote(), identifier } as unknown as TextNote,
         50,
         makeService(),
-        { onSetUpright: vi.fn(), onShowDetail: vi.fn(), onPutAwayTutorial, onClearToBlankTable },
+        { disclosure, onSetUpright: vi.fn(), onShowDetail: vi.fn(), onPutAwayTutorial, onClearToBlankTable },
         t
       );
 

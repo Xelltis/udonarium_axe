@@ -1,4 +1,7 @@
+import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
@@ -90,10 +93,16 @@ interface ModelPart {
   readonly swing?: { readonly hinge: Vector3; readonly deg: number };
   /**
    * For a part that turns for as long as it is drawn, as the sails of a windmill do: the point its axis
-   * runs through and the axis, measured from the model's foot as the rest is, and how many degrees a
-   * second it turns about it.
+   * runs through and the axis, measured from the model's foot as the rest is, how many degrees a
+   * second it turns about it, and how far it and every part turning with it reach out from the axis,
+   * measured the same way.
    */
-  readonly spin?: { readonly at: Vector3; readonly axis: Vector3; readonly degPerSecond: number };
+  readonly spin?: {
+    readonly at: Vector3;
+    readonly axis: Vector3;
+    readonly degPerSecond: number;
+    readonly reach: number;
+  };
   /** Which part of a building's kit it is, as its node says in its extras as `{ "part": ... }`; a wall if it says none. */
   readonly role?: KitRole;
   /** Whether it is the hub of a joined wall, as its node says in its extras as `{ "part": "hub" }`, rather than its arm. */
@@ -174,6 +183,8 @@ export class ModelLayer {
   readonly group = new Group();
   private readonly reader: HeldModelReader;
   private readonly loaded = new Map<string, LoadedModel | null>();
+  /** Where the bytes of each model read or being read are, by the key it is kept by (see `modelReadKeyOf`). */
+  private readonly readUrls = new Map<string, string>();
   private readonly loading = new Set<string>();
   /** When each model read but no longer laid stopped being laid, by its URL. */
   private readonly unused = new UnusedSince(UNUSED_MODEL_KEEP_MS);
@@ -195,7 +206,7 @@ export class ModelLayer {
   private disposed = false;
 
   constructor(
-    private readonly dress: (material: Material) => void,
+    private readonly dress: (material: Material, moonlit: boolean) => void,
     private readonly arrived: () => void,
     private readonly renderer: () => WebGPURenderer,
     private readonly spoutsMoved: (spouts: readonly WaterSpout[]) => void = () => undefined
@@ -317,6 +328,7 @@ export class ModelLayer {
     this.herds.clear();
     for (const loaded of this.loaded.values()) if (loaded) disposeObject(loaded.gltf.scene);
     this.loaded.clear();
+    this.readUrls.clear();
     this.unused.clear();
     if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
     this.sweepTimer = null;
@@ -335,7 +347,7 @@ export class ModelLayer {
         one &&
         one.url === stood.url &&
         (one.cutFaces ?? '') === stood.cut &&
-        (one.ownCopy || this.loaded.get(one.url)?.animated)
+        (one.ownCopy || this.loaded.get(modelReadKeyOf(one))?.animated)
       ) {
         continue;
       }
@@ -347,11 +359,15 @@ export class ModelLayer {
     }
     const flocks = new Map<string, TableWorldModel[]>();
     for (const model of this.laid) {
-      const loaded = this.loaded.get(model.url);
-      if (loaded === undefined) this.read(model.url);
+      const key = modelReadKeyOf(model);
+      let loaded = this.loaded.get(key);
+      if (loaded === undefined) {
+        this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model));
+        loaded = this.loaded.get(key);
+      }
       if (!loaded) continue;
       if (loaded.animated || model.ownCopy) this.stand(model, loaded);
-      else flocks.set(model.url, [...(flocks.get(model.url) ?? []), model]);
+      else flocks.set(key, [...(flocks.get(key) ?? []), model]);
     }
     for (const [url, herd] of this.herds) {
       if (flocks.has(url)) continue;
@@ -366,7 +382,7 @@ export class ModelLayer {
 
   /** Tells where the spouts of the models laid stand on the table, whenever they are not where they were last told. */
   private tellSpouts(): void {
-    const spouts = this.laid.flatMap((model) => spoutsOf(model, this.loaded.get(model.url) ?? null));
+    const spouts = this.laid.flatMap((model) => spoutsOf(model, this.loaded.get(modelReadKeyOf(model)) ?? null));
     const told = JSON.stringify(spouts);
     if (told === this.toldSpouts) return;
     this.toldSpouts = told;
@@ -374,12 +390,12 @@ export class ModelLayer {
   }
 
   /**
-   * Notes when each model read stopped being laid, and has those that have gone unused long enough
-   * let go of then. A model laid again before that is kept as though it had never gone.
+   * Notes when each model read stopped being laid, one that could not be read as well, and has those
+   * that have gone unused long enough let go of then, to be read again should one be laid again. A
+   * model laid again before that is kept as though it had never gone.
    */
   private noteUnused(): void {
-    const read = [...this.loaded].filter(([, loaded]) => loaded !== null).map(([url]) => url);
-    this.unused.note(read, new Set(this.laid.map((model) => model.url)), performance.now());
+    this.unused.note([...this.loaded.keys()], new Set(this.laid.map(modelReadKeyOf)), performance.now());
     this.sweepLater();
   }
 
@@ -398,12 +414,32 @@ export class ModelLayer {
 
   /** Lets go of every model that has gone unused for `UNUSED_MODEL_KEEP_MS`: its meshes, materials and pictures. */
   private sweep(): void {
-    for (const url of this.unused.takeDue(performance.now())) {
-      const loaded = this.loaded.get(url);
-      this.loaded.delete(url);
-      if (loaded) disposeObject(loaded.gltf.scene);
+    for (const key of this.unused.takeDue(performance.now())) {
+      const loaded = this.loaded.get(key);
+      this.loaded.delete(key);
+      if (loaded) this.letGoOf(key, loaded);
+      this.readUrls.delete(key);
     }
     this.sweepLater();
+  }
+
+  /**
+   * Lets go of a model read: its materials, and its meshes' shapes and pictures too unless another copy
+   * read of the same bytes, which shares them, is still held (see {@link variantOf}).
+   */
+  private letGoOf(key: string, loaded: LoadedModel): void {
+    if (this.twinOf(key, 'loaded')) disposeMaterialsOf(loaded.gltf.scene);
+    else disposeObject(loaded.gltf.scene);
+  }
+
+  /** The key of another copy held, or being read, of the same bytes as the one kept by `key`. */
+  private twinOf(key: string, held: 'loaded' | 'loading'): string | null {
+    const url = this.readUrls.get(key);
+    for (const [other, otherUrl] of this.readUrls) {
+      if (other === key || otherUrl !== url) continue;
+      if (held === 'loading' ? this.loading.has(other) : this.loaded.get(other)) return other;
+    }
+    return null;
   }
 
   /** Stands a model that plays a motion where its piece is, as a copy of its own. */
@@ -518,131 +554,210 @@ export class ModelLayer {
     return stood;
   }
 
-  /** Reads a model from bytes held here, its materials made over for the scene, and asks for a frame once it is read. */
-  private read(url: string): void {
-    if (this.loading.has(url)) return;
-    this.loading.add(url);
-    this.parse(url).then(
+  /**
+   * Reads a model from bytes held here, its materials made over for the scene, and asks for a frame
+   * once it is read, kept by `key` (see `modelReadKeyOf`). The glow it was made with is kept only for one of
+   * the app's own (`ownGlow`), and it is greyed by the world's moonlight only as a block (`moonlit`).
+   * Bytes another copy is held of, for a piece where this is for a block or the other way round, are
+   * not read again: the copy is made of the other (see {@link variantOf}), and one waits for the other
+   * being read.
+   */
+  private read(key: string, url: string, ownGlow: boolean, moonlit: boolean): void {
+    if (this.loading.has(key)) return;
+    this.readUrls.set(key, url);
+    const twin = this.twinOf(key, 'loaded');
+    if (twin) {
+      this.loaded.set(key, this.variantOf(this.loaded.get(twin)!, moonlit));
+      return;
+    }
+    if (this.twinOf(key, 'loading')) return;
+    this.loading.add(key);
+    this.parse(url, ownGlow, moonlit).then(
       (loaded) => {
         if (this.disposed) {
           if (loaded) disposeObject(loaded.gltf.scene);
           return;
         }
-        this.loaded.set(url, loaded);
-        this.settle(url);
+        this.loaded.set(key, loaded);
+        this.settle(key);
       },
       () => {
         if (this.disposed) return;
-        this.loaded.set(url, null);
-        this.settle(url);
+        this.loaded.set(key, null);
+        this.settle(key);
       }
     );
   }
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
-  private async parse(url: string): Promise<LoadedModel | null> {
+  private async parse(url: string, ownGlow: boolean, moonlit: boolean): Promise<LoadedModel | null> {
     const read = await this.reader.read(url);
     if (!read) return null;
     const gltf = { scene: read.scene, animations: read.animations };
     const drawn = new Set<Texture>();
     const undrawn = new Set<Texture>();
-    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn));
+    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn, ownGlow, moonlit));
     for (const picture of drawn) undrawn.delete(picture);
     releaseReadPictures(drawn, undrawn);
     for (const picture of undrawn) picture.dispose();
-    gltf.scene.updateMatrixWorld(true);
-    const box = standingBoxOf(gltf.scene);
-    const size = box.getSize(new Vector3());
-    const middle = box.getCenter(new Vector3());
-    const foot = new Vector3(middle.x, box.min.y, middle.z);
-    const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
-    const extras = gltf.scene.userData as { fit?: unknown; height?: unknown };
-    const fit = extras.fit;
-    const facade = fit === 'facade';
-    const tile = fit === 'tile';
-    const madeHeight = tile && extras.height === 'made';
-    const joined = fit === 'joined';
-    const parts: ModelPart[] = [];
-    const spouts: Vector3[] = [];
-    gltf.scene.traverse((object) => {
-      const spout = facade || tile || joined ? null : spoutOf(object);
-      if (spout) spouts.push(spout.applyMatrix4(object.matrixWorld).applyMatrix4(fromFoot));
-      if (!(object instanceof Mesh)) return;
-      if (facade || tile || joined) {
-        parts.push({
-          mesh: object,
-          within: object.matrixWorld.clone(),
-          ...(facade ? { role: kitRoleOf(object) } : {}),
-          ...(joined && isHub(object) ? { hub: true } : {}),
-        });
-        return;
-      }
-      const swing = swingOf(object);
-      const spin = spinOf(object);
-      parts.push({
-        mesh: object,
-        within: fromFoot.clone().multiply(object.matrixWorld),
-        ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
-        ...(spin
-          ? {
-              spin: {
-                at: spin.at.applyMatrix4(spin.node.matrixWorld).applyMatrix4(fromFoot),
-                axis: spin.axis.transformDirection(spin.node.matrixWorld),
-                degPerSecond: spin.degPerSecond,
-              },
-            }
-          : {}),
-      });
-    });
-    const stretch = fit === 'stretch';
-    return {
-      gltf,
-      size,
-      foot,
-      animated: gltf.animations.length > 0,
-      parts,
-      stretch,
-      facade,
-      tile,
-      madeHeight,
-      joined,
-      ...(spouts.length ? { spouts } : {}),
-    };
+    return measured(gltf);
   }
 
-  private settle(url: string): void {
-    this.loading.delete(url);
+  /**
+   * A copy of a model read for a piece made of the one read for a block, or the other way round: its
+   * meshes' shapes, its pictures and its motions shared with the other, its materials its own, covered
+   * for the moonlight as this copy is drawn (`moonlit`), and its measure the other's (see
+   * {@link measuredAs}).
+   */
+  private variantOf(other: LoadedModel, moonlit: boolean): LoadedModel {
+    const scene = cloneSkinned(other.gltf.scene) as Group;
+    scene.traverse((object) => {
+      if (!(object instanceof Mesh)) return;
+      const ownCopy = (material: Material) => {
+        const copy = material.clone();
+        this.dress(copy, moonlit);
+        return copy;
+      };
+      object.material = Array.isArray(object.material) ? object.material.map(ownCopy) : ownCopy(object.material);
+    });
+    return measuredAs(other, scene);
+  }
+
+  private settle(key: string): void {
+    this.loading.delete(key);
     this.lay();
     this.arrived();
   }
 
   /**
-   * Makes a mesh's material over as the scene's own: lit as the board is, veiled and darkened with
-   * it, throwing shadows. The picture of its colour is drawn with, and noted so; the rest of the
-   * pictures it wore, as its bumps and its shine, are noted as not drawn.
+   * Makes a mesh's material over as the scene's own, as `sceneMaterialOf` makes it: lit as the board
+   * is, veiled and darkened with it, throwing shadows.
    */
-  private makeOver(object: Object3D, drawn: Set<Texture>, undrawn: Set<Texture>): void {
+  private makeOver(
+    object: Object3D,
+    drawn: Set<Texture>,
+    undrawn: Set<Texture>,
+    ownGlow: boolean,
+    moonlit: boolean
+  ): void {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
     object.receiveShadow = true;
     const madeOver = (material: Material) => {
-      const was = material as MeshStandardMaterial;
-      for (const picture of picturesOf(material)) (picture === was.map ? drawn : undrawn).add(picture);
-      const lit = new MeshLambertNodeMaterial({
-        color: was.color,
-        map: was.map ?? null,
-        transparent: was.transparent,
-        opacity: was.opacity,
-        alphaTest: was.alphaTest,
-        side: was.side,
-        vertexColors: was.vertexColors,
-      });
-      this.dress(lit);
+      const lit = sceneMaterialOf(material, drawn, undrawn, ownGlow);
+      this.dress(lit, moonlit);
       material.dispose();
       return lit;
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
+}
+
+/** Lets go of the materials of a model's meshes alone, leaving their shapes and pictures to a copy that shares them. */
+function disposeMaterialsOf(root: Object3D): void {
+  root.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
+  });
+}
+
+/**
+ * A copy of a model's scene, made by cloning it, measured as the model was when it was read: its size,
+ * its foot and its parts the model's, each part the copy's own mesh at the same place in the walk of
+ * the scene (see `meshesOf`). A model is measured once, as it stands when read, so a copy made as the
+ * other stands posed by a motion stands as the other does. A copy whose meshes do not answer the
+ * model's one for one is measured as it stands.
+ */
+function measuredAs(other: LoadedModel, scene: Group): LoadedModel {
+  const copies = meshesOf(scene);
+  const placeOf = new Map<Object3D, number>(meshesOf(other.gltf.scene).map((mesh, index) => [mesh, index]));
+  const parts = other.parts.map((part) => ({ ...part, mesh: copies[placeOf.get(part.mesh) ?? -1] }));
+  if (copies.length !== placeOf.size || !parts.every((part) => part.mesh instanceof Mesh)) {
+    return measured({ scene, animations: other.gltf.animations });
+  }
+  return { ...other, gltf: { scene, animations: other.gltf.animations }, parts: parts as ModelPart[] };
+}
+
+/** A model read and made over for the scene as the layer keeps it: its size and foot as it stands, and its parts as made. */
+function measured(gltf: Pick<GLTF, 'scene' | 'animations'>): LoadedModel {
+  gltf.scene.updateMatrixWorld(true);
+  const box = standingBoxOf(gltf.scene);
+  const size = box.getSize(new Vector3());
+  const middle = box.getCenter(new Vector3());
+  const foot = new Vector3(middle.x, box.min.y, middle.z);
+  const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
+  const extras = gltf.scene.userData as { fit?: unknown; height?: unknown };
+  const fit = extras.fit;
+  const facade = fit === 'facade';
+  const tile = fit === 'tile';
+  const madeHeight = tile && extras.height === 'made';
+  const joined = fit === 'joined';
+  const { parts, spouts } = modelPartsOf(gltf.scene, fromFoot, fit);
+  const stretch = fit === 'stretch';
+  return {
+    gltf,
+    size,
+    foot,
+    animated: gltf.animations.length > 0,
+    parts,
+    stretch,
+    facade,
+    tile,
+    madeHeight,
+    joined,
+    ...(spouts.length ? { spouts } : {}),
+  };
+}
+
+/**
+ * Whether a model is drawn for a block of the world, which the moonlight greys at night, rather than for
+ * a piece, whose colours the players tell pieces apart by and which keeps them.
+ */
+function moonlitFor(model: TableWorldModel): boolean {
+  return model.kind === Terrain.aliasName;
+}
+
+/**
+ * What a read model is kept by: where its bytes are, and for a piece apart from a block, since the two
+ * are made over differently for the moonlight (see `moonlitFor`) and one model may be drawn as both.
+ */
+export function modelReadKeyOf(model: TableWorldModel): string {
+  return moonlitFor(model) ? model.url : `${model.url}${PIECE_READ}`;
+}
+
+/** What is added to the key a model drawn for a piece is kept by. */
+const PIECE_READ = '#piece';
+
+/**
+ * A material of a model made over as the scene's own, lit as the board is: its colour, its picture
+ * and how it lets light through kept. The glow it gives off, a neon tube's or a potion's, is kept as
+ * strong as it was made, with the picture of that glow, for one of the app's own models (`ownGlow`),
+ * made to glow on purpose; one brought in is drawn without, as it always was, since its glow may be
+ * no more than a way to look unlit, which would stand out of the dark of a table. The pictures it is
+ * drawn with are noted as drawn, and the rest it wore, as its bumps and its shine, as not drawn.
+ */
+export function sceneMaterialOf(
+  material: Material,
+  drawn: Set<Texture>,
+  undrawn: Set<Texture>,
+  ownGlow = false
+): MeshLambertNodeMaterial {
+  const was = material as MeshStandardMaterial;
+  const glows = ownGlow && was.emissive !== undefined && was.emissive.getHex() !== 0;
+  const glowMap = glows ? (was.emissiveMap ?? null) : null;
+  for (const picture of picturesOf(material)) {
+    (picture === was.map || picture === glowMap ? drawn : undrawn).add(picture);
+  }
+  return new MeshLambertNodeMaterial({
+    color: was.color,
+    map: was.map ?? null,
+    transparent: was.transparent,
+    opacity: was.opacity,
+    alphaTest: was.alphaTest,
+    side: was.side,
+    vertexColors: was.vertexColors,
+    ...(glows ? { emissive: was.emissive, emissiveMap: glowMap, emissiveIntensity: was.emissiveIntensity ?? 1 } : {}),
+  });
 }
 
 /**
@@ -740,7 +855,7 @@ export function placedPartsOf(
       return [frame.clone().multiply(swungAbout(scaling, part.swing!)).multiply(scaling).multiply(part.within)];
     }
     if (!part.spin) return [placement.clone().multiply(part.within)];
-    const spin = spinPlacementOf(frame, scaling, part.within, part.spin, index);
+    const spin = spinPlacementOf(frame, scaling, part.within, part.spin, index, model.current);
     spins.push(spin);
     return [spinPlacedAt(spin, timeMs)];
   });
@@ -781,22 +896,61 @@ function swingsOpen(model: TableWorldModel, part: Pick<ModelPart, 'swing'>): boo
   return model.door?.open === true && part.swing !== undefined;
 }
 
-/** The turn of a part about the point its axis runs through where the scaling puts it, so that it turns unstretched. */
+/**
+ * The turn of a part about the point its axis runs through where the scaling puts it, so that it
+ * turns unstretched, the way `senseInCurrent` says the water flowing under its model turns it.
+ */
 function spinPlacementOf(
   frame: Matrix4,
   scaling: Matrix4,
   within: Matrix4,
   spin: NonNullable<ModelPart['spin']>,
-  part: number
+  part: number,
+  current: WaterCurrent | undefined
 ): SpinPlacement {
   const at = spin.at.clone().applyMatrix4(scaling);
+  const sense = current
+    ? senseInCurrent(
+        current,
+        at.clone().applyMatrix4(frame),
+        spin.axis.clone().transformDirection(frame),
+        spin.reach * new Vector3().setFromMatrixColumn(scaling, 1).length(),
+        spin.degPerSecond
+      )
+    : 1;
   return {
     part,
     before: frame.clone().multiply(new Matrix4().makeTranslation(at.x, at.y, at.z)),
     axis: spin.axis,
-    degPerSecond: spin.degPerSecond,
+    degPerSecond: spin.degPerSecond * sense,
     after: new Matrix4().makeTranslation(-at.x, -at.y, -at.z).multiply(scaling).multiply(within),
   };
+}
+
+/** How squarely the water has to run across the way a part turns, from 0 to 1, to turn it one way rather than the other. */
+const LEAST_DRIVE = 0.05;
+
+/**
+ * Which way a part made to turn turns in the water flowing under its model: 1 the way it was made,
+ * -1 the other way round, so that where it dips into the water its lowest point runs the way the
+ * water runs, as a watermill's wheel does on whichever bank it stands. A part whose lowest point
+ * stays over the surface, that turns about an upright, or about an axis the water runs along, turns
+ * as it was made. The point its axis runs through and the axis are as placed on the table (x east, y
+ * up and z south, in table pixels), with how far the part reaches out from the axis. Its lowest
+ * point runs along the axis crossed with the way down as it turns the way the axis points, which
+ * across the table is the axis's own z and minus its x, over how level it lies.
+ */
+export function senseInCurrent(
+  current: WaterCurrent,
+  at: Vector3,
+  axis: Vector3,
+  reach: number,
+  degPerSecond: number
+): 1 | -1 {
+  const level = Math.sqrt(Math.max(0, 1 - axis.y * axis.y));
+  if (level < LEAST_DRIVE || at.y - reach * level >= current.surfacePx) return 1;
+  const along = (axis.z * current.towardX - axis.x * current.towardY) / level;
+  return Math.sign(degPerSecond) * along < -LEAST_DRIVE ? -1 : 1;
 }
 
 /** The four sides of a block, each as the turn that faces a part made facing south out of it. */
@@ -1062,6 +1216,95 @@ export function spinOf(object: Object3D): { node: Object3D; at: Vector3; axis: V
     return { node, at, axis: axis.normalize(), degPerSecond };
   }
   return null;
+}
+
+/**
+ * The meshes of a model's scene, its matrices worked out, as its parts, and the mouths its nodes say
+ * water pours from, both measured from its foot. The parts of a building's kit, as `fit` names one,
+ * are placed as they were made, by the block, and pour nothing; the parts of any other model are
+ * placed from its foot, with the hinges they swing on and the axes they turn about.
+ */
+export function modelPartsOf(
+  scene: Object3D,
+  fromFoot: Matrix4,
+  fit: unknown
+): { readonly parts: ModelPart[]; readonly spouts: Vector3[] } {
+  const facade = fit === 'facade';
+  const joined = fit === 'joined';
+  const kit = facade || joined || fit === 'tile';
+  const parts: ModelPart[] = [];
+  const spouts: Vector3[] = [];
+  const turningWith = new Map<number, Object3D>();
+  scene.traverse((object) => {
+    const spout = kit ? null : spoutOf(object);
+    if (spout) spouts.push(spout.applyMatrix4(object.matrixWorld).applyMatrix4(fromFoot));
+    if (!(object instanceof Mesh)) return;
+    if (kit) {
+      parts.push({
+        mesh: object,
+        within: object.matrixWorld.clone(),
+        ...(facade ? { role: kitRoleOf(object) } : {}),
+        ...(joined && isHub(object) ? { hub: true } : {}),
+      });
+      return;
+    }
+    const swing = swingOf(object);
+    const spin = spinOf(object);
+    const within = fromFoot.clone().multiply(object.matrixWorld);
+    if (spin) turningWith.set(parts.length, spin.node);
+    parts.push({
+      mesh: object,
+      within,
+      ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
+      ...(spin ? { spin: turnOf(object, within, spin, fromFoot) } : {}),
+    });
+  });
+  reachTogether(parts, turningWith);
+  return { parts, spouts };
+}
+
+/**
+ * How a mesh of a model turns, measured from the model's foot: about the point and the axis its node
+ * says, as far as the mesh reaches out from the axis. Where other meshes hang from the same node,
+ * `reachTogether` makes the reach theirs too.
+ */
+function turnOf(
+  mesh: Mesh,
+  within: Matrix4,
+  spin: NonNullable<ReturnType<typeof spinOf>>,
+  fromFoot: Matrix4
+): NonNullable<ModelPart['spin']> {
+  const at = spin.at.applyMatrix4(spin.node.matrixWorld).applyMatrix4(fromFoot);
+  const axis = spin.axis.transformDirection(spin.node.matrixWorld);
+  return { at, axis, degPerSecond: spin.degPerSecond, reach: reachFromAxis(mesh, within, at, axis) };
+}
+
+/** How far the farthest point of a mesh, placed within its model, lies from an axis through a point. */
+function reachFromAxis(mesh: Mesh, within: Matrix4, at: Vector3, axis: Vector3): number {
+  const points = mesh.geometry.getAttribute('position');
+  if (!points) return 0;
+  const point = new Vector3();
+  let reach = 0;
+  for (let index = 0; index < points.count; index++) {
+    point.fromBufferAttribute(points, index).applyMatrix4(within).sub(at);
+    reach = Math.max(reach, point.addScaledVector(axis, -point.dot(axis)).length());
+  }
+  return reach;
+}
+
+/**
+ * Gives every part turning with others, hung from the same node, the reach of the farthest of them,
+ * so that the parts of a wheel are all turned the same way by the water it dips into.
+ */
+function reachTogether(parts: ModelPart[], turningWith: ReadonlyMap<number, Object3D>): void {
+  const reaches = new Map<Object3D, number>();
+  for (const [index, node] of turningWith) {
+    reaches.set(node, Math.max(reaches.get(node) ?? 0, parts[index].spin?.reach ?? 0));
+  }
+  for (const [index, node] of turningWith) {
+    const part = parts[index];
+    if (part.spin) parts[index] = { ...part, spin: { ...part.spin, reach: reaches.get(node) ?? 0 } };
+  }
 }
 
 /** The mouth a node of a model says water pours from, where it was made, or null for a node that says none. */

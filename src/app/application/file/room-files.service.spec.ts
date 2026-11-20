@@ -85,4 +85,22 @@ describe('RoomFilesService', () => {
       expect(picker.value).toBe('');
     });
   });
+
+  describe('loading a room already agreed to', () => {
+    it('asks nothing again, and answers whether the room data was read', async () => {
+      const load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true } as LoadResult);
+      const room = new File(['x'], 'room.zip');
+
+      await expect(service.loadAgreed(room)).resolves.toBe(true);
+      expect(load).toHaveBeenCalledWith([room], undefined, { check: 'agreed' });
+    });
+
+    it('loads nothing for a seat that may not change the table', async () => {
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
+      const load = vi.spyOn(TestBed.inject(FileArchiver), 'load');
+
+      await expect(service.loadAgreed(new File(['x'], 'room.zip'))).resolves.toBe(false);
+      expect(load).not.toHaveBeenCalled();
+    });
+  });
 });

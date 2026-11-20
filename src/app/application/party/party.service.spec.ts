@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { PartyService } from '@axe/application/party/party.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('the parties a room keeps, and who stands with whom', () => {
@@ -66,5 +68,21 @@ describe('the parties a room keeps, and who stands with whom', () => {
     service.remove(villagers);
 
     expect(heroes.allies).toBe('');
+  });
+
+  it('puts a party on a side of the battle stage for the game master alone', () => {
+    const heroes = made('英雄');
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    expect(service.setBattleSide(heroes, 'left')).toBe(false);
+    expect(heroes.battleSide).toBe('');
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    expect(service.setBattleSide(heroes, 'left')).toBe(true);
+    expect(heroes.battleSide).toBe('left');
+    expect(service.setBattleSide(heroes, null)).toBe(true);
+    expect(heroes.battleSide).toBe('');
+    PeerCursor.myCursor = null!;
   });
 });

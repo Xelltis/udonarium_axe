@@ -5,10 +5,12 @@ import { buffEffectTimingOf } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementFieldType } from '@axe/domain/data/data-element';
 import {
   applyBuffEdit,
+  applyBuffEditReport,
   applyResourceEdit,
+  applyResourceEditReport,
   applyTextEdit,
   type BuffEdit,
   convertCommandToResourceEdit,
@@ -176,7 +178,7 @@ describe('resource-edit-helpers', () => {
       edit.target = '器用度';
       edit.replace = '30';
 
-      const text = applyTextEdit(edit, character);
+      const text = applyTextEdit(edit, character).full;
 
       expect(text).toContain('器用度＞30');
     });
@@ -948,6 +950,17 @@ describe('resource-edit-helpers', () => {
       expect(character.buffs.find('石化')!.value).toBe(5);
     });
 
+    it('keeps a status held at a value where it is when more is stacked naming it in full-width letters', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      edit('&!石化/HP/=/0/1');
+
+      expect(edit('&+!石化/ＨＰ/+/2/3')).toBe('石化を加算 HP=0/3R    ');
+      edit('&+石化/ＨＰ+2/1');
+
+      expect(character.status.getValue('HP', 'now')).toBe(0);
+      expect(character.buffs.find('石化')!.currentValue).toBe('HP=0');
+    });
+
     it('lets the hold go and writes the new note where more is stacked on another status', () => {
       const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
       edit('&!石化/HP/=/0/1');
@@ -1006,6 +1019,359 @@ describe('resource-edit-helpers', () => {
       applyBuffEdit({ command: '&!猛攻撃/HP/+/2/3', object: character, targeted: false }, character);
 
       expect(character.status.getValue('HP', 'now')).toBe(before + 2);
+    });
+  });
+
+  describe('words written into an item', () => {
+    let character: GameCharacter;
+
+    beforeEach(() => {
+      character = GameCharacter.create('テスト戦士', 1, '');
+      const section = DataElement.create('戦闘', '', { [DataElementAttribute.ROLE]: 'section' });
+      const group = DataElement.create('戦闘', '', { [DataElementAttribute.ROLE]: 'group' });
+      character.detailDataElement!.appendChild(section);
+      section.appendChild(group);
+      group.appendChild(DataElement.create('属性', '無属性', { [DataElementAttribute.ROLE]: 'field' }));
+      group.appendChild(DataElement.create('物理D増加', 0, { [DataElementAttribute.ROLE]: 'field' }));
+      group.appendChild(
+        DataElement.create('構え', '通常', {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'select',
+          [DataElementAttribute.CHOICES]: '通常,攻勢,守勢',
+        })
+      );
+      group.appendChild(
+        DataElement.create('ランク', 2, {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'number',
+        })
+      );
+      group.appendChild(
+        DataElement.create('段位', '1', {
+          [DataElementAttribute.ROLE]: 'field',
+          [DataElementAttribute.FIELD_TYPE]: 'select',
+          [DataElementAttribute.CHOICES]: '1,2,3',
+        })
+      );
+      group.appendChild(DataElement.create('PL名', '', { [DataElementAttribute.ROLE]: 'field' }));
+    });
+
+    const buff = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+    it('writes no words into an item that holds numbers, by a buff or by the chat', () => {
+      const hp = character.status.getText('HP');
+
+      expect(buff('&!呪い/HP=炎/3')).toBe('呪いを付与 HP=炎/3R (HPは数の項目なので「炎」は書けません)    ');
+      expect(buff('&!呪い/HP=1d6/3')).toBe('バフの書式が読めません 呪い    ');
+      expect(character.status.getText('HP')).toBe(hp);
+      expect(said(':HP=炎').edit.operator).toBe('=');
+    });
+
+    it('holds a choice only at one of its choices, numbers among them, by a buff or by the chat', () => {
+      expect(buff('&!昇格/段位=5/3')).toBe('昇格を付与 段位=5/3R (段位に「5」はありません: 1・2・3)    ');
+      expect(character.status.getText('段位')).toBe('1');
+      expect(buff('&!構え直し/構え=3/3')).toBe(
+        '構え直しを付与 構え=3/3R (構えに「3」はありません: 通常・攻勢・守勢)    '
+      );
+
+      buff('&!昇格/段位=2/3');
+      expect(character.status.getText('段位')).toBe('2');
+      buff('&昇格-');
+      expect(character.status.getText('段位')).toBe('1');
+      const five = said(':段位=5').edit;
+      expect(five).toMatchObject({ operator: '>', replace: '5' });
+      expect(applyTextEdit(five, character).full).toBe('段位に「5」はありません: 1・2・3    ');
+      expect(said(':段位=1+1').edit.operator).toBe('=');
+      expect(applyResourceEdit({ ...said(':段位=1+1').edit, calcAns: 2 }, character)).toBe('段位＞2    ');
+      expect(character.status.getText('段位')).toBe('2');
+      applyTextEdit(said(':段位>1').edit, character);
+
+      buff('&!昇格/段位+1/3');
+      expect(character.status.getText('段位')).toBe('2');
+      buff('&昇格-');
+      expect(character.status.getText('段位')).toBe('1');
+    });
+
+    it('reads no words for a slot other than the value, nor with a count to move them by', () => {
+      expect(buff('&!x/HP^=最大/3')).toBe('バフの書式が読めません x    ');
+      expect(buff('&!y/属性=炎~1/3')).toBe('バフの書式が読めません y    ');
+      expect(character.status.getText('属性')).toBe('無属性');
+    });
+
+    it('reads what follows `=` in a buff as a chat command reads it, words with a digit not at all', () => {
+      expect(buff('&!x/属性=ロングソード+1/3')).toBe('バフの書式が読めません x    ');
+      expect(said(':属性=ロングソード+1').edit.operator).toBe('=');
+      expect(character.status.getText('属性')).toBe('無属性');
+    });
+
+    it('writes words with a wave dash among them, which moves nothing', () => {
+      expect(buff('&!夜警/属性=夜〜朝/3')).toBe('夜警を付与 属性=夜〜朝/3R    ');
+      expect(character.status.getText('属性')).toBe('夜〜朝');
+    });
+
+    it('reads what follows `=` with no digit in it as words, and anything with one as an amount, as it always was', () => {
+      expect(said(':属性=L').edit).toMatchObject({ operator: '>', replace: 'L' });
+      expect(said(':属性=OK').edit).toMatchObject({ operator: '>', replace: 'OK' });
+      expect(said(':HP=10L').edit).toMatchObject({ operator: '=', amount: '10' });
+      for (const amount of ['13/2F', '[13/2C]+1', 'Card2', '3D', 'K20+5']) {
+        expect(said(`:属性=${amount}`).edit.operator, amount).toBe('=');
+      }
+    });
+
+    it("takes words naming one of a choice's choices as that choice, whatever they read as", () => {
+      character.detailDataElement!.getFirstElementByName('構え')!.setAttribute(DataElementAttribute.CHOICES, 'Lv1,Lv2');
+
+      expect(said(':構え=Lv2').edit).toMatchObject({ operator: '>', replace: 'Lv2' });
+      expect(applyTextEdit(said(':構え=Lv2').edit, character).full).toBe('構え＞Lv2    ');
+      expect(said(':構え=Lv3').edit.operator).toBe('=');
+    });
+
+    it('writes into the value of a status the maximum of which a command names, where it has none, as it moves one', () => {
+      expect(said(':属性^=炎').edit).toMatchObject({ operator: '>', replace: '炎' });
+      expect(said(':段位^=2').edit).toMatchObject({ operator: '>', replace: '2' });
+    });
+
+    describe('of a piece whose contents are kept from anyone', () => {
+      beforeEach(() => {
+        character.disclosureMode = 'gm';
+      });
+
+      it('tells everyone only which status words went into, by `>`, by `=` or as a worked-out choice', () => {
+        expect(applyTextEdit(said(':属性=炎').edit, character)).toEqual({
+          full: '属性＞炎    ',
+          shown: '属性＞？    ',
+        });
+        expect(applyTextEdit(said(':属性>氷').edit, character)).toEqual({
+          full: '属性＞氷    ',
+          shown: '属性＞？    ',
+        });
+        expect(applyResourceEditReport({ ...said(':段位=1d3').edit, calcAns: 2 }, character)).toEqual({
+          full: '段位＞2    ',
+          shown: '段位＞？    ',
+        });
+      });
+
+      it('names a choice of it to none but those who may see it, by the chat or by a buff', () => {
+        expect(applyTextEdit(said(':構え=突撃').edit, character)).toEqual({
+          full: '構えに「突撃」はありません: 通常・攻勢・守勢    ',
+          shown: '構え＞？    ',
+        });
+        expect(applyTextEdit(said(':段位=5').edit, character).shown).toBe('段位＞？    ');
+        expect(applyResourceEditReport({ ...said(':段位=1+3').edit, calcAns: 4 }, character).shown).toBe(
+          '段位＞？    '
+        );
+      });
+
+      it('tells everyone a buff laid on it but nothing of what it found of its items', () => {
+        const report = (command: string) =>
+          applyBuffEditReport({ command, object: character, targeted: false }, character);
+
+        expect(report('&!構え直し/構え=突撃/3')).toEqual({
+          full: '構え直しを付与 構え=突撃/3R (構えに「突撃」はありません: 通常・攻勢・守勢)    ',
+          shown: '構え直しを付与 構え=突撃/3R    ',
+        });
+        expect(report('&!呪い/ランク=炎/3').shown).toBe('呪いを付与 ランク=炎/3R    ');
+        expect(report('&!結界/結界=炎/3')).toEqual({
+          full: '結界を付与 結界=炎/3R (結界をバフの項目に作りました)    ',
+          shown: '結界を付与 結界=炎/3R    ',
+        });
+      });
+    });
+
+    it('clears an item holding a choice with `>` and nothing, and writes anything into one offering no choices', () => {
+      expect(applyTextEdit(said(':構え>').edit, character).full).toBe('構え＞    ');
+      expect(character.status.getText('構え')).toBe('');
+
+      character.detailDataElement!.getFirstElementByName('構え')!.setAttribute(DataElementAttribute.CHOICES, '');
+      expect(applyTextEdit(said(':構え>突撃').edit, character).full).toBe('構え＞突撃    ');
+      expect(buff('&!突撃/構え=猛進/3')).toBe('突撃を付与 構え=猛進/3R    ');
+    });
+
+    it('says why a buff laid nowhere, as the lint says it', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('判定済み', '', { type: 'check' }));
+
+      expect(buff('&!集中/判定済み+1/3')).toBe('集中を付与 判定済み+1/3R (判定済みには書けません)    ');
+      expect(buff('&!猛攻撃/PL名+2/3')).toBe('猛攻撃を付与 PL名+2/3R (PL名に動かす数がありません)    ');
+      expect(buff('&!鼓舞/気力^+2/3')).toBe('鼓舞を付与 最大気力+2/3R (気力が見つかりません)    ');
+    });
+
+    it('holds an item of words no number is read from at an amount as words, by the chat as by a buff', () => {
+      expect(applyTextEdit(said(':属性=1').edit, character).full).toBe('属性＞1    ');
+      expect(character.status.getText('属性')).toBe('1');
+      character.status.setText('属性', '炎');
+      applyResourceEditReport({ ...said(':属性=1+1').edit, calcAns: 2 }, character);
+      expect(character.status.getText('属性')).toBe('2');
+      character.status.setText('属性', '炎');
+      expect(buff('&!B/属性=1/3')).toBe('Bを付与 属性=1/3R    ');
+      expect(character.status.getText('属性')).toBe('1');
+    });
+
+    it('writes what it decided on, a full-width number held to a choice in half-width', () => {
+      expect(said(':段位=２').edit).toMatchObject({ operator: '>', replace: '2' });
+      expect(applyTextEdit(said(':段位=２').edit, character).full).toBe('段位＞2    ');
+      expect(character.status.getText('段位')).toBe('2');
+    });
+
+    it('finds the item a buff names in full-width letters, moving it rather than making another', () => {
+      const mp = character.status.getValue('MP', 'now')!;
+
+      expect(buff('&!集中/ＭＰ-2/3')).toBe('集中を付与 ＭＰ-2/3R    ');
+      expect(character.status.getValue('MP', 'now')).toBe(mp - 2);
+      expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
+    });
+
+    it('writes no words over a number a line of text holds, but by `>`', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('攻撃', '3', { [DataElementAttribute.ROLE]: 'field' }));
+
+      expect(buff('&!強化/攻撃=炎/3')).toBe('強化を付与 攻撃=炎/3R (攻撃は数の項目なので「炎」は書けません)    ');
+      expect(buff('&!強化/攻撃=10+/3')).toBe('バフの書式が読めません 強化    ');
+      expect(character.status.getText('攻撃')).toBe('3');
+      applyTextEdit(said(':攻撃>10+').edit, character);
+      expect(character.status.getText('攻撃')).toBe('10+');
+    });
+
+    it('makes no item for a name two items go by, though neither is found by it', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('防御', 1, { [DataElementAttribute.ROLE]: 'field' }));
+      group.appendChild(DataElement.create('防御', 2, { [DataElementAttribute.ROLE]: 'field' }));
+
+      expect(character.status.canMakeForBuff('防御')).toBe(false);
+      expect(buff('&!守り/防御+2/3')).toContain('防御が見つかりません');
+      expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
+    });
+
+    it('finds the half-width item a value can be written into before a full-width one it cannot', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      group.appendChild(DataElement.create('ＨＰ', '', { type: 'check' }));
+      const hp = character.status.getValue('HP', 'now')!;
+
+      expect(said(':ＨＰ-1').edit.target).toBe('HP');
+      expect(applyResourceEdit({ ...said(':ＨＰ-1').edit, calcAns: -1 }, character)).toContain('HP:');
+      expect(character.status.getValue('HP', 'now')).toBe(hp - 1);
+      expect(buff('&!疲労/ＨＰ-3/3')).toBe('疲労を付与 ＨＰ-3/3R    ');
+      expect(character.status.getValue('HP', 'now')).toBe(hp - 4);
+    });
+
+    it('finds the status a command names in half-width characters as well', () => {
+      expect(said(':ＰＬ名=山田').edit).toMatchObject({ operator: '>', replace: '山田', target: 'PL名' });
+    });
+
+    function said(command: string): { ok: boolean; edit: ResourceEdit } {
+      const edit = createDefaultResourceEdit();
+      return { ok: convertCommandToResourceEdit(edit, command, character, false), edit };
+    }
+
+    it('reads `=` with words for a line of text as writing them, and with a sum or a roll as a number', () => {
+      expect(said(':属性=炎').edit).toMatchObject({ operator: '>', replace: '炎', target: '属性' });
+      expect(said(':属性=3').edit).toMatchObject({ operator: '>', replace: '3' });
+      expect(said(':属性=1+2').edit).toMatchObject({ operator: '=', amount: '1+2' });
+      expect(said(':属性=1d6').edit).toMatchObject({ operator: '=', isDiceRoll: true });
+      expect(said(':ランク=炎').edit.operator).toBe('=');
+      expect(said(':HP=炎').edit.operator).toBe('=');
+    });
+
+    it('writes in no value that `:` asks to leave once the buff goes, as words or one of the choices', () => {
+      expect(buff('&!変化/:属性=3/3')).toBe(
+        '変化を付与 :属性=3/3R (属性に書く値はバフが外れると戻るため、「:」では残せません)    '
+      );
+      expect(character.status.getText('属性')).toBe('無属性');
+      expect(buff('&!昇格/:段位=2/3')).toBe(
+        '昇格を付与 :段位=2/3R (段位に書く値はバフが外れると戻るため、「:」では残せません)    '
+      );
+      expect(character.status.getText('段位')).toBe('1');
+    });
+
+    it('writes words into every field that holds them, by the chat as by a buff', () => {
+      const group = character.detailDataElement!.getFirstElementByName('属性')!.parent as DataElement;
+      for (const [name, fieldType] of [
+        ['投射の形', DataElementFieldType.RANGE_SHAPE],
+        ['技の効果', DataElementFieldType.EFFECT],
+        ['来歴', DataElementFieldType.MARKDOWN],
+      ] as const) {
+        group.appendChild(
+          DataElement.create(name, '', {
+            [DataElementAttribute.ROLE]: 'field',
+            [DataElementAttribute.FIELD_TYPE]: fieldType,
+          })
+        );
+        expect(said(`:${name}=炎`).edit).toMatchObject({ operator: '>', replace: '炎', target: name });
+        buff(`&!炎上/${name}=爆炎/3`);
+        expect(character.status.getText(name)).toBe('爆炎');
+      }
+    });
+
+    it('writes the words, and writes into an item holding a choice only one of its choices', () => {
+      expect(applyTextEdit(said(':属性=炎').edit, character).full).toBe('属性＞炎    ');
+      expect(character.status.getText('属性')).toBe('炎');
+
+      expect(said(':構え=攻勢').edit).toMatchObject({ operator: '>', replace: '攻勢' });
+      expect(applyTextEdit(said(':構え=攻勢').edit, character).full).toBe('構え＞攻勢    ');
+      expect(character.status.getText('構え')).toBe('攻勢');
+
+      expect(applyTextEdit(said(':構え>突撃').edit, character).full).toBe(
+        '構えに「突撃」はありません: 通常・攻勢・守勢    '
+      );
+      expect(character.status.getText('構え')).toBe('攻勢');
+    });
+
+    it('lays a buff that writes words into an item and moves a number, putting both back as it goes', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      const text = edit('&!ファイア・ウェポン/物理D増加+2,属性=炎/18');
+
+      expect(text).toBe('ファイア・ウェポンを付与 物理D増加+2,属性=炎/18R    ');
+      expect(character.status.getText('属性')).toBe('炎');
+      expect(character.status.getValue('物理D増加', 'now')).toBe(2);
+      expect(character.buffs.find('ファイア・ウェポン（属性）')).not.toBeNull();
+
+      edit('&ファイア・ウェポン-');
+
+      expect(character.status.getText('属性')).toBe('無属性');
+      expect(character.status.getValue('物理D増加', 'now')).toBe(0);
+    });
+
+    it('lays a buff of one name again with words where it moved a number, making its item again for the words', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      expect(edit('&!X/新+2/3')).toBe('Xを付与 新+2/3R (新をバフの項目に作りました)    ');
+      expect(edit('&!X/新=炎/3')).toBe('Xを付与 新=炎/3R (新をバフの項目に作りました)    ');
+      expect(character.status.getText('新')).toBe('炎');
+
+      edit('&X-');
+
+      expect(character.status.getText('新')).toBeNull();
+    });
+
+    it('makes an item the piece lacks at the foot of its sheet, says so, and takes it away with the buff', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      const text = edit('&!フィールドレジスト/炎D軽減+3,結界=炎/18');
+
+      expect(text).toBe('フィールドレジストを付与 炎D軽減+3,結界=炎/18R (炎D軽減・結界をバフの項目に作りました)    ');
+      expect(character.status.getValue('炎D軽減', 'now')).toBe(3);
+      expect(character.status.getText('結界')).toBe('炎');
+
+      edit('&フィールドレジスト-');
+
+      expect(character.status.getText('炎D軽減')).toBeNull();
+      expect(character.status.getText('結界')).toBeNull();
+      expect(character.detailDataElement!.getFirstElementByName('バフの項目')).toBeNull();
+    });
+
+    it('says it made an item only the first time the buff that made it is laid', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+      expect(edit('&!炎の剣/武器属性=炎/3')).toContain('武器属性をバフの項目に作りました');
+      expect(edit('&!炎の剣/武器属性=炎/3')).toBe('炎の剣を付与 武器属性=炎/3R    ');
+    });
+
+    it('says which choices an item takes where a buff writes another into it', () => {
+      const text = applyBuffEdit({ command: '&!構え直し/構え=突撃/3', object: character, targeted: false }, character);
+
+      expect(text).toBe('構え直しを付与 構え=突撃/3R (構えに「突撃」はありません: 通常・攻勢・守勢)    ');
+      expect(character.status.getText('構え')).toBe('通常');
     });
   });
 });

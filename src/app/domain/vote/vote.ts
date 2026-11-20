@@ -149,6 +149,11 @@ export class Vote extends GameObject {
     this.finish();
   }
 
+  /** Whether the vote has been started and is still being answered. */
+  isOpen(): boolean {
+    return this.initTimeStamp > 0 && !this.isFinish;
+  }
+
   /** Whether who answered what can be shown: always, unless the vote is secret and still open. */
   answersShown(): boolean {
     return !this.isSecret || this.isFinish;

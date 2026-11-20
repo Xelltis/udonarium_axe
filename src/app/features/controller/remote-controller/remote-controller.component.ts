@@ -17,6 +17,7 @@ import { PieceNameService } from '@axe/application/character/piece-name.service'
 import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatPaletteWriteService } from '@axe/application/chat/chat-palette-write.service';
 import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -130,6 +131,7 @@ export class RemoteControllerComponent {
   private readonly battle = inject(BattleLaunchService);
   private readonly names = inject(PieceNameService);
   private readonly statusAilments = inject(StatusAilmentService);
+  private readonly paletteWrite = inject(ChatPaletteWriteService);
   protected readonly rolePermission = inject(RolePermissionService);
 
   /**
@@ -182,7 +184,8 @@ export class RemoteControllerComponent {
    * The id of the dice bot loaded for the panel, empty until one has loaded.
    *
    * Setting it loads that game system in the background and stores its id on the selected
-   * character's remote controller palette once it arrives.
+   * character's remote controller palette once it arrives, unless this seat may not rewrite the
+   * palette.
    */
   get gameType(): string {
     return this._gameSystem == null ? '' : this._gameSystem.ID;
@@ -191,10 +194,8 @@ export class RemoteControllerComponent {
     DiceBot.loadGameSystemAsync(gameType)
       .then((gameSystem) => {
         this._gameSystem = gameSystem;
-        const char = this.character();
-        if (char?.remoteController) {
-          char.remoteController.dicebot = gameSystem.ID;
-        }
+        const palette = this.character()?.remoteController;
+        if (palette) this.paletteWrite.setDiceBot(palette, gameSystem.ID);
       })
       .catch((reason) => Logger.warn('[RemoteController] failed to load the dice bot', gameType, reason));
   }
@@ -561,17 +562,16 @@ export class RemoteControllerComponent {
    * Opens the palette's text for editing, or writes the edited text back to the palette when
    * editing ends.
    *
-   * Editing also ends when the panel switches character or closes, so an edit is never lost.
+   * Editing also ends when the panel switches character or closes, so an edit is never lost. A seat
+   * that may not rewrite the palette opens nothing, and writes nothing back, as when it was made a
+   * guest mid-edit and the panel closes.
    */
   toggleEditMode() {
+    if (!this.isEdit() && !this.paletteWrite.mayWrite()) return;
     this.isEdit.set(!this.isEdit());
-    if (this.isEdit()) {
-      if (!this.palette) return;
-      this.editPalette = this.palette.value + '';
-    } else {
-      if (!this.palette) return;
-      this.palette.setPalette(this.editPalette);
-    }
+    if (!this.palette) return;
+    if (this.isEdit()) this.editPalette = this.palette.value + '';
+    else this.paletteWrite.writeLines(this.palette, this.editPalette);
   }
 
   /** The translated name of an inventory tab. */

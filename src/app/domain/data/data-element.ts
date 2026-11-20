@@ -103,6 +103,35 @@ export const DataElementAttribute = {
   BUFF_MOD_STEP: 'cs-buff-mod-step',
   BUFF_MOD_KEPT: 'cs-buff-mod-kept',
   BUFF_MOD_KEPT_STEP: 'cs-buff-mod-kept-step',
+  /**
+   * How late a buff moving a number on an item that holds words or a choice laid its move, among the
+   * layers laid on the item (see `buff-layers`). Left out on a move on a number, and by a version
+   * before such items were laid out in layers, which reads as laid beneath every other layer.
+   */
+  BUFF_MOD_ORDER: 'cs-buff-mod-order',
+  /**
+   * A buff that writes words into an item while it stands: the item, the words, and how late it wrote
+   * them among the layers laid on the item. Kept apart from the fields of a buff that moves a number,
+   * so that a version that knows no such buff reads it as a note and moves nothing as it goes.
+   */
+  BUFF_TEXT_TARGET: 'cs-buff-text-target',
+  BUFF_TEXT_SET: 'cs-buff-text-set',
+  BUFF_TEXT_ORDER: 'cs-buff-text-order',
+  /**
+   * On a sheet's item buffs write into or move, what they last left in it, kept once they are gone:
+   * anything else it holds was written into it otherwise since, by hand or by a command. Left out
+   * where no buff has written into it or moved it.
+   */
+  BUFF_LEFT: 'cs-buff-left',
+  /**
+   * On an item that holds words or a choice and has buffs' layers laid on it: what it holds beneath
+   * them all, and the words written into it otherwise, by hand or by a command, as the layer laid at
+   * the order they were found at (see `buff-layers`). The ground goes once no buff's layer stands; the
+   * words written otherwise stay.
+   */
+  BUFF_GROUND: 'cs-buff-ground',
+  BUFF_HAND: 'cs-buff-hand',
+  BUFF_HAND_ORDER: 'cs-buff-hand-order',
   BUFF_GROUP: 'cs-buff-group',
   BUFF_KIND: 'cs-buff-kind',
   GAP_DISTANCE: 'cs-gap-distance',

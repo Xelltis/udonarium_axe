@@ -2,7 +2,6 @@ import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { textureImagesOf } from '@axe/application/file/texture-images';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -16,9 +15,8 @@ describe('textureImagesOf', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     const objectChange = TestBed.inject(ObjectChangeService);
-    const rolePermission = TestBed.inject(RolePermissionService);
     const tagLock = TestBed.inject(ImageTagLockService);
-    const textures = computed(() => textureImagesOf(objectChange, rolePermission, tagLock));
+    const textures = computed(() => textureImagesOf(objectChange, tagLock));
     listed = () => textures().map((file) => file.identifier);
   });
 

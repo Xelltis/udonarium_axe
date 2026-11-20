@@ -114,7 +114,8 @@ export class ModalService {
   open<T>(
     childComponent: { new (...args: unknown[]): unknown },
     option?: unknown,
-    parentViewContainerRef?: ViewContainerRef
+    parentViewContainerRef?: ViewContainerRef,
+    signal?: AbortSignal
   ): Promise<T> {
     const parent = parentViewContainerRef ?? this.overlays.current() ?? this.overlays.main;
     const frameComponent = parent?.injector.get(MODAL_FRAME_COMPONENT);
@@ -174,6 +175,7 @@ export class ModalService {
       });
 
       this.count++;
+      signal?.addEventListener('abort', () => panelComponentRef.destroy(), { once: true });
     });
   }
 

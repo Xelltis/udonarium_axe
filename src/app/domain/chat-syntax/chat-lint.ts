@@ -1,4 +1,3 @@
-import { toHalfWidth } from '@axe/core/util/string-util';
 import { isAimedAtStatus } from '@axe/domain/character/aimed-at-buff';
 import {
   buffCommandKind,
@@ -8,9 +7,11 @@ import {
   removedBuffName,
   splitBuffRounds,
 } from '@axe/domain/character/buff-command';
+import type { ParsedBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import { isBuffEffectTimingField, resolveBuffEffectTiming } from '@axe/domain/character/buff-timing';
 import { countDefaults, type DefaultPick, holdsItemNamed } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type BuffRequestOutcome, buffRequestOutcome } from '@axe/domain/character/item-landing';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
@@ -30,7 +31,13 @@ import {
   resourceCommandParts,
   resourceCommandSites,
 } from '@axe/domain/data/resource-command-words';
-import { parseResourceEditOption, readModifierLayout } from '@axe/domain/data/resource-edit-helpers';
+import {
+  commandLanding,
+  parseResourceEditOption,
+  readModifierLayout,
+  readsOptions,
+  statusNamedIn,
+} from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
 import {
   firstWordOf,
@@ -40,6 +47,7 @@ import {
   type RollCheck,
   rollLimitBreaches,
 } from '@axe/domain/dice/dice-roll-line';
+import { isKeptFromAnyone } from '@axe/domain/disclosure/disclosure';
 import type { TurnChatCommand, TurnChatRefusal } from '@axe/domain/tabletop/turn-chat-command';
 
 /** How much a finding matters: it will not work, it may not work as meant, or it is worth knowing. */
@@ -67,9 +75,17 @@ export const CHAT_LINT_CODES = [
   'res.noAmount',
   'res.unknownStatus',
   'res.badOption',
+  'res.notAChoice',
+  'res.noSlot',
   'buff.noName',
   'buff.unreadable',
   'buff.missingStatus',
+  'buff.makesStatus',
+  'buff.notAChoice',
+  'buff.notWords',
+  'buff.lastingWords',
+  'buff.unwritable',
+  'buff.noNumber',
   'buff.notFound',
   'buff.roundsDefault',
   'buff.badEffectTiming',
@@ -141,6 +157,12 @@ export interface ChatLintContext {
   /** The pieces a line aimed at targets is sent to. */
   readonly targets: readonly GameCharacter[];
   readonly isGameMaster: boolean;
+  /**
+   * Whether the reader may see what a piece keeps, as the game master and its owner always may. A
+   * piece kept from the reader is checked against nothing, so the lint tells nothing of its items or
+   * its buffs. Left out, a piece whose contents are kept from anyone is kept from the reader.
+   */
+  mayView?(piece: GameCharacter): boolean;
   /** Whether the reader watches a room on a room server, where their commands are not carried out. */
   readonly keptOffTable: boolean;
   /** What a reference is filled in with, or null where nothing answers it. */
@@ -431,9 +453,18 @@ function lintRoll(text: string, message: TextRange, span: TextRange, context: Ch
   }
 }
 
+/**
+ * The pieces a command reaches that the reader may see the contents of, which alone it is checked
+ * against (see {@link ChatLintContext.mayView}).
+ */
 function piecesFor(targeted: boolean, context: ChatLintContext): readonly GameCharacter[] {
-  if (targeted) return context.targets;
-  return context.speaker ? [context.speaker] : [];
+  const reached = targeted ? context.targets : context.speaker ? [context.speaker] : [];
+  return seenBy(context, reached);
+}
+
+/** Those of the pieces the reader may see the contents of. */
+function seenBy(context: ChatLintContext, pieces: readonly GameCharacter[]): readonly GameCharacter[] {
+  return pieces.filter((piece) => (context.mayView ? context.mayView(piece) : !isKeptFromAnyone(piece)));
 }
 
 /**
@@ -444,10 +475,7 @@ function piecesFor(targeted: boolean, context: ChatLintContext): readonly GameCh
 function meantAsResourceCommand(command: string, pieces: readonly GameCharacter[]): boolean {
   if (resourceCommandParts(command)) return true;
   const name = readNamedResourceSlot(command.replace(/^[tTｔＴ]?[:：]/, '')).name;
-  return (
-    name.length > 0 &&
-    pieces.some((piece) => piece.status.canChangeName(name) || piece.status.canChangeName(toHalfWidth(name)))
-  );
+  return name.length > 0 && pieces.some((piece) => statusNamedIn(piece, name) !== null);
 }
 
 /** Whether a command holds a reference, filled in before the command is read, so that what it names is not known yet. */
@@ -470,16 +498,56 @@ function lintResource(
   if (!parts) return add(span, 'error', 'res.noOperator');
   if (parts.operator !== '>' && parts.amount === '') return add(span, 'error', 'res.noAmount');
   if (holdsReference(command)) return;
-  const name = readNamedResourceSlot(parts.name).name;
-  const missing = pieces.filter(
-    (piece) => !piece.status.canChangeName(name) && !piece.status.canChangeName(toHalfWidth(name))
-  );
+  const named = readNamedResourceSlot(parts.name);
+  const name = named.name;
+  const aimed = pieces.map((piece) => ({ piece, target: statusNamedIn(piece, name) }));
+  const missing = aimed.filter(({ target }) => target === null).map(({ piece }) => piece);
   if (missing.length > 0) {
     return add(span, 'error', 'res.unknownStatus', {
       params: { name, piece: missing.map(nameOf).join('・') },
     });
   }
-  if (parts.operator !== '>' && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
+  const landings = aimed.map(({ piece, target }) =>
+    commandLanding(piece, target!, named.slot, parts.operator, parts.amount)
+  );
+  const unchosen = landings.find((landing) => landing.kind === 'notAChoice');
+  if (unchosen?.kind === 'notAChoice') {
+    return add(span, 'error', 'res.notAChoice', { params: { name, choices: unchosen.choices.join('・') } });
+  }
+  if (landings.some((landing) => landing.kind === 'noSlot'))
+    return add(span, 'error', 'res.noSlot', { params: { name } });
+  if (landings.some(readsOptions) && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
+}
+
+/**
+ * Checks one status a `&!` buff moves or writes into, for each piece it is aimed at, by what laying it
+ * comes to on each (see {@link buffRequestOutcome}), as the report of laying it says: words that are
+ * none of a choice's, go into an item that holds numbers, or are a value written in that `:` asks to
+ * leave, first, whichever piece they are for; then
+ * an item nothing is written into; then an item a piece lacks and none is made for; then an item with
+ * no number to move; and an item made for the buff.
+ */
+function lintBuffStatus(
+  request: ParsedBuffModifierRequest,
+  span: TextRange,
+  pieces: readonly GameCharacter[],
+  add: Report
+): void {
+  const params = { params: { name: request.target } };
+  const outcomes = pieces.map((piece) => buffRequestOutcome(piece.status, request, true));
+  const unchosen = outcomes.find((outcome) => outcome.kind === 'notAChoice');
+  if (unchosen?.kind === 'notAChoice') {
+    return add(span, 'error', 'buff.notAChoice', {
+      params: { name: request.target, choices: unchosen.choices.join('・') },
+    });
+  }
+  const any = (kind: BuffRequestOutcome['kind']) => outcomes.some((outcome) => outcome.kind === kind);
+  if (any('notWords')) return add(span, 'error', 'buff.notWords', params);
+  if (any('lastingWords')) return add(span, 'error', 'buff.lastingWords', params);
+  if (any('unwritable')) return add(span, 'warning', 'buff.unwritable', params);
+  if (any('missing')) return add(span, 'warning', 'buff.missingStatus', params);
+  if (any('noNumber')) add(span, 'warning', 'buff.noNumber', params);
+  if (any('makes')) add(span, 'info', 'buff.makesStatus', params);
 }
 
 /**
@@ -510,9 +578,7 @@ function lintBuff(
     if (!read.requests) return add(span, 'error', 'buff.unreadable');
     for (const request of read.requests) {
       if (isAimedAtStatus(request.target)) continue;
-      if (pieces.some((piece) => piece.status.getValue(request.target, request.slot) == null)) {
-        add(span, 'warning', 'buff.missingStatus', { params: { name: request.target } });
-      }
+      lintBuffStatus(request, span, pieces, add);
     }
     const movesAtCounts = read.requests.some((request) => request.step !== undefined);
     lintEffectTiming(read.rest, movesAtCounts, span, add);
@@ -548,8 +614,9 @@ function lintReset(
   add: Report,
   nameOf: (piece: GameCharacter) => string
 ): void {
-  const pieces = span.reach === 'table' ? context.piecesOnTable?.() : piecesFor(span.targeted, context);
-  if (!pieces || pieces.length < 1) return;
+  const pieces =
+    span.reach === 'table' ? seenBy(context, context.piecesOnTable?.() ?? []) : piecesFor(span.targeted, context);
+  if (pieces.length < 1) return;
   if (span.takes !== 'values') {
     const name = nameShadowedBy(span);
     if (name.length > 0 && pieces.some((piece) => piece.buffs.find(name) != null)) {

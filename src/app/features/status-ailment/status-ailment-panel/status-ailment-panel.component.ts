@@ -42,6 +42,12 @@ export class StatusAilmentPanelComponent {
 
   readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
+  /** Why the name typed may not be added, as {@link StatusAilmentService.nameRefusal} says; null where it may. */
+  readonly nameRefusal = computed(() => this.ailmentService.nameRefusal(this.newName()));
+
+  /** The state whose last change was refused for a space in a field that may hold none, to say why beside it. */
+  readonly refusedChange = signal<string | null>(null);
+
   /** Whether putting a state on a piece plays the effect of the same name over it. */
   readonly playsEffectOnPlant = this.ailmentService.playsEffectOnPlant;
 
@@ -74,8 +80,8 @@ export class StatusAilmentPanelComponent {
   /**
    * Registers the state typed in the name box, from its add button or Enter.
    *
-   * Only the first word is used. The box is cleared once it is added, and left as it is when the name
-   * is empty or already registered.
+   * The box is cleared once it is added, and left as it is, with the reason shown under it, when the
+   * name is refused.
    */
   add(): void {
     if (!this.canEdit()) return;
@@ -157,6 +163,7 @@ export class StatusAilmentPanelComponent {
 
   private replace(ailment: StatusAilment, next: StatusAilment): void {
     if (!this.canEdit()) return;
-    this.ailmentService.save(this.ailments().map((entry) => (entry.name === ailment.name ? next : entry)));
+    const written = this.ailmentService.change(ailment.name, next);
+    this.refusedChange.set(written ? null : ailment.name);
   }
 }

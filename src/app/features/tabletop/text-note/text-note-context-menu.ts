@@ -15,7 +15,7 @@ import {
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TextNote } from '@axe/domain/tabletop/text-note';
-import { buildDisclosureContextMenu } from '@axe/features/disclosure/disclosure-context-menu';
+import { buildDisclosureContextMenu, type DisclosureRules } from '@axe/features/disclosure/disclosure-context-menu';
 
 export interface TextNoteContextMenuModel {
   actions: ContextMenuAction[];
@@ -24,6 +24,8 @@ export interface TextNoteContextMenuModel {
 
 /** What the note's menu hands back to the note to do. */
 export interface TextNoteMenuCallbacks {
+  /** Who may change who reads the note and who owns it, which its disclosure and owner entries are offered by. */
+  disclosure: DisclosureRules;
   onSetUpright: (isUpright: boolean) => void;
   onShowDetail: () => void;
   /** Takes the tutorial off the table and leaves the sample pieces, offered on the first table's tutorial note when given. */
@@ -70,7 +72,7 @@ export function buildTextNoteContextMenuModel(
           SoundEffect.play(PresetSound.sweep);
         },
       };
-  const disclosureActions = buildDisclosureContextMenu(textNote, t);
+  const disclosureActions = buildDisclosureContextMenu(textNote, t, callbacks.disclosure);
   const disclosureItems = disclosureActions.filter((action) => action.type !== ContextMenuType.SEPARATOR);
   const lockAction = buildLockToggleAction(textNote.isLock, (next) => (textNote.isLock = next), t);
   const copyAction = buildCopyAction(textNote, gridSize, t, {

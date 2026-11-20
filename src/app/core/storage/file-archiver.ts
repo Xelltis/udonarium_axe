@@ -34,6 +34,8 @@ type UpdateCallback = (metadata: MetaData) => void;
  *  a singleton in the store answering to this shape. */
 interface LoadGuard extends GameObject {
   reloadCheckStart(isOnline: boolean): void;
+  agreeInAdvance(): void;
+  reset(): void;
   isLoadOk(): boolean;
   answerWithheldCheck(): boolean;
   answerCheck(): boolean;
@@ -64,7 +66,17 @@ export interface LoadResult {
   readonly audios: readonly string[];
   /** The identifiers of the 3D models the load took in. */
   readonly models: readonly string[];
+  /** True where the person declined the room data the load carried, which then took nothing in. */
+  readonly declined?: true;
 }
+
+/**
+ * How the room data a load may carry is asked about: `ask`, as any load is, before a room in play is
+ * overwritten and before a save withheld in part goes in; `agreed`, for a load the person agreed to
+ * before it began, as one an AI asks for is asked about on the seat's screen; `quiet`, for the room
+ * the app sets out itself as it starts, before anyone is in it.
+ */
+export type LoadCheck = 'ask' | 'agreed' | 'quiet';
 
 /** What one load carries along from file to file. */
 interface LoadRun {
@@ -207,9 +219,6 @@ export class FileArchiver {
     if (event.dataTransfer?.types?.includes(INTERNAL_DRAG_TYPE)) return;
     if (!this.mayLoadDrops()) return;
 
-    // A drop can arrive before startup finishes, or where no guard exists at all.
-    this.reloadCheck?.reloadCheckStart(this.networkService.peerContext?.roomName !== '');
-
     const files = event.dataTransfer?.files;
     if (!files) return;
     this.load(files, { x: event.clientX, y: event.clientY });
@@ -226,6 +235,9 @@ export class FileArchiver {
    * announced for placing on the table, the next one offset a little from the last. Images inside
    * a zip are not placed, and a zip exported as a CCFOLIA room is handed on whole instead.
    *
+   * The room data a load carries is asked about as `check` says (see {@link LoadCheck}), afresh for
+   * every load, an earlier load's answers holding nothing here.
+   *
    * A zip that cannot be read is logged rather than thrown, so whether a save's data was read at all
    * is answered in the result. Given `stillWanted`, it is asked before each file inside a zip, and the
    * rest is left once it answers false.
@@ -233,7 +245,32 @@ export class FileArchiver {
   async load(
     files: File[] | FileList,
     dropPoint?: { x: number; y: number },
-    options: { stillWanted?: () => boolean } = {}
+    options: { stillWanted?: () => boolean; check?: LoadCheck } = {}
+  ): Promise<LoadResult> {
+    const guard = this.reloadCheck;
+    this.beginCheck(guard, options.check ?? 'ask');
+    try {
+      const run = await this.loadRun(files, dropPoint, options);
+      return guard && !guard.isLoadOk() ? { ...run, declined: true } : run;
+    } finally {
+      guard?.reset();
+    }
+  }
+
+  /**
+   * Starts the check of one load afresh, however the load came, so no answer to an earlier load holds
+   * for it (see {@link LoadCheck}); a load ends it again (`reset`).
+   */
+  private beginCheck(guard: LoadGuard | null, check: LoadCheck): void {
+    if (!guard) return;
+    if (check === 'agreed') guard.agreeInAdvance();
+    else guard.reloadCheckStart(check === 'ask' && this.networkService.peerContext?.roomName !== '');
+  }
+
+  private async loadRun(
+    files: File[] | FileList,
+    dropPoint: { x: number; y: number } | undefined,
+    options: { stillWanted?: () => boolean }
   ): Promise<LoadResult> {
     const run: LoadRun = {
       tooLarge: [],
@@ -280,6 +317,45 @@ export class FileArchiver {
   }
 
   /**
+   * Takes in the pictures, sounds and 3D models among the files under the limits and checks a drop
+   * holds them to, and nothing else: no room data or zip is opened and nothing is placed on the
+   * table. What is too large is named in the result rather than offered for making smaller, as no
+   * reader is there to make it so.
+   */
+  async loadAssets(files: readonly File[]): Promise<LoadResult & { readonly tooLarge: readonly string[] }> {
+    const run: LoadRun = { tooLarge: [], stillWanted: () => true, dataRead: false, images: [], audios: [], models: [] };
+    for (const file of files) {
+      if (file.type.startsWith('image/')) await this.takeImage(file, undefined, run, false);
+      await this.handleAudio(file, run);
+      await this.handleModel(file, run);
+    }
+    if (run.images.length + run.audios.length + run.models.length > 0) emitFileLoaded();
+    return {
+      dataRead: false,
+      images: run.images,
+      audios: run.audios,
+      models: run.models,
+      tooLarge: run.tooLarge.map((each) => each.name),
+    };
+  }
+
+  /**
+   * Whether a zip is a saved room, and whether it was saved by somebody who saw some of it only in
+   * the shape a room server withholds, as a load asks before it goes in; null for a file that is no
+   * readable zip or holds no room.
+   */
+  async roomIn(file: File): Promise<{ readonly withheld: boolean } | null> {
+    let entries: ZipEntry[];
+    try {
+      entries = await readZipEntries(file);
+    } catch {
+      return null;
+    }
+    const root = await this.roomRootOf(entries);
+    return root === null ? null : { withheld: /\swithheld="true"/.test(root) };
+  }
+
+  /**
    * Stores only the images among the files, for a picker that wants pictures and nothing else.
    *
    * Other kinds of file are ignored rather than read, so no room data or zip is opened and
@@ -307,6 +383,16 @@ export class FileArchiver {
     if (!file.type.startsWith('image/')) return false;
     // With no guard there is nothing to stop it.
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return false;
+    return this.takeImage(file, dropPoint, run, handsBackTooLarge);
+  }
+
+  /** Stores a picture and notes it, or notes it too large, as {@link handleImage} does once a load lets it in. */
+  private async takeImage(
+    file: File,
+    dropPoint: { x: number; y: number } | undefined,
+    run: LoadRun,
+    handsBackTooLarge: boolean
+  ): Promise<boolean> {
     const image = await this.storeImage(file);
     if (image === 'oversized') {
       run.tooLarge.push({
@@ -465,12 +551,18 @@ export class FileArchiver {
    */
   private async roomLoadAgreed(entries: ZipEntry[]): Promise<boolean> {
     const guard = this.reloadCheck;
-    const data = entries.find((entry) => baseNameOf(entry.name) === 'data.xml');
-    if (!guard || !data) return true;
-    const root = /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0];
-    if (!root) return true;
+    if (!guard) return true;
+    const root = await this.roomRootOf(entries);
+    if (root === null) return true;
     if (/\swithheld="true"/.test(root) && !guard.answerWithheldCheck()) return false;
     return guard.answerCheck();
+  }
+
+  /** The opening tag of the room an archive's `data.xml` holds, or null where it holds none. */
+  private async roomRootOf(entries: readonly ZipEntry[]): Promise<string | null> {
+    const data = entries.find((entry) => baseNameOf(entry.name) === 'data.xml');
+    if (!data) return null;
+    return /<room\b[^>]*>/.exec(await data.blob.slice(0, ROOM_HEAD_BYTES).text())?.[0] ?? null;
   }
 
   /**

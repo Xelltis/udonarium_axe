@@ -121,10 +121,10 @@
         [class.pl-15]="hasImage()"
         [ngStyle]="{ width: overViewCardWidthNoMargin + 'px' }"
       >
-        @if (card.isVisible !== null && !card.isVisible) {
-          {{ 'feature.inventory.overview.cardHidden' | transloco }}
-        } @else {
+        @if (readsCardFront()) {
           {{ card.name }}
+        } @else {
+          {{ 'feature.inventory.overview.cardHidden' | transloco }}
         }
       </div>
     }
@@ -132,7 +132,7 @@
       class="bg-ui-panel border-ui-border-panel border-b border-solid"
       [ngStyle]="{ width: overViewCardWidth + 'px', 'max-height': overViewCardMaxHeight + 'px' }"
     >
-      @if (hasDataElms && card.isVisible) {
+      @if (hasDataElms && readsCardFront()) {
         <div
           class="border-ui-border-panel box-border max-h-62.5 overflow-x-hidden overflow-y-auto border-x border-solid px-[1.2em] py-[0.5em]"
           [ngStyle]="{ width: overViewCardWidth + 'px', 'max-height': overViewCardMaxHeight + 'px' }"
@@ -277,8 +277,10 @@
       [ngClass]="pointerEventsStyle"
     ></div>
     <div class="text-ui-text h-8 truncate px-[1em] text-[1em]/8 [grid-area:3/2/4/3]" [ngClass]="pointerEventsStyle">
-      {{ dice.name }}:
-      @if (dice.isVisible) {
+      @if (showsDieName(dice)) {
+        {{ dice.name }}:
+      }
+      @if (readsDieFace(dice)) {
         {{ dice.face }}
       } @else {
         {{ 'feature.inventory.overview.diceHidden' | transloco }}
@@ -303,8 +305,8 @@
       >
         <img
           class="w-full p-0 align-bottom"
-          [class.filter-[brightness(0)]]="!dice.isVisible"
-          [class.[filter:brightness(0.5)]]="dice.isMine"
+          [class.filter-[brightness(0)]]="!readsDieFace(dice)"
+          [class.filter-[brightness(0.5)]]="dice.isMine"
           [src]="imageUrl() | safe: 'resourceUrl'"
         />
       </div>
@@ -314,7 +316,7 @@
       class="bg-ui-panel border-ui-border-panel border-b border-solid [grid-area:4/1/5/3]"
       [ngClass]="pointerEventsStyle"
     >
-      @if (hasDataElms && dice.isVisible) {
+      @if (hasDataElms && readsDieFace(dice)) {
         <div
           class="border-ui-border-panel box-border max-h-62.5 overflow-x-hidden overflow-y-auto border-x border-solid px-[1.2em] py-[0.5em]"
         >

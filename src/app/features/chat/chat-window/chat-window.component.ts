@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AlarmService } from '@axe/application/alarm/alarm.service';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
@@ -28,6 +29,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
+import { VoteService } from '@axe/application/vote/vote.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { coalesce } from '@axe/core/util/debounce';
 import { delay } from '@axe/core/util/delay';
@@ -117,6 +119,8 @@ export class ChatWindowComponent {
   private readonly chatSend = inject(ChatSendService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly chatBookmarks = inject(ChatBookmarkService);
+  private readonly votes = inject(VoteService);
+  private readonly alarms = inject(AlarmService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
@@ -408,13 +412,10 @@ export class ChatWindowComponent {
   readonly visibleChatTabs = inject(VisibleChatTabsService).tabs;
 
   /**
-   * Whether this reader may call a vote or set an alarm: not as a guest on a room server, which
-   * would take the vote or the alarm back and leave only its announcement standing.
+   * Whether this reader may call a vote and set an alarm, as {@link VoteService.mayCall} and
+   * {@link AlarmService.maySet} say: never as a guest, among peers as on a room server.
    */
-  readonly mayCallVoteOrAlarm = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !PeerCursor.isMyselfKeptOffTable;
-  });
+  readonly mayCallVoteOrAlarm = computed(() => this.votes.mayCall() && this.alarms.maySet());
 
   readonly canSpeakCurrentTab = computed(() => {
     const tab = this.chatTab();

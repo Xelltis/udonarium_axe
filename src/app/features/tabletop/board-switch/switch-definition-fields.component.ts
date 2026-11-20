@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { Network } from '@axe/core/network/network';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
@@ -27,8 +26,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [SwitchActionListComponent, TranslocoModule],
 })
 export class SwitchDefinitionFieldsComponent {
-  private readonly chat = inject(ChatMessageService);
-  private readonly objectChange = inject(ObjectChangeService);
+  private readonly visibleTabs = inject(VisibleChatTabsService).tabs;
 
   readonly definition = input.required<SwitchDefinition>();
   readonly changed = output<Partial<SwitchDefinition>>();
@@ -36,11 +34,11 @@ export class SwitchDefinitionFieldsComponent {
   protected readonly speakers = SWITCH_SPEAKERS;
   protected readonly repeats = TRIGGER_REPEATS;
 
-  /** The tabs a switch may speak into: every tab but the system's noticeboard. */
-  protected readonly tabs = computed<ChatTab[]>(() => {
-    this.objectChange.collectionOf(ChatTab.aliasName)();
-    return this.chat.chatTabs.filter((tab) => !tab.isSystemTab);
-  });
+  /**
+   * The tabs a switch may be set to speak into: every tab this seat may read but the system's
+   * noticeboard, so a tab kept from this seat's role is not named to it here either.
+   */
+  protected readonly tabs = computed<ChatTab[]>(() => this.visibleTabs().filter((tab) => !tab.isSystemTab));
 
   /** Whether a room server keeps watchers off every switch, whatever this one says. */
   protected get guestsKeptOutByServer(): boolean {

@@ -64,6 +64,7 @@ describe('createMcpServer', () => {
     const byName = new Map(tools.map((tool) => [tool.name, tool]));
     expect(byName.get('get_room')?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(byName.get('send_chat')?.annotations).toMatchObject({ readOnlyHint: false });
+    expect(byName.get('save_room')?.annotations).toMatchObject({ readOnlyHint: false });
     expect(byName.get('remove_piece')?.annotations).toMatchObject({ destructiveHint: true });
     expect(byName.get('move_piece')?.inputSchema).toMatchObject({ type: 'object', required: ['piece', 'col', 'row'] });
   });

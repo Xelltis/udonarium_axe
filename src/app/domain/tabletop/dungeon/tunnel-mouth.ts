@@ -8,14 +8,32 @@ interface Way {
   cost: number;
 }
 
-/** How far a cell lies from each edge, and which way is nearest. */
+/** The four ways out of a cell, in the order a mouth is sought in. */
+const WAYS_OUT = [
+  { dx: 0, dy: -1 },
+  { dx: 0, dy: 1 },
+  { dx: -1, dy: 0 },
+  { dx: 1, dy: 0 },
+] as const;
+
+/** How far a cell lies from the edge of the place each way. */
 function waysOut(layout: DungeonLayout, x: number, y: number): { dx: number; dy: number; steps: number }[] {
-  return [
-    { dx: 0, dy: -1, steps: y },
-    { dx: 0, dy: 1, steps: layout.height - 1 - y },
-    { dx: -1, dy: 0, steps: x },
-    { dx: 1, dy: 0, steps: layout.width - 1 - x },
-  ];
+  return WAYS_OUT.map(({ dx, dy }) => ({ dx, dy, steps: stepsToEdge(layout, x, y, dx, dy) }));
+}
+
+/**
+ * How many cells lie between a cell and the edge of the place one way, the last of them on the edge:
+ * the edge of the board, or of the round of a round place, past which there is nothing.
+ */
+function stepsToEdge(layout: DungeonLayout, x: number, y: number, dx: number, dy: number): number {
+  let steps = 0;
+  for (;;) {
+    const nx = x + dx * (steps + 1);
+    const ny = y + dy * (steps + 1);
+    if (nx < 0 || ny < 0 || nx >= layout.width || ny >= layout.height) return steps;
+    if (layout.outside?.[ny * layout.width + nx]) return steps;
+    steps++;
+  }
 }
 
 /** Whether every cell between here and the edge is still solid stone. */
@@ -27,7 +45,8 @@ function runIsSolid(layout: DungeonLayout, from: DungeonPoint, dx: number, dy: n
 }
 
 /**
- * Break the outer wall and run a tunnel in to meet the dungeon.
+ * Break the outer wall and run a tunnel in to meet the dungeon: the wall at the edge of the board, or
+ * the wall round a round place, whose mouth opens onto the nothing round it.
  *
  * A dungeon reached by a stair is one with more of itself above; a mouth in the hillside is
  * how the first floor of one is reached, and how a cave is reached at all.

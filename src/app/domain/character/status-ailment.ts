@@ -53,6 +53,28 @@ const CODE_PREFIX = {
 } as const;
 
 /**
+ * Whether a word may stand as a state's name: one word with no colon in it. The states are written
+ * one to a line with spaces between the fields, and a colon marks a field, so a name with either
+ * could never be read back.
+ */
+export function isStatusAilmentName(name: string): boolean {
+  return /^[^\s:]+$/.test(name);
+}
+
+/**
+ * Whether a value may stand as one field of a state written down: its colour, its mark, the status it
+ * moves, how and how far. Nothing, or one word: only the effect, written last, may hold spaces.
+ */
+export function isStatusAilmentField(value: string): boolean {
+  return !/\s/.test(value.trim());
+}
+
+/** Whether every field of a state but its effect is one word or nothing, so that it is read back as written. */
+export function isStatusAilmentWritable(ailment: StatusAilment): boolean {
+  return [ailment.color, ailment.icon, ailment.stat, ailment.op, ailment.amount].every(isStatusAilmentField);
+}
+
+/**
  * When a state ends, where nobody said.
  *
  * Given a number of rounds, it is meant to run out with them; given none, it is meant to be
@@ -84,14 +106,15 @@ export function newStatusAilment(name: string): StatusAilment {
 }
 
 /**
- * Writes one down as a line.
+ * Writes one down as a line; empty for a state whose name {@link isStatusAilmentName} refuses, which
+ * could not be read back.
  *
  * Only what differs from what would be assumed is written, so a plain state is its name alone.
  * The effect comes last because it is the only field that may hold spaces.
  */
 export function encodeStatusAilment(ailment: StatusAilment): string {
-  const name = ailment.name.trim().split(/\s+/)[0] ?? '';
-  if (name.length < 1) return '';
+  const name = ailment.name.trim();
+  if (!isStatusAilmentName(name)) return '';
 
   const codes = [name];
   if (ailment.color.trim().length > 0) codes.push(CODE_PREFIX.color + ailment.color.trim());
@@ -117,7 +140,7 @@ export function encodeStatusAilment(ailment: StatusAilment): string {
 export function decodeStatusAilment(line: string): StatusAilment | null {
   const tokens = (line ?? '').trim().split(/\s+/);
   const name = tokens.shift() ?? '';
-  if (name.length < 1 || name.includes(':')) return null;
+  if (!isStatusAilmentName(name)) return null;
 
   const ailment = newStatusAilment(name);
   let timingSaid = false;

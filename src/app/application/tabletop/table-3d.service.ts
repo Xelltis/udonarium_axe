@@ -13,7 +13,6 @@ import {
 import { EffectFrameService } from '@axe/application/effect/effect-frame.service';
 import { EffectLightService } from '@axe/application/effect/effect-light.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
@@ -56,6 +55,8 @@ import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { blockFootprintOf } from '@axe/domain/tabletop/terrain-footprint';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
+import { currentOf, type WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import {
   type WaterColumn,
   waterColumnsOf,
@@ -144,7 +145,6 @@ export class Table3dService {
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly pieces = inject(TablePiecesService);
   private readonly solidRanges = inject(SolidRangeService);
   private readonly ruler = inject(RulerService);
@@ -163,14 +163,22 @@ export class Table3dService {
   private readonly waterCells = inject(WaterService);
   private readonly ambience = inject(AmbienceService);
 
-  /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
-  readonly skyLight = computed(() => skyLightAt(this.dayFraction()));
+  /**
+   * The light of the sky over the table at the story's hour, as the room's clock tells it, in the
+   * colours of the sky drawn over it where one is.
+   */
+  readonly skyLight = computed(() => skyLightAt(this.dayFraction(), this.underClockSky()));
 
   /** The sky drawn past the board of the table in view, as it is at the story's hour, or none where the table shows its background picture. */
-  readonly sky = computed(() => {
-    const table = this.tabletop.currentTableVersion();
-    return tableSkyKindOf(table?.skyKind) === 'clock' ? skyDomeAt(this.dayFraction()) : null;
-  });
+  readonly sky = computed(() => (this.underClockSky() ? skyDomeAt(this.dayFraction()) : null));
+
+  /**
+   * Whether the table in view has the clock's sky drawn over it, which tells only as that changes, not
+   * as anything else of the table does.
+   */
+  private readonly underClockSky = computed(
+    () => tableSkyKindOf(this.tabletop.currentTableVersion()?.skyKind) === 'clock'
+  );
 
   /** How far through the story's day it is, from 0 at midnight to 1. */
   private readonly dayFraction = computed(() =>
@@ -220,8 +228,9 @@ export class Table3dService {
   });
 
   /**
-   * The faces of the board and of the blocks this seat may see. A block nobody gave a picture to
-   * stops what it stops but is shown only to a seat that sees what is hidden, as glass.
+   * The faces of the board and of the blocks this seat is shown that are not drawn as models (see
+   * `TablePiecesService.isBlockShown`): a block nobody gave a picture to is drawn as glass, for a seat
+   * that sees what is hidden alone.
    */
   private readonly builtFaces = computed(() => {
     this.objectChange.fileVersion();
@@ -230,11 +239,9 @@ export class Table3dService {
     this.objectChange.trackMyCursor();
     const table = this.tabletop.currentTableVersion();
     const modelled = new Set(this.terrainModels().map((model) => model.owner));
-    const seesGlass = this.rolePermission.canSeeHidden();
     const terrains = this.tabletop.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
-      if (!seesGlass && !terrain.hasFaceImage) return false;
-      return !this.hiddenByFog(terrain) && !modelled.has(terrain.identifier);
+      return this.pieces.isBlockShown(terrain) && !modelled.has(terrain.identifier);
     });
     return tableWorldOf(
       table,
@@ -266,7 +273,7 @@ export class Table3dService {
         layers: this.layers(),
         water: this.water(),
         backdrops: this.backdrops(),
-        models: seen([...this.pieces.models(), ...this.terrainModels()]),
+        models: seen([...this.pieces.models(), ...this.terrainModelsInWater()]),
         solids: this.solidRanges.solids(),
         guides: [...this.solidRanges.guides(), ...this.ruler.guides(), ...this.placedRulers.guides()],
       };
@@ -294,27 +301,42 @@ export class Table3dService {
   });
 
   /**
+   * The blocks this seat may see that are drawn as 3D models, each with its model and where the model
+   * is fetched from: all the table's blocks are read through once here, and what is worked out of the
+   * models afterwards reads these alone.
+   */
+  private readonly terrainsDrawnAsModels = computed<readonly { terrain: Terrain; model: PieceModel; url: string }[]>(
+    () => {
+      this.objectChange.fileVersion();
+      this.objectChange.collectionOf(Terrain.aliasName)();
+      this.tabletop.currentTableVersion();
+      const drawn: { terrain: Terrain; model: PieceModel; url: string }[] = [];
+      for (const terrain of this.tabletop.terrains) {
+        this.objectChange.versionOf(terrain.identifier)();
+        const model = pieceModelOf(terrain);
+        const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
+        if (model && url && !this.vision.isTerrainHiddenByFog(terrain)) drawn.push({ terrain, model, url });
+      }
+      return drawn;
+    }
+  );
+
+  /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
    * middle of its box, at the foot of the block, as wide as the box is wide or deep, and a block drawn
    * as a model made as a joined wall with the arms it reaches out to the walls and doors beside it with.
    */
   private readonly terrainModels = computed<readonly TableWorldModel[]>(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf(Terrain.aliasName)();
     const table = this.tabletop.currentTableVersion();
     const gridSize = table.gridSize;
     const ground = this.standing.surface();
-    const drawn: { terrain: Terrain; model: PieceModel; url: string }[] = [];
-    for (const terrain of this.tabletop.terrains) {
-      this.objectChange.versionOf(terrain.identifier)();
-      const model = pieceModelOf(terrain);
-      const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
-      if (model && url && !this.hiddenByFog(terrain)) drawn.push({ terrain, model, url });
-    }
+    const drawn = this.terrainsDrawnAsModels();
     const walls = drawn.filter(({ url }) => this.modelFits.isJoined(url)).map(({ terrain }) => terrain);
     let joins = new Map<string, WallJoinCell[]>();
     if (walls.length > 0) {
-      const doors = this.tabletop.terrains.filter((terrain) => terrain.isDoor && !this.hiddenByFog(terrain));
+      const doors = this.tabletop.terrains.filter(
+        (terrain) => terrain.isDoor && !this.vision.isTerrainHiddenByFog(terrain)
+      );
       const grid = cellGridOf(table.width, table.height, gridSize, table.gridType);
       joins = wallJoinsOf(grid, joinableBlocksOf([...walls, ...doors], grid));
     }
@@ -357,6 +379,51 @@ export class Table3dService {
       });
     }
     return models;
+  });
+
+  /**
+   * The current read under each block drawn as a model, kept for the water it was read from by where
+   * the block stood then, so a block that has not moved over water that has not changed is not read
+   * again as another block opens or changes. Only the blocks drawn as models now are kept.
+   */
+  private readonly currentsRead = new WeakMap<
+    ReadonlyMap<number, WaterCell>,
+    Map<string, { at: string; current: WaterCurrent | null }>
+  >();
+
+  /**
+   * The blocks drawn as models, each standing in flowing water handed the current in the cells under
+   * it, which turns the parts of its model that dip into it. Worked out again as the water changes,
+   * without the blocks' models being worked out again with it.
+   */
+  private readonly terrainModelsInWater = computed<readonly TableWorldModel[]>(() => {
+    const models = this.terrainModels();
+    const grid = this.waterCells.grid();
+    const cells = this.waterCells.everyCell();
+    if (!grid || cells.size < 1 || models.length < 1) return models;
+    const currents = new Map<string, WaterCurrent>();
+    const read = this.currentsRead.get(cells);
+    const kept = new Map<string, { at: string; current: WaterCurrent | null }>();
+    for (const { terrain } of this.terrainsDrawnAsModels()) {
+      const at = `${terrain.location.x},${terrain.location.y},${terrain.width},${terrain.depth},${terrain.rotate}`;
+      let known = read?.get(terrain.identifier);
+      if (known?.at !== at) {
+        const under: WaterCell[] = [];
+        forEachCellUnder(grid, terrain, (index) => {
+          const cell = cells.get(index);
+          if (cell) under.push(cell);
+        });
+        known = { at, current: currentOf(under) };
+      }
+      kept.set(terrain.identifier, known);
+      if (known.current) currents.set(terrain.identifier, known.current);
+    }
+    this.currentsRead.set(cells, kept);
+    if (currents.size < 1) return models;
+    return models.map((model) => {
+      const current = currents.get(model.owner);
+      return current ? { ...model, current } : model;
+    });
   });
 
   /**
@@ -491,11 +558,6 @@ export class Table3dService {
     inject(DestroyRef).onDestroy(() => {
       for (const letGo of [...this.attached]) letGo();
     });
-  }
-
-  private hiddenByFog(terrain: Terrain): boolean {
-    const cover = this.vision.terrainFogCover(terrain);
-    return cover !== null && !cover.cleared.some((cell) => cell);
   }
 
   /**

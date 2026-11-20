@@ -69,6 +69,12 @@ export interface MapBlock {
   rotate?: number;
   /** How far it sits from the middle of its cell, in cells. */
   offset?: { x: number; y: number };
+  /**
+   * On a board of hexes, the cell of its rectangle the middle of a block of several cells stands on
+   * (see `blockCorner`); the one nearest its middle where left out. A watermill stands on the cell of
+   * its house that brings its wheel over the stream.
+   */
+  standsOn?: MapPoint;
   /** How a door moves when it opens. */
   doorStyle?: string;
   /** Whether this one opens the other way round, which is what makes a pair of doors a pair. */

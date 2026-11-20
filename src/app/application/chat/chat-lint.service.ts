@@ -4,6 +4,7 @@ import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TurnChatCommandService } from '@axe/application/turn/turn-chat-command.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -44,6 +45,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { checkRollLine, isSecretRollLine, rollableText, type RollCheck } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { isPresetShownTo } from '@axe/domain/effect/effect-preset';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -145,6 +147,7 @@ export class ChatLintService {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly turnCommands = inject(TurnChatCommandService);
   private readonly inventory = inject(GameObjectInventoryService);
+  private readonly disclosure = inject(DisclosureService);
 
   private readonly systems = inject(GameSystemPrefetchService);
 
@@ -294,6 +297,7 @@ export class ChatLintService {
       hasEffectTarget: candidates.length > 0,
       hasBattleDefender: candidates.some((piece) => piece !== speaker),
       isGameMaster,
+      mayView: (piece: GameCharacter) => this.disclosure.canView(piece),
       piecesOnTable: () => pieces.filter((piece) => piece.location.name === 'table'),
       get keptOffTable() {
         return PeerCursor.isMyselfKeptOffTable;
@@ -315,7 +319,7 @@ export class ChatLintService {
       stampAllowed: (stampId: string) => this.stampRules.allows('line', stampId),
       hasEffect: (name: string) => {
         const needle = name.trim();
-        return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || isGameMaster));
+        return presets.some((preset) => preset.name.trim() === needle && isPresetShownTo(preset, isGameMaster));
       },
       hasPieceNamed: (name: string) => pieceNames.has(name.trim()),
       nameOf: (piece: GameCharacter) => this.names.shown(piece),

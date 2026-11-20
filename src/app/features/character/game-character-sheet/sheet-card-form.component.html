@@ -30,19 +30,28 @@
     <div class="flex flex-wrap items-start gap-4">
       <div class="flex shrink-0 gap-3">
         <div class="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            class="group bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative aspect-2/3 h-32 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.04] hover:shadow-md"
-            [style.background-image]="'url(' + $safeNavigationMigration(c.frontImage?.url) + ')' | safe: 'style'"
-            [attr.title]="'feature.inventory.sheet.changeFrontImage' | transloco"
-            (click)="imagePick.emit('front')"
-          >
-            <span
-              class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 [&_.material-icons]:text-[28px]!"
+          @if (canReadCardFace(c)) {
+            <button
+              type="button"
+              class="group bg-ui-input border-ui-border-panel hover:border-ui-accent rounded-ui-sm relative aspect-2/3 h-32 cursor-pointer overflow-hidden border border-solid bg-contain bg-center bg-no-repeat p-0 shadow-sm transition-[border-color,transform,box-shadow] hover:scale-[1.04] hover:shadow-md"
+              [style.background-image]="'url(' + $safeNavigationMigration(c.frontImage?.url) + ')' | safe: 'style'"
+              [attr.title]="'feature.inventory.sheet.changeFrontImage' | transloco"
+              (click)="imagePick.emit('front')"
             >
-              <i class="material-icons">edit</i>
-            </span>
-          </button>
+              <span
+                class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 [&_.material-icons]:text-[28px]!"
+              >
+                <i class="material-icons">edit</i>
+              </span>
+            </button>
+          } @else {
+            <div
+              class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-muted flex aspect-2/3 h-32 items-center justify-center border border-solid"
+              data-card-front-locked
+            >
+              <i class="material-icons text-[28px]!">lock</i>
+            </div>
+          }
           <span class="text-ui-muted text-[0.7em]">{{ 'feature.card.faceLabel.front' | transloco }}</span>
         </div>
         <div class="flex flex-col items-center gap-1">
@@ -63,15 +72,17 @@
         </div>
       </div>
       <div class="flex min-w-0 flex-1 flex-col gap-2">
-        <label class="flex flex-col gap-1 text-[0.78em]">
-          <span class="text-ui-muted">{{ 'feature.card.field.name' | transloco }}</span>
-          <input
-            type="text"
-            class="border-ui-border-panel bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em] transition-colors outline-none"
-            [value]="cardOwnName(c)"
-            (change)="setCardOwnName(c, $event)"
-          />
-        </label>
+        @if (canReadCardFace(c)) {
+          <label class="flex flex-col gap-1 text-[0.78em]">
+            <span class="text-ui-muted">{{ 'feature.card.field.name' | transloco }}</span>
+            <input
+              type="text"
+              class="border-ui-border-panel bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent w-full border border-solid px-2 py-1 text-[0.95em] transition-colors outline-none"
+              [value]="cardOwnName(c)"
+              (change)="setCardOwnName(c, $event)"
+            />
+          </label>
+        }
         <label class="flex flex-col gap-1 text-[0.78em]">
           <span class="text-ui-muted">{{ 'feature.card.field.size' | transloco }}</span>
           <input
@@ -176,7 +187,7 @@
     </label>
   </section>
 
-  @if (c.detailDataElement && (c.detailDataElement.children.length > 0 || isEdit())) {
+  @if (canReadCardFace(c) && c.detailDataElement && (c.detailDataElement.children.length > 0 || isEdit())) {
     <section class="bg-ui-panel border-ui-border-panel rounded-ui-sm flex flex-col gap-2 border border-solid p-3">
       <header
         class="border-ui-border-panel text-ui-accent flex items-center gap-1.5 border-b border-solid pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-base!"

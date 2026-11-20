@@ -36,7 +36,7 @@ async function settleUntilVisible(page: Page, locator: Locator, limitMs: number)
  * flicker is left at whatever moment the stop caught it; stopped first, it is drawn at the same
  * moments every run.
  */
-async function buildDungeon(page: Page, gridLabel: string, atmosphere?: string) {
+async function buildDungeon(page: Page, gridLabel: string, atmosphere?: string, rooms = ROOMS) {
   await page.locator('[data-testid="fab-entry-table"]').click();
   await settle(page);
   await page.locator('[data-testid="fab-submenu-table"] [data-testid="fab-entry-dungeonGenerator"]').click();
@@ -49,7 +49,7 @@ async function buildDungeon(page: Page, gridLabel: string, atmosphere?: string) 
     await panel.getByRole('button', { name: atmosphere, exact: true }).click();
     await settle(page);
   }
-  await typeInto(page, panel.locator('input[name="room-count-number"]'), ROOMS);
+  await typeInto(page, panel.locator('input[name="room-count-number"]'), rooms);
   await typeInto(page, panel.locator('#seed'), SEED);
   await panel.getByRole('button', { name: '生成する' }).click();
   const goTo = panel.getByRole('button', { name: 'このテーブルへ移動' });
@@ -255,3 +255,69 @@ test('a generated sewer runs its water down the passages and pours it into the b
   await letImagesArrive(page);
   await snap(page, 'dungeon-sewer-wide', { timeout: 150000 });
 });
+
+/**
+ * The furnished dungeons, with enough rooms that every part a room plays is furnished: the illegal bar
+ * with its counter, booths, machines and neon, and the round wizard's tower with its library, its
+ * circle of runes, its crystal and its orrery. The neon, the potions and the runes glow in the dark.
+ */
+for (const place of [
+  { atmosphere: '違法BAR', name: 'dungeon-bar', grids: [{ label: '四角', suffix: '' }] },
+  {
+    atmosphere: '魔術師の塔',
+    name: 'dungeon-wizard-tower',
+    grids: [
+      { label: '四角', suffix: '' },
+      { label: 'ヘクス（縦）', suffix: '-hex-flat' },
+    ],
+  },
+] as const) {
+  for (const grid of place.grids) {
+    test(`a generated ${place.name}${grid.suffix} stands its furniture as its models`, async ({ page }) => {
+      test.setTimeout(600000);
+      await prepare(page);
+      await becomeGm(page);
+      await closePanels(page);
+      await freeze(page);
+      await buildDungeon(page, grid.label, place.atmosphere, '7');
+      await hideFloorLight(page);
+      await holdTorches(page);
+      await hidePieces(page);
+      await closePanels(page);
+      await settle(page, 400);
+      await letImagesArrive(page);
+      await letImagesArrive(page);
+      // The roulette wheel, the runes, the crystal and the orrery turn by the clock.
+      await holdSceneAt(page, MILLS_HELD_AT_MS);
+      await snap(page, `${place.name}${grid.suffix}`, { timeout: 150000 });
+    });
+  }
+}
+
+/**
+ * A generated castle town: the castle's wall with its gate and banners, the square round the
+ * fountain with its stalls and lamp posts, and the buildings along the streets with their rooms
+ * furnished and their signs hung by their doors.
+ */
+for (const grid of [
+  { label: '四角', name: 'castle-town' },
+  { label: 'ヘクス（縦）', name: 'castle-town-hex-flat' },
+]) {
+  test(`a generated ${grid.name} furnishes its buildings and its square`, async ({ page }) => {
+    test.setTimeout(600000);
+    await prepare(page);
+    await becomeGm(page);
+    await closePanels(page);
+    await freeze(page);
+    await buildSettlement(page, '城下町', '20261106', grid.label);
+    await hideFloorLight(page);
+    await holdTorches(page);
+    await hidePieces(page);
+    await closePanels(page);
+    await settle(page, 400);
+    await letImagesArrive(page);
+    await letImagesArrive(page);
+    await holdSceneAt(page, MILLS_HELD_AT_MS);
+    await snap(page, grid.name, { timeout: 150000 });
+  });
+}

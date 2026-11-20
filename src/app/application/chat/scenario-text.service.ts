@@ -7,10 +7,13 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { Network } from '@axe/core/network/network';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEY_PREFIXES, storageKeyFor } from '@axe/core/storage/storage-keys';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { fileUnderFolder } from '@axe/domain/folder/folder-path';
+import { numberInOrder, withMovedInFolder } from '@axe/domain/folder/folder-tree';
 import { ScenarioText, type ScenarioTextSpeaker, scenarioTextSpeakerOf } from '@axe/domain/scenario-text/scenario-text';
 
 /** How a scenario text is said this time, where it is said otherwise than the text keeps. */
@@ -54,6 +57,20 @@ export class ScenarioTextService {
   /** Whether this seat may write and say scenario texts, which only the game master does. */
   canUse(): boolean {
     return this.permission.isGameMaster();
+  }
+
+  /** Files a text in a folder, or in none for an empty path; the game master's alone. Whether it changed. */
+  fileInto(text: ScenarioText, path: string): boolean {
+    return this.canUse() && fileUnderFolder(text, path);
+  }
+
+  /**
+   * Moves a text to a place among the others of its folder, counted from 0, and numbers the whole
+   * list afresh, the rest left where it stands; the game master's alone.
+   */
+  moveInFolder(text: ScenarioText, place: number): void {
+    if (!this.canUse()) return;
+    GameObject.batch(() => numberInOrder(withMovedInFolder(ScenarioText.all(), text, place)));
   }
 
   /** Makes an empty text under a title, last in the list. */

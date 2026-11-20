@@ -4,6 +4,7 @@ import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import { scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
+import { DataElement } from '@axe/domain/data/data-element';
 
 describe('lintChatSyntax', () => {
   let speaker: GameCharacter;
@@ -154,6 +155,9 @@ describe('lintChatSyntax', () => {
 
   describe('resource commands', () => {
     it('finds what reading the command into an edit turns down', () => {
+      expect(codes(':HP=MAX')).toEqual(['res.badOption']);
+      expect(codes(':HP+abc')).toEqual(['res.badOption']);
+      expect(codes(':名前メモ=OK')).toEqual([]);
       expect(codes(':HP-5')).toEqual([]);
       expect(codes(':HP')).toEqual(['res.noOperator']);
       expect(codes('ok :) :-) :D')).toEqual([]);
@@ -161,6 +165,25 @@ describe('lintChatSyntax', () => {
       expect(codes(':HP-')).toEqual(['res.noAmount']);
       expect(codes(':気力-1')).toEqual(['res.unknownStatus']);
       expect(codes(':HP-5Q')).toEqual(['res.badOption']);
+    });
+
+    it('takes words after `=` for a line of text or a choice, and finds words that are none of the choices', () => {
+      expect(codes(':名前メモ=炎の剣士')).toEqual([]);
+      expect(codes(':役割=交渉役')).toEqual([]);
+      expect(codes(':役割>支援役')).toEqual([]);
+      expect(codes('：役割＝交渉役')).toEqual([]);
+      expect(codes(':役割=1d3')).not.toContain('res.notAChoice');
+      expect(codes(':名前メモ=OK')).toEqual([]);
+      expect(codes(':役割+1')).not.toContain('res.notAChoice');
+      expect(lint(':役割_MAX=交渉役')[0]).toMatchObject({ severity: 'error', code: 'res.noSlot' });
+      expect(lint(':役割=5')[0]).toMatchObject({ severity: 'error', code: 'res.notAChoice' });
+      expect(codes(':役割=1d3')).toEqual([]);
+      expect(codes(':役割^=交渉役')).toEqual([]);
+      expect(lint(':役割=勇者')[0]).toMatchObject({
+        severity: 'error',
+        code: 'res.notAChoice',
+        params: { name: '役割', choices: '調査役・交渉役・支援役・記録役' },
+      });
     });
 
     it('says nothing of a name or an amount a reference fills in, which is read only once it is', () => {
@@ -183,8 +206,86 @@ describe('lintChatSyntax', () => {
   describe('buff commands', () => {
     it('finds a calculated buff it cannot read, or one moving a status the piece lacks', () => {
       expect(codes('&!猛攻撃/攻撃/+/たくさん/3')).toEqual(['buff.unreadable']);
-      expect(lint('&!猛攻撃/気力/+/2/3')[0]).toMatchObject({ code: 'buff.missingStatus', params: { name: '気力' } });
+      expect(lint('&!猛攻撃/気力/+/2/3')[0]).toMatchObject({
+        severity: 'info',
+        code: 'buff.makesStatus',
+        params: { name: '気力' },
+      });
+      expect(lint('&!毒/:気力/+/0~-3/3')[0]).toMatchObject({ code: 'buff.missingStatus', params: { name: '気力' } });
+      expect(codes('&!鼓舞/気力^/+/2/3')).toEqual(['buff.missingStatus']);
       expect(codes('&!猛攻撃/HP/+/2/3')).toEqual([]);
+    });
+
+    it('takes a buff writing words into a line of text or a choice, and finds words that are none of the choices', () => {
+      expect(codes('&!ファイア・ウェポン/HP+2,名前メモ=炎/18')).toEqual([]);
+      expect(codes('&!指揮/役割=交渉役/3')).toEqual([]);
+      expect(lint('&!指揮/役割=勇者/3')[0]).toMatchObject({
+        severity: 'error',
+        code: 'buff.notAChoice',
+        params: { name: '役割', choices: '調査役・交渉役・支援役・記録役' },
+      });
+      expect(codes('&!猛攻撃/名前メモ+2/3')).toEqual(['buff.noNumber']);
+    });
+
+    it('finds words a buff would write into an item that holds numbers, and a number that is none of the choices', () => {
+      expect(lint('&!呪い/HP=炎/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notWords' });
+      expect(lint('&!呪い/HP=1d6/3')[0]).toMatchObject({ severity: 'error', code: 'buff.unreadable' });
+      expect(lint('&!指揮/役割=5/3')[0]).toMatchObject({ severity: 'error', code: 'buff.notAChoice' });
+    });
+
+    it('tells of an item to be made only where a buff may make one by that name', () => {
+      vi.spyOn(speaker.status, 'canMakeForBuff').mockReturnValue(false);
+
+      expect(lint('&!鼓舞/気力+2/3')[0]).toMatchObject({ code: 'buff.missingStatus', params: { name: '気力' } });
+    });
+
+    it('says an item nothing is written into is not moved, rather than that one will be made', () => {
+      const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
+      group.appendChild(DataElement.create('状態', '', { type: 'check' }));
+
+      expect(codes('&!X/状態=毒/3')).toEqual(['buff.unwritable']);
+    });
+
+    it('finds a value written in that `:` asks to leave once the buff goes', () => {
+      expect(lint('&!変化/:名前メモ=3/3')[0]).toMatchObject({ severity: 'error', code: 'buff.lastingWords' });
+      expect(codes('&!毒/:HP-1/3')).toEqual([]);
+    });
+
+    it('finds the half-width item a buff can move before a full-width one nothing is written into, as laying it does', () => {
+      const group = speaker.detailDataElement!.getFirstElementByName('名前メモ')!.parent as DataElement;
+      group.appendChild(DataElement.create('ＨＰ', '', { type: 'check' }));
+
+      expect(codes('&!活力/ＨＰ+1/3')).toEqual([]);
+    });
+
+    it('tells nothing of the items of a piece kept from the reader, and all of them to one who may see it', () => {
+      speaker.disclosureMode = 'gm';
+
+      for (const line of [
+        '&!指揮/役割=勇者/3',
+        ':役割=勇者',
+        ':役割>Fire',
+        ':役割=Fire',
+        '&!鼓舞/気力+2/3',
+        ':気力-1',
+      ]) {
+        expect(codes(line), line).toEqual([]);
+      }
+      expect(codes(':役割=勇者', { mayView: () => true })).toEqual(['res.notAChoice']);
+      expect(codes(':役割>Fire', { mayView: () => true })).toEqual(['res.notAChoice']);
+      expect(codes('&!鼓舞/気力+2/3', { mayView: () => true })).toEqual(['buff.makesStatus']);
+      expect(codes(':HP-5Q')).toEqual([]);
+      expect(codes(':HP-5Q', { mayView: () => true })).toEqual(['res.badOption']);
+    });
+
+    it('finds words that are none of the choices for one target though another lacks the item', () => {
+      const lacking = GameCharacter.create('スライム', 1, '');
+      lacking.detailDataElement!.getFirstElementByName('役割')!.destroy();
+      try {
+        expect(codes('t&!指揮/役割=勇者/3', { targets: [lacking, target] })).toContain('buff.notAChoice');
+      } finally {
+        lacking.destroy();
+      }
     });
 
     it("says nothing of a status a buff moves for whoever aims at the piece, which is none of the piece's own", () => {

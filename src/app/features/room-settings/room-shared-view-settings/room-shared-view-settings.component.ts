@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { triggerUpdateGameObject } from '@axe/core/event/domain-events';
-import { Config } from '@axe/domain/peer/config';
-import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
+import { TABLE_FACING_MARKS } from '@axe/domain/tabletop/table-facing-mark';
 import { RoomSettingsAccessService } from '@axe/features/room-settings/room-settings-access.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -21,25 +19,19 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class RoomSharedViewSettingsComponent {
   private readonly access = inject(RoomSettingsAccessService);
-  private readonly resourceSliders = inject(ResourceSliderService);
 
   readonly isSharedReadOnly = this.access.isSharedReadOnly;
 
   readonly facingMarks = TABLE_FACING_MARKS;
 
   /** How a piece shows which way it faces, as the rules in force have it; setting it writes the room's own answer. */
-  readonly facingMark = this.access.field<TableFacingMark>(
-    () => asTableFacingMark(this.access.rules().facingMark),
-    (value) => {
-      if (this.access.mayWrite('shared')) Config.instance.facingMark = asTableFacingMark(value);
-    }
-  );
+  readonly facingMark = this.access.setting('facingMark');
 
   /**
    * Whether a tall piece picture is held inside its cell while the table is seen from above, as the
    * rules in force have it; setting it writes the room's own answer.
    */
-  readonly pieceImageInCell = this.access.ruleField('pieceImageInCell', (inCell) => inCell, 'shared');
+  readonly pieceImageInCell = this.access.setting('pieceImageInCell');
 
   /** Whether a piece keeps its face to the reader, which is the table's own decision. */
   readonly imageBillboard = this.access.field(
@@ -53,10 +45,5 @@ export class RoomSharedViewSettingsComponent {
   );
 
   /** Whether a number resource that says nothing of its own slider shows one, for the whole room. */
-  readonly resourceSliderByDefault = this.access.field(
-    () => this.resourceSliders.roomDefault(),
-    (shown) => {
-      if (this.access.mayWrite('shared')) this.resourceSliders.setRoomDefault(shown);
-    }
-  );
+  readonly resourceSliderByDefault = this.access.setting('resourceSliderByDefault');
 }

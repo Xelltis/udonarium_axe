@@ -101,6 +101,20 @@ describe('the ground that goes off, as a seat is allowed to see it', () => {
     expect(service.shown()).toEqual([far]);
   });
 
+  it('keeps ground painted for the room from a reader while the fog lies over all of it, and shows it whole once any of it is reached', () => {
+    table.fogEnabled = true;
+    sitAs('p1', PeerRole.Player);
+    heroAt(2, 2);
+    const far = trapAt(15, 15, 'room');
+    const edge = trapAt(5, 2, 'room');
+    edge.width = 6;
+
+    expect(service.shown()).toEqual([edge]);
+
+    sitAs('gm', PeerRole.GameMaster);
+    expect(service.shown()).toEqual([far, edge]);
+  });
+
   it('reads ground painted before there was a middle answer by what it used to say', () => {
     sitAs('p1', PeerRole.Player);
     heroAt(2, 2);

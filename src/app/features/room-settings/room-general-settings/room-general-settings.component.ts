@@ -11,9 +11,8 @@ import {
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type ResourceCatalogEntry, resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
-import { asDiceStage, DICE_STAGES, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
+import { DICE_STAGES, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
-import { Config } from '@axe/domain/peer/config';
 import { RoomSettingsAccessService } from '@axe/features/room-settings/room-settings-access.service';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -44,7 +43,7 @@ export class RoomGeneralSettingsComponent {
   }
 
   /** The dice bot everyone joining the room starts on. */
-  readonly defaultDiceBot = this.access.configField('defaultDiceBot', 'shared');
+  readonly defaultDiceBot = this.access.setting('defaultDiceBot');
 
   /**
    * Loads a dice bot as soon as it is picked, by fetching its help text in the background; the text
@@ -58,10 +57,10 @@ export class RoomGeneralSettingsComponent {
   readonly diceStages: readonly DiceStage[] = DICE_STAGES;
 
   /** Where the room has its rolls' dice tumble. */
-  readonly diceStage = this.access.configField('diceStage', 'shared', asDiceStage);
+  readonly diceStage = this.access.setting('diceStage');
 
   /** Whether what a character says shows in a bubble over its piece. */
-  readonly speechBubbles = this.access.configField('speechBubblesEnabled', 'shared');
+  readonly speechBubbles = this.access.setting('speechBubblesEnabled');
 
   /**
    * Every value and resource the pieces in the room carry, by name, which is what a remote could
@@ -79,30 +78,30 @@ export class RoomGeneralSettingsComponent {
     return resourceCatalogOf(characters, { listFirst: DataSummarySetting.instance.dataTags });
   });
 
+  /** The items the room lets its remotes show, or null while it shows every one, as the room keeps them. */
+  private readonly controllerResources = this.access.setting('controllerResources');
+
   /** The items the room lets its remotes show, or null while it shows every one. */
-  readonly controllerResourcePick = computed<ControllerResourcePick>(() => this.access.config().controllerResources);
+  readonly controllerResourcePick = computed<ControllerResourcePick>(() => this.controllerResources.value);
 
   /** Whether the remotes show the item with this name. */
   showsControllerResource(name: string): boolean {
     return controllerShowsResource(this.controllerResourcePick(), name);
   }
 
-  /** Shows or hides one item on every remote in the room; only the master can. */
+  /** Shows or hides one item on every remote in the room; only those its setting lets write it can. */
   setControllerResourceShown(name: string, shown: boolean): void {
-    if (this.isSharedReadOnly()) return;
     const offered = this.controllerResourceChoices().map((choice) => choice.name);
-    Config.instance.controllerResources = pickControllerResource(this.controllerResourcePick(), name, shown, offered);
+    this.controllerResources.value = pickControllerResource(this.controllerResourcePick(), name, shown, offered);
   }
 
   /** Lets the remotes show every item again, one written onto a sheet later included. */
   showEveryControllerResource(): void {
-    if (this.isSharedReadOnly()) return;
-    Config.instance.controllerResources = null;
+    this.controllerResources.value = null;
   }
 
   /** Takes every item off the remotes until some are picked again. */
   hideEveryControllerResource(): void {
-    if (this.isSharedReadOnly()) return;
-    Config.instance.controllerResources = [];
+    this.controllerResources.value = [];
   }
 }

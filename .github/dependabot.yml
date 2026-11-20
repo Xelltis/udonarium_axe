@@ -11,7 +11,7 @@ updates:
       prefix: chore
       include: scope
     ignore:
-      # The workflows and this environment run on Node 24, so the types' major is chosen by hand, not followed.
+      # The workflows run on Node 26 and this environment on Node 24, so the types' major is chosen by hand, not followed.
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major

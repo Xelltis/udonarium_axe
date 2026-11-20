@@ -31,8 +31,17 @@ describe('ConfirmService', () => {
     open.mockResolvedValue(true);
     await service.ask({ message: 'Delete?', danger: true });
     await service.ask('Sure?');
-    expect(open.mock.calls[0]).toEqual([Dialog, { message: 'Delete?', danger: true }]);
-    expect(open.mock.calls[1]).toEqual([Dialog, { message: 'Sure?' }]);
+    expect(open.mock.calls[0]).toEqual([Dialog, { message: 'Delete?', danger: true }, undefined, undefined]);
+    expect(open.mock.calls[1]).toEqual([Dialog, { message: 'Sure?' }, undefined, undefined]);
+  });
+
+  it('hands the dialog the signal that takes it away unanswered', async () => {
+    service = serviceWith(Dialog);
+    open.mockResolvedValue(null);
+    const asking = new AbortController();
+
+    await expect(service.ask('Load?', asking.signal)).resolves.toBe(false);
+    expect(open.mock.calls[0][3]).toBe(asking.signal);
   });
 
   it('is yes only on a plain yes', async () => {

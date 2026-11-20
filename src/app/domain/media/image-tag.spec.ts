@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
+import { browsableImageTags, canBrowseImage, ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 
 describe('ImageTag', () => {
   let store: ObjectStore;
@@ -93,43 +93,88 @@ describe('ImageTag', () => {
 });
 
 describe('canBrowseImage()', () => {
+  /** A seat that sees what the master keeps back or not, kept from no tag. */
+  const sees = (canSeeSecret: boolean) => ({ canSeeSecret, hidesTag: () => false });
+
   function tag(partial: { tag?: string; isSecret?: boolean }): ImageTag {
     return { tag: partial.tag ?? '', isSecret: partial.isSecret ?? false } as ImageTag;
   }
 
   it('shows a picture nobody has said anything about', () => {
-    expect(canBrowseImage(null, false)).toBe(true);
-    expect(canBrowseImage(tag({}), false)).toBe(true);
+    expect(canBrowseImage(null, sees(false))).toBe(true);
+    expect(canBrowseImage(tag({}), sees(false))).toBe(true);
   });
 
   it('shows one a person has filed under a name of their own', () => {
-    expect(canBrowseImage(tag({ tag: 'コマ' }), false)).toBe(true);
+    expect(canBrowseImage(tag({ tag: 'コマ' }), sees(false))).toBe(true);
   });
 
   it('never shows what the tool brought with it, master or not', () => {
-    expect(canBrowseImage(tag({ tag: SYSTEM_RESERVED_TAG }), false)).toBe(false);
-    expect(canBrowseImage(tag({ tag: SYSTEM_RESERVED_TAG }), true)).toBe(false);
+    expect(canBrowseImage(tag({ tag: SYSTEM_RESERVED_TAG }), sees(false))).toBe(false);
+    expect(canBrowseImage(tag({ tag: SYSTEM_RESERVED_TAG }), sees(true))).toBe(false);
   });
 
   it('keeps one the master has kept away from everyone else', () => {
-    expect(canBrowseImage(tag({ isSecret: true }), false)).toBe(false);
+    expect(canBrowseImage(tag({ isSecret: true }), sees(false))).toBe(false);
   });
 
   it('shows it to the master', () => {
-    expect(canBrowseImage(tag({ isSecret: true }), true)).toBe(true);
+    expect(canBrowseImage(tag({ isSecret: true }), sees(true))).toBe(true);
   });
 
   it('folds it away again when the master asks for that', () => {
-    expect(canBrowseImage(tag({ isSecret: true }), true, false)).toBe(false);
+    expect(canBrowseImage(tag({ isSecret: true }), sees(true), false)).toBe(false);
     // Folding them away is the master's own view; it lets nothing else through.
-    expect(canBrowseImage(tag({ tag: 'コマ' }), true, false)).toBe(true);
+    expect(canBrowseImage(tag({ tag: 'コマ' }), sees(true), false)).toBe(true);
   });
 
   it('keeps one filed under a tag kept from whoever is looking, and only that tag', () => {
     const keptFromMe = (name: string) => name === 'ボス';
 
-    expect(canBrowseImage(tag({ tag: 'ボス' }), true, true, keptFromMe)).toBe(false);
-    expect(canBrowseImage(tag({ tag: 'コマ' }), false, true, keptFromMe)).toBe(true);
-    expect(canBrowseImage(null, false, true, keptFromMe)).toBe(true);
+    expect(canBrowseImage(tag({ tag: 'ボス' }), { canSeeSecret: true, hidesTag: keptFromMe }, true)).toBe(false);
+    expect(canBrowseImage(tag({ tag: 'コマ' }), { canSeeSecret: false, hidesTag: keptFromMe }, true)).toBe(true);
+    expect(canBrowseImage(null, { canSeeSecret: false, hidesTag: keptFromMe }, true)).toBe(true);
+  });
+});
+
+describe('browsableImageTags()', () => {
+  const sees = (canSeeSecret: boolean, hidesTag = (_tag: string) => false) => ({ canSeeSecret, hidesTag });
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    const filed = (identifier: string, name: string, isSecret = false) => {
+      const tag = ImageTag.create(identifier);
+      tag.tag = name;
+      tag.isSecret = isSecret;
+    };
+    filed('forest', '森');
+    filed('boss', 'ボス', true);
+    filed('boss-too', '森', true);
+    filed('sample', SYSTEM_RESERVED_TAG);
+    filed('locked', '宝');
+  });
+
+  afterEach(() => {
+    for (const tag of ObjectStore.instance.getObjects<ImageTag>(ImageTag)) tag.destroy();
+  });
+
+  const images = ['forest', 'boss', 'boss-too', 'sample', 'locked', 'untagged'].map((identifier) => ({ identifier }));
+
+  it('names no tag only the pictures the master keeps back carry, to anyone but the master', () => {
+    expect(browsableImageTags(images, sees(false))).toEqual(['森', '宝']);
+    expect(browsableImageTags(images, sees(true))).toEqual(['森', 'ボス', '宝']);
+  });
+
+  it('names none while the master has the kept pictures folded away', () => {
+    expect(browsableImageTags(images, sees(true), false)).toEqual(['森', '宝']);
+  });
+
+  it('names no tag kept from whoever looks, nor the tool’s own', () => {
+    expect(
+      browsableImageTags(
+        images,
+        sees(true, (tag) => tag === '宝')
+      )
+    ).toEqual(['森', 'ボス']);
   });
 });

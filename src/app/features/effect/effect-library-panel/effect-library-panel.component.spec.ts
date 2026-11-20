@@ -8,6 +8,7 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -623,6 +624,32 @@ describe('EffectLibraryPanelComponent', () => {
         expect(host().querySelector('[data-testid="effect-library-fields"]')).toBeNull();
       } finally {
         if (fields.fields().includes(field)) field.destroy();
+      }
+    });
+
+    it('names to a player no effect left standing that is kept for the master, and lists none the fog keeps from it', () => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const open = new EffectPreset();
+      open.name = '炎の壁';
+      ObjectStore.instance.add(open, false);
+      preset.gmOnly = true;
+      const fields = TestBed.inject(EffectFieldService);
+      const kept = fields.place(preset, 0, 0, 0);
+      const shown = fields.place(open, 100, 0, 0);
+      const fogged = fields.place(open, 600, 600, 0);
+      vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockImplementation((piece) => piece === fogged);
+      fixture.detectChanges();
+      try {
+        const chips = Array.from(part('fields').children).map((chip) => chip.textContent ?? '');
+        expect(chips).toHaveLength(2);
+        expect(chips[0]).toContain('？？？');
+        expect(chips[0]).not.toContain('爆炎');
+        expect(chips[1]).toContain('炎の壁');
+      } finally {
+        for (const field of [kept, shown, fogged]) field.destroy();
+        ObjectStore.instance.remove(open);
+        preset.gmOnly = false;
+        PeerCursor.myCursor = null!;
       }
     });
 

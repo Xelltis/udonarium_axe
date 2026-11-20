@@ -101,7 +101,7 @@ export class AgentGmTools {
 
   private fireEffect(args: Readonly<Record<string, unknown>>): unknown {
     const preset = findOne(
-      this.effects.presets(),
+      this.effects.shownPresets(),
       textArg(args, 'effect'),
       (each) => each.identifier,
       (each) => each.name,
@@ -155,7 +155,7 @@ export class AgentGmTools {
         this.jukebox.play(audio);
         break;
       case 'ambient':
-        if (!BackgroundSound.of(audio.identifier)) BackgroundSound.start(audio.identifier);
+        BackgroundSound.keepPlaying(audio.identifier);
         break;
       case 'sound_effect':
         SoundEffect.play(audio);

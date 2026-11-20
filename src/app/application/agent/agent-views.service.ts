@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
+import { VisibleChatTabsService } from '@axe/application/chat/visible-chat-tabs.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -10,10 +11,11 @@ import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { cellColRow, type CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellColRow, type CellGrid, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -96,6 +98,7 @@ export class AgentViews {
   private readonly disclosure = inject(DisclosureService);
   private readonly permission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly visibleTabs = inject(VisibleChatTabsService);
   private readonly t = inject(TRANSLATE_FN);
 
   /**
@@ -122,11 +125,18 @@ export class AgentViews {
 
   /**
    * A chat line as the AI is handed it among what others said: as this seat may read it, or null for
-   * one it may not see at all or one the AI is kept from. A line the AI wrote itself is told back to
-   * it by {@link chatLine}, whichever tab it wrote it in.
+   * one said in a tab this seat's role may not read, whisper or not, one it may not see at all or one
+   * the AI is kept from. A line the AI wrote itself is told back to it by {@link chatLine}, whichever
+   * tab it wrote it in.
    */
   lineRead(message: ChatMessage): AgentChatLine | null {
-    return this.reads(message) ? this.chatLine(message) : null;
+    return this.inReadableTab(message) && this.reads(message) ? this.chatLine(message) : null;
+  }
+
+  /** Whether a line was said in a tab this seat's role may read, one of the tabs its chat shows. */
+  private inReadableTab(message: ChatMessage): boolean {
+    const tab = message.parent;
+    return tab instanceof ChatTab && this.visibleTabs.readableNow().includes(tab);
   }
 
   /** The grid the pieces of the table in view move over. */
@@ -141,6 +151,22 @@ export class AgentViews {
     if (index < 0) return null;
     const { col, row } = cellColRow(grid, index);
     return { col: col + 1, row: row + 1 };
+  }
+
+  /** The square a point of the table in view lies in, or null for a point off the grid. */
+  squareAt(x: number, y: number, table: GameTable = this.tabletop.currentTable): AgentSquare | null {
+    const grid = this.grid(table);
+    const index = cellIndexAt(grid, x, y);
+    if (index < 0) return null;
+    const { col, row } = cellColRow(grid, index);
+    return { col: col + 1, row: row + 1 };
+  }
+
+  /** The middle of a square of the table in view, or null for a square off it. */
+  middleOf(square: AgentSquare, table: GameTable = this.tabletop.currentTable): { x: number; y: number } | null {
+    const grid = this.grid(table);
+    const index = this.cellOf(square, table);
+    return index < 0 ? null : cellCenterOf(grid, index);
   }
 
   /** The index of a square in the grid of the table in view, or -1 for one off it. */

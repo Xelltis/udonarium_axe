@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -530,6 +531,22 @@ describe('FirstPersonService', () => {
       expect(service().toggleDoorAhead()).toBe(true);
       expect(door.isDoorOpen).toBe(true);
       expect(await service().walk('forward')).toBe(true);
+    });
+
+    it('leaves shut a door ahead this seat is not shown, as one of glass', () => {
+      const door = block(6 * GRID + 0.375 * GRID, 5 * GRID, 0.25, 1);
+      door.doorStyle = DoorStyle.SWING;
+      door.clearFaceImages();
+      const piece = pieceAt(5, 5, 90);
+      service().enterSeat(piece.identifier);
+
+      expect(service().toggleDoorAhead()).toBe(false);
+      expect(door.isDoorOpen).toBe(false);
+
+      door.setFaceImage('wall', 'stone');
+      vi.spyOn(TestBed.inject(TablePiecesService), 'isBlockShown').mockReturnValue(false);
+      expect(service().toggleDoorAhead()).toBe(false);
+      expect(door.isDoorOpen).toBe(false);
     });
   });
 

@@ -190,12 +190,7 @@ export class TablePiecesService {
     },
     shown: (character) => {
       const model = pieceModelOf(character);
-      return (
-        !!model &&
-        this.modelUrlOf(model.identifier) !== '' &&
-        this.vision.isTokenVisible(character) &&
-        this.drawnAsItself(character)
-      );
+      return !!model && this.modelUrlOf(model.identifier) !== '' && this.characterShown(character);
     },
     draw: (character, place, moving, { gridSize }) => drawModel(character, place, moving, gridSize, this.modelSources),
   });
@@ -342,6 +337,89 @@ export class TablePiecesService {
     { equal: sameList }
   );
 
+  /**
+   * Whether this seat is shown a thing on the table in view, as the canvas draws it for this seat: what
+   * a box drawn over the table may take in. A block is shown as {@link isBlockShown} says, a character
+   * where this seat can see it and it is drawn as itself rather than as part of a body, a thing lying on
+   * the floor where the fog does not keep the ground under it from this seat, and a mask or a range
+   * wherever it lies. Nothing of any other kind is.
+   */
+  isShown(object: TabletopObject): boolean {
+    if (object instanceof Terrain) return this.isBlockShown(object);
+    if (object instanceof GameCharacter) return this.characterShown(object);
+    if (object instanceof DiceSymbol) return this.dieShown(object);
+    if (object instanceof Card) return this.cardShown(object);
+    if (object instanceof CardStack) return this.stackShown(object);
+    if (object instanceof TextNote) return this.noteShown(object);
+    if (object instanceof Coin) return this.coinShown(object);
+    if (object instanceof LightSource) return this.lightShown(object);
+    return object instanceof GameTableMask || object instanceof RangeArea;
+  }
+
+  /**
+   * Whether this seat is shown a block, as the canvas draws it for this seat: not where the fog lies
+   * over the whole of it, and then drawn as its model where that is held here, or by its faces where
+   * any of them was given a picture or the seat sees what is kept back. A block given neither is glass,
+   * which stops what it stops while showing nothing, for the game master to wall a room in unseen: a
+   * seat it is not shown to does not press it, take it in, list it or open it, though a piece that seat
+   * moves is stopped by it and put on it all the same.
+   */
+  isBlockShown(terrain: Terrain): boolean {
+    const shows = !this.isGlass(terrain) || this.rolePermission.canSeeHidden();
+    return shows && !this.vision.isTerrainHiddenByFog(terrain);
+  }
+
+  /**
+   * Whether a block is glass, drawn with nothing: none of its faces given a picture and no model of it
+   * held here to draw it as (see {@link isBlockShown}).
+   */
+  isGlass(terrain: Terrain): boolean {
+    return !terrain.hasFaceImage && !this.drawnAsModel(terrain);
+  }
+
+  /** Whether a block is drawn as its model, which takes the model being held here; followed as models arrive. */
+  private drawnAsModel(terrain: Terrain): boolean {
+    const model = pieceModelOf(terrain);
+    if (!model) return false;
+    this.objectChange.fileVersion();
+    return this.modelUrlOf(model.identifier) !== '';
+  }
+
+  /** Whether this seat is shown a character: one it can see, drawn as itself rather than as part of a body. */
+  private characterShown(character: GameCharacter): boolean {
+    return this.vision.isTokenVisible(character) && this.drawnAsItself(character);
+  }
+
+  /** Whether this seat is shown a die, which is not on ground the fog keeps from it. */
+  private dieShown(die: DiceSymbol): boolean {
+    return !this.vision.isPieceHiddenByFog(die, Math.max(0, die.size));
+  }
+
+  /** Whether this seat is shown a card, which is not on ground the fog keeps from it. */
+  private cardShown(card: Card): boolean {
+    return !this.vision.isPieceHiddenByFog(card, Math.max(0, card.size));
+  }
+
+  /** Whether this seat is shown a stack of cards, which is not on ground the fog keeps from it. */
+  private stackShown(stack: CardStack): boolean {
+    return !this.vision.isPieceHiddenByFog(stack, stackSizeOf(stack));
+  }
+
+  /** Whether this seat is shown a note, which is not on ground the fog keeps from it. */
+  private noteShown(note: TextNote): boolean {
+    return !this.vision.isPieceHiddenByFog(note, 1);
+  }
+
+  /** Whether this seat is shown a coin, which is not on ground the fog keeps from it. */
+  private coinShown(coin: Coin): boolean {
+    return !this.vision.isPieceHiddenByFog(coin, coinSizeOf(coin));
+  }
+
+  /** Whether this seat is shown a light standing on the table, which is not on ground the fog keeps from it. */
+  private lightShown(light: LightSource): boolean {
+    return !this.vision.isPieceHiddenByFog(light, 1);
+  }
+
   /** Where the bytes of a model held here in full are read from, or nothing for one not held. */
   modelUrlOf(identifier: string): string {
     const model = this.modelStorage.get(identifier);
@@ -435,7 +513,7 @@ export class TablePiecesService {
       this.objectChange.fileVersion();
       return this.coinLook();
     },
-    shown: (coin) => !this.vision.isPieceHiddenByFog(coin, coinSizeOf(coin)),
+    shown: (coin) => this.coinShown(coin),
     draw: (coin, place, _moving, look) => drawCoin(coin, place, look, this.pictures),
   });
 
@@ -493,7 +571,7 @@ export class TablePiecesService {
       this.myUserId();
       return this.characterLook();
     },
-    shown: (character) => this.vision.isTokenVisible(character) && this.drawnAsItself(character),
+    shown: (character) => this.characterShown(character),
     draw: (character, place, _moving, look) => {
       const model = pieceModelOf(character);
       return drawCharacter(character, place, look, {
@@ -546,7 +624,7 @@ export class TablePiecesService {
       this.objectChange.fileVersion();
       return this.gridLook();
     },
-    shown: (light) => !this.vision.isPieceHiddenByFog(light, 1),
+    shown: (light) => this.lightShown(light),
     draw: (light, place, _moving, { gridSize }) => drawLight(light, place, gridSize, this.pictures),
   });
 
@@ -598,7 +676,7 @@ export class TablePiecesService {
       this.objectChange.collectionOf(WhiteBoard.aliasName)();
       return this.gridLook();
     },
-    shown: (note) => !this.vision.isPieceHiddenByFog(note, 1),
+    shown: (note) => this.noteShown(note),
     draw: (note, place, _moving, { gridSize }) => drawTextNote(note, place, gridSize, this.pictures),
   });
 
@@ -625,13 +703,13 @@ export class TablePiecesService {
 
   private readonly cardDrawing = this.drawingOf<Card, TableWorldSprite, CardLook>({
     look: () => this.cardsLook(),
-    shown: (card) => !this.vision.isPieceHiddenByFog(card, Math.max(0, card.size)),
+    shown: (card) => this.cardShown(card),
     draw: (card, place, _moving, look) => drawCard(card, place, look, this.pictures),
   });
 
   private readonly stackDrawing = this.drawingOf<CardStack, TableWorldSprite, CardLook>({
     look: () => this.cardsLook(),
-    shown: (stack) => !this.vision.isPieceHiddenByFog(stack, stackSizeOf(stack)),
+    shown: (stack) => this.stackShown(stack),
     draw: (stack, place, _moving, look) => drawCardStack(stack, place, look, this.pictures),
   });
 
@@ -684,7 +762,7 @@ export class TablePiecesService {
       this.myUserId();
       return this.diceLook();
     },
-    shown: (die) => !this.vision.isPieceHiddenByFog(die, Math.max(0, die.size)),
+    shown: (die) => this.dieShown(die),
     draw: (die, place, _moving, look) => drawDie(die, place, look, this.pictures),
   });
 

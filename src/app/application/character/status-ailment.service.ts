@@ -2,9 +2,17 @@ import { computed, inject, Injectable } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { newStatusAilment, StatusAilment } from '@axe/domain/character/status-ailment';
+import {
+  isStatusAilmentName,
+  isStatusAilmentWritable,
+  newStatusAilment,
+  StatusAilment,
+} from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { plantStatusAilment } from '@axe/domain/character/status-ailment-plant';
+
+/** Why a state may not be added under a name: none given, not one word without a colon, or one already listed. */
+export type StatusAilmentNameRefusal = 'empty' | 'notOneWord' | 'taken';
 
 /**
  * The states a room keeps, and the putting of them on a piece.
@@ -39,32 +47,62 @@ export class StatusAilmentService {
     this.objectChange.notifyChanged(this.catalog.identifier);
   }
 
-  /** Replaces the room's list of states with this one. */
+  /** Whether this seat may change the room's list of states, which every role but a guest may. */
+  mayEdit(): boolean {
+    return this.rolePermission.canEditTabletop();
+  }
+
+  /** Replaces the room's list of states with this one; nothing for a seat that may not edit the table. */
   save(list: readonly StatusAilment[]): void {
+    if (!this.mayEdit()) return;
     this.catalog.ailments = list;
     this.objectChange.notifyChanged(this.catalog.identifier);
   }
 
-  /** Puts a new state at the end of the list, under a name nothing else there answers to. */
+  /**
+   * Why a state may not be added under the name typed, or null where it may: the name, trimmed, is
+   * one word with no colon, as {@link isStatusAilmentName} has it, and no state is listed under it.
+   */
+  nameRefusal(name: string): StatusAilmentNameRefusal | null {
+    const wanted = name.trim();
+    if (wanted.length < 1) return 'empty';
+    if (!isStatusAilmentName(wanted)) return 'notOneWord';
+    if (this.ailments().some((entry) => entry.name === wanted)) return 'taken';
+    return null;
+  }
+
+  /**
+   * Puts a new state at the end of the list under the name typed, trimmed; null, with nothing added,
+   * where {@link nameRefusal} refuses the name or the seat may not edit the table.
+   */
   add(name: string): StatusAilment | null {
-    const wanted = name.trim().split(/\s+/)[0] ?? '';
-    if (wanted.length < 1) return null;
-
-    const list = this.ailments();
-    if (list.some((entry) => entry.name === wanted)) return null;
-
-    const added = newStatusAilment(wanted);
-    this.save([...list, added]);
+    if (!this.mayEdit() || this.nameRefusal(name) !== null) return null;
+    const added = newStatusAilment(name.trim());
+    this.save([...this.ailments(), added]);
     return added;
+  }
+
+  /**
+   * Writes a listed state anew as given, under its own name. Refused, with nothing written, where a
+   * field but the effect holds a space, which would not be read back as written, and for a seat that
+   * may not edit the table. Whether it was written.
+   */
+  change(name: string, next: StatusAilment): boolean {
+    const list = this.ailments();
+    if (!this.mayEdit() || !isStatusAilmentWritable(next) || !list.some((entry) => entry.name === name)) return false;
+    this.save(list.map((entry) => (entry.name === name ? { ...next, name } : entry)));
+    return true;
   }
 
   /** Takes a state out of the room's list. A piece already wearing it keeps the buff. */
   remove(name: string): void {
+    if (!this.mayEdit()) return;
     this.save(this.ailments().filter((entry) => entry.name !== name));
   }
 
   /** Moves one along the list, which is the order the columns stand in. */
   move(name: string, delta: number): void {
+    if (!this.mayEdit()) return;
     const list = [...this.ailments()];
     const at = list.findIndex((entry) => entry.name === name);
     const to = at + delta;

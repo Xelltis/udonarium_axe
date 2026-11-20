@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -16,12 +15,14 @@ import {
 } from '@axe/domain/data/data-element';
 import { MarkDown } from '@axe/domain/data/mark-down';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { OverviewPanelComponent } from '@axe/features/inventory/overview-panel/overview-panel.component';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 
@@ -70,6 +71,78 @@ describe('OverviewPanelComponent', () => {
 
     expect(read()).not.toContain(`D6: ${die.face}`);
     die.destroy();
+  });
+
+  describe('what of a card or a die it shows a seat', () => {
+    const read = () => (fixture.nativeElement as HTMLElement).textContent?.replace(/\s+/g, ' ') ?? '';
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.role = PeerRole.Player;
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it('keeps the front picture and the name of a card face down from a player, and shows them to the game master', async () => {
+      const card = Card.create('秘密の鍵', 'front.png', 'back.png');
+      card.location.name = 'table';
+      card.faceDown();
+      try {
+        component.tabletopObject = card;
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(read()).not.toContain('秘密の鍵');
+        expect(component.imageUrl()).toBe(card.backImage?.url ?? '');
+        expect(component.overviewFaceCard).toBeNull();
+
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(read()).toContain('秘密の鍵');
+        expect(component.overviewFaceCard).toBe(card);
+      } finally {
+        card.destroy();
+      }
+    });
+
+    it('keeps the name of a card inside a stack from a player, though it lies face up', async () => {
+      const stack = CardStack.create('山札');
+      const card = Card.create('切り札', 'front.png', 'back.png');
+      stack.putOnBottom(card);
+      try {
+        component.tabletopObject = card;
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(card.isFront).toBe(true);
+        expect(read()).not.toContain('切り札');
+        expect(component.overviewFaceCard).toBeNull();
+      } finally {
+        stack.destroy();
+      }
+    });
+
+    it('keeps the name of a die another seat keeps from a player, and shows it with the face to the game master', async () => {
+      const die = DiceSymbol.create('切り札ダイス', 0, 1);
+      die.owner = 'somebody-else';
+      try {
+        component.tabletopObject = die;
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(read()).not.toContain('切り札ダイス');
+
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(read()).toContain(`切り札ダイス: ${die.face}`);
+      } finally {
+        die.destroy();
+      }
+    });
   });
 
   it('rotates the detail toward the hover area supplied by the tooltip', () => {
@@ -747,16 +820,15 @@ describe('OverviewPanelComponent', () => {
 
       it('draws one for a resource that says nothing of its own where the room gives every resource one', () => {
         resource.removeAttribute(DataElementAttribute.RESOURCE_SLIDER);
-        const sliders = TestBed.inject(ResourceSliderService);
         fixture.detectChanges();
         expect(slider()).toBeNull();
 
-        sliders.setRoomDefault(true);
+        Config.instance.resourceSliderByDefault = true;
         try {
           fixture.detectChanges();
           expect(slider()).not.toBeNull();
         } finally {
-          sliders.setRoomDefault(false);
+          Config.instance.resourceSliderByDefault = false;
         }
       });
 

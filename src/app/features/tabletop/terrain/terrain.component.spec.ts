@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService as ObjectChangeServiceForSpec } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -43,7 +44,10 @@ describe('TerrainComponent', () => {
 
   afterEach(() => given.destroy());
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    PeerCursor.myCursor = null!;
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();
@@ -54,7 +58,7 @@ describe('TerrainComponent', () => {
   });
 
   it('lets the pointer through the top of a block locked in place, but not of one free to move, nor of a door', () => {
-    const block = Terrain.create('wall', 1, 1, 2, '', '');
+    const block = Terrain.create('wall', 1, 1, 2, 'wall.png', 'floor.png');
     fixture.componentRef.setInput('terrain', block);
     fixture.detectChanges();
     const top = () => (fixture.nativeElement as HTMLElement).querySelector('[data-part="top"]')!;
@@ -76,7 +80,7 @@ describe('TerrainComponent', () => {
     it('opens and shuts for a seat that may change the table, and not for a guest', () => {
       PeerCursor.createMyCursor();
       PeerCursor.myCursor.role = PeerRole.Guest;
-      const door = Terrain.create('door', 0.25, 1, 2, '', '');
+      const door = Terrain.create('door', 0.25, 1, 2, 'wall.png', 'floor.png');
       door.doorStyle = DoorStyle.SWING;
       fixture.componentRef.setInput('terrain', door);
 
@@ -89,6 +93,30 @@ describe('TerrainComponent', () => {
       expect(door.isDoorOpen).toBe(true);
 
       door.destroy();
+    });
+
+    it('neither opens nor offers to open a door of glass a player is not shown, as it does for the master', () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const glass = Terrain.create('door', 0.25, 1, 2, '', '');
+      glass.doorStyle = DoorStyle.SWING;
+      glass.isLocked = true;
+      fixture.componentRef.setInput('terrain', glass);
+      fixture.detectChanges();
+      const top = () => (fixture.nativeElement as HTMLElement).querySelector('[data-part="top"]')!;
+
+      component['onDoorClick']();
+      expect(glass.isDoorOpen).toBe(false);
+      expect(top().classList).not.toContain('cursor-pointer');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+      expect(top().classList).toContain('cursor-pointer');
+      component['onDoorClick']();
+      expect(glass.isDoorOpen).toBe(true);
+
+      glass.destroy();
     });
 
     it('says on its element whether it is a door and whether it stands open', () => {
@@ -110,6 +138,41 @@ describe('TerrainComponent', () => {
       expect(host.getAttribute('data-door')).toBe('open');
 
       door.destroy();
+    });
+  });
+
+  describe('a block this seat is not shown', () => {
+    const display = () => (fixture.nativeElement as HTMLElement).style.display;
+
+    it('puts nothing of a block of glass on a player’s screen, and all of it on the master’s', () => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+      const glass = Terrain.create('見えない壁', 1, 1, 2, '', '');
+      fixture.componentRef.setInput('terrain', glass);
+      fixture.detectChanges();
+      expect(display()).toBe('none');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(PeerCursor.myCursor.identifier);
+      fixture.detectChanges();
+      expect(display()).toBe('');
+
+      glass.destroy();
+    });
+
+    it('answers to whatever keeps the block from the seat', () => {
+      const wall = Terrain.create('壁', 1, 1, 2, 'wall.png', 'floor.png');
+      const shown = vi.spyOn(TestBed.inject(TablePiecesService), 'isBlockShown').mockReturnValue(false);
+      fixture.componentRef.setInput('terrain', wall);
+      fixture.detectChanges();
+      expect(display()).toBe('none');
+
+      shown.mockReturnValue(true);
+      TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(wall.identifier);
+      fixture.detectChanges();
+      expect(display()).toBe('');
+
+      wall.destroy();
     });
   });
 

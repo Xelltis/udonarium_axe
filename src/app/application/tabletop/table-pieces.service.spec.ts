@@ -20,6 +20,7 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -391,6 +392,56 @@ describe('TablePiecesService', () => {
     vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockReturnValue(true);
 
     expect(pieces.sprites()).toEqual([]);
+  });
+
+  describe('what this seat is shown', () => {
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it('shows a block of glass only to a seat that sees what is hidden, one with a picture or a model held here to every seat, and none the fog lies over whole', () => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const glass = Terrain.create('ガラス', 1, 1, 1, '', '');
+      const pictured = Terrain.create('壁', 1, 1, 1, 'wall.png', 'floor.png');
+      const modelled = Terrain.create('木', 1, 1, 1, '', '');
+      modelled.modelIdentifier = 'tree';
+      const held = vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue(null as never);
+
+      expect(pieces.isBlockShown(glass)).toBe(false);
+      expect(pieces.isBlockShown(pictured)).toBe(true);
+      expect(pieces.isBlockShown(modelled)).toBe(false);
+
+      held.mockReturnValue({ isReady: true, url: 'blob:tree' } as never);
+      expect(pieces.isBlockShown(modelled)).toBe(true);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(pieces.isBlockShown(glass)).toBe(true);
+
+      vi.spyOn(TestBed.inject(VisionService), 'isTerrainHiddenByFog').mockReturnValue(true);
+      expect([glass, pictured, modelled].some((block) => pieces.isBlockShown(block))).toBe(false);
+    });
+
+    it('takes in what it draws for this seat and nothing it leaves out, kind by kind', () => {
+      const shownDie = dieAt(100, 200);
+      const foggedDie = dieAt(300, 200);
+      const card = Card.create('card', 'front', 'back');
+      card.location = { name: 'table', x: 500, y: 200 };
+      const note = TextNote.create('メモ', '', 16);
+      note.location = { name: 'table', x: 600, y: 200 };
+      const fogged = new Set<string>([foggedDie.identifier, card.identifier]);
+      vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockImplementation((piece) =>
+        fogged.has(piece.identifier)
+      );
+
+      expect([shownDie, foggedDie, card, note].map((thing) => pieces.isShown(thing))).toEqual([
+        true,
+        false,
+        false,
+        true,
+      ]);
+      const drawn = new Set(pieces.sprites().map((sprite) => sprite.owner));
+      expect([drawn.has(shownDie.identifier), drawn.has(foggedDie.identifier)]).toEqual([true, false]);
+    });
   });
 
   it('draws a die it may not read the face of as a black picture', () => {

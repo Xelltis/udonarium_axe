@@ -8,6 +8,7 @@ import {
   input,
   untracked,
 } from '@angular/core';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
@@ -45,6 +46,7 @@ export class CardStackCardListComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly modalService = inject(ModalService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly cardGame = inject(CardGameService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -109,25 +111,34 @@ export class CardStackCardListComponent {
   }
 
   /**
-   * Takes a card out of the stack and lays it on the table beside it, from the list's draw button.
-   *
-   * The card lands a little to the lower right of the stack with some random scatter, on the same
-   * table, turned by the stack's rotation and brought to the top.
+   * Takes a card out of the stack and lays it on the table beside it, from the list's draw button,
+   * where a card drawn off the top lands.
    */
   drawCard(card: Card): void {
-    const stack = this.cardStack();
-    card.parent?.removeChild(card);
-    card.location.x = stack.location.x + 100 + Math.random() * 50;
-    card.location.y = stack.location.y + 25 + Math.random() * 50;
-    card.location.name = stack.location.name;
-    card.rotate += stack.rotate;
-    if (360 < card.rotate) card.rotate -= 360;
-    card.toTopmost();
-    SoundEffect.play(PresetSound.cardDraw);
+    if (this.cardGame.drawCard(this.cardStack(), 0, card)) SoundEffect.play(PresetSound.cardDraw);
   }
 
-  /** Opens the card's own settings sheet, placed just off the corner of this panel. */
+  /**
+   * Whether this seat may see and change a card's front from its row: its picture, its name and the
+   * label read off its picture. Only the game master looks through the fronts of a stack's cards, and
+   * nobody those a room server keeps back; anyone else sees the backs.
+   */
+  readsFront(card: Card): boolean {
+    return !this.isFaceWithheld(card) && this.cardGame.canReadFront(card);
+  }
+
+  /** Whether this seat may open a card's own sheet from its row. */
+  opensSheet(card: Card): boolean {
+    this.objectChange.versionOf(card.identifier)();
+    return this.cardGame.canOpenSheet(card);
+  }
+
+  /**
+   * Opens the card's own settings sheet, placed just off the corner of this panel; nothing where this
+   * seat may not open it.
+   */
   showDetail(card: Card): void {
+    if (!this.cardGame.canOpenSheet(card)) return;
     const title = sheetPanelTitle(this.t('feature.card.settingTitle'), card.name);
     this.objectPanels.openSheet(
       card,
@@ -258,17 +269,20 @@ export class CardStackCardListComponent {
     return card.name;
   }
 
-  /** Renames the card from its row's name field; the name is shared with the room. */
+  /** Renames the card from its row's name field, where this seat may read its front; the name is shared with the room. */
   setCardName(card: Card, event: Event): void {
+    if (!this.readsFront(card)) return;
     card.name = (event.target as HTMLInputElement).value;
   }
 
   /**
    * Opens the image picker and sets the chosen picture as the card's front or back.
    *
-   * Closing the picker without a choice, or a card without that image slot, changes nothing.
+   * Closing the picker without a choice, or a card without that image slot, changes nothing, and so
+   * does the front of a card whose front this seat may not read.
    */
   setImage(card: Card, slot: 'front' | 'back'): void {
+    if (slot === 'front' && !this.readsFront(card)) return;
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (value == null) return;
       const el = card.imageDataElement?.getFirstElementByName(slot);

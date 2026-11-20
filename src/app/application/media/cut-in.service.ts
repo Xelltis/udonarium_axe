@@ -1,14 +1,18 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { missingDefaultCutInIdentifiers, restoreDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
+import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
+import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseCutInIdentifiers, pickCutInIdentifier, rollCutIn } from '@axe/domain/media/table-cut-in';
@@ -30,6 +34,7 @@ export class CutInService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly audioStorage = inject(AudioStorage);
+  private readonly imageStorage = inject(ImageStorage);
 
   constructor() {
     this.objectChange.messageAdded$.subscribe((event) => {
@@ -128,6 +133,29 @@ export class CutInService {
 
     launcher.startSoundOnlyCutIn(cutIn, sendTo);
     return true;
+  }
+
+  /**
+   * How many of the samples a room starts with have lost something that {@link restoreSamples} puts
+   * back: a sample taken away, or a layer taken out of one. Read in a computed, it follows cut-ins,
+   * scenes and layers coming and going.
+   */
+  missingSampleCount(): number {
+    this.objectChange.collectionOf(CutIn.aliasName)();
+    this.objectChange.collectionOf(CutInScene.aliasName)();
+    this.objectChange.collectionOf(CutInLayer.aliasName)();
+    return missingDefaultCutInIdentifiers().length;
+  }
+
+  /**
+   * Puts back what the samples a room starts with have lost: a sample taken away comes back whole, and a
+   * layer taken out of one still here comes back at its place. What the room has made of a sample, and
+   * every cut-in of its own, stay as they are. What comes back is said to be coming back first, as every
+   * other seat and a room server would delete it again. Answers how many cut-ins and layers it made.
+   */
+  restoreSamples(): number {
+    this.objectStore.announceComingBack(missingDefaultCutInIdentifiers());
+    return restoreDefaultCutIns(this.imageStorage);
   }
 
   private isCutInBgmUploaded(audioIdentifier: string): boolean {

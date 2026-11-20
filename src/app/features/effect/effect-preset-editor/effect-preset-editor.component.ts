@@ -14,7 +14,12 @@ import { AILMENT_LOOKS, isAilmentLook } from '@axe/domain/effect/ailment-looks';
 import { BEAM_LOOKS, isBeamLook } from '@axe/domain/effect/beam-looks';
 import { EFFECT_KINDS, EffectKind } from '@axe/domain/effect/effect-kind';
 import { EFFECT_MOTE_OPTIONS } from '@axe/domain/effect/effect-motes';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import {
+  BoundedPresetNumber,
+  boundPresetNumber,
+  EffectPreset,
+  PRESET_NUMBER_BOUNDS,
+} from '@axe/domain/effect/effect-preset';
 import {
   EFFECT_GRADE_OPTIONS,
   EFFECT_TARGETING_OPTIONS,
@@ -218,10 +223,17 @@ export class EffectPresetEditorComponent {
     this.notice.set('');
   }
 
-  protected editNumber(key: keyof EffectPreset, value: string): void {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return;
-    this.edit(key as never, numeric as never);
+  /** The bounds each number field offers, the same an effect is held to as it plays. */
+  protected readonly bounds = PRESET_NUMBER_BOUNDS;
+
+  /**
+   * Writes a number field, held inside the bounds the effect is held to (see `boundPresetNumber`); a
+   * field cleared writes nothing.
+   */
+  protected editNumber(key: BoundedPresetNumber, value: unknown): void {
+    const bounded = boundPresetNumber(key, value);
+    if (bounded === null) return;
+    this.edit(key, bounded);
   }
 
   protected kindsFor(role: EffectStageRole): readonly EffectKind[] {

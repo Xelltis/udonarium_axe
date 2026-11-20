@@ -6,7 +6,7 @@ import {
   createEffectPreset,
   DEFAULT_EFFECT_PRESET_SEEDS,
 } from '@axe/domain/effect/builtin-effect-presets';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { EffectPreset, isPresetShownTo, presetsShownTo } from '@axe/domain/effect/effect-preset';
 import { duplicatedEffectName } from '@axe/domain/effect/effect-preset-form';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
@@ -32,15 +32,39 @@ export class EffectLibraryService {
   }
 
   /**
-   * Looks one up by name, which is how chat and the character sheets refer to effects.
-   * A game-master-only effect is not merely hidden; a player cannot reach it by name either.
+   * The presets this seat is shown and may fire: every one for the game master, none kept for the
+   * master for anyone else (see `presetsShownTo`).
+   */
+  shownPresets(): EffectPreset[] {
+    return presetsShownTo(this.presets(), PeerCursor.isMyselfGameMaster);
+  }
+
+  /** Whether this seat is shown one preset and may name and fire it (see `presetsShownTo`). */
+  isShown(preset: EffectPreset): boolean {
+    return isPresetShownTo(preset, PeerCursor.isMyselfGameMaster);
+  }
+
+  /**
+   * The preset with this identifier where this seat is shown it, or null: for naming what an effect
+   * already in the room plays, as an effect left standing on the table, to a seat a preset kept for the
+   * game master is not named to.
+   */
+  shownPreset(identifier: string): EffectPreset | null {
+    this.objectChange.collectionOf('effect-preset')();
+    this.objectChange.versionOf(identifier)();
+    const preset = this.get(identifier);
+    return preset && this.isShown(preset) ? preset : null;
+  }
+
+  /**
+   * Looks one up by name, which is how chat and the character sheets refer to effects, among those
+   * this seat is shown: a game-master-only effect is not merely hidden; a player cannot reach it by
+   * name either.
    */
   findByName(name: string): EffectPreset | null {
     const needle = name.trim();
     if (needle.length < 1) return null;
-    const found = this.presets().find((preset) => preset.name.trim() === needle);
-    if (!found) return null;
-    return found.gmOnly && !PeerCursor.isMyselfGameMaster ? null : found;
+    return this.shownPresets().find((preset) => preset.name.trim() === needle) ?? null;
   }
 
   /** Builds one from nothing. */

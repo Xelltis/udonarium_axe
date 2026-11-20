@@ -465,6 +465,104 @@ export function createDefaultCutIns(imageStorage: ImageStorage): CutIn[] {
   });
 }
 
+/** What a sample has lost: itself whole, its scene, or some of the layers in its scene. */
+interface SampleGap {
+  readonly seed: CutInSeed;
+  /** The sample where it is still in the room, or null where it was taken away. */
+  readonly cutIn: CutIn | null;
+  /** Its own scene where it still has it, or null where that went too. */
+  readonly scene: CutInScene | null;
+  /** The layers its scene has lost, or all of them where the scene went. */
+  readonly layers: readonly LayerSeed[];
+}
+
+/**
+ * What the samples have lost: each sample taken away, and of each one still in the room its scene or the
+ * layers taken out of it. A sample the room has given a scene of its own, and an identifier the room now
+ * holds something else under, are the room's and left alone.
+ */
+function sampleGaps(): SampleGap[] {
+  const store = ObjectStore.instance;
+  const gaps: SampleGap[] = [];
+  for (const seed of DEFAULT_CUT_IN_SEEDS) {
+    const held = store.get(seed.identifier);
+    if (held !== null && !(held instanceof CutIn)) continue;
+    const scene = held?.scene ?? null;
+    if (scene !== null && scene.identifier !== seed.sceneIdentifier) continue;
+    if (scene === null && store.get(seed.sceneIdentifier) !== null) continue;
+    const layers = seed.layers.filter((layer) => store.get(layer.identifier) === null);
+    if (held !== null && scene !== null && layers.length < 1) continue;
+    gaps.push({ seed, cutIn: held, scene, layers });
+  }
+  return gaps;
+}
+
+/**
+ * The identifiers the samples have lost and {@link restoreDefaultCutIns} makes again: of each sample
+ * taken away, it, its scene and its layers; of each one still in the room, the layers taken out of it.
+ * They are to be said to be coming back before they are made, as every other seat and a room server
+ * would delete them again.
+ */
+export function missingDefaultCutInIdentifiers(): string[] {
+  return sampleGaps().flatMap((gap) => [
+    ...(gap.cutIn ? [] : [gap.seed.identifier]),
+    ...(gap.scene ? [] : [gap.seed.sceneIdentifier]),
+    ...gap.layers.map((layer) => layer.identifier),
+  ]);
+}
+
+/**
+ * Makes again what the samples have lost (see {@link missingDefaultCutInIdentifiers}): a sample taken
+ * away comes back whole, and a layer taken out of one still in the room comes back at its place in the
+ * stack. Whatever the room has made of a sample, a field changed or a layer of its own, and every cut-in
+ * of the room's own, stay as they are. Answers how many cut-ins and layers it made.
+ */
+export function restoreDefaultCutIns(imageStorage: ImageStorage): number {
+  const gaps = sampleGaps();
+  if (gaps.length < 1) return 0;
+  const pictures = {
+    portrait: registerPicture(imageStorage, SAMPLE_PORTRAIT_IDENTIFIER, SAMPLE_PORTRAIT_URL),
+    face: registerPicture(imageStorage, SAMPLE_FACE_IDENTIFIER, SAMPLE_FACE_URL),
+  };
+  return GameObject.batch(() => {
+    let made = 0;
+    for (const gap of gaps) {
+      if (!gap.cutIn) {
+        const cutIn = new CutIn(gap.seed.identifier);
+        cutIn.initialize();
+        if (ObjectStore.instance.get(gap.seed.identifier) === cutIn && applyCutInSeed(cutIn, gap.seed, pictures))
+          made++;
+        continue;
+      }
+      if (!gap.scene) {
+        if (sceneFromSeed(gap.cutIn, gap.seed, pictures)) made++;
+        continue;
+      }
+      made += restoreLayers(gap.scene, gap.seed, gap.layers, pictures);
+    }
+    return made;
+  });
+}
+
+/** Lays the layers a sample's scene has lost back in, each under the first of its own still above it. */
+function restoreLayers(
+  scene: CutInScene,
+  seed: CutInSeed,
+  missing: readonly LayerSeed[],
+  pictures: SamplePictures
+): number {
+  for (const layerSeed of missing) {
+    const layer = makeLayer(layerSeed, pictures);
+    const above = seed.layers
+      .slice(seed.layers.indexOf(layerSeed) + 1)
+      .map((later) => scene.layers.find((standing) => standing.identifier === later.identifier))
+      .find((standing) => standing !== undefined);
+    if (above) scene.insertBefore(layer, above);
+    else scene.appendChild(layer);
+  }
+  return missing.length;
+}
+
 /** The faces the samples come with, each one field away from being someone else's. */
 function registerPicture(imageStorage: ImageStorage, identifier: string, url: string): string {
   const context = ImageFile.createEmpty(identifier).toContext();
@@ -483,9 +581,8 @@ interface SamplePictures {
 function applyCutInSeed(cutIn: CutIn, seed: CutInSeed, pictures: SamplePictures): boolean {
   // The scene is claimed before the cut-in is written to: a name and a size set against
   // nothing to show would be worse than leaving the cut-in as it was made.
-  const scene = new CutInScene(seed.sceneIdentifier);
-  scene.initialize();
-  if (ObjectStore.instance.get(seed.sceneIdentifier) !== scene) return false;
+  const scene = claimScene(seed);
+  if (!scene) return false;
 
   cutIn.name = seed.name;
   cutIn.width = seed.width;
@@ -496,11 +593,31 @@ function applyCutInSeed(cutIn: CutIn, seed: CutInSeed, pictures: SamplePictures)
   cutIn.frameless = true;
   cutIn.chatActivate = true;
 
+  fillScene(scene, cutIn, seed, pictures);
+  return true;
+}
+
+/** Gives a sample still in the room its scene again, and says whether the scene could be claimed. */
+function sceneFromSeed(cutIn: CutIn, seed: CutInSeed, pictures: SamplePictures): boolean {
+  const scene = claimScene(seed);
+  if (!scene) return false;
+  fillScene(scene, cutIn, seed, pictures);
+  return true;
+}
+
+/** The sample's scene made under its own identifier, or null where that identifier could not be taken. */
+function claimScene(seed: CutInSeed): CutInScene | null {
+  const scene = new CutInScene(seed.sceneIdentifier);
+  scene.initialize();
+  return ObjectStore.instance.get(seed.sceneIdentifier) === scene ? scene : null;
+}
+
+/** Ties a sample's scene to its cut-in and lays in the timing, the sounds and every layer. */
+function fillScene(scene: CutInScene, cutIn: CutIn, seed: CutInSeed, pictures: SamplePictures): void {
   scene.cutInIdentifier = cutIn.identifier;
   scene.durationMs = seed.durationMs;
   scene.sounds = encodeCutInSounds(soundsOf(seed));
   for (const layerSeed of seed.layers) scene.appendChild(makeLayer(layerSeed, pictures));
-  return true;
 }
 
 /** The sounds the tool already carries, looked up by name at the moment they are needed. */

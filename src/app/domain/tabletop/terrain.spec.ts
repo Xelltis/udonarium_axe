@@ -181,6 +181,25 @@ describe('Terrain', () => {
       expect(terrain.blocksSightNow).toBe(true);
     });
 
+    it('shuts a door that stops being one, so it is shut when made a door again, and keeps a door as it stood', () => {
+      const terrain = Terrain.create('t', 1, 1, 1, '', '');
+      terrain.setDoor(DoorStyle.SWING, true);
+      expect(terrain.isDoorOpen).toBe(true);
+
+      terrain.setDoor(DoorStyle.SLIDE);
+      expect(terrain.doorStyle).toBe(DoorStyle.SLIDE);
+      expect(terrain.isDoorOpen).toBe(true);
+
+      terrain.setDoor(DoorStyle.NONE);
+      expect(terrain.isDoorOpen).toBe(false);
+
+      terrain.setDoor(DoorStyle.NONE, true);
+      expect(terrain.isDoorOpen).toBe(false);
+
+      terrain.setDoor(DoorStyle.LIFT);
+      expect(terrain.isDoorOpen).toBe(false);
+    });
+
     it('does not open a wall that was never a door', () => {
       const terrain = Terrain.create('t', 1, 1, 1, '', '');
       terrain.isDoorOpen = true;

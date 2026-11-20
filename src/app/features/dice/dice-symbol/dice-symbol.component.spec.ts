@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -9,10 +8,9 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
-import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
 import { DiceSymbolSheetComponent } from '@axe/features/dice/dice-symbol-sheet/dice-symbol-sheet.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -216,77 +214,54 @@ describe('DiceSymbolComponent', () => {
     });
   });
 
-  describe('opening a die that was somebody’s alone', () => {
-    let tab: ChatTab;
-    let dice: DiceSymbol;
+  describe('a die another seat keeps', () => {
+    let die: DiceSymbol;
 
     beforeEach(() => {
       beMyself('me');
-      tab = ChatTabList.instance.addChatTab('テストタブ');
-      dice = DiceSymbol.create('隠しダイス', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', dice);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.role = PeerRole.Player;
+      die = DiceSymbol.create('隠しダイス', 1, 1);
+      die.owner = 'somebody-else';
+      die.face = '1';
+      fixture.componentRef.setInput('diceSymbol', die);
     });
 
     afterEach(() => {
-      dice.destroy();
-      tab.destroy();
+      die.destroy();
+      vi.restoreAllMocks();
+      PeerCursor.myCursor = null!;
     });
 
-    function reveal(face: string): void {
-      (component as unknown as { onDiceRevealed(face: string): void }).onDiceRevealed(face);
-    }
+    it('opens no sheet for a player, as the sheet shows its face and name, but does for the game master', () => {
+      const openLazy = vi.spyOn(TestBed.inject(PanelService), 'openLazy').mockImplementation(() => undefined);
 
-    it('opens the secret line it was thrown on', () => {
-      const chat = TestBed.inject(ChatMessageService);
-      const secret = chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'me', undefined, [dice.identifier]);
+      component.showDetail(die);
+      expect(openLazy).not.toHaveBeenCalled();
 
-      reveal('6');
-
-      expect(secret.isSecret).toBe(false);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      component.showDetail(die);
+      expect(openLazy).toHaveBeenCalledOnce();
     });
 
-    it('leaves the throw of another die kept back', () => {
-      const chat = TestBed.inject(ChatMessageService);
-      const other = chat.sendSecretSystemMessageToTab(tab, 'べつのダイス → 1', 'me', undefined, ['another-die']);
+    it('opens its sheet for the seat that keeps it', () => {
+      const openLazy = vi.spyOn(TestBed.inject(PanelService), 'openLazy').mockImplementation(() => undefined);
+      die.owner = 'me';
 
-      reveal('6');
+      component.showDetail(die);
 
-      expect(other.isSecret).toBe(true);
+      expect(openLazy).toHaveBeenCalledOnce();
     });
 
-    it('says nothing more of its own once the throw it opened carries the face', () => {
-      const chat = TestBed.inject(ChatMessageService);
-      chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'me', undefined, [dice.identifier]);
-      const callOut = vi.spyOn(chat, 'sendSystemNotice');
+    it('is rolled by a double tap of neither a player nor the game master, being its keeper’s to throw', () => {
+      const roll = vi.spyOn(component, 'diceRoll').mockReturnValue('1');
 
-      reveal('6');
+      component.onDoubleClick();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      component.onDoubleClick();
 
-      expect(callOut).not.toHaveBeenCalled();
-    });
-
-    it('calls the face out where there is no throw of it to open', () => {
-      // A face set by hand leaves nothing in the log, so the call-out is the only record.
-      const callOut = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice');
-
-      reveal('6');
-
-      expect(callOut).toHaveBeenCalledOnce();
-      expect(callOut.mock.calls[0][0]).toBe('diceReveal');
-      expect(callOut.mock.calls[0][1]).toContain('6');
-    });
-
-    it('calls the face out where the throw it found is somebody else to open', () => {
-      const chat = TestBed.inject(ChatMessageService);
-      const secret = chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'somebody-else', undefined, [
-        dice.identifier,
-      ]);
-      const callOut = vi.spyOn(chat, 'sendSystemNotice');
-
-      reveal('6');
-
-      expect(secret.isSecret).toBe(true);
-      expect(callOut).toHaveBeenCalledOnce();
-      expect(callOut.mock.calls[0][1]).toContain('6');
+      expect(roll).not.toHaveBeenCalled();
     });
   });
 

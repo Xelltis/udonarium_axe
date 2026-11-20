@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -69,6 +70,7 @@ export class DiceSymbolSheetComponent {
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletop = inject(TabletopService);
+  private readonly diceRoll = inject(DiceRollService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly _diceSymbol = signal<DiceSymbol | null>(null);
@@ -80,6 +82,27 @@ export class DiceSymbolSheetComponent {
   set diceSymbol(value: DiceSymbol | null) {
     this._diceSymbol.set(value);
   }
+
+  /**
+   * Whether this seat may read the die's face and name, which the whole sheet shows. Another seat may
+   * keep the die while the sheet is open, and the sheet then shows nothing of it.
+   */
+  readonly readsFace = computed(() => {
+    const dice = this._diceSymbol();
+    if (!dice) return false;
+    this.objectChange.versionOf(dice.identifier)();
+    this.objectChange.networkVersion();
+    return this.diceRoll.readsFace(dice);
+  });
+
+  /** Whether this seat may turn the die to a face from the sheet (see `DiceRollService.canTurn`). */
+  readonly turnsFace = computed(() => {
+    const dice = this._diceSymbol();
+    if (!dice) return false;
+    this.objectChange.versionOf(dice.identifier)();
+    this.objectChange.networkVersion();
+    return this.diceRoll.canTurn(dice);
+  });
 
   readonly hasDiceDefault = computed(() => {
     const dice = this._diceSymbol();
@@ -138,13 +161,16 @@ export class DiceSymbolSheetComponent {
     if (dice) dice.size = value;
   }
 
-  /** Whether the die's name is kept off the table for seats that may not see hidden things. */
+  /**
+   * Whether the die's name is kept off the table for seats that may not see hidden things. Written
+   * only where this seat may turn the die.
+   */
   get hideName(): boolean {
     return this._diceSymbol()?.hideName ?? false;
   }
   set hideName(value: boolean) {
     const dice = this._diceSymbol();
-    if (dice) dice.hideName = value;
+    if (dice) this.diceRoll.setNameHidden(dice, value);
   }
 
   /**
@@ -221,10 +247,10 @@ export class DiceSymbolSheetComponent {
     dice.komaImageHeight = clamp(num, 50, 750);
   }
 
-  /** Turns the die to a face directly, without rolling it. */
+  /** Turns the die to a face directly, without rolling it, where this seat may turn it. */
   selectFace(faceName: string) {
     const dice = this._diceSymbol();
-    if (dice) dice.face = faceName;
+    if (dice) this.diceRoll.setFace(dice, faceName);
   }
 
   /**
@@ -282,14 +308,19 @@ export class DiceSymbolSheetComponent {
 
   /**
    * Downloads the die as a save file, showing progress until shortly after it finishes; does
-   * nothing while a save is running, nor for a die a room server withholds the face of from this
-   * user, as for a copy.
+   * nothing while a save is running. Nor for a die a room server withholds the face of from this
+   * user, as for a copy, nor for a die another seat keeps from this one, whose face the file would
+   * hold, both of which it says.
    */
   async saveToXML() {
     const dice = this._diceSymbol();
     if (!dice || this.isSaving()) return;
     if (isWithheldHere(dice)) {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
+      return;
+    }
+    if (!this.readsFace()) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveFaceHidden'));
       return;
     }
     await this.saveProgress.run((onProgress) =>

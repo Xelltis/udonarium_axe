@@ -4,12 +4,14 @@ import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tab
 import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
 import { layoutPointOf } from '@axe/domain/tabletop/field/field-sample-points';
 import { layMillStream } from '@axe/domain/tabletop/field/mill-stream';
+import { furnishSettlement } from '@axe/domain/tabletop/field/settlement-furnishing';
 import { laySettlement, type SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
 import { digStreamBed, terraceSettlement } from '@axe/domain/tabletop/field/settlement-terrace';
 import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GroundRaster, groundRasterOver } from '@axe/domain/tabletop/ground/ground-raster';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
 export interface FieldLayout {
   width: number;
@@ -362,6 +364,7 @@ export function generateField(
   if (atmosphere.settlement) {
     settlement = laySettlement(atmosphere.settlement, width, height, seed, density);
     if (settlement.kind === 'village') settlement = layMillStream(settlement, width, height, seed, gridType);
+    settlement = furnishSettlement(settlement, width, height, seed, !isHexGrid(gridType));
     ground.set(settlement.zones);
     for (let index = 0; index < settlement.taken.length; index++) {
       if (settlement.taken[index]) props[index] = 'building';

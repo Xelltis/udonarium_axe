@@ -27,13 +27,13 @@ export class ImageTag extends ObjectNode {
   }
 
   /**
-   * `canSeeSecret` says whether what the master is keeping back may be among the answers, and
-   * `hidesTag` which tags are kept from whoever is asking, as {@link canBrowseImage} has it.
+   * The pictures whose tags hold every one of the words, among those the seat `sight` may come
+   * across, as {@link canBrowseImage} has it.
    */
-  static searchImages(searchWords: string[], canSeeSecret = false, hidesTag: TagHidden = SHOWS_EVERY_TAG): ImageFile[] {
+  static searchImages(searchWords: string[], sight: ImageSight): ImageFile[] {
     return ObjectStore.instance
       .getObjects<ImageTag>(ImageTag)
-      .filter((tag) => tag.containsWords(searchWords) && canBrowseImage(tag, canSeeSecret, true, hidesTag))
+      .filter((tag) => tag.containsWords(searchWords) && canBrowseImage(tag, sight))
       .map((tag) => ImageStorage.instance.get(tag.imageIdentifier))
       .filter((image): image is ImageFile => image !== null);
   }
@@ -87,21 +87,43 @@ export class ImageTag extends ObjectNode {
  * back from the choosing, not from the board — put a face on a piece and everyone sees the
  * piece, whatever this says.
  */
-export function canBrowseImage(
-  tag: ImageTag | null,
-  canSeeSecret: boolean,
-  showSecret = true,
-  hidesTag: TagHidden = SHOWS_EVERY_TAG
-): boolean {
+export function canBrowseImage(tag: ImageTag | null, sight: ImageSight, showSecret = true): boolean {
   if (!tag) return true;
   if (tag.tag === SYSTEM_RESERVED_TAG) return false;
-  if (hidesTag(tag.tag)) return false;
-  if (tag.isSecret) return canSeeSecret && showSecret;
+  if (sight.hidesTag(tag.tag)) return false;
+  if (tag.isSecret) return sight.canSeeSecret && showSecret;
   return true;
+}
+
+/**
+ * The tags a list of pictures offers to filter by, each once in the order first met: the tag of each
+ * picture the seat `sight` may browse, as {@link canBrowseImage} has it, with `showSecret` as it says
+ * there. A tag carried only by pictures kept from the seat is not offered, since its name says there
+ * is something there to find.
+ */
+export function browsableImageTags(
+  images: readonly { readonly identifier: string }[],
+  sight: ImageSight,
+  showSecret = true
+): string[] {
+  const tags = new Set<string>();
+  for (const image of images) {
+    const imageTag = ImageTag.get(image.identifier);
+    if (imageTag?.tag && canBrowseImage(imageTag, sight, showSecret)) tags.add(imageTag.tag);
+  }
+  return [...tags];
 }
 
 /** Whether a tag's pictures are kept from whoever is looking. */
 export type TagHidden = (tag: string) => boolean;
 
-/** Keeps no tag from anyone. */
-const SHOWS_EVERY_TAG: TagHidden = () => false;
+/**
+ * What a seat may come across of the room's pictures: whether what the master keeps back may be
+ * among them, and which tags are kept from it. Every list and picker of pictures, a person's and an
+ * AI's alike, is given one, as `ImageTagLockService.sight` makes it for the seat, so none leaves
+ * out either.
+ */
+export interface ImageSight {
+  readonly canSeeSecret: boolean;
+  readonly hidesTag: TagHidden;
+}

@@ -4,6 +4,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { DoorService } from '@axe/application/tabletop/door.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
@@ -41,6 +42,7 @@ export class TerrainMenuService {
   private readonly switches = inject(BoardSwitchService);
   private readonly switchPanels = inject(BoardSwitchPanelService);
   private readonly concealment = inject(ConcealmentService);
+  private readonly doors = inject(DoorService);
 
   /**
    * Opens the terrain's right-click menu at the pointer, or the menu for the whole selection when
@@ -92,7 +94,8 @@ export class TerrainMenuService {
       overlapEntries,
       surfaceEntries,
       gridSlopeSides(this.tabletopService.currentTable.gridType),
-      switchEntries
+      switchEntries,
+      this.doors.mayWork(terrain) ? () => this.doors.toggle(terrain) : null
     );
     this.pieceContextMenu.openPieceMenu(menuPosition, menu, terrain.name);
   }

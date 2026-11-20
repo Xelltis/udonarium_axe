@@ -37,7 +37,7 @@ import {
   MapSlowGround,
   MapTrap,
 } from '@axe/domain/tabletop/map-blocks';
-import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
+import { blockCorner, blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { isBundledModelName } from '@axe/domain/tabletop/placeable-models';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
@@ -47,7 +47,7 @@ import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { trapPresetOf } from '@axe/domain/tabletop/trap-presets';
 import { EYE_HEIGHT_CELLS } from '@axe/domain/tabletop/vision-scene';
-import { applyLightPreset, LightPreset } from '@axe/domain/tabletop/vision-types';
+import { applyLightPresetWith, type GeneratedLightMotion, LightPreset } from '@axe/domain/tabletop/vision-types';
 
 const TERRAIN_IMAGE_TAG = '地形';
 /** What dangerous ground and traps take from, which is what most sheets call it. */
@@ -159,6 +159,8 @@ export interface DungeonBuildOptions {
    * story's clock over open country. Left out, the table's background picture, as under a roof of rock.
    */
   skyKind?: TableSkyKind;
+  /** How the lights stood on the map move. Left out or empty, each as its kind of lamp does. */
+  lightMotion?: GeneratedLightMotion;
 }
 
 /** One piece and the cell of the finished map it is to be standing on. */
@@ -254,7 +256,7 @@ export class DungeonBuildService {
     this.laySlowGround(table, blocks.slows ?? []);
     this.layHarms(table, blocks.harms ?? []);
     this.setTraps(table, blocks.traps);
-    this.standLights(table, blocks.lights, options.wallHeight, grid);
+    this.standLights(table, blocks.lights, options.wallHeight, grid, options.lightMotion ?? '');
     this.musterParty(table, options.muster ?? []);
 
     return { table, terrainCount: blocks.blocks.length, summary: options.summary };
@@ -341,13 +343,9 @@ export class DungeonBuildService {
       offsetX = ((rect.w - block.footprint.w) / 2) * GRID_SIZE;
       offsetY = ((rect.h - block.footprint.d) / 2) * GRID_SIZE;
     }
-    if (block.offset) {
-      offsetX += block.offset.x * GRID_SIZE;
-      offsetY += block.offset.y * GRID_SIZE;
-    }
 
     // Writing the whole location goes through setAttribute, which syncs; touching location.x does not.
-    const at = blockOrigin(rect, grid);
+    const at = blockCorner(block, grid);
     terrain.location = { name: 'table', x: at.x + offsetX, y: at.y + offsetY };
     terrain.posZ = 0;
     return terrain;
@@ -573,12 +571,23 @@ export class DungeonBuildService {
     }
   }
 
-  /** A light of its own for each spot, a child of the table so the table takes it away again. */
-  private standLights(table: GameTable, lights: readonly MapLight[], wallHeight: number, grid: MapGrid): void {
+  /**
+   * A light of its own for each spot, a child of the table so the table takes it away again, moving
+   * as its kind of lamp does or as the motion asked for.
+   */
+  private standLights(
+    table: GameTable,
+    lights: readonly MapLight[],
+    wallHeight: number,
+    grid: MapGrid,
+    motion: GeneratedLightMotion
+  ): void {
     for (const light of lights) {
       const source = LightSource.create(this.t(`feature.light.skin.${LIGHT_SKIN[light.kind]}`));
-      applyLightPreset(source, LIGHT_PRESET[light.kind]);
-      if (light.color) source.lightColor = light.color;
+      applyLightPresetWith(source, LIGHT_PRESET[light.kind], {
+        ...(motion ? { animation: motion } : {}),
+        ...(light.color ? { color: light.color } : {}),
+      });
       source.lightEnabled = true;
       source.lightDirection = light.kind === 'sconce' ? light.facing : 0;
       source.isLock = true;

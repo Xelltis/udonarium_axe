@@ -7,6 +7,8 @@ import { callSceneFade, emitSelectGameTable } from '@axe/core/event/domain-event
 import { GameObject } from '@axe/core/sync/game-object';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { fileUnderFolder } from '@axe/domain/folder/folder-path';
+import { numberInOrder, withMovedInFolder } from '@axe/domain/folder/folder-tree';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
@@ -65,6 +67,20 @@ export class BoardSceneService {
   /** Whether this seat may put scenes on and make them, which only the game master does. */
   canUse(): boolean {
     return this.permission.isGameMaster();
+  }
+
+  /** Files a scene in a folder, or in none for an empty path; the game master's alone. Whether it changed. */
+  fileInto(scene: BoardScene, path: string): boolean {
+    return this.canUse() && fileUnderFolder(scene, path);
+  }
+
+  /**
+   * Moves a scene to a place among the others of its folder, counted from 0, and numbers the whole
+   * list afresh, the rest left where it stands; the game master's alone.
+   */
+  moveInFolder(scene: BoardScene, place: number): void {
+    if (!this.canUse()) return;
+    GameObject.batch(() => numberInOrder(withMovedInFolder(BoardScene.all(), scene, place)));
   }
 
   /**
@@ -223,9 +239,7 @@ export class BoardSceneService {
     for (const sound of BackgroundSound.playing()) {
       if (!kept.has(sound.audioIdentifier)) sound.stop();
     }
-    for (const identifier of kept) {
-      if (!BackgroundSound.of(identifier)?.isOn) BackgroundSound.start(identifier);
-    }
+    for (const identifier of kept) BackgroundSound.keepPlaying(identifier);
   }
 
   /**

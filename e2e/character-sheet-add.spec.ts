@@ -50,4 +50,41 @@ test.describe('adding to a character sheet on a wide screen', () => {
     await addNamed(page, 'check', '気絶');
     await expect(row(card, '気絶').locator('.elm-value-content input[type="checkbox"]')).toHaveCount(1);
   });
+  test('builds a check table in the table builder, then renames a column and adds a row on the table itself', async ({
+    page,
+  }) => {
+    const sheet = await openSheet(page);
+    const card = sectionCard(sheet, 'リソース');
+    await card.scrollIntoViewIfNeeded();
+    const edit = card.getByRole('button', { name: 'edit', exact: true });
+    await edit.click();
+
+    await card.getByRole('button', { name: '表を追加', exact: true }).first().click();
+    const builder = page.getByTestId('table-builder');
+    await expect(builder.getByTestId('table-builder-row')).toHaveCount(3);
+    await builder.getByTestId('table-builder-column').first().getByRole('textbox', { name: '名前' }).fill('技巧');
+    await builder.getByTestId('table-builder-apply').click();
+    await expect(builder).toHaveCount(0);
+
+    const table = card.locator('game-data-element-table-view').last();
+    const columns = table.getByTestId('table-edit-column-button');
+    await expect(columns).toHaveCount(2);
+    await expect(columns.first()).toContainText('技巧');
+    await expect(table.getByTestId('table-edit-row-button')).toHaveCount(3);
+
+    await columns.nth(1).click();
+    const name = table.getByTestId('table-edit-column-name');
+    await name.fill('隠密');
+    await name.press('Tab');
+    await expect(columns.nth(1)).toContainText('隠密');
+
+    await table.getByTestId('table-add-row').click();
+    await expect(table.getByTestId('table-edit-row-button')).toHaveCount(4);
+
+    await card.getByRole('button', { name: 'edit_off', exact: true }).click();
+    const box = table.locator('tbody input[type="checkbox"]').first();
+    await box.check();
+    await expect(box).toBeChecked();
+    await expect(table.getByTestId('table-edit-columns')).toHaveCount(0);
+  });
 });

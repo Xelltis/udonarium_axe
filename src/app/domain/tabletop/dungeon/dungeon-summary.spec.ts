@@ -1,12 +1,12 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { generateDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
-import { DungeonLayout, DungeonRoomRoleValue } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { DungeonLayout, DungeonRoom } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { buildDungeonSummary, DungeonSummaryLabels } from '@axe/domain/tabletop/dungeon/dungeon-summary';
 import { assignRoomRoles } from '@axe/domain/tabletop/dungeon/room-roles';
 import { generateRoomsAndMazes } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
 
 const labels: DungeonSummaryLabels = {
-  roleName: (role: DungeonRoomRoleValue) => role,
+  roleName: (room: Pick<DungeonRoom, 'role' | 'set'>) => room.set ?? room.role,
   title: 'seed',
   start: 'start',
   key: 'key',

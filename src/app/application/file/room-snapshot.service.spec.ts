@@ -12,7 +12,6 @@ import {
   RoomSnapshotStore,
   sortSnapshotsByNewest,
 } from '@axe/core/storage/room-snapshot-store';
-import { ObjectStore } from '@axe/core/sync/object-store';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class FakeRoomSnapshotStore extends RoomSnapshotStore {
@@ -156,14 +155,22 @@ describe('RoomSnapshotService', () => {
     expect(shown).toHaveBeenCalledWith('このスナップショットの部屋は読み込めませんでした。');
   });
 
+  it('asks nothing again for a restore the reader agreed to before it began, and asks about any other', async () => {
+    const meta = await service.capture();
+
+    await expect(service.restore(meta!.id, { agreed: true })).resolves.toBe(true);
+    await service.restore(meta!.id);
+
+    expect(load.mock.calls.map((args) => (args[2] as { check?: string } | undefined)?.check)).toEqual([
+      'agreed',
+      'ask',
+    ]);
+  });
+
   it('stays quiet where the reader declined to overwrite the room with the snapshot', async () => {
     const meta = await service.capture();
     const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
-    const objects = TestBed.inject(ObjectStore);
-    const get = objects.get.bind(objects);
-    vi.spyOn(objects, 'get').mockImplementation(((identifier: string) =>
-      identifier === 'ReloadCheck' ? { reloadCheckStart: () => {}, isLoadOk: () => false } : get(identifier)) as never);
-    load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
+    load.mockResolvedValue({ dataRead: false, images: [], audios: [], declined: true });
 
     await expect(service.restore(meta!.id)).resolves.toBe(false);
     expect(shown).not.toHaveBeenCalled();

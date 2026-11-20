@@ -4,29 +4,17 @@ import { buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu
 import { callShuffleCardStack } from '@axe/core/event/domain-events';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole } from '@axe/domain/peer/peer-role';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
-
-/**
- * How many seats play at the table, this one included: those dealt cards, which leaves out a guest,
- * as a screen made for streaming is let in, and anybody gone. Each seat linked now counts once, so
- * the cursor a seat leaves behind when it goes or loads the page again is not counted. Never fewer
- * than one.
- */
-function playingSeatCount(): number {
-  const playing = PeerCursor.linkedCursors().filter((cursor) => cursor.role !== PeerRole.Guest);
-  return Math.max(1, playing.length);
-}
 
 /**
  * Builds the context menu for a card stack on the table.
  *
  * Entries that only touch the stack (flipping, shuffling, the count label, unifying card sizes,
  * copying, deleting) act on it directly and play their sound, and shuffling also raises the event
- * that plays the shuffle animation. Drawing, splitting, dealing, copying the detail schema and
- * opening the detail sheet go through the callbacks. A draw callback that returns null means no
- * card came off, so no draw sound plays.
+ * that plays the shuffle animation. Drawing, splitting, breaking up, dealing, copying the detail
+ * schema and opening the detail sheet go through the callbacks, and splitting and breaking up play
+ * their own sound there. A draw callback that returns null means no card came off, so no draw sound
+ * plays. Splitting is open only where `splitSeats`, the seats a stack is split among, is two or more.
  */
 export function buildCardStackContextMenu(
   cardStack: CardStack,
@@ -34,7 +22,8 @@ export function buildCardStackContextMenu(
   onDrawCard: () => unknown,
   onDrawToHand: () => unknown,
   onDrawCards: () => unknown,
-  onSplitStack: (n: number) => void,
+  onSplitStack: () => unknown,
+  splitSeats: number,
   onBreakStack: () => void,
   onDealAll: () => void,
   onCopySchema: () => void,
@@ -147,16 +136,15 @@ export function buildCardStackContextMenu(
     },
     {
       name: t('feature.cardStack.contextMenu.splitByPeers'),
+      enabled: splitSeats >= 2,
       action: () => {
-        onSplitStack(playingSeatCount());
-        SoundEffect.play(PresetSound.cardDraw);
+        onSplitStack();
       },
     },
     {
       name: t('feature.cardStack.contextMenu.breakStack'),
       action: () => {
         onBreakStack();
-        SoundEffect.play(PresetSound.cardShuffle);
       },
     },
     ContextMenuSeparator,

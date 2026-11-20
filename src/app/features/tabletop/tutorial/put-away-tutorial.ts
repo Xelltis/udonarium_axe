@@ -8,7 +8,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { detachAllFrom, standingOn } from '@axe/features/tabletop/white-board/white-board-contents';
+import { clearBoard } from '@axe/domain/tabletop/white-board-contents';
 
 /** The objects held under some names, leaving out the names nothing is held under now. */
 function heldUnder(store: ObjectStore, identifiers: readonly string[]): GameObject[] {
@@ -22,18 +22,10 @@ function heldUnder(store: ObjectStore, identifiers: readonly string[]): GameObje
  * light they speak of. The sample pieces stay to be played with, and whatever was set on a board is
  * put back on the table where it appeared to be. Answers how many things were taken away.
  */
-export function putAwayTutorial(tabletop: TabletopService, store: ObjectStore): number {
+export function putAwayTutorial(_tabletop: TabletopService, store: ObjectStore): number {
   const parts = heldUnder(store, TUTORIAL_PARTS);
-  const lying = [
-    ...tabletop.characters,
-    ...tabletop.terrains,
-    ...tabletop.tableMasks,
-    ...tabletop.textNotes,
-    ...tabletop.cards,
-    ...tabletop.diceSymbols,
-  ];
   for (const part of parts) {
-    if (part instanceof WhiteBoard) detachAllFrom(part, standingOn(part, lying));
+    if (part instanceof WhiteBoard) clearBoard(part, store.getObjects());
   }
   for (const part of parts) part.destroy();
   return parts.length;

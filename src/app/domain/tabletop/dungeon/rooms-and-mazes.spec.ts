@@ -6,7 +6,14 @@ import {
   DungeonLayout,
   reachableCells,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { fitBoardTo, generateRoomsAndMazes, RoomsAndMazesParams } from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
+import {
+  fitBoardTo,
+  generateRoomsAndMazes,
+  RoomsAndMazesParams,
+  roundOf,
+} from '@axe/domain/tabletop/dungeon/rooms-and-mazes';
+import { GridType } from '@axe/domain/tabletop/game-table';
+import { cellCentre } from '@axe/domain/tabletop/map-grid';
 
 const SEEDS = [1, 7, 42, 1234, 99999];
 
@@ -411,5 +418,63 @@ describe('passages cut anywhere between two widths', () => {
     const swapped = build({ minCorridor: 5, maxCorridor: 3, seed: 7, width: 45, height: 33 });
 
     expect(Array.from(swapped.cells)).toEqual(Array.from(asked.cells));
+  });
+});
+
+describe('a round place', () => {
+  const GRIDS = [GridType.SQUARE, GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL];
+
+  function round(seed: number, gridType: GridType): DungeonLayout {
+    return build({
+      width: 35,
+      height: 35,
+      seed,
+      round: (x, y) => cellCentre({ x, y }, { type: gridType, sizePx: 1 }),
+    });
+  }
+
+  it('digs nothing outside its round, nor in the wall left standing round it, and reaches every room', () => {
+    for (const gridType of GRIDS) {
+      for (const seed of SEEDS) {
+        const layout = round(seed, gridType);
+        const { outside, kept } = roundOf(layout.width, layout.height, (x, y) =>
+          cellCentre({ x, y }, { type: gridType, sizePx: 1 })
+        );
+        const at = `${gridType} ${seed}`;
+        expect(Array.from(layout.outside!), at).toEqual(Array.from(outside));
+        layout.cells.forEach((cell, index) => {
+          if (kept[index]) expect(cell, `${at} cell ${index}`).toBe(DungeonCell.Rock);
+        });
+        expect(layout.rooms.length, at).toBeGreaterThan(2);
+        expect(reachableCells(layout, layout.entrance).size, at).toBe(countOpenCells(layout));
+      }
+    }
+  });
+
+  it('is round: as far across one way as the other, and a wall all round it between its floor and what lies outside', () => {
+    const layout = round(7, GridType.SQUARE);
+    const outside = layout.outside!;
+    const across = (y: number) =>
+      Array.from({ length: layout.width }, (_, x) => outside[y * layout.width + x]).filter((o) => !o).length;
+    const down = (x: number) =>
+      Array.from({ length: layout.height }, (_, y) => outside[y * layout.width + x]).filter((o) => !o).length;
+    const middle = Math.floor(layout.width / 2);
+    expect(across(middle)).toBe(down(middle));
+    expect(across(0)).toBeLessThan(across(middle) / 2);
+    for (let cell = 0; cell < outside.length; cell++) {
+      if (!outside[cell]) continue;
+      const x = cell % layout.width;
+      const y = Math.floor(cell / layout.width);
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const inside = cellAt(layout, x + dx, y + dy);
+        if (x + dx < 0 || y + dy < 0 || x + dx >= layout.width || y + dy >= layout.height) continue;
+        if (!outside[(y + dy) * layout.width + x + dx]) expect(inside).toBe(DungeonCell.Rock);
+      }
+    }
   });
 });

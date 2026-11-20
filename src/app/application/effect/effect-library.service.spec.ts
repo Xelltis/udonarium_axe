@@ -194,4 +194,22 @@ describe('EffectLibraryService', () => {
 
     PeerCursor.myCursor.role = PeerRole.Player;
   });
+
+  it('names a preset already in the room to a player only where it is not kept for the game master', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Player;
+    const secret = service.create('伏せ札の演出');
+    secret.gmOnly = true;
+    const open = service.create('炎の壁');
+
+    expect(service.shownPreset(secret.identifier)).toBeNull();
+    expect(service.isShown(secret)).toBe(false);
+    expect(service.shownPreset(open.identifier)).toBe(open);
+    expect(service.shownPreset('gone')).toBeNull();
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    expect(service.shownPreset(secret.identifier)).toBe(secret);
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+  });
 });

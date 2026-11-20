@@ -1,4 +1,5 @@
-import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
+import { DataElement, DataElementAttribute, DataElementRole, DataElementViewMode } from '@axe/domain/data/data-element';
+import { parseSelectChoices } from '@axe/domain/data/select-choices';
 
 export interface TableColumn {
   name: string;
@@ -49,6 +50,19 @@ export function getTableBodyRows(element: DataElement): DataElement[] {
   return getRawTableRows(element).filter((row) => !isTableControlRow(row));
 }
 
+/**
+ * Whether a group or section is drawn as a table: set to show as one, laid out as one, and with a row
+ * and a column to show. One set to show as a table that is not drawn as one shows as its rows.
+ */
+export function drawsAsTable(element: DataElement): boolean {
+  return (
+    element.viewMode === DataElementViewMode.TABLE &&
+    canRenderAsTable(element) &&
+    getTableBodyRows(element).length > 0 &&
+    getTableColumns(element).length > 0
+  );
+}
+
 function createTableColumn(cell: DataElement): TableColumn {
   return {
     name: cell.name,
@@ -64,8 +78,13 @@ function createTableColumn(cell: DataElement): TableColumn {
  * A column takes its label, group and kind from the first cell seen with that name.
  */
 export function getTableColumns(element: DataElement): TableColumn[] {
+  return tableColumnsOf(getRawTableRows(element));
+}
+
+/** The columns the rows given make, as {@link getTableColumns} reads them from all of a table's rows. */
+export function tableColumnsOf(rows: readonly DataElement[]): TableColumn[] {
   const columns: TableColumn[] = [];
-  for (const row of getRawTableRows(element)) {
+  for (const row of rows) {
     for (const child of row.children) {
       if (child.fieldRole !== DataElementRole.FIELD || columns.some((column) => column.name === child.name)) continue;
       columns.push(createTableColumn(child));
@@ -124,14 +143,6 @@ export function getCellLabel(cell: DataElement): string {
 export function getCellUnit(cell: DataElement): string {
   const unit = cell.getAttribute(DataElementAttribute.UNIT).trim();
   return unit ? ` ${unit}` : '';
-}
-
-/** Splits a select field's choices on line breaks or commas, trimming each and dropping blanks. */
-export function parseSelectChoices(choices: string): string[] {
-  return choices
-    .split(/\r?\n|,/)
-    .map((choice) => choice.trim())
-    .filter((choice) => choice.length > 0);
 }
 
 /** The choices a select cell offers. */

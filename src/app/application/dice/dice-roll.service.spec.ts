@@ -12,6 +12,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('DiceRollService', () => {
@@ -304,5 +305,184 @@ describe('DiceRollService', () => {
     service.roll([dice]);
 
     expect(rolled).toEqual([dice.identifier]);
+  });
+
+  describe('who may read, turn, show and keep a die', () => {
+    let notice: ReturnType<typeof vi.fn>;
+    let disclosed: ReturnType<typeof vi.fn>;
+
+    function theirDie(name = 'ひとの'): DiceSymbol {
+      const dice = makeDice(name);
+      dice.owner = 'somebody-else';
+      return dice;
+    }
+
+    beforeEach(() => {
+      const mine = { userId: 'me' } as IPeerContext;
+      setPeerContextProvider({ peerContext: mine, peerContexts: [mine], peerIds: ['me'], peerId: 'me' });
+      PeerCursor.myCursor.role = PeerRole.Player;
+      notice = vi
+        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
+        .mockReturnValue(null) as unknown as ReturnType<typeof vi.fn>;
+      disclosed = vi
+        .spyOn(TestBed.inject(ChatLineEditService), 'discloseDieRolls')
+        .mockReturnValue(0) as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    it('reads and turns a die nobody keeps or this seat keeps, and not one another seat keeps', () => {
+      const open = makeDice('みんなの');
+      const mine = makeDice('わたしの');
+      mine.owner = 'me';
+      const theirs = theirDie();
+
+      expect([open, mine, theirs].map((die) => service.readsFace(die))).toEqual([true, true, false]);
+      expect([open, mine, theirs].map((die) => service.canTurn(die))).toEqual([true, true, false]);
+      expect(service.showsName(theirs)).toBe(false);
+    });
+
+    it('lets the game master read and change a die another seat keeps, but not throw it, so the keeper opens its throws', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const theirs = theirDie();
+
+      expect([service.readsFace(theirs), service.canChange(theirs), service.showsName(theirs)]).toEqual([
+        true,
+        true,
+        true,
+      ]);
+      expect(service.canTurn(theirs)).toBe(false);
+      expect(service.roll([theirs])).toEqual([]);
+      expect(sendSecret).not.toHaveBeenCalled();
+    });
+
+    it('sets the face only of a die this seat may turn, and hides the name of one it may change', () => {
+      const theirs = theirDie();
+      theirs.face = '1';
+
+      expect(service.setFace(theirs, '6')).toBe(false);
+      expect(service.setNameHidden(theirs, true)).toBe(false);
+      expect([theirs.face, theirs.hideName]).toEqual(['1', false]);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(service.setFace(theirs, '6')).toBe(false);
+      expect(service.setNameHidden(theirs, true)).toBe(true);
+      expect([theirs.face, theirs.hideName]).toEqual(['1', true]);
+    });
+
+    it('turns nothing for a guest', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const open = makeDice('みんなの');
+
+      expect(service.canTurn(open)).toBe(false);
+      expect(service.roll([open])).toEqual([]);
+      expect(service.setFace(open, '6')).toBe(false);
+    });
+
+    it('shows a kept die for its keeper, saying the face where no throw of it is left to open', () => {
+      const mine = makeDice('わたしの');
+      mine.owner = 'me';
+      mine.face = '5';
+
+      expect(service.reveal(theirDie())).toBe(false);
+      expect(service.reveal(mine)).toBe(true);
+
+      expect(mine.owner).toBe('');
+      expect(disclosed).toHaveBeenCalledWith(mine.identifier);
+      expect(notice).toHaveBeenCalledOnce();
+      expect(notice.mock.calls[0][0]).toBe('diceReveal');
+      expect(notice.mock.calls[0][1] as string).toContain('5');
+    });
+
+    it('says nothing more where a throw of it was opened, and lets the game master show any', () => {
+      disclosed.mockReturnValue(1);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const theirs = theirDie();
+
+      expect(service.reveal(theirs)).toBe(true);
+      expect(theirs.owner).toBe('');
+      expect(notice).not.toHaveBeenCalled();
+      expect(service.reveal(theirs)).toBe(false);
+    });
+
+    it('keeps a die nobody keeps, and takes one another seat keeps for the game master alone', () => {
+      const open = makeDice('みんなの');
+      const theirs = theirDie();
+
+      expect(service.keep(open)).toBe(true);
+      expect(open.owner).toBe('me');
+      expect(service.keep(open)).toBe(false);
+      expect(service.keep(theirs)).toBe(false);
+      expect(theirs.owner).toBe('somebody-else');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(service.keep(theirs)).toBe(true);
+      expect(theirs.owner).toBe('me');
+    });
+  });
+
+  describe('showing a die this seat kept', () => {
+    let tab: ChatTab;
+    let dice: DiceSymbol;
+
+    beforeEach(() => {
+      const mine = { userId: 'me' } as IPeerContext;
+      setPeerContextProvider({ peerContext: mine, peerContexts: [mine], peerIds: ['me'], peerId: 'me' });
+      tab = ChatTabList.instance.addChatTab('テストタブ');
+      created.push(tab);
+      dice = makeDice('隠しダイス');
+      dice.owner = 'me';
+      dice.face = '6';
+    });
+
+    it('opens the secret line it was thrown on', () => {
+      const chat = TestBed.inject(ChatMessageService);
+      const secret = chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'me', undefined, [dice.identifier]);
+
+      service.reveal(dice);
+
+      expect(secret.isSecret).toBe(false);
+    });
+
+    it('leaves the throw of another die kept back', () => {
+      const chat = TestBed.inject(ChatMessageService);
+      const other = chat.sendSecretSystemMessageToTab(tab, 'べつのダイス → 1', 'me', undefined, ['another-die']);
+
+      service.reveal(dice);
+
+      expect(other.isSecret).toBe(true);
+    });
+
+    it('says nothing more of its own once the throw it opened carries the face', () => {
+      const chat = TestBed.inject(ChatMessageService);
+      chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'me', undefined, [dice.identifier]);
+      const callOut = vi.spyOn(chat, 'sendSystemNotice');
+
+      service.reveal(dice);
+
+      expect(callOut).not.toHaveBeenCalled();
+    });
+
+    it('calls the face out where there is no throw of it to open', () => {
+      const callOut = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice');
+
+      service.reveal(dice);
+
+      expect(callOut).toHaveBeenCalledOnce();
+      expect(callOut.mock.calls[0][0]).toBe('diceReveal');
+      expect(callOut.mock.calls[0][1]).toContain('6');
+    });
+
+    it('calls the face out where the throw it found is somebody else to open', () => {
+      const chat = TestBed.inject(ChatMessageService);
+      const secret = chat.sendSecretSystemMessageToTab(tab, '隠しダイス → 6', 'somebody-else', undefined, [
+        dice.identifier,
+      ]);
+      const callOut = vi.spyOn(chat, 'sendSystemNotice');
+
+      service.reveal(dice);
+
+      expect(secret.isSecret).toBe(true);
+      expect(callOut).toHaveBeenCalledOnce();
+      expect(callOut.mock.calls[0][1]).toContain('6');
+    });
   });
 });

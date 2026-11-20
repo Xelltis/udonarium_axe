@@ -3,12 +3,13 @@ type Rgb = readonly [number, number, number];
 
 /**
  * The colours of the sky through the day, at the top and down at the horizon, from midnight round
- * to midnight: night, the grey before dawn, dawn, morning, noon, afternoon, dusk and twilight.
+ * to midnight: night, the grey before dawn, dawn, morning, noon, afternoon, dusk and twilight. The
+ * dawn is the pale gold the table's sky rises in, the dusk the redder glow it sets in.
  */
 const SKY_THROUGH_THE_DAY: readonly { at: number; top: Rgb; horizon: Rgb }[] = [
   { at: 0, top: [7, 11, 31], horizon: [26, 37, 80] },
-  { at: 0.2, top: [20, 27, 61], horizon: [59, 63, 115] },
-  { at: 0.27, top: [61, 79, 143], horizon: [242, 160, 123] },
+  { at: 0.2, top: [28, 40, 82], horizon: [96, 104, 150] },
+  { at: 0.27, top: [93, 130, 194], horizon: [241, 214, 176] },
   { at: 0.35, top: [79, 143, 214], horizon: [191, 224, 245] },
   { at: 0.5, top: [47, 127, 216], horizon: [159, 210, 247] },
   { at: 0.68, top: [74, 124, 196], horizon: [242, 196, 141] },

@@ -1,15 +1,15 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { AlarmService } from '@axe/application/alarm/alarm.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
-import { ObjectStore } from '@axe/core/sync/object-store';
-import { Alarm } from '@axe/domain/alarm/alarm';
+import { clampAlarmSeconds } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { connectedPeerIdsOf, peerFaceOf } from '@axe/domain/peer/peer-face';
+import { connectedPeerIdsOf } from '@axe/domain/peer/peer-face';
 import { UiPeerPickListComponent } from '@axe/ui/components/peer-pick-list/peer-pick-list.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -21,10 +21,10 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class AlarmMenuComponent {
   private readonly panelService = inject(PanelService);
-  private readonly chatMessageService = inject(ChatMessageService);
-  private readonly objectStore = inject(ObjectStore);
+  private readonly alarms = inject(AlarmService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly snackbar = inject(SnackbarService);
 
   /** The peer ids ticked in the list, in the order they were ticked. */
   protected readonly checkedPeers = signal<readonly string[]>([]);
@@ -45,11 +45,6 @@ export class AlarmMenuComponent {
   get myPeer(): PeerCursor {
     return PeerCursor.myCursor;
   }
-  /** The room's shared alarm object, which an alarm set from this panel is written to. */
-  get alarm(): Alarm {
-    return this.objectStore.get<Alarm>('Alarm')!;
-  }
-
   /** The peer ids of the rows, followed as seats come and go. */
   protected readonly peerIds = computed(() => {
     this.objectChange.networkVersion();
@@ -57,6 +52,7 @@ export class AlarmMenuComponent {
   });
 
   constructor() {
+    closeWhenOffTheTable();
     afterNextRender(() => {
       this.setDefaultCheck();
     });
@@ -88,45 +84,28 @@ export class AlarmMenuComponent {
   }
 
   /**
-   * Sets the alarm for the chosen peers, announces it in chat, starts it, and closes the panel.
-   *
-   * The time is clamped first. The chat line lists every target by name, or says it went to
-   * everyone when every peer and the local one are included.
+   * Sets the alarm for the chosen peers through {@link AlarmService.set}, which announces it in chat
+   * and starts it, and closes the panel once it is set; where it was not set, a notice says why. The
+   * time is clamped first.
    */
   send() {
-    if (PeerCursor.isMyselfKeptOffTable) return;
     this.changeAlarmTime();
-
-    const alarm = this.alarm;
-    const alarmTitle = this.alarmTitle;
-    let target: string;
-    const peerIdList = this.selectedList();
-
-    if (this.peerList.length + 1 === this.selectedNum()) {
-      target = encodeI18nMessage('feature.alarm.targetAll');
-    } else {
-      target = ' >';
-      for (const peerId of peerIdList) {
-        target += peerFaceOf(peerId).name + ' ';
-      }
-    }
-    const startMessage = encodeI18nList(
-      [encodeI18nMessage('feature.alarm.setMessage', { seconds: this.alarmTime }), target],
-      ''
-    );
-
-    alarm.makeAlarm(this.alarmTime, alarmTitle, peerIdList, this.myPeer.peerId, target, this.isSound, this.isPopUp);
-    this.chatMessageService.sendSystemMessageAsLastSpeaker(startMessage);
-    alarm.startAlarm();
-    this.panelService.close();
+    const refusal = this.alarms.set({
+      title: this.alarmTitle,
+      seconds: this.alarmTime,
+      to: this.selectedList(),
+      sound: this.isSound,
+      popup: this.isPopUp,
+    });
+    if (refusal === null) this.panelService.close();
+    else this.snackbar.show(this.t(`feature.alarm.refused.${refusal}`));
   }
 
   /**
-   * Clamps the alarm time to between 0 and 3600 seconds; runs when the time box changes and again
-   * before sending.
+   * Clamps the alarm time to between none and an hour, as {@link clampAlarmSeconds} does; runs when
+   * the time box changes and again before sending.
    */
   changeAlarmTime() {
-    if (this.alarmTime <= 0) this.alarmTime = 0;
-    if (this.alarmTime >= 3600) this.alarmTime = 3600;
+    this.alarmTime = clampAlarmSeconds(this.alarmTime);
   }
 }

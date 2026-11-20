@@ -37,6 +37,7 @@ interface MutableTerrain {
   slopeSides: SlopeSide[];
   hasFaceImage: boolean;
   clearFaceImages: ReturnType<typeof vi.fn>;
+  setDoor: Terrain['setDoor'];
 }
 
 function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
@@ -63,6 +64,7 @@ function makeTerrain(overrides: Partial<MutableTerrain> = {}): MutableTerrain {
     slopeSides: [],
     hasFaceImage: true,
     clearFaceImages: vi.fn(),
+    setDoor: Terrain.prototype.setDoor,
     ...overrides,
   };
   // The real block turns its slope on and off with the sides, which the menu writes.
@@ -166,8 +168,8 @@ describe('buildTerrainContextMenuModel()', () => {
     expect(terrain.isTiledTexture).toBe(true);
   });
 
-  it('offers to open a door and to shut an open one, and neither to a plain wall', () => {
-    const build = (overrides: Partial<MutableTerrain>) =>
+  it('offers to open a door and to shut an open one, neither to a plain wall, and neither where the seat may not', () => {
+    const build = (overrides: Partial<MutableTerrain>, toggleDoor: (() => void) | null = vi.fn()) =>
       buildTerrainContextMenuModel(
         makeTerrain(overrides) as unknown as Terrain,
         50,
@@ -175,16 +177,23 @@ describe('buildTerrainContextMenuModel()', () => {
         makeService(),
         makeActionService(),
         vi.fn(),
-        t
+        t,
+        [],
+        [],
+        undefined,
+        [],
+        toggleDoor
       ).actions;
 
     expect(names(build({ isDoor: true, doorStyle: 'swing' }))).toContain('扉を開く');
     expect(names(build({ isDoor: true, doorStyle: 'swing', isDoorOpen: true }))).toContain('扉を閉じる');
     expect(names(build({}))).not.toContain('扉を開く');
+    expect(names(build({ isDoor: true, doorStyle: 'swing' }, null))).not.toContain('扉を開く');
   });
 
-  it('swings the door when that item is chosen', () => {
+  it('opens or shuts the door as it is handed, when that item is chosen', () => {
     const terrain = makeTerrain({ isDoor: true, doorStyle: 'swing' });
+    const toggleDoor = vi.fn();
     const menu = buildTerrainContextMenuModel(
       terrain as unknown as Terrain,
       50,
@@ -192,12 +201,40 @@ describe('buildTerrainContextMenuModel()', () => {
       makeService(),
       makeActionService(),
       vi.fn(),
-      t
+      t,
+      [],
+      [],
+      undefined,
+      [],
+      toggleDoor
     ).actions;
 
     menu.find((item) => item.name === '扉を開く')?.action?.();
 
+    expect(toggleDoor).toHaveBeenCalledTimes(1);
+    expect(terrain.isDoorOpen).toBe(false);
+  });
+
+  it('shuts a door made no door, and leaves one made a door of another kind as it stood', () => {
+    const terrain = makeTerrain({ isDoor: true, doorStyle: 'swing', isDoorOpen: true });
+    const styles = () =>
+      buildTerrainContextMenuModel(
+        terrain as unknown as Terrain,
+        50,
+        { x: 0, y: 0, z: 0 },
+        makeService(),
+        makeActionService(),
+        vi.fn(),
+        t
+      ).actions.find((item) => item.name === '扉の開き方')!.subActions!;
+
+    styles().find((entry) => entry.name.endsWith('横にスライド'))!.action!();
+    expect(terrain.doorStyle).toBe('slide');
     expect(terrain.isDoorOpen).toBe(true);
+
+    styles().find((entry) => entry.name.endsWith('扉ではない'))!.action!();
+    expect(terrain.doorStyle).toBe('none');
+    expect(terrain.isDoorOpen).toBe(false);
   });
 
   it('offers every way for a door to open, and none at all', () => {

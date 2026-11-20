@@ -46,12 +46,13 @@ describe('boardSizeFor()', () => {
     expect(boardSizeFor(rooms, 20)).toEqual({ width: 49, height: 37 });
   });
 
-  it('never lets the board outgrow one scratch mask', () => {
+  it('never lets the board outgrow one scratch mask, and keeps an oblong board no taller than its tallest', () => {
     for (const id of DUNGEON_ATMOSPHERE_IDS) {
       for (const rooms of [3, 8, 12, 16, 20, 99]) {
         const size = boardSizeFor(atmosphereById(id), rooms);
         expect(size.width).toBeLessThanOrEqual(MAX_BOARD_WIDTH);
-        expect(size.height).toBeLessThanOrEqual(MAX_BOARD_HEIGHT);
+        expect(size.height).toBeLessThanOrEqual(MAX_BOARD_WIDTH);
+        if (size.width !== size.height) expect(size.height).toBeLessThanOrEqual(MAX_BOARD_HEIGHT);
       }
     }
   });
@@ -85,7 +86,7 @@ describe('generateDungeon()', () => {
   });
 
   it('breaks the outer wall in exactly one place for a tunnel mouth', () => {
-    for (const id of DUNGEON_ATMOSPHERE_IDS) {
+    for (const id of DUNGEON_ATMOSPHERE_IDS.filter((each) => !atmosphereById(each).rooms?.round)) {
       for (const seed of SEEDS) {
         const layout = generateDungeon({ atmosphere: id, roomCount: 8, seed, entrance: 'tunnel' });
         expect(layout.mouth).not.toBeNull();
@@ -519,6 +520,69 @@ describe('passages cut to the width the room asked for', () => {
       });
 
       expect(plan.blocks.blocks.length).toBeLessThanOrEqual(MAP_MAX_TERRAINS);
+    }
+  });
+});
+
+describe('a round tower', () => {
+  it('opens a tunnel mouth in the wall round it, digging nothing outside its round', () => {
+    for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL]) {
+      for (const seed of SEEDS) {
+        const layout = generateDungeon({ atmosphere: 'wizardTower', roomCount: 8, seed, gridType, entrance: 'tunnel' });
+        const at = `${gridType} ${seed}`;
+        const outside = layout.outside!;
+        const dug = Array.from(outside.keys()).filter(
+          (cell) => outside[cell] && layout.cells[cell] !== DungeonCell.Rock
+        );
+        expect(dug, at).toEqual([]);
+        const mouth = layout.mouth!;
+        const past = [
+          [0, -1],
+          [0, 1],
+          [-1, 0],
+          [1, 0],
+        ].some(([dx, dy]) => {
+          const x = mouth.x + dx;
+          const y = mouth.y + dy;
+          return x < 0 || y < 0 || x >= layout.width || y >= layout.height || outside[y * layout.width + x] === 1;
+        });
+        expect(past, at).toBe(true);
+        expect(reachableCells(layout, layout.entrance).size, at).toBe(countOpenCells(layout));
+      }
+    }
+  });
+
+  it('holds about as many rooms as asked for on squares, as many as an oblong place does', () => {
+    for (const roomCount of [12, 16, 20]) {
+      const rooms = SEEDS.map((seed) => generateDungeon({ atmosphere: 'wizardTower', roomCount, seed }).rooms.length);
+      const mean = rooms.reduce((sum, count) => sum + count, 0) / rooms.length;
+      expect(mean, `${roomCount}`).toBeGreaterThanOrEqual(roomCount * 0.9);
+    }
+  });
+
+  it('stands on a square board and builds and paints nothing outside its round, on squares and hexes', () => {
+    for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL, GridType.HEX_HORIZONTAL]) {
+      for (const seed of SEEDS) {
+        const { layout, blocks } = planDungeon({ atmosphere: 'wizardTower', roomCount: 8, seed, gridType });
+        const at = `${gridType} ${seed}`;
+        expect(layout.width, at).toBe(layout.height);
+        const outside = layout.outside!;
+        expect(outside.some(Boolean), at).toBe(true);
+        const covers = (rect: { x: number; y: number; w: number; h: number }) => {
+          for (let y = rect.y; y < rect.y + rect.h; y++) {
+            for (let x = rect.x; x < rect.x + rect.w; x++) if (outside[y * layout.width + x]) return true;
+          }
+          return false;
+        };
+        expect(
+          blocks.blocks.filter((block) => covers(block.rect)),
+          at
+        ).toEqual([]);
+        expect(
+          blocks.paint.filter((paint) => covers(paint.rect)),
+          at
+        ).toEqual([]);
+      }
     }
   });
 });

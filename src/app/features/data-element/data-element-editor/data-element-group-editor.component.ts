@@ -28,6 +28,7 @@ import {
   type SiblingMove,
 } from '@axe/features/data-element/game-data-element/game-data-element-structure-ops';
 import { GameDataElementFieldOptionsComponent } from '@axe/features/data-element/game-data-element-field-options/game-data-element-field-options.component';
+import { TableBuilderLauncher } from '@axe/features/data-element/table-builder/table-builder-launcher.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 let nextEditorId = 0;
@@ -49,6 +50,7 @@ let nextEditorId = 0;
 })
 export class DataElementGroupEditorComponent {
   private readonly edit = inject(DataElementEditService);
+  private readonly tableBuilder = inject(TableBuilderLauncher);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly sheet = inject(BottomSheetRef);
   private readonly bottomSheet = inject(BottomSheetService);
@@ -83,6 +85,9 @@ export class DataElementGroupEditorComponent {
       icon: this.edit.iconOf(element),
       isSection,
       isTable: this.edit.isTableView(element),
+      canBuildTable: this.edit.canBuildTable(element),
+      drawsAsTable: this.edit.drawsAsTable(element),
+      editsAsRows: this.edit.editsAsRows(element),
       isPopup: this.edit.isPopup(element),
       canAddField: this.edit.canAddFieldInside(element),
       canAddGroup: this.edit.canAddGroupInside(element),
@@ -157,6 +162,24 @@ export class DataElementGroupEditorComponent {
     const group = this.edit.addGroupInside(this.current());
     if (!group) return;
     this.switchTo(group);
+  }
+
+  /** Switches the table between being edited as its rows and fields and as the table it is, as the wide sheet's heading does. */
+  toggleEditAsRows(): void {
+    this.edit.toggleEditAsRows(this.current());
+  }
+
+  /** Opens the table builder on the group's table, as the wide sheet's heading does. */
+  buildTable(): void {
+    this.commitName();
+    void this.tableBuilder.buildTable(this.current());
+  }
+
+  /** Opens the table builder on a new table, and goes on to edit the table it adds. */
+  async addTable(): Promise<void> {
+    this.commitName();
+    const table = await this.tableBuilder.addTable(this.current());
+    if (table) this.switchTo(table);
   }
 
   /** Puts a copy of a saved template into the group, and goes back to the rest of the editor. */

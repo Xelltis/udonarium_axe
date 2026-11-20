@@ -1,5 +1,7 @@
+import { noteLeftByBuffs } from '@axe/domain/character/buff-layers';
 import {
   clearBuffModifier,
+  clearBuffTextModifier,
   describeBuffModifier,
   describeBuffModifierTarget,
   describeStandingModifier,
@@ -8,6 +10,7 @@ import {
   readBuffAmount,
   readBuffModifier,
   writeBuffModifier,
+  writeBuffTextModifier,
 } from '@axe/domain/character/buff-modifier';
 import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 
@@ -54,6 +57,23 @@ describe('buff-modifier', () => {
 
     it('holds a status at a value where it is told to', () => {
       expect(parseBuffModifierRequest('防護点', '=', '10')).toMatchObject({ operator: 'set', amount: 10 });
+    });
+
+    it('holds an item at words where what follows `=` is no number, and moves nothing by words', () => {
+      expect(parseBuffModifierRequest('属性', '=', '炎')).toEqual({
+        target: '属性',
+        slot: 'now',
+        operator: 'set',
+        amount: 0,
+        text: '炎',
+      });
+      expect(parseBuffModifierItems('物理D増加+2,属性=炎')).toEqual([
+        expect.objectContaining({ target: '物理D増加', amount: 2 }),
+        expect.objectContaining({ target: '属性', text: '炎' }),
+      ]);
+      expect(describeBuffModifier(parseBuffModifierRequest('属性', '=', '炎')!)).toBe('属性=炎');
+      expect(parseBuffModifierRequest('属性', '+', '炎')).toBeNull();
+      expect(parseBuffModifierRequest(':属性', '=', '炎')).toBeNull();
     });
 
     it('refuses what it cannot read', () => {
@@ -277,6 +297,35 @@ describe('buff-modifier', () => {
       buff.setAttribute('cs-buff-mod-slot', 'sideways');
 
       expect(readBuffModifier(buff)?.slot).toBe('now');
+    });
+  });
+
+  describe('a record written again as it stands', () => {
+    it('sends nothing to the room, by any record a buff keeps on itself or notes on an item', () => {
+      const buff = makeBuff();
+      const item = DataElement.create('属性', '炎');
+      const lasting = { target: 'HP', slot: 'now', operator: 'add', applied: -3, step: -3, lasting: true } as const;
+      const words = { target: '属性', text: '炎', order: 2 };
+      const writes = [
+        () => writeBuffModifier(buff, { target: '命中', slot: 'now', operator: 'add', applied: 2, step: 1 }),
+        () => writeBuffModifier(buff, lasting),
+        () => clearBuffModifier(buff),
+        () => writeBuffTextModifier(buff, words),
+        () => clearBuffTextModifier(buff),
+        () => noteLeftByBuffs(item),
+      ];
+
+      for (const write of writes) {
+        write();
+        const sent = vi.spyOn(buff, 'update');
+        const noted = vi.spyOn(item, 'update');
+        write();
+        expect(sent).not.toHaveBeenCalled();
+        expect(noted).not.toHaveBeenCalled();
+        sent.mockRestore();
+        noted.mockRestore();
+      }
+      expect(readBuffModifier(buff)).toBeNull();
     });
   });
 });

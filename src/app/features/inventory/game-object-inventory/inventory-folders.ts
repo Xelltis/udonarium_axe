@@ -7,6 +7,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   ancestorFolderPaths,
+  fileUnderFolder,
   FOLDER_SEPARATOR,
   folderSegments,
   isDescendantFolderPath,
@@ -405,10 +406,9 @@ export class InventoryFolders {
   setFolderOf(identifiers: Iterable<string>, folderPath: string): void {
     if (!this.host.canEdit()) return;
     this.leaveFoldedAsFiled();
-    const normalized = normalizeFolderPath(folderPath);
     for (const identifier of identifiers) {
       const character = this.objectStore.get<GameCharacter>(identifier);
-      if (character instanceof GameCharacter) character.folderName = normalized;
+      if (character instanceof GameCharacter) fileUnderFolder(character, folderPath);
     }
     this.inventory.notifyInventoryUpdate();
   }

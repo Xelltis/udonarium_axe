@@ -45,7 +45,7 @@
               type="button"
               class="rounded-ui-sm border-ui-accent bg-ui-accent-bg text-ui-accent hover:border-ui-accent hover:bg-ui-accent-solid m-0 inline-flex cursor-pointer flex-col items-center border border-solid px-4 py-1.5 text-[13px] transition-[background,color,box-shadow,transform] hover:text-white hover:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
               (click)="voteSend(choice)"
-              [disabled]="!isTarget() || isAnswered()"
+              [disabled]="!mayAnswer()"
             >
               <span class="font-semibold">{{ choice }}</span>
               @if (answersShown()) {
@@ -55,7 +55,7 @@
               }
             </button>
           }
-          @if (isTarget() && !isAnswered()) {
+          @if (mayAnswer()) {
             <button
               type="button"
               class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-danger hover:text-ui-danger m-0 inline-flex cursor-pointer items-center border border-solid px-3 py-1.5 text-[12px] transition-[background,color,border-color] hover:shadow-none"

@@ -492,6 +492,7 @@ export class TextNoteComponent {
       this.gridSize(),
       this.inventoryService,
       {
+        disclosure: this.disclosureService,
         onSetUpright: (isUpright) => {
           this.textNote().isUpright = isUpright;
         },

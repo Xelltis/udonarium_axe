@@ -1,13 +1,34 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { Network } from '@axe/core/network/network';
 import {
   childrenChanged$,
   markForChanged,
   markForChildrenChanged,
-  objectAdded$,
   objectChanged$,
-  objectRemoved$,
 } from '@axe/core/sync/object-event-extension';
 import { ObjectNode } from '@axe/core/sync/object-node';
+
+/** The modules a module imports for what they run, read off its source: its `@axe/` imports, type-only ones left out. */
+function runtimeImportsOf(module: string): string[] {
+  const source = readFileSync(join(process.cwd(), 'src/app', `${module}.ts`), 'utf8');
+  return [...source.matchAll(/^import (?:(?!type )[^;]*? from )?'@axe\/([^']+)';/gms)].map((match) => match[1]);
+}
+
+/** Every module a module reaches through what it imports for what it runs. */
+function reachedFrom(module: string): Set<string> {
+  const reached = new Set<string>();
+  const waiting = [module];
+  while (waiting.length > 0) {
+    for (const next of runtimeImportsOf(waiting.pop()!)) {
+      if (reached.has(next)) continue;
+      reached.add(next);
+      waiting.push(next);
+    }
+  }
+  return reached;
+}
 
 describe('object-event-extension', () => {
   beforeEach(() => {});
@@ -69,17 +90,9 @@ describe('object-event-extension', () => {
     });
   });
 
-  describe('objectAdded$', () => {
-    it('is exposed as a subject', () => {
-      expect(objectAdded$).toBeTruthy();
-      expect(typeof objectAdded$.subscribe).toBe('function');
-    });
-  });
-
-  describe('objectRemoved$', () => {
-    it('is exposed as a subject', () => {
-      expect(objectRemoved$).toBeTruthy();
-      expect(typeof objectRemoved$.subscribe).toBe('function');
-    });
+  it('is reached from neither of the classes it hooks, so whichever loads first, it hooks a class already made', () => {
+    for (const hooked of ['core/sync/game-object', 'core/sync/object-node']) {
+      expect([...reachedFrom(hooked)]).not.toContain('core/sync/object-event-extension');
+    }
   });
 });

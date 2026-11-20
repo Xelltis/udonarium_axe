@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -28,7 +29,6 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { imageFileEqual } from '@axe/core/storage/image-file';
-import { clamp } from '@axe/core/util/clamp';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { copyDetailSchema } from '@axe/domain/card/deck-builder';
@@ -36,7 +36,6 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CardDrawCountDialogComponent } from '@axe/features/card/card-draw-count-dialog/card-draw-count-dialog.component';
 import { CardDropService } from '@axe/features/card/card-drop.service';
-import { CardGameService } from '@axe/features/card/card-game.service';
 import { buildCardStackContextMenu } from '@axe/features/card/card-stack/card-stack-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CardFaceTextComponent } from '@axe/ui/components/card-face-text/card-face-text.component';
@@ -50,33 +49,11 @@ import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupDoubleTap, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
-const LAID_OUT_FOR_CELL_PX = 50;
-
-/**
- * Where a drawn card lands from its deck, in px of the laid-out cell: each card of one draw a step
- * further along than the one before, and anywhere within the jitter past that.
- */
-const DRAW_OFFSET_PX = { x: 100, y: 25 };
-const DRAW_STEP_PX = { x: 18, y: 8 };
-const DRAW_JITTER_PX = 50;
-
-/** How far to either side a card of a deck broken up lands from where the deck lay, in px. */
-const BREAK_SCATTER_PX = 25;
-
-/** How far to either side a pile of a deck split up lands from where the deck lay, in px. */
-const SPLIT_SCATTER_PX = 50;
-
 /** How wide the edge of the plate a stack's top card lies in is, round the picture, in px. */
 const STACK_PLATE_BORDER_PX = 5;
 
 /** How deep the plate of a stack with no cards is, in px. */
 const EMPTY_STACK_PX = 100;
-
-/** A random offset of up to `reach` to either side. */
-function scatter(reach: number): number {
-  return reach - Math.random() * reach * 2;
-}
 
 @Component({
   selector: 'card-stack',
@@ -349,8 +326,9 @@ export class CardStackComponent {
       () => this.drawCard(),
       () => this.drawCardToHand(),
       () => this.openDrawCardsDialog(),
-      (n) => this.splitStack(n),
-      () => this.breakStack(),
+      () => this.cardGameService.split(this.cardStack()),
+      this.cardGameService.splitSeats(),
+      () => this.cardGameService.breakUp(this.cardStack()),
       () => this.dealAll(),
       () => this.copySchemaToAll(),
       (cs) => this.showDetail(cs),
@@ -384,37 +362,11 @@ export class CardStackComponent {
   }
 
   private drawCard(): Card | null {
-    return this.drawCardAt(0);
+    return this.cardGameService.drawCard(this.cardStack());
   }
 
   private drawCardToHand(): Card | null {
-    const card = this.drawCard();
-    if (card) card.toHand(PeerCursor.myUserId);
-    return card;
-  }
-
-  private drawCards(count: number): Card[] {
-    const normalizedCount = Number.isFinite(count) ? Math.floor(count) : 0;
-    const drawCount = clamp(normalizedCount, 0, this.cardStack().cards.length);
-    const cards: Card[] = [];
-    for (let index = 0; index < drawCount; index++) {
-      const card = this.drawCardAt(index);
-      if (!card) break;
-      cards.push(card);
-    }
-    return cards;
-  }
-
-  private drawCardAt(index: number): Card | null {
-    const card = this.cardStack().drawCard();
-    if (card) {
-      this.cardStack().update();
-      const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
-      card.location.x += (DRAW_OFFSET_PX.x + index * DRAW_STEP_PX.x + Math.random() * DRAW_JITTER_PX) * scale;
-      card.location.y += (DRAW_OFFSET_PX.y + index * DRAW_STEP_PX.y + Math.random() * DRAW_JITTER_PX) * scale;
-      card.setLocation(this.cardStack().location.name);
-    }
-    return card;
+    return this.cardGameService.drawToHand(this.cardStack());
   }
 
   private async openDrawCardsDialog() {
@@ -430,7 +382,7 @@ export class CardStackComponent {
       .catch(() => null);
     if (count == null) return;
 
-    if (this.drawCards(count).length > 0) {
+    if (this.cardGameService.drawCards(this.cardStack(), count).length > 0) {
       SoundEffect.play(PresetSound.cardDraw);
     }
   }
@@ -462,53 +414,6 @@ export class CardStackComponent {
       if (!(await this.confirm.ask(this.translateFn('feature.cardStack.message.dealWithheld', { askGm })))) return;
     }
     this.cardGameService.dealAll(stack);
-  }
-
-  private breakStack() {
-    const cards = this.cardStack().drawCardAll().reverse();
-    const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
-    for (const card of cards) {
-      card.location.x += scatter(BREAK_SCATTER_PX) * scale;
-      card.location.y += scatter(BREAK_SCATTER_PX) * scale;
-      card.toTopmost();
-      card.setLocation(this.cardStack().location.name);
-    }
-    this.cardStack().setLocation('graveyard');
-    this.cardStack().destroy();
-  }
-
-  /**
-   * Deals the deck's cards in turn into `split` new piles beside it. The cards go into the piles
-   * before the deck is taken away, as a room server takes away with a deck all it still holds.
-   */
-  private splitStack(split: number) {
-    if (split < 2) return;
-    const cardStacks: CardStack[] = [];
-    const scale = this.gridSize / LAID_OUT_FOR_CELL_PX;
-    for (let i = 0; i < split; i++) {
-      const cardStack = CardStack.create(this.cardStack().name);
-      cardStack.location.x = this.cardStack().location.x + scatter(SPLIT_SCATTER_PX) * scale;
-      cardStack.location.y = this.cardStack().location.y + scatter(SPLIT_SCATTER_PX) * scale;
-      cardStack.posZ = this.cardStack().posZ;
-      cardStack.location.name = this.cardStack().location.name;
-      cardStack.rotate = this.rotate;
-      cardStack.toTopmost();
-      cardStacks.push(cardStack);
-    }
-
-    const cards = this.cardStack().drawCardAll();
-    let num = 0;
-    let splitIndex = (cards.length / split) * (num + 1);
-    for (let i = 0; i < cards.length; i++) {
-      cardStacks[num].putOnBottom(cards[i]);
-      if (splitIndex <= i + 1) {
-        num++;
-        splitIndex = (cards.length / split) * (num + 1);
-      }
-    }
-
-    this.cardStack().setLocation('graveyard');
-    this.cardStack().destroy();
   }
 
   private showDetail(gameObject: CardStack) {

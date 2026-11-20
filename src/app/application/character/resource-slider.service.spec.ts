@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
@@ -17,14 +18,20 @@ describe('ResourceSliderService', () => {
     vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
   });
 
-  afterEach(() => sliders.setRoomDefault(false));
+  /** The room's default as the room settings write it: into the config, told of at once. */
+  function roomSays(shown: boolean): void {
+    Config.instance.resourceSliderByDefault = shown;
+    TestBed.inject(ObjectChangeService).notifyChanged(Config.instance.identifier);
+  }
+
+  afterEach(() => roomSays(false));
 
   it('gives no resource a slider of the room until the room says so', () => {
     expect(sliders.roomDefault()).toBe(false);
   });
 
   it('keeps the room default in the room config, where every peer reads it', () => {
-    sliders.setRoomDefault(true);
+    roomSays(true);
 
     expect(sliders.roomDefault()).toBe(true);
     expect(ObjectStore.instance.get<Config>('Config')?.resourceSliderByDefault).toBe(true);
@@ -34,7 +41,7 @@ describe('ResourceSliderService', () => {
     const hp = DataElement.create('HP', 20, { type: DataElementType.NUMBER_RESOURCE });
     expect(sliders.shows(hp)).toBe(false);
 
-    sliders.setRoomDefault(true);
+    roomSays(true);
 
     expect(sliders.shows(hp)).toBe(true);
   });
@@ -43,7 +50,7 @@ describe('ResourceSliderService', () => {
     const piece = GameCharacter.create('戦士', 1, '');
     const resources = resourceElementsOf(piece);
     expect(resources.length).toBeGreaterThan(1);
-    sliders.setRoomDefault(true);
+    roomSays(true);
 
     sliders.setAll(piece, false);
     expect(resources.map((element) => element.getAttribute(DataElementAttribute.RESOURCE_SLIDER))).toEqual(

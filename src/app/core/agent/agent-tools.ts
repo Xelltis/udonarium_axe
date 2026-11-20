@@ -17,6 +17,70 @@ export interface AgentToolDefinition {
   readonly input: AgentObjectSchema;
   /** Whether the tool takes something away that cannot be had back by calling another tool. */
   readonly destructive?: boolean;
+  /**
+   * For a tool that takes or gives a file of the person's own computer: the argument naming its path,
+   * and whether the bridge reads that file and hands it to the tab as `file` (see {@link tabInputOf}),
+   * or writes the `file` the tab answers with there. The bridge keeps both to a folder it was told.
+   */
+  readonly localFile?: { readonly arg: string; readonly mode: 'read' | 'write' };
+  /**
+   * Whether the tool keeps something in this browser for the person, as a snapshot of the room is kept,
+   * changing nothing of the room but what this browser holds (an older snapshot let go to make room).
+   */
+  readonly keepsHere?: true;
+  /** How long the bridge gives a call, for a tool that takes longer than most. */
+  readonly timeoutMs?: number;
+  /** Whether the tool reaches out to sites beyond the room and the person's computer. */
+  readonly openWorld?: true;
+}
+
+/**
+ * The most a file the bridge and the tab hand each other may weigh, either way: a file the bridge reads
+ * for a tool, and a room the tab saves for one. Sent as base64 in one message, it fits
+ * {@link MAX_AGENT_MESSAGE_BYTES}, which the bridge takes.
+ */
+export const MAX_AGENT_FILE_BYTES = 96 * 1024 * 1024;
+
+/** The most a message between the bridge and the tab may weigh: the largest file as base64, with room for the rest. */
+export const MAX_AGENT_MESSAGE_BYTES = Math.ceil(MAX_AGENT_FILE_BYTES / 3) * 4 + 1024 * 1024;
+
+/**
+ * Whether a tool changes nothing at all, as an MCP client is told by its read-only hint and as a seat
+ * letting its AI read the room only lets it run: one that only reads the room, writing no file to the
+ * computer the bridge runs on and keeping nothing in this browser either. A tool that reads the room but
+ * saves it to a file or keeps a snapshot of it changes what the person holds, and is asked for.
+ */
+export function isReadOnlyTool(tool: Pick<AgentToolDefinition, 'access' | 'localFile' | 'keepsHere'>): boolean {
+  return tool.access === 'read' && tool.localFile?.mode !== 'write' && tool.keepsHere !== true;
+}
+
+/** A file as the bridge and the tab hand it to each other: its name, its media type and its bytes. */
+export interface AgentFileContent {
+  readonly name: string;
+  readonly type: string;
+  readonly base64: string;
+}
+
+/** The shape of the file the bridge hands a tool that reads one, in place of the path it was given. */
+export const AGENT_FILE_SCHEMA: AgentObjectSchema = {
+  type: 'object',
+  description: 'A file read by the bridge from the path given. Leave it out; give the path.',
+  properties: {
+    name: { type: 'string', maxLength: 255 },
+    type: { type: 'string', maxLength: 100 },
+    base64: { type: 'string' },
+  },
+  required: ['name', 'type', 'base64'],
+  additionalProperties: false,
+};
+
+/**
+ * The input a tool's call reaches the tab with: as the AI gives it, and for a tool that reads a file
+ * of the person's computer, the file the bridge read from the path as well.
+ */
+export function tabInputOf(tool: AgentToolDefinition): AgentObjectSchema {
+  if (tool.localFile?.mode !== 'read') return tool.input;
+  return { ...tool.input, properties: { ...tool.input.properties, file: AGENT_FILE_SCHEMA } };
 }
 
 const PIECE: AgentSchema = {
@@ -50,6 +114,19 @@ const SPEAKER: AgentSchema = {
   type: 'string',
   description:
     'Who speaks: a piece whose sheet this seat may open (id or name), or "self" for the seat itself. Leave out for the seat.',
+};
+
+const KIND: AgentSchema = {
+  type: 'string',
+  description: 'The kind of thing, as describe_kinds names it.',
+  minLength: 1,
+};
+const OBJECT_ID: AgentSchema = { type: 'string', description: 'The thing: its id, or its name as this seat sees it.' };
+const FIELDS: AgentSchema = {
+  type: 'object',
+  description: 'The fields to write, by name, each in the shape describe_kinds gives.',
+  properties: {},
+  additionalProperties: true,
 };
 
 function input(properties: Record<string, AgentSchema>, required: readonly string[] = []): AgentObjectSchema {
@@ -177,6 +254,77 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
         maximum: 50,
       },
     }),
+  },
+  {
+    name: 'list_music',
+    title: 'List the music',
+    access: 'read',
+    description:
+      'List what plays now, every track that can be played as music (with its tag, the playlists that hold it, and its length, tempo and loudness where known), the playlists, and for the game master the scenes that put music on.',
+    input: input({}),
+  },
+  {
+    name: 'list_room_snapshots',
+    title: 'List the room snapshots',
+    access: 'read',
+    description:
+      'List the snapshots of the room this browser keeps (taken as play goes on, or by save_room_snapshot), newest first, by number, time and room name. load_room puts one back.',
+    input: input({}),
+  },
+  {
+    name: 'save_room',
+    title: 'Save the room to a file',
+    access: 'read',
+    localFile: { arg: 'path', mode: 'write' },
+    timeoutMs: 120_000,
+    description:
+      'Save the room as the save button does, into a zip file at a path on the computer the bridge runs on, inside the folder the bridge was started with. With everything, every picture and sound this browser holds goes in, named by anything or not. A file already there is not written over.',
+    input: input(
+      {
+        path: { type: 'string', description: "Where to write the zip, under the bridge's folder.", minLength: 1 },
+        everything: { type: 'boolean', description: 'Also put in every picture and sound this browser holds.' },
+      },
+      ['path']
+    ),
+  },
+  {
+    name: 'save_room_snapshot',
+    title: 'Take a room snapshot',
+    access: 'read',
+    keepsHere: true,
+    description: 'Keep a snapshot of the room in this browser now, as the room archive panel does. Answers its number.',
+    input: input({}),
+  },
+  {
+    name: 'describe_kinds',
+    title: 'Describe the kinds of things',
+    access: 'read',
+    description:
+      'Describe every kind of thing in the room the generic tools reach (or the one named): its fields with their shapes and who may write each, whether one can be made or taken away and by whom, and the actions that can be done to one with their args. Read it before using list_objects, get_object, create_object, change_object, remove_object or act_on_object on a kind.',
+    input: input({ kind: { type: 'string', description: 'The kind to describe. Leave out for every kind.' } }),
+  },
+  {
+    name: 'list_objects',
+    title: 'List the things of a kind',
+    access: 'read',
+    description:
+      'List the things of a kind this seat can see, by id and name: the kind as describe_kinds names it, optionally only those whose name holds some words.',
+    input: input(
+      {
+        kind: KIND,
+        name: { type: 'string', description: 'Only things whose name holds these words.' },
+        limit: { type: 'integer', minimum: 1, maximum: 500 },
+      },
+      ['kind']
+    ),
+  },
+  {
+    name: 'get_object',
+    title: 'Read a thing',
+    access: 'read',
+    description:
+      'Read a thing of a kind: its id, name and every field this seat is shown. A field kept from this seat is left out. For a kind with only one thing, the id may be left out.',
+    input: input({ kind: KIND, id: OBJECT_ID }, ['kind']),
   },
   {
     name: 'send_chat',
@@ -358,9 +506,67 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     input: input({ piece: PIECE }, ['piece']),
   },
   {
+    name: 'create_object',
+    title: 'Make a thing',
+    access: 'write',
+    description:
+      'Make a thing of a kind that can be made (see describe_kinds): options says where and from what, as the kind describes them, and fields are written into it after. Answers the thing as get_object reads it.',
+    input: input(
+      {
+        kind: KIND,
+        options: {
+          type: 'object',
+          description: 'What making one takes, as describe_kinds lists it.',
+          properties: {},
+          additionalProperties: true,
+        },
+        fields: FIELDS,
+      },
+      ['kind']
+    ),
+  },
+  {
+    name: 'change_object',
+    title: 'Change a thing',
+    access: 'write',
+    description:
+      'Write fields of a thing of a kind: each field as describe_kinds gives its shape, written only by the seats it says. Every field is checked before any is written. Answers the thing as get_object reads it.',
+    input: input({ kind: KIND, id: OBJECT_ID, fields: FIELDS }, ['kind', 'fields']),
+  },
+  {
+    name: 'remove_object',
+    title: 'Take a thing away',
+    access: 'write',
+    destructive: true,
+    description:
+      'Take a thing of a kind away, as the screen does, where the kind can be taken away (see describe_kinds).',
+    input: input({ kind: KIND, id: OBJECT_ID }, ['kind', 'id']),
+  },
+  {
+    name: 'act_on_object',
+    title: 'Act on a thing',
+    access: 'write',
+    description:
+      'Do one of the actions describe_kinds lists for a kind to a thing of it, as turning a card over or rolling a die, with the args that action takes. For a kind with only one thing, the id may be left out.',
+    input: input(
+      {
+        kind: KIND,
+        id: OBJECT_ID,
+        action: { type: 'string', description: 'The action, as describe_kinds names it.', minLength: 1 },
+        args: {
+          type: 'object',
+          description: 'What the action takes, as describe_kinds lists it.',
+          properties: {},
+          additionalProperties: true,
+        },
+      },
+      ['kind', 'action']
+    ),
+  },
+  {
     name: 'fire_effect',
     title: 'Fire an effect',
-    access: 'gm',
+    access: 'write',
     description:
       'Fire an effect from the effects (see list_assets) for everyone to see: at pieces, or at a square. ' +
       'A caster, if given, is where it starts from.',
@@ -377,7 +583,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'play_sound',
     title: 'Play a sound',
-    access: 'gm',
+    access: 'write',
     description:
       'Play music (bgm, in place of what plays), an ambient sound (alongside others) or a sound effect (once) for everyone.',
     input: input(
@@ -389,9 +595,60 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     ),
   },
   {
+    name: 'import_asset',
+    title: 'Take in a picture, sound or model',
+    access: 'write',
+    localFile: { arg: 'path', mode: 'read' },
+    timeoutMs: 120_000,
+    description:
+      'Take a picture, a sound or a 3D model (.glb) from a path on the computer the bridge runs on, inside the folder the bridge was started with, into the room, as dropping the file does, under the same limits (pictures 2 MB, sounds and models 10 MB, models 200,000 triangles). Never room data: a zip or an xml is refused. Answers the ids it was taken in under; tag them with change_object on image-tag, audio-tag or model-tag.',
+    input: input({ path: { type: 'string', description: "The file, under the bridge's folder.", minLength: 1 } }, [
+      'path',
+    ]),
+  },
+  {
+    name: 'import_character',
+    title: 'Take in a character sheet',
+    access: 'write',
+    openWorld: true,
+    timeoutMs: 60_000,
+    description:
+      "Make a piece from a character sheet, as the character import panel does: the address of a sheet on a site it knows (the sheet is read from that site), or the sheet's JSON pasted as text. The piece is placed on the table owned by this seat. Answers the piece made and what of the sheet could not be read.",
+    input: input({
+      url: { type: 'string', description: 'The address of the sheet.', maxLength: 2000 },
+      text: { type: 'string', description: "The sheet's JSON, pasted.", maxLength: 2_000_000 },
+    }),
+  },
+  {
+    name: 'load_room',
+    title: 'Load a room',
+    access: 'write',
+    destructive: true,
+    localFile: { arg: 'path', mode: 'read' },
+    timeoutMs: 240_000,
+    description:
+      'Put a saved room in place of the one in play for everyone: a zip at a path on the computer the bridge runs on, inside the folder the bridge was started with, or a snapshot by its number (list_room_snapshots). The person at this seat is asked on their screen first and has a minute to answer; nothing is loaded unless they agree.',
+    input: input({
+      path: { type: 'string', description: "The zip, under the bridge's folder." },
+      snapshot: { type: 'integer', description: 'The number of a snapshot this browser keeps.', minimum: 0 },
+    }),
+  },
+  {
+    name: 'play_music',
+    title: 'Put music on',
+    access: 'write',
+    description:
+      'Put on the room\'s music for everyone: a track or a playlist by name or id, or whatever suits a mood written in a few words (as "battle tense" or "静か 夜"), matched against the tracks\' names and tags, the playlists\' names and, for the game master, the names and folders of the scenes that put music on. A playlist found by as many words as a track is chosen before it. Answers what was put on, the words that found it and the other candidates. Name the music the room holds after the moods it suits for mood to find it.',
+    input: input({
+      track: { type: 'string', description: 'A track, by name or id.' },
+      playlist: { type: 'string', description: 'A playlist, by name or id.' },
+      mood: { type: 'string', description: 'A mood in a few words, parted by spaces or commas.' },
+    }),
+  },
+  {
     name: 'stop_sound',
     title: 'Stop a sound',
-    access: 'gm',
+    access: 'write',
     description: 'Stop the music, an ambient sound (or all of them), or everything.',
     input: input(
       {
@@ -404,24 +661,69 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'play_cut_in',
     title: 'Show a cut-in',
-    access: 'gm',
+    access: 'write',
     description: 'Show a cut-in (see list_assets) to everyone.',
     input: input({ cut_in: { type: 'string', description: 'The cut-in, by name or id.', minLength: 1 } }, ['cut_in']),
   },
   {
     name: 'stop_cut_in',
     title: 'Stop a cut-in',
-    access: 'gm',
+    access: 'write',
     description: 'Stop a cut-in that is showing, or every cut-in if none is named.',
     input: input({ cut_in: { type: 'string', description: 'The cut-in, by name or id.' } }),
   },
   {
     name: 'switch_table',
     title: 'Switch the table',
-    access: 'gm',
+    access: 'write',
     description:
       "Switch everyone to another table, starting the table's music and cut-in as the game master's switch does.",
     input: input({ table: { type: 'string', description: 'The table, by name or id.', minLength: 1 } }, ['table']),
+  },
+  {
+    name: 'generate_map',
+    title: 'Make a map',
+    access: 'gm',
+    timeoutMs: 180_000,
+    description:
+      "Make a map as the map generator panel does, built as a table of its own: a dungeon of rooms and passages or open country, from an atmosphere, a size and a seed (the same seed makes the same map). An atmosphere it does not know is answered with the list of those it does. Everyone is switched to the new table unless switch_to is false. replace_previous takes away the map this seat's AI made last, once the new one is made; where everyone was looking at it, everyone is switched to the new one, switch_to false or not. One map is made at a time: a call while one is being made is refused. Answers the table, the seed and the master's notes on the map (rooms, hazards, what stands where).",
+    input: input(
+      {
+        kind: { type: 'string', enum: ['dungeon', 'field'] },
+        atmosphere: {
+          type: 'string',
+          description:
+            "The look and kind of place, as the generator names it (stoneDungeon, woodland, village...). Leave out for the panel's first.",
+        },
+        rooms: { type: 'integer', description: 'For a dungeon: how many rooms.', minimum: 3, maximum: 20 },
+        traps: { type: 'integer', description: 'For a dungeon: how many traps.', minimum: 0, maximum: 30 },
+        size: { type: 'integer', description: 'For a field: how many cells across.', minimum: 20, maximum: 60 },
+        density: {
+          type: 'integer',
+          description: 'For a field: how thickly it is grown or built, 0 to 100.',
+          minimum: 0,
+          maximum: 100,
+        },
+        relief: {
+          type: 'integer',
+          description: 'For a field: how high its ground rises, in cells.',
+          minimum: 0,
+          maximum: 6,
+        },
+        season: { type: 'string', enum: ['', 'spring', 'summer', 'autumn', 'winter'] },
+        grid: { type: 'string', enum: ['square', 'hex_vertical', 'hex_horizontal'] },
+        seed: { type: 'integer', minimum: 0 },
+        name: { type: 'string', description: "The name of the table. Leave out for the atmosphere's.", maxLength: 200 },
+        fog: { type: 'boolean', description: 'Whether the table starts covered by the fog of war.' },
+        party: {
+          type: 'string',
+          description: 'For a dungeon: the party whose pieces are stood at the way in, by name or id.',
+        },
+        replace_previous: { type: 'boolean', description: "Take away the map this seat's AI made last." },
+        switch_to: { type: 'boolean', description: 'Switch everyone to the new table. Leave out for yes.' },
+      },
+      ['kind']
+    ),
   },
   {
     name: 'apply_scene',
@@ -444,7 +746,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'place_range',
     title: 'Place a range',
-    access: 'gm',
+    access: 'write',
     description:
       'Place a range on the table, flat or standing up as a solid, at a square or following a piece. Lengths are in ' +
       'squares. A column stands up any shape; a sphere needs a circle, a cone solid a cone, a beam a line. Returns its id.',
@@ -471,7 +773,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: 'remove_range',
     title: 'Remove a range',
-    access: 'gm',
+    access: 'write',
     destructive: true,
     description: 'Remove a range from the table (see list_assets with kind ranges).',
     input: input({ range: { type: 'string', description: 'The range, by name or id.', minLength: 1 } }, ['range']),

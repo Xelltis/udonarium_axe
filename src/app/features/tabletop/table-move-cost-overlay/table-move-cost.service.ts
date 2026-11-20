@@ -6,9 +6,10 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 /**
  * The ground of the table that costs more to cross than plain footing.
  *
- * Everyone is shown it. A piece that wades in comes up short, so the shape of a reach gives
- * the ground away whatever anybody meant by it, and a room that can see why a piece stopped
- * is a room that stops asking.
+ * Everyone is shown it, but where the fog still lies over all of a stretch for a seat (see
+ * `VisionService.isGroundShown`). A piece that wades in comes up short, so the shape of a reach
+ * gives the ground away whatever anybody meant by it, and a room that can see why a piece
+ * stopped is a room that stops asking.
  */
 @Injectable({ providedIn: 'root' })
 export class TableMoveCostService {

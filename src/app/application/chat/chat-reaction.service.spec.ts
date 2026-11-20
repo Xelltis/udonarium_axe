@@ -68,16 +68,18 @@ describe('ChatReactionService', () => {
     expect(records()).toHaveLength(0);
   });
 
-  it('puts no stamp on for a guest on a room server, which the server would take back, but does among peers', () => {
+  it('puts no stamp on for a guest, among peers as on a room server, and does for a player', () => {
     const message = line();
     PeerCursor.myCursor.role = PeerRole.Guest;
-    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
 
-    expect(service.mayReact).toBe(false);
-    expect(service.toggle(message, 'seal:ok')).toBe(false);
-    expect(records()).toHaveLength(0);
+    for (const authority of [null, '@authority']) {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(authority);
+      expect(service.mayReact).toBe(false);
+      expect(service.toggle(message, 'seal:ok')).toBe(false);
+      expect(records()).toHaveLength(0);
+    }
 
-    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    PeerCursor.myCursor.role = PeerRole.Player;
     expect(service.mayReact).toBe(true);
     expect(service.toggle(message, 'seal:ok')).toBe(true);
     vi.restoreAllMocks();

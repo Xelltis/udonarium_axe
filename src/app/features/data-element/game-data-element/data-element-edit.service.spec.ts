@@ -269,6 +269,55 @@ describe('DataElementEditService', () => {
     expect(names(basic)).toEqual(['HP', 'MP']);
   });
 
+  describe('building a table', () => {
+    const originalCursor = PeerCursor.myCursor;
+    const column = { name: '技巧', label: '', group: '', kind: 'check', choices: '', from: null } as const;
+    const shape = { columns: [column], rows: [{ name: '1', from: null }] };
+
+    function beSeat(role: PeerRole): void {
+      PeerCursor.myCursor = { role, userId: 'me', identifier: 'seat' } as PeerCursor;
+    }
+
+    beforeEach(() => beSeat(PeerRole.Player));
+    afterEach(() => (PeerCursor.myCursor = originalCursor));
+
+    it('builds an empty group as the table asked for, and adds a new one at the end of a section', () => {
+      const { skills } = sheet();
+      const section = skills.parent as DataElement;
+
+      expect(service.buildTable(skills, shape)).toBe(true);
+      expect(skills.viewMode).toBe(DataElementViewMode.TABLE);
+      expect(skills.children.map((row) => names(row as DataElement))).toEqual([['技巧']]);
+
+      const added = service.addTable(section, '表', shape);
+      expect(added?.parent).toBe(section);
+      expect(names(section)).toEqual(['アクション', '表']);
+    });
+
+    it('keeps which tables this reader edits as rows, one table apart from another', () => {
+      const { basic, skills } = sheet();
+
+      service.toggleEditAsRows(basic);
+      expect([service.editsAsRows(basic), service.editsAsRows(skills)]).toEqual([true, false]);
+      service.toggleEditAsRows(basic);
+      expect(service.editsAsRows(basic)).toBe(false);
+    });
+
+    it('builds nothing for a seat that may not edit the table, on a field or a group of fields, or of a shape that may not be built', () => {
+      const { basic, hp, skills } = sheet();
+
+      expect(service.buildTable(skills, { ...shape, rows: [] })).toBe(false);
+      expect(service.buildTable(hp, shape)).toBe(false);
+      expect(service.buildTable(basic, shape)).toBe(false);
+      beSeat(PeerRole.Guest);
+      expect(service.buildTable(skills, shape)).toBe(false);
+      expect(service.addTable(skills.parent as DataElement, '表', shape)).toBeNull();
+      expect(names(basic)).toEqual(['HP', 'MP']);
+      expect(skills.children).toEqual([]);
+      expect([basic.viewMode, skills.viewMode]).not.toContain(DataElementViewMode.TABLE);
+    });
+  });
+
   describe('copying the path of an element', () => {
     afterEach(() => vi.restoreAllMocks());
 

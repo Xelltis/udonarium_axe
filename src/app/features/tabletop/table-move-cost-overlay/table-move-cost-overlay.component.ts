@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { clamp } from '@axe/core/util/clamp';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -39,6 +40,7 @@ function alphaFor(charge: number): number {
 export class TableMoveCostOverlayComponent {
   private readonly areas = inject(TableMoveCostService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly vision = inject(VisionService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('moveCostCanvas');
   private readonly painted = laidOnCanvasFloor({
     id: () => 'move-cost',
@@ -54,12 +56,17 @@ export class TableMoveCostOverlayComponent {
     return cellGridOf(table.width, table.height, table.gridSize, table.gridType);
   });
 
+  /**
+   * The stretches this seat is shown, each whole: none laid wholly where the fog still lies over ground
+   * nobody has walked to (see `VisionService.isGroundShown`).
+   */
   protected readonly view = computed<CostPatch[]>(() => {
     const grid = this.board();
     if (!grid) return [];
     const patches: CostPatch[] = [];
     for (const area of this.areas.all()) {
       const rect = area.rect;
+      if (!this.vision.isGroundShown(grid, rect)) continue;
       const cells = new CellBits(grid.cols * grid.rows);
       for (let row = 0; row < rect.height; row++) {
         for (let col = 0; col < rect.width; col++) {

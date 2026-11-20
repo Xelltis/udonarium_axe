@@ -41,7 +41,6 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { MenuCommand, menuCommandOf } from '@axe/domain/ui/menu-command';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
@@ -399,7 +398,6 @@ export class HotbarBarComponent {
     const input = event.target as HTMLInputElement;
     const files = input.files;
     try {
-      this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(Network.peerContext.roomName !== '');
       if (files && files.length > 0) await this.fileArchiver.load(files);
     } finally {
       // Emptied either way: a box still holding the file it choked on sends no second change.

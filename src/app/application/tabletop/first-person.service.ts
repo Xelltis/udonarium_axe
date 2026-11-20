@@ -3,6 +3,7 @@ import { PieceNameService } from '@axe/application/character/piece-name.service'
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { DoorService } from '@axe/application/tabletop/door.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -96,6 +97,7 @@ export class FirstPersonService {
   private readonly replay = inject(ReplayPlaybackService);
   private readonly raisedGround = inject(StandingGroundService);
   private readonly links = inject(PieceLinksService);
+  private readonly doors = inject(DoorService);
 
   private readonly worldEpoch = signal(0);
 
@@ -494,6 +496,11 @@ export class FirstPersonService {
     return true;
   }
 
+  /**
+   * Opens or shuts the door just ahead of the piece looked out of, where this seat may walk it: the
+   * nearest door it may work (`DoorService.mayWork`), so a door it is not shown is passed over as
+   * though it were not there. Answers whether a door was worked.
+   */
   toggleDoorAhead(): boolean {
     const piece = this.piece();
     const table = this.table();
@@ -502,12 +509,10 @@ export class FirstPersonService {
     const probes = this.doorProbes(piece, table, grid);
     for (const probe of probes) {
       for (const terrain of table.terrains) {
-        if (!terrain.isDoor || surfaceOf(terrain) !== 'floor') continue;
+        if (surfaceOf(terrain) !== 'floor' || !this.doors.mayWork(terrain)) continue;
         const box = terrainBoxOf(terrain, table.gridSize);
         if (probe.x < box.minX || probe.x > box.maxX || probe.y < box.minY || probe.y > box.maxY) continue;
-        terrain.isDoorOpen = !terrain.isDoorOpen;
-        SoundEffect.play(terrain.isDoorOpen ? PresetSound.unlock : PresetSound.lock);
-        return true;
+        return this.doors.toggle(terrain);
       }
     }
     return false;

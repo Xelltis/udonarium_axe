@@ -1,4 +1,4 @@
-@if (diceSymbol) {
+@if (diceSymbol && readsFace()) {
   <div class="flex flex-col gap-4">
     <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
       <h3
@@ -103,6 +103,8 @@
             class="border-ui-border-panel rounded-ui-sm bg-ui-panel hover:border-ui-accent flex cursor-pointer flex-col items-center gap-1 border-2 px-1.5 py-2 transition-[border-color,box-shadow] hover:shadow-[0_0_0_2px_color-mix(in_srgb,var(--ui-accent)_20%,transparent)]"
             [class.border-ui-accent]="face.isCurrent"
             [class.bg-[color-mix(in_srgb,var(--ui-accent)_12%,var(--ui-panel-bg))]]="face.isCurrent"
+            [class.cursor-default!]="!turnsFace()"
+            [attr.aria-disabled]="turnsFace() ? null : 'true'"
             (click)="selectFace(face.faceName)"
           >
             <div class="text-ui-text text-[12px] leading-none font-bold" [class.text-ui-accent!]="face.isCurrent">
@@ -173,5 +175,13 @@
         }
       </button>
     </section>
+  </div>
+} @else if (diceSymbol) {
+  <div
+    class="text-ui-muted bg-ui-input border-ui-border-panel flex min-h-20 items-center justify-center gap-1.5 rounded-md border border-solid px-3 py-2 text-[0.78em]"
+    data-testid="dice-sheet-locked"
+  >
+    <i class="material-icons text-[16px]!">lock</i>
+    <span>{{ 'feature.disclosure.locked' | transloco }}</span>
   </div>
 }

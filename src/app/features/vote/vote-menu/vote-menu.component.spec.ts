@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { VoteService } from '@axe/application/vote/vote.service';
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Vote } from '@axe/domain/vote/vote';
 import { VoteMenuComponent } from '@axe/features/vote/vote-menu/vote-menu.component';
+import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -52,25 +55,34 @@ describe('VoteMenuComponent', () => {
     });
   });
 
-  it('calls no vote for a guest on a room server, which would take it back and leave its announcement', () => {
+  it('calls no vote for a guest, among peers as on a room server', () => {
     const vote = { makeVote: vi.fn(), startVote: vi.fn() };
-    vi.spyOn(component, 'vote', 'get').mockReturnValue(vote as unknown as Vote);
+    vi.spyOn(TestBed.inject(VoteService), 'vote', 'get').mockReturnValue(vote as unknown as Vote);
     const said = vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageAsLastSpeaker');
     PeerCursor.myCursor = { peerId: 'my-peer-id', role: PeerRole.Guest } as unknown as PeerCursor;
-    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    component.includSelf = true;
 
+    const told = vi.spyOn(TestBed.inject(SnackbarService), 'show');
+    component.send();
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
     component.send();
 
     expect(vote.makeVote).not.toHaveBeenCalled();
     expect(said).not.toHaveBeenCalled();
+    expect(told).toHaveBeenCalledWith('見学は投票や点呼を始められません');
+  });
+
+  it('closes once its seat is made a guest', () => {
+    expectClosesForAGuest(() => TestBed.createComponent(VoteMenuComponent));
   });
 
   describe('hiding the answers until the vote closes', () => {
     function startWith(isRollCall: boolean, isSecret: boolean) {
       const vote = { makeVote: vi.fn(), startVote: vi.fn() };
-      vi.spyOn(component, 'vote', 'get').mockReturnValue(vote as unknown as Vote);
+      vi.spyOn(TestBed.inject(VoteService), 'vote', 'get').mockReturnValue(vote as unknown as Vote);
       vi.spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageAsLastSpeaker').mockReturnValue(undefined!);
       PeerCursor.myCursor = { peerId: 'my-peer-id' } as unknown as PeerCursor;
+      component.includSelf = true;
       component.isRollCall = isRollCall;
       component.isSecret = isSecret;
       component.voteTitle = '方針';
@@ -171,6 +183,27 @@ describe('VoteMenuComponent', () => {
       const list = component.selectedList();
       expect(list).toEqual(['peer-1']);
     });
+  });
+
+  it('lists no guest among the seats to ask, and asks none ticked before they were made one', () => {
+    for (const [peerId, role] of [
+      ['player-peer', PeerRole.Player],
+      ['guest-peer', PeerRole.Guest],
+    ] as const) {
+      const cursor = new PeerCursor();
+      cursor.initialize();
+      cursor.peerId = peerId;
+      cursor.role = role;
+    }
+    vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+      { peerId: 'player-peer' },
+      { peerId: 'guest-peer' },
+    ] as typeof Network.instance.peerContexts);
+    component['checkedPeers'].set(['player-peer', 'guest-peer']);
+    component.includSelf = false;
+
+    expect(component.peerList.map((peer) => peer.peerId)).toEqual(['player-peer']);
+    expect(component.selectedList()).toEqual(['player-peer']);
   });
 
   describe('selectedNum', () => {

@@ -11,6 +11,8 @@ import {
 } from '@axe/domain/data/data-element';
 import { DataElementFieldEditorComponent } from '@axe/features/data-element/data-element-editor/data-element-field-editor.component';
 import { DataElementGroupEditorComponent } from '@axe/features/data-element/data-element-editor/data-element-group-editor.component';
+import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
+import { TableBuilderLauncher } from '@axe/features/data-element/table-builder/table-builder-launcher.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function sheet(): { owner: ObjectNode; resources: DataElement; basic: DataElement; extra: DataElement } {
@@ -62,7 +64,10 @@ describe('DataElementGroupEditorComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  afterEach(() => TestBed.inject(SnackbarService).dismiss());
+  afterEach(() => {
+    TestBed.inject(SnackbarService).dismiss();
+    vi.restoreAllMocks();
+  });
 
   const press = (host: HTMLElement, testId: string) => {
     (host.querySelector(`[data-testid="${testId}"]`) as HTMLButtonElement).click();
@@ -106,6 +111,48 @@ describe('DataElementGroupEditorComponent', () => {
 
     expect(basic.viewMode).toBe(DataElementViewMode.TABLE);
     expect(host.querySelector('game-data-element-field-options')).not.toBeNull();
+  });
+
+  it('offers building the table only on a table that may be built as one', () => {
+    const { basic, extra } = sheet();
+    basic.setViewMode(DataElementViewMode.TABLE);
+    extra.setViewMode(DataElementViewMode.TABLE);
+
+    expect(open(basic).querySelector('[data-testid="group-editor-build-table"]')).toBeNull();
+    TestBed.resetTestingModule();
+    const host = open(extra);
+    const build = vi.spyOn(TestBed.inject(TableBuilderLauncher), 'buildTable').mockResolvedValue(true);
+
+    press(host, 'group-editor-build-table');
+
+    expect(build).toHaveBeenCalledWith(extra);
+  });
+
+  it('switches a table drawn as one to being edited as its rows, the same switch as the heading’s', () => {
+    const { basic, resources, extra } = sheet();
+    extra.appendChild(DataElement.create('MP', 5, { [DataElementAttribute.ROLE]: DataElementRole.FIELD }));
+    resources.setViewMode(DataElementViewMode.TABLE);
+    expect(open(basic).querySelector('[data-testid="group-editor-edit-as-rows"]')).toBeNull();
+    TestBed.resetTestingModule();
+    const host = open(resources);
+    const edit = TestBed.inject(DataElementEditService);
+
+    press(host, 'group-editor-edit-as-rows');
+
+    expect(edit.editsAsRows(resources)).toBe(true);
+    expect(host.querySelector('[data-testid="group-editor-edit-as-rows"]')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('adds a table through the table builder, and hands over to the table it adds', async () => {
+    const { resources, extra } = sheet();
+    const host = open(resources);
+    vi.spyOn(TestBed.inject(TableBuilderLauncher), 'addTable').mockResolvedValue(extra);
+
+    press(host, 'group-editor-add-table');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect((host.querySelector('[data-testid="group-editor-name"]') as HTMLInputElement).value).toBe('追加');
   });
 
   it('adds a field of the kind picked, and hands over to its editor', async () => {

@@ -1,3 +1,4 @@
+import { SQUARE_STEPS_WITH_CORNERS } from '@axe/domain/tabletop/cell-steps';
 import {
   cellAt,
   clampCorridorWidth,
@@ -29,9 +30,45 @@ export interface RoomsAndMazesParams {
   minCorridor: number;
   maxCorridor: number;
   seed: number;
+  /**
+   * For a round place, as a tower is: where the middle of each cell stands on the table, which the
+   * round of it is measured by. Left out, the place fills the board.
+   */
+  round?: (x: number, y: number) => { x: number; y: number };
 }
 
 const PLACEMENT_TRIES_PER_ROOM = 60;
+
+/**
+ * The round of a round place, cell by cell: whether each cell lies outside it, and whether each is
+ * kept from being dug, which besides those outside are the cells of the wall round it, the ones
+ * inside with a cell outside among the eight round them. The round is the largest the middles of
+ * the board's cells leave room for, about the middle of them.
+ */
+export function roundOf(
+  width: number,
+  height: number,
+  centreOf: (x: number, y: number) => { x: number; y: number }
+): { outside: Uint8Array; kept: Uint8Array } {
+  const centres = Array.from({ length: width * height }, (_, cell) => centreOf(cell % width, Math.floor(cell / width)));
+  const xs = centres.map((centre) => centre.x);
+  const ys = centres.map((centre) => centre.y);
+  const [left, right, top, bottom] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const middle = { x: (left + right) / 2, y: (top + bottom) / 2 };
+  const reach = Math.min(right - left, bottom - top) / 2;
+  const outside = new Uint8Array(width * height);
+  centres.forEach((centre, cell) => {
+    outside[cell] = Math.hypot(centre.x - middle.x, centre.y - middle.y) > reach ? 1 : 0;
+  });
+  const kept = new Uint8Array(width * height);
+  const out = (x: number, y: number) => x < 0 || y < 0 || x >= width || y >= height || outside[y * width + x] === 1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      kept[y * width + x] = out(x, y) || SQUARE_STEPS_WITH_CORNERS.some(([dx, dy]) => out(x + dx, y + dy)) ? 1 : 0;
+    }
+  }
+  return { outside, kept };
+}
 const DIRECTIONS: readonly [number, number][] = [
   [0, -1],
   [0, 1],
@@ -97,6 +134,11 @@ export function generateRoomsAndMazes(params: RoomsAndMazesParams, rng: () => nu
    * carves into them and comes to rest against the room's edge with no wall between.
    */
   const reserved = new Uint8Array(width * height);
+  const round = params.round ? roundOf(width, height, params.round) : null;
+  if (round) {
+    layout.outside = round.outside;
+    round.kept.forEach((kept, cell) => (reserved[cell] = kept));
+  }
   let regionCount = 0;
 
   const carve = (x: number, y: number, kind: number, region: number) => {
@@ -109,7 +151,7 @@ export function generateRoomsAndMazes(params: RoomsAndMazesParams, rng: () => nu
 
   regionCount = placeRooms(layout, regions, reserved, wide, params, rng, regionCount);
   regionCount = growMazes(layout, regions, { narrow, wide }, params, rng, regionCount, carve, isSolid);
-  layout.doors = joinRegions(layout, regions, params, rng, regionCount);
+  layout.doors = joinRegions(layout, regions, params, rng, regionCount, round?.kept);
   pruneDeadEnds(layout, wide);
   crumble(layout, params, wide, rng);
   layout.doors = layout.doors.filter((door) => layout.cells[door.y * width + door.x] === DungeonCell.Door);
@@ -330,12 +372,17 @@ interface Connector {
   regions: number[];
 }
 
+/**
+ * Opens joins between the regions until they are all one, and a few more for loops. A cell kept
+ * from being dug, as the wall round a round place is, is never opened.
+ */
 function joinRegions(
   layout: DungeonLayout,
   regions: Int32Array,
   params: RoomsAndMazesParams,
   rng: () => number,
-  regionCount: number
+  regionCount: number,
+  kept?: Uint8Array
 ): DungeonDoor[] {
   const merged = new Int32Array(regionCount);
   for (let index = 0; index < regionCount; index++) merged[index] = index;
@@ -345,7 +392,7 @@ function joinRegions(
   let connectors: Connector[] = [];
   for (let y = 1; y < layout.height - 1; y++) {
     for (let x = 1; x < layout.width - 1; x++) {
-      if (regions[y * layout.width + x] !== -1) continue;
+      if (regions[y * layout.width + x] !== -1 || kept?.[y * layout.width + x]) continue;
       const beside = new Set<number>();
       for (const [dx, dy] of DIRECTIONS) {
         const region = regions[(y + dy) * layout.width + x + dx];
@@ -510,8 +557,9 @@ function pruneWideDeadEnds(layout: DungeonLayout, wide: number): void {
   }
 }
 
+/** Knocks through some of the walls left standing; a round place keeps its walls, the wall round it among them. */
 function crumble(layout: DungeonLayout, params: RoomsAndMazesParams, wide: number, rng: () => number): void {
-  if (params.wallBreakChance <= 0) return;
+  if (params.wallBreakChance <= 0 || params.round) return;
   if (wide > 1) {
     crumbleWideWalls(layout, params, wide, rng);
     return;

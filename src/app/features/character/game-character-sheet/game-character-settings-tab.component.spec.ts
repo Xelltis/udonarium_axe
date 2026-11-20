@@ -55,6 +55,25 @@ describe('GameCharacterSettingsTabComponent', () => {
     expect(told?.textContent).toContain('GMのみ');
   });
 
+  it('files the piece under the folder typed as the path is stored, showing it so, and writes nothing where it is filed already', () => {
+    const input = document.createElement('input');
+    const typed = (value: string) => {
+      input.value = value;
+      component.onSetFolder({ target: input } as unknown as Event);
+    };
+
+    typed(' 敵 ／ ボス / ');
+
+    expect(character.folderName).toBe('敵/ボス');
+    expect(input.value).toBe('敵/ボス');
+
+    const written = vi.spyOn(character, 'folderName', 'set');
+    typed('敵/ボス ');
+
+    expect(written).not.toHaveBeenCalled();
+    expect(input.value).toBe('敵/ボス');
+  });
+
   describe("how high a mount's riders stand", () => {
     async function field(): Promise<HTMLInputElement | null> {
       TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);

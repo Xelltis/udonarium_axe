@@ -14,8 +14,8 @@ import {
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { WhiteBoardService } from '@axe/application/tabletop/white-board.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -49,10 +49,9 @@ import {
   updateText,
 } from '@axe/domain/map-editor/scene-ops';
 import { deserializeScene } from '@axe/domain/map-editor/serialize';
-import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
-import { detachFromBoard, standingOn } from '@axe/features/tabletop/white-board/white-board-contents';
 import { BoardGesture } from '@axe/features/tabletop/white-board/white-board-gesture';
 import { BoardKeeper } from '@axe/features/tabletop/white-board/white-board-keeper';
 import {
@@ -177,9 +176,6 @@ const DUPLICATE_OFFSET = 16;
 /** How far one press of the turn buttons takes a mark round. */
 const TURN_STEP = 15;
 
-/** The kinds of piece that can stand on a board, which the layer drawer lists so they can be taken off. */
-const STANDING_ALIASES = ['character', 'terrain', 'table-mask', 'text-note', 'card', 'dice-symbol'] as const;
-
 @Component({
   selector: 'white-board-editor',
   templateUrl: './white-board-editor.component.html',
@@ -200,8 +196,8 @@ export class WhiteBoardEditorComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly tabletopService = inject(TabletopService);
+  private readonly boards = inject(WhiteBoardService);
   private readonly panelService = inject(PanelService);
-  private readonly objectChange = inject(ObjectChangeService);
   protected readonly t = inject(TRANSLATE_FN);
   protected readonly isCompact = inject(ViewportService).isCompact;
   protected readonly drawer = signal<'none' | 'props' | 'layers'>('none');
@@ -545,22 +541,13 @@ export class WhiteBoardEditorComponent {
   /** What is standing on the board, so it can be taken off without hunting for it. */
   protected readonly standing = computed<TabletopObject[]>(() => {
     this.revision();
-    for (const alias of STANDING_ALIASES) this.objectChange.collectionOf(alias)();
     const board = this.board;
-    if (!board) return [];
-    return standingOn(board, [
-      ...this.tabletopService.characters,
-      ...this.tabletopService.terrains,
-      ...this.tabletopService.tableMasks,
-      ...this.tabletopService.textNotes,
-      ...this.tabletopService.cards,
-      ...this.tabletopService.diceSymbols,
-    ]);
+    return board ? this.boards.standingOn(board) : [];
   });
 
   protected takeOff(object: TabletopObject): void {
-    if (!this.board || !boardSurfaceOf(object)) return;
-    detachFromBoard(this.board, object);
+    if (!this.board) return;
+    this.boards.takeOff(this.board, object);
     this.settingChanged();
   }
 

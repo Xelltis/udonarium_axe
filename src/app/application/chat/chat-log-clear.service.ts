@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { formatLogMoment } from '@axe/domain/chat/chat-log-rich';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { canRoleManageTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
@@ -48,6 +49,15 @@ export class ChatLogClearService {
   }
 
   /**
+   * Whether this reader may clear the log of a tab: one it may read, as a seat that may change the
+   * room. A tab kept from a seat is none of its to clear, though its lines reach it among peers.
+   */
+  mayClear(tab: ChatTab): boolean {
+    this.objectChange.trackMyCursor();
+    return canRoleManageTab(tab, PeerCursor.myRole);
+  }
+
+  /**
    * Whether a room server keeps the dice it rolled from this seat's clearing, which it does from
    * anyone but the game master. Among peers nothing is kept.
    */
@@ -75,10 +85,10 @@ export class ChatLogClearService {
    * Clears the tab's log as far as the reach given, the whole of it where none is, of the lines this
    * seat may see, and posts in the tab who cleared it and up to when. Clearing the whole log puts the tab's portraits back as well.
    * A reach that takes no line of the tab leaves it as it is, with nothing posted. Does nothing for a
-   * seat that may not clear logs.
+   * seat that may not clear logs, nor for a tab it may not read.
    */
   clear(tab: ChatTab, reach?: ChatLogClearReach): void {
-    if (!this.canClear) return;
+    if (!this.mayClear(tab)) return;
     const moment = !reach ? null : 'before' in reach ? reach.before : reach.beforeLine.placedAt;
     const lines = this.linesWithin(tab, reach);
     if (reach && lines.length === 0) return;

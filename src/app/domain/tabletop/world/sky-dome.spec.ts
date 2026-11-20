@@ -29,6 +29,18 @@ describe('the sky drawn over a table', () => {
     expect(Math.abs(dusk.sun.z)).toBeLessThan(0.01);
   });
 
+  it('glows paler and golder round the sun rising than round the sun setting', () => {
+    const dawn = skyDomeAt(0.25);
+    const dusk = skyDomeAt(0.75);
+    const red = (hex: string) => parseInt(hex.slice(1, 3), 16);
+    const blue = (hex: string) => parseInt(hex.slice(5, 7), 16);
+
+    expect(dawn.glowStrength).toBeGreaterThan(0.9);
+    expect(dawn.horizon).not.toBe(dusk.horizon);
+    expect(red(dawn.horizon) - blue(dawn.horizon)).toBeLessThan(red(dusk.horizon) - blue(dusk.horizon));
+    expect(blue(dawn.zenith)).toBeGreaterThan(blue(dusk.zenith));
+  });
+
   it('puts the sun and the moon where the light of the sky comes from', () => {
     for (const hour of [9, 12, 15]) {
       const light = skyLightAt(hour / 24).direction;

@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import {
   ancestorFolderPaths,
+  fileUnderFolder,
   FOLDER_SEPARATOR,
   folderSegments,
   isDescendantFolderPath,
@@ -141,13 +142,10 @@ export class FolderShelf<T extends FiledThing> {
     for (const item of this.itemsUnder(path)) item.folderName = '';
   }
 
-  /** Files things into a folder, or into none for an empty path. */
+  /** Files things into a folder, or into none for an empty path, as {@link fileUnderFolder} files one. */
   fileInto(items: readonly T[], path: string): void {
     if (!this.host.canEdit()) return;
-    const folder = normalizeFolderPath(path);
-    for (const item of items) {
-      if (normalizeFolderPath(item.folderName) !== folder) item.folderName = folder;
-    }
+    for (const item of items) fileUnderFolder(item, path);
   }
 
   private itemsUnder(path: string): T[] {

@@ -5,7 +5,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { Network } from '@axe/core/network/network';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 /** How long the menu goes on showing a finished save, so the last of its count can be read. */
 const SAVED_SHOWN_MS = 500;
@@ -50,6 +49,17 @@ export class RoomFilesService {
   }
 
   /**
+   * Loads a saved room the reader has already agreed to put in place of the one in play, asked by the
+   * app itself before, as a load an AI asks for is: no question is asked again. Answers whether the
+   * room data was read. Refused for a role that may not edit the table.
+   */
+  async loadAgreed(file: File): Promise<boolean> {
+    if (!this.rolePermission.canEditTabletop()) return false;
+    const { dataRead } = await this.fileArchiver.load([file], undefined, { check: 'agreed' });
+    return dataRead;
+  }
+
+  /**
    * Loads the files chosen in a file picker into the room.
    *
    * Refused for a role that may not edit the table. The picker is cleared either way, so the same
@@ -61,7 +71,6 @@ export class RoomFilesService {
       return;
     }
     const files = input.files;
-    this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(Network.peerContext.roomName !== '');
     if (files && files.length) this.fileArchiver.load(files);
     input.value = '';
   }

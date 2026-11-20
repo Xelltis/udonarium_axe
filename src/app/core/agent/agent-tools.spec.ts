@@ -19,14 +19,27 @@ describe('AGENT_TOOLS', () => {
     }
   });
 
-  it('asks only for what its input knows, and refuses anything else', () => {
+  it('asks only for what its input knows, and refuses anything else but what a kind of thing checks', () => {
+    const checkedByKind = [
+      'create_object.options',
+      'create_object.fields',
+      'change_object.fields',
+      'act_on_object.args',
+    ];
+    const free: string[] = [];
     for (const tool of AGENT_TOOLS) {
       expect(tool.input.type).toBe('object');
+      expect(tool.input.additionalProperties).toBe(false);
       for (const name of tool.input.required ?? []) expect(Object.keys(tool.input.properties)).toContain(name);
-      for (const schema of schemasIn(tool.input)) {
-        if (schema.type === 'object') expect(schema.additionalProperties).toBe(false);
+      for (const [name, property] of Object.entries(tool.input.properties)) {
+        for (const schema of schemasIn(property)) {
+          if (schema.type !== 'object') continue;
+          if (schema.additionalProperties === true) free.push(`${tool.name}.${name}`);
+          else expect(schema.additionalProperties).toBe(false);
+        }
       }
     }
+    expect(free).toEqual(checkedByKind);
   });
 
   it('takes no input for the tools that need none, and checks what the others are given', () => {
@@ -49,9 +62,20 @@ describe('AGENT_TOOLS', () => {
       'list_assets',
       'read_scenario_text',
       'wait_for_events',
+      'list_music',
+      'list_room_snapshots',
+      'save_room',
+      'save_room_snapshot',
+      'describe_kinds',
+      'list_objects',
+      'get_object',
     ]);
     expect(agentToolOf('send_chat')?.access).toBe('write');
-    expect(agentToolOf('play_sound')?.access).toBe('gm');
+    expect(AGENT_TOOLS.filter((tool) => tool.access === 'gm').map((tool) => tool.name)).toEqual([
+      'generate_map',
+      'apply_scene',
+      'send_scenario_text',
+    ]);
     expect(agentToolOf('no_such_tool')).toBeNull();
   });
 

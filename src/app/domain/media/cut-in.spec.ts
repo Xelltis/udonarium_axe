@@ -136,6 +136,90 @@ describe('CutIn', () => {
     });
   });
 
+  describe('the size it is given and plays at', () => {
+    let cutIn: CutIn;
+    const VIDEO_URL = 'https://www.youtube.com/watch?v=abcdefghijk';
+
+    beforeEach(() => {
+      cutIn = new CutIn();
+      cutIn.initialize();
+      cutIn.originalSize = false;
+    });
+
+    it('holds each side inside the bounds of a picture, in whole pixels', () => {
+      cutIn.setSize(5, 5000);
+      expect([cutIn.width, cutIn.height]).toEqual([10, 1200]);
+
+      cutIn.setSize(100.4, 200.6);
+      expect([cutIn.width, cutIn.height]).toEqual([100, 201]);
+    });
+
+    it('holds each side inside the bounds of a video', () => {
+      cutIn.isVideoCutIn = true;
+      cutIn.videoUrl = VIDEO_URL;
+
+      cutIn.setSize(100, 5000);
+
+      expect([cutIn.width, cutIn.height]).toEqual([448, 1080]);
+    });
+
+    it('keeps a side given as no number at all', () => {
+      cutIn.setSize(300, 200);
+
+      cutIn.setSize(null as unknown as number, Number.NaN);
+
+      expect([cutIn.width, cutIn.height]).toEqual([300, 200]);
+    });
+
+    it('has the other side follow the shape given, the side given following it back where it meets its bounds', () => {
+      cutIn.resizeSide('width', 1000, { width: 1, height: 2 });
+      expect([cutIn.width, cutIn.height]).toEqual([600, 1200]);
+
+      cutIn.resizeSide('width', 1500, { width: 1000, height: 1000 });
+      expect([cutIn.width, cutIn.height]).toEqual([1200, 1200]);
+
+      cutIn.resizeSide('height', 5, { width: 4, height: 1 });
+      expect([cutIn.width, cutIn.height]).toEqual([40, 10]);
+
+      cutIn.resizeSide('width', 300, null);
+      expect([cutIn.width, cutIn.height]).toEqual([300, 10]);
+    });
+
+    it('changes nothing for a side given as no number, whether the other side follows a shape or not', () => {
+      for (const side of ['width', 'height'] as const) {
+        for (const value of [Number.NaN, null as unknown as number, Number.POSITIVE_INFINITY]) {
+          for (const shape of [{ width: 100, height: 1000 }, null]) {
+            cutIn.setSize(480, 320);
+
+            cutIn.resizeSide(side, value, shape);
+
+            expect([cutIn.width, cutIn.height], `${side} ${value} ${JSON.stringify(shape)}`).toEqual([480, 320]);
+          }
+        }
+      }
+    });
+
+    it('plays a size given from elsewhere held inside the bounds, and at original size its own as it is', () => {
+      cutIn.width = 5000;
+      cutIn.height = 3;
+      expect(cutIn.shownSize).toEqual({ width: 1920, height: 10 });
+      expect(cutInPanelBox(cutIn, { width: 3000, height: 2000 })).toMatchObject({ width: 1920 });
+
+      cutIn.originalSize = true;
+      expect(cutIn.shownSize).toEqual({ width: 5000, height: 3 });
+    });
+
+    it('takes the size of its own only while original size is on', () => {
+      cutIn.setSize(300, 200);
+      cutIn.fitOwnSize(2400, 1600);
+      expect([cutIn.width, cutIn.height]).toEqual([300, 200]);
+
+      cutIn.originalSize = true;
+      cutIn.fitOwnSize(2400, 0);
+      expect([cutIn.width, cutIn.height]).toEqual([2400, 200]);
+    });
+  });
+
   describe('minSize / maxSize', () => {
     let cutIn: CutIn;
 
@@ -148,8 +232,8 @@ describe('CutIn', () => {
       expect(cutIn.minSizeWidth(false)).toBe(10);
     });
 
-    it('the widest', () => {
-      expect(cutIn.maxSizeWidth(false)).toBe(1200);
+    it('the widest, as wide as a video', () => {
+      expect(cutIn.maxSizeWidth(false)).toBe(1920);
     });
 
     it('the narrowest a video may be', () => {

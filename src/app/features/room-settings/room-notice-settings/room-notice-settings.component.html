@@ -38,6 +38,9 @@
             <option [ngValue]="chatTab.identifier">{{ chatTab.name }}</option>
           }
           <option [ngValue]="noticeOff">{{ 'feature.roomSettings.notices.off' | transloco }}</option>
+          @if (anyKeptTabRoute()) {
+            <option [ngValue]="keptTabRoute" disabled>{{ 'feature.roomSettings.notices.keptTab' | transloco }}</option>
+          }
         </select>
       }
     </div>

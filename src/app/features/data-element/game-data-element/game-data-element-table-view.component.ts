@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { clamp } from '@axe/core/util/clamp';
@@ -26,6 +27,15 @@ import {
   type TableColumnHeaderGroup as DataElementTableColumnHeaderGroup,
 } from '@axe/domain/data/table-layout';
 import {
+  movedAPlace,
+  newTableColumn,
+  newTableRow,
+  TABLE_CELL_KINDS,
+  type TableShape,
+  type TableShapeColumn,
+} from '@axe/domain/data/table-shape';
+import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
+import {
   type JudgeCandidatesState,
   JudgementCandidatesModalComponent,
 } from '@axe/features/data-element/game-data-element/judgement-candidates-modal.component';
@@ -43,12 +53,36 @@ export class GameDataElementTableViewComponent {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly edit = inject(DataElementEditService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly element = input.required<DataElement>();
   readonly isValueLocked = input(false);
   readonly isJudgeModeEnabled = input(false);
   readonly loopHorizontal = input(false);
   readonly loopVertical = input(false);
+  /** Whether the table's rows and columns are edited on it, as they are in edit mode for a seat that may edit the table. */
+  readonly editable = input(false);
+
+  protected readonly kinds = TABLE_CELL_KINDS;
+
+  /**
+   * The column, by its name, or the row, by its identifier, whose settings the bar over the table
+   * edits; none once the table stops being edited or another table is shown.
+   */
+  protected readonly editing = linkedSignal<
+    { editable: boolean; element: DataElement },
+    { column: string } | { row: string } | null
+  >({
+    source: () => ({ editable: this.editable(), element: this.element() }),
+    computation: () => null,
+  });
+
+  /** Why the last change asked for on the table was not made, as the builder names it; none once another is picked. */
+  protected readonly editProblem = linkedSignal<unknown, string | null>({
+    source: this.editing,
+    computation: () => null,
+  });
 
   readonly judgeCandidatesState = signal<JudgeCandidatesState | null>(null);
   private readonly _judgeActive = signal<boolean>(false);
@@ -76,6 +110,30 @@ export class GameDataElementTableViewComponent {
     return getTableColumnsShared(this.element());
   });
 
+  /** The table as it stands, as the table's own edit and the table builder both change it (see `tableShapeOf`). */
+  private readonly shape = computed<TableShape>(() => {
+    this.trackTableDependencies();
+    return this.edit.tableShapeOf(this.element());
+  });
+
+  /** The column the bar edits, with where it stands among the columns; null for none. */
+  protected readonly editedColumn = computed(() => {
+    const editing = this.editing();
+    if (!this.editable() || !editing || !('column' in editing)) return null;
+    const columns = this.shape().columns;
+    const index = columns.findIndex((column) => column.name === editing.column);
+    return index < 0 ? null : { column: columns[index], index, last: index === columns.length - 1 };
+  });
+
+  /** The row the bar edits, with where it stands among the rows; null for none. */
+  protected readonly editedRow = computed(() => {
+    const editing = this.editing();
+    if (!this.editable() || !editing || !('row' in editing)) return null;
+    const rows = this.shape().rows;
+    const index = rows.findIndex((row) => row.from === editing.row);
+    return index < 0 ? null : { row: rows[index], index, last: index === rows.length - 1 };
+  });
+
   readonly hasTableColumnGroups = computed(() => this.tableColumns().some((column) => column.group.length > 0));
 
   readonly tableColumnHeaderGroups = computed<DataElementTableColumnHeaderGroup[]>(() =>
@@ -87,6 +145,129 @@ export class GameDataElementTableViewComponent {
     this.objectChange.versionOf(element.identifier)();
     return element.getAttribute(DataElementAttribute.ROW_HEADER_LABEL).trim();
   });
+
+  /** Whether the bar edits the column of this name. */
+  protected isEditedColumn(name: string): boolean {
+    const editing = this.editing();
+    return !!editing && 'column' in editing && editing.column === name;
+  }
+
+  /** Whether the bar edits this row. */
+  protected isEditedRow(row: DataElement): boolean {
+    const editing = this.editing();
+    return !!editing && 'row' in editing && editing.row === row.identifier;
+  }
+
+  /** Puts the column of this name on the bar, or takes it off where it is there already. */
+  protected editColumn(name: string): void {
+    this.editing.set(this.isEditedColumn(name) ? null : { column: name });
+  }
+
+  /** Puts the row on the bar, or takes it off where it is there already. */
+  protected editRow(row: DataElement): void {
+    this.editing.set(this.isEditedRow(row) ? null : { row: row.identifier });
+  }
+
+  protected stopEditing(): void {
+    this.editing.set(null);
+  }
+
+  /**
+   * Writes one setting of the column at `index` as it was typed or picked on the bar, keeping the column
+   * on the bar under its new name. A setting refused is put back on the bar as it stood.
+   */
+  protected async setColumn(
+    index: number,
+    setting: 'name' | 'label' | 'group' | 'kind' | 'choices',
+    field: EventTarget | null
+  ): Promise<void> {
+    if (!(field instanceof HTMLInputElement) && !(field instanceof HTMLSelectElement)) return;
+    const shape = this.shape();
+    const column = { ...shape.columns[index], [setting]: field.value } as TableShapeColumn;
+    const built = await this.build({
+      ...shape,
+      columns: shape.columns.map((each, at) => (at === index ? column : each)),
+    });
+    if (built) this.editing.set({ column: column.name.trim() });
+    else field.value = shape.columns[index][setting];
+  }
+
+  /** Changes the row at `index`'s name as typed on the bar; a name refused is put back as it stood. */
+  protected async renameRow(index: number, field: EventTarget | null): Promise<void> {
+    if (!(field instanceof HTMLInputElement)) return;
+    const shape = this.shape();
+    const built = await this.build({
+      ...shape,
+      rows: shape.rows.map((row, at) => (at === index ? { ...row, name: field.value } : row)),
+    });
+    if (!built) field.value = shape.rows[index].name;
+  }
+
+  protected async moveColumn(index: number, by: -1 | 1): Promise<void> {
+    const shape = this.shape();
+    await this.build({ ...shape, columns: movedAPlace(shape.columns, index, by) });
+  }
+
+  protected async moveRow(index: number, by: -1 | 1): Promise<void> {
+    const shape = this.shape();
+    await this.build({ ...shape, rows: movedAPlace(shape.rows, index, by) });
+  }
+
+  /** Takes the column away, asking first where cells under it hold something. */
+  protected async removeColumn(index: number): Promise<void> {
+    const shape = this.shape();
+    if (await this.build({ ...shape, columns: shape.columns.filter((_column, at) => at !== index) }))
+      this.stopEditing();
+  }
+
+  /** Takes the row away, asking first where cells of it hold something. */
+  protected async removeRow(index: number): Promise<void> {
+    const shape = this.shape();
+    if (await this.build({ ...shape, rows: shape.rows.filter((_row, at) => at !== index) })) this.stopEditing();
+  }
+
+  /** Adds a column of checks at the right end, a cell of it in every row, and puts it on the bar to be named. */
+  protected async addColumn(): Promise<void> {
+    const shape = this.shape();
+    const column = newTableColumn(shape, this.t('feature.dataElement.tableBuilder.newColumn'));
+    if (await this.build({ ...shape, columns: [...shape.columns, column] })) this.editing.set({ column: column.name });
+  }
+
+  /** Adds a row at the end, a cell of every column in it holding nothing, and puts it on the bar to be named. */
+  protected async addRow(): Promise<void> {
+    const shape = this.shape();
+    if (!(await this.build({ ...shape, rows: [...shape.rows, newTableRow(shape)] }))) return;
+    const added = this.edit.tableShapeOf(this.element()).rows.at(-1)?.from;
+    if (added) this.editing.set({ row: added });
+  }
+
+  /**
+   * Builds the table as changed on it, through the same one place as the table builder
+   * (`DataElementEditService.buildTable`). A change that leaves the table one that may not be built
+   * is refused, and the bar says why; one that takes away cells holding something is asked about first.
+   */
+  private async build(shape: TableShape): Promise<boolean> {
+    const element = this.element();
+    if (!this.mayBuild(element, shape)) return false;
+    const lost = this.edit.cellsLostBy(element, shape);
+    if (lost > 0) {
+      const sure = await this.confirm.ask(this.t('feature.dataElement.tableView.edit.confirmLost', { count: lost }));
+      if (!sure || !this.mayBuild(element, shape)) return false;
+    }
+    this.editProblem.set(null);
+    return this.edit.buildTable(element, shape);
+  }
+
+  /**
+   * Whether a shape may be built on the table as it stands now, the bar told why not where it may not
+   * (see `tableBuildProblems`): asked again once the question of the cells to lose is answered, as
+   * another seat may change the table while it stands open.
+   */
+  private mayBuild(element: DataElement, shape: TableShape): boolean {
+    const [problem] = this.edit.tableBuildProblems(element, shape);
+    if (problem) this.editProblem.set(problem);
+    return !problem;
+  }
 
   /**
    * Whether a click on a check cell looks up judgement candidates instead of ticking it: the sheet

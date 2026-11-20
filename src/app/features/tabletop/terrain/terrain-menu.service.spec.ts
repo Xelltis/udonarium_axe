@@ -1,10 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { DoorService } from '@axe/application/tabletop/door.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -70,6 +74,33 @@ describe('TerrainMenuService', () => {
       '地形メニュー'
     );
     expect(openRadial).not.toHaveBeenCalled();
+  });
+
+  it('offers to open a door only where this seat may, and opens it as the doors are opened', () => {
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+    TestBed.inject(TabletopService).currentTable.mode2d = false;
+    vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
+    const door = Terrain.create('扉', 1, 1, 2, 'wall.png', 'floor.png');
+    door.doorStyle = DoorStyle.SWING;
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+    const offered = () => (open.mock.lastCall?.[1] ?? []).find((item) => item.name === '扉を開く');
+    const toggle = vi.spyOn(TestBed.inject(DoorService), 'toggle');
+
+    try {
+      service.open(door);
+      offered()?.action?.();
+      expect(toggle).toHaveBeenCalledWith(door);
+      expect(door.isDoorOpen).toBe(true);
+
+      door.isDoorOpen = false;
+      vi.spyOn(TestBed.inject(DoorService), 'mayWork').mockReturnValue(false);
+      service.open(door);
+      expect(offered()).toBeUndefined();
+    } finally {
+      door.destroy();
+      PeerCursor.myCursor = null!;
+    }
   });
 
   it('leaves a terrain in a selection to the menu for the whole selection', () => {

@@ -1,13 +1,12 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
 import { stampOf, stampOrder } from '@axe/domain/chat/stamp-catalog';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole } from '@axe/domain/peer/peer-role';
+import { canRoleEdit } from '@axe/domain/peer/peer-role';
 
 /** One stamp on a line: how many put it on, who they are, and whether the reader is among them. */
 export interface ReactionTally {
@@ -69,12 +68,12 @@ export class ChatReactionService {
   }
 
   /**
-   * Whether this reader may put stamps on lines at all. On a room server a guest writes nothing but
-   * lines in tabs guests may speak in, and the server takes a guest's stamps back; among peers
-   * anyone may.
+   * Whether this reader may put stamps on lines at all: any role but a guest, who writes nothing to
+   * the room but lines in the tabs guests may speak in, among peers as on a room server.
    */
   get mayReact(): boolean {
-    return Network.authorityPeerId === null || PeerCursor.myRole !== PeerRole.Guest;
+    this.objectChange.trackMyCursor();
+    return canRoleEdit(PeerCursor.myRole);
   }
 
   /**

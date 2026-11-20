@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/network/network';
-import { Card } from '@axe/domain/card/card';
+import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import {
   Disclosable,
   DisclosureMode,
@@ -13,9 +14,11 @@ import {
 import { mayBeOffered } from '@axe/domain/peer/chosen-seat';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleBadgeClass, roleShortLabelKey } from '@axe/domain/peer/peer-role';
-import { heldToGameMasterByServer } from '@axe/domain/peer/server-held';
-import { ownerRuledByServer } from '@axe/domain/tabletop/withheld';
-import { noCandidatesKey } from '@axe/features/disclosure/disclosure-context-menu';
+import {
+  type DisclosureCandidate,
+  noCandidatesKey,
+  ownerCandidates as ownerCandidatesOf,
+} from '@axe/features/disclosure/disclosure-context-menu';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -23,11 +26,6 @@ interface DisclosableObject extends Disclosable {
   identifier: string;
   owner?: string;
   update(): void;
-}
-
-interface OwnerCandidate {
-  userId: string;
-  name: string;
 }
 
 interface AudienceCandidate {
@@ -46,6 +44,7 @@ interface AudienceCandidate {
 export class DisclosureControlComponent {
   private readonly disclosureService = inject(DisclosureService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly diceRoll = inject(DiceRollService);
 
   readonly object = input.required<DisclosableObject>();
 
@@ -81,41 +80,24 @@ export class DisclosureControlComponent {
 
   /**
    * Gives the object to the user chosen in the owner menu, or to nobody for an empty id, and shares
-   * the change; ignored without permission to set the owner.
+   * the change; ignored without permission to set the owner. A die kept to a seat is given to nobody
+   * through the dice service, which shows its face and says it in the chat, as its own menu does.
    */
   setOwner(userId: string): void {
     const object = this.object();
     if (!this.disclosureService.canSetOwner(object)) return;
+    if (userId === '' && object instanceof DiceSymbol) {
+      this.diceRoll.reveal(object);
+      return;
+    }
     object.owner = userId;
     object.update();
   }
 
-  /**
-   * The users the owner menu offers: this user first, then every other connected user who may be
-   * chosen or owns the object now, each named by their cursor or a short id.
-   *
-   * A room server lets anyone but the game master take a note or a die nobody owns for themselves
-   * alone, and a card only for themselves or nobody, so there it offers only this user for those,
-   * besides the owner the piece has now. Who owns anything else is left free.
-   */
-  ownerCandidates(): OwnerCandidate[] {
-    const candidates: OwnerCandidate[] = [];
-    const myCursor = PeerCursor.myCursor;
-    if (myCursor) candidates.push({ userId: myCursor.userId, name: myCursor.name || myCursor.userId.slice(0, 6) });
-    const owner = this.owner();
-    const narrowed = heldToGameMasterByServer();
-    const object = this.object();
-    if (narrowed && ownerRuledByServer(object) && (!owner || object instanceof Card)) {
-      const holder = owner && owner !== myCursor?.userId ? PeerCursor.findByUserId(owner) : null;
-      if (holder) candidates.push({ userId: holder.userId, name: holder.name || holder.userId.slice(0, 6) });
-      return candidates;
-    }
-    for (const context of Network.instance.peerContexts) {
-      const cursor = PeerCursor.findByPeerId(context.peerId);
-      if (!cursor || cursor.isMine || !mayBeOffered(cursor, [owner])) continue;
-      candidates.push({ userId: cursor.userId, name: cursor.name || cursor.userId.slice(0, 6) });
-    }
-    return candidates;
+  /** The users the owner menu offers, as {@link ownerCandidatesOf} gives them for the object as it stands. */
+  ownerCandidates(): DisclosureCandidate[] {
+    this.owner();
+    return ownerCandidatesOf(this.object());
   }
 
   /** The translation key for a disclosure mode's button. */

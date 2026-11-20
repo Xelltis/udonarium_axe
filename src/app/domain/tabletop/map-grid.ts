@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { hexCellCenter, hexLayoutOf, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { MapPoint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
+import type { MapBlock, MapPoint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
 
 /** The board a generated map is laid out on: what shape its cells are and how big they are. */
 export interface MapGrid {
@@ -30,6 +30,72 @@ export function blockOrigin(rect: MapRect, grid: MapGrid): MapPoint {
   if (!isHexGrid(grid.type)) return { x: rect.x * grid.sizePx, y: rect.y * grid.sizePx };
   const middle = cellCentre({ x: rect.x, y: rect.y }, grid);
   return { x: middle.x - grid.sizePx / 2, y: middle.y - grid.sizePx / 2 };
+}
+
+/**
+ * Where a block goes, in table pixels: the top left corner of its rectangle, before it is put in the
+ * middle of its footprint, and shifted as it says.
+ *
+ * A block of several cells on a board of hexes covers the hexes round the one its middle stands on,
+ * so it is shifted to stand its middle on the middle of a cell of its rectangle: the one it names
+ * (`standsOn`), or else the one whose middle lies nearest the middle of all of them. Every block a
+ * generator lays is put here, so none of several cells stands between hexes.
+ */
+export function blockCorner(block: Pick<MapBlock, 'rect' | 'offset' | 'standsOn'>, grid: MapGrid): MapPoint {
+  const origin = blockOrigin(block.rect, grid);
+  const shift = hexStandShift(block.rect, grid.type, block.standsOn);
+  return {
+    x: origin.x + ((shift?.x ?? 0) + (block.offset?.x ?? 0)) * grid.sizePx,
+    y: origin.y + ((shift?.y ?? 0) + (block.offset?.y ?? 0)) * grid.sizePx,
+  };
+}
+
+/**
+ * How far a block of several cells on a board of hexes is shifted from where a block of its rectangle
+ * is put, in cells, to stand its middle on the middle of a cell: the one named, or the cell of the
+ * rectangle nearest its middle. Nothing for a block of one cell, nor on squares, where the rectangle is
+ * the block.
+ */
+function hexStandShift(rect: MapRect, gridType: GridType, standsOn?: MapPoint): MapPoint | undefined {
+  if (!isHexGrid(gridType) || (rect.w < 2 && rect.h < 2)) return undefined;
+  const grid = { type: gridType, sizePx: 1 };
+  const middle = cellCentre(standsOn ?? cellNearest(rect, middleOfCells(rect, gridType), gridType), grid);
+  const origin = blockOrigin(rect, grid);
+  return { x: middle.x - origin.x - rect.w / 2, y: middle.y - origin.y - rect.h / 2 };
+}
+
+/** The cell of a rectangle whose middle lies nearest a point, on a board of cells a unit across. */
+export function cellNearest(rect: MapRect, point: MapPoint, gridType: GridType): MapPoint {
+  const grid = { type: gridType, sizePx: 1 };
+  let nearest = { x: rect.x, y: rect.y };
+  let least = Infinity;
+  for (let dy = 0; dy < rect.h; dy++) {
+    for (let dx = 0; dx < rect.w; dx++) {
+      const cell = { x: rect.x + dx, y: rect.y + dy };
+      const centre = cellCentre(cell, grid);
+      const off = Math.hypot(centre.x - point.x, centre.y - point.y);
+      if (off < least) {
+        least = off;
+        nearest = cell;
+      }
+    }
+  }
+  return nearest;
+}
+
+/** The middle of all the cells of a rectangle, on a board of cells a unit across. */
+export function middleOfCells(rect: MapRect, gridType: GridType): MapPoint {
+  const grid = { type: gridType, sizePx: 1 };
+  let x = 0;
+  let y = 0;
+  for (let dy = 0; dy < rect.h; dy++) {
+    for (let dx = 0; dx < rect.w; dx++) {
+      const centre = cellCentre({ x: rect.x + dx, y: rect.y + dy }, grid);
+      x += centre.x;
+      y += centre.y;
+    }
+  }
+  return { x: x / (rect.w * rect.h), y: y / (rect.w * rect.h) };
 }
 
 /** The middle of a cell, which is where anything that stands on one rather than over it goes. */

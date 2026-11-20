@@ -10,12 +10,15 @@ import type {
 import { colourNode } from '@axe/infrastructure/three-kit/colour-node';
 import {
   diffuseColor,
+  dot,
   float,
   length,
+  materialEmissive,
   max,
   mix,
   output,
   positionWorld,
+  smoothstep,
   sRGBTransferEOTF,
   sRGBTransferOETF,
   texture,
@@ -31,10 +34,23 @@ import {
   MeshLambertNodeMaterial,
   MeshStandardNodeMaterial,
   NoColorSpace,
+  type Node,
   type NodeMaterial,
   Vector3,
   Vector4,
 } from 'three/webgpu';
+
+/**
+ * The colour what the moon lights fades towards, beside the grey of its own brightness: a little
+ * darker and bluer, as the eye sees by moonlight.
+ */
+const MOONLIT_TINT = vec3(0.82, 0.92, 1.22);
+/**
+ * How bright a point is, in the light the scene is worked out in, before the moonlight starts to leave
+ * it its colour, and how bright before it leaves all of it: a point a lamp lights keeps its colour.
+ */
+const MOONLIT_FROM = 0.18;
+const MOONLIT_TO = 0.55;
 
 /** How a material takes the darkness: in the light it is lit by, or on the colour it is drawn in. */
 export type DarknessTaking = 'lit' | 'unlit';
@@ -55,6 +71,8 @@ export class SceneVeil {
   private readonly light = new BoardPicture();
   private readonly glow = new BoardPicture();
   private readonly darkness = uniform(0);
+  /** How far what the moon lights is drawn as by moonlight, from 0 by day to 1. */
+  private readonly moonlit = uniform(0);
   private readonly lamps: readonly ShadowLamp[];
   private readonly fogged = this.foggedOutput();
   private readonly lifted = this.liftedOut();
@@ -139,19 +157,49 @@ export class SceneVeil {
     return srgbToLinear(1 - this.darkness.value);
   }
 
-  /** Lays the veil and the darkness over a material, taken in its light or on its colour. */
-  cover(material: Material, taking: DarknessTaking = 'unlit'): void {
+  /**
+   * Lays the veil and the darkness over a material, taken in its light or on its colour. A lit
+   * material that gives off a glow of its own, as a neon tube or a potion does, keeps it however
+   * dark the table is; the veil still hides it.
+   *
+   * The world is drawn as by moonlight at night (see {@link setMoonlit}); what the players tell apart
+   * by its colour, a piece's picture or model, a die or a coin, is covered with `moonlit` false, and
+   * keeps its colour, only darkened. Every layer says which it draws, as no default would say it for
+   * a layer added later.
+   */
+  cover(material: Material, taking: DarknessTaking, moonlit: boolean): void {
     const node = material as NodeMaterial;
+    const night = (colour: Node<'vec3'>) => (moonlit ? this.byMoonlight(colour) : colour);
     if (taking === 'lit') {
       litByLamps(material);
-      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial)
-        material.emissiveNode = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
-      node.outputNode = this.fogged(vec4(output.rgb.add(this.glowing), output.a));
+      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial) {
+        const lifted = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
+        material.emissiveNode = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
+      }
+      node.outputNode = this.fogged(vec4(night(output.rgb).add(this.glowing), output.a));
     } else {
       node.outputNode = this.fogged(
-        vec4(output.rgb.mul(vec3(this.lifted).add(this.lamplit)).add(this.glowing), output.a)
+        vec4(night(output.rgb.mul(vec3(this.lifted).add(this.lamplit))).add(this.glowing), output.a)
       );
     }
+  }
+
+  /**
+   * Draws the scene as by moonlight, so far: a lit colour loses some of its own colour to the bluish
+   * grey of its brightness, the dimmer the more, and one a lamp lights brightly keeps it. Nothing by day.
+   */
+  setMoonlit(share: number): boolean {
+    const next = clamp(share, 0, 1);
+    if (next === this.moonlit.value) return false;
+    this.moonlit.value = next;
+    return true;
+  }
+
+  /** A lit colour as moonlight leaves it: towards the bluish grey of its brightness, the more the dimmer it is. */
+  private byMoonlight(colour: Node<'vec3'>) {
+    const brightness = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+    const share = this.moonlit.mul(float(1).sub(smoothstep(MOONLIT_FROM, MOONLIT_TO, brightness)));
+    return mix(colour, vec3(brightness).mul(MOONLIT_TINT), share);
   }
 
   /** Lays the veil as the page has drawn it now, or takes it away; answers whether anything changed. */

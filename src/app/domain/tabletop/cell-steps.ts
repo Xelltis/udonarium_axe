@@ -19,6 +19,29 @@ const DIAGONAL_STEPS: readonly CellStep[] = [
 /** All eight ways out of a square: its sides first, then its corners. */
 export const SQUARE_STEPS_WITH_CORNERS: readonly CellStep[] = [...ORTHOGONAL_STEPS, ...DIAGONAL_STEPS];
 
+/** A side of a square, by the way out of it: north, east, south or west. */
+export type Side = 'n' | 'e' | 's' | 'w';
+
+/** The step to the cell on each side of a square. */
+export const SIDE_STEPS: Readonly<Record<Side, { readonly dx: number; readonly dy: number }>> = {
+  n: { dx: 0, dy: -1 },
+  e: { dx: 1, dy: 0 },
+  s: { dx: 0, dy: 1 },
+  w: { dx: -1, dy: 0 },
+};
+
+/** The four sides of a square, clockwise from straight up. */
+export const SIDES: readonly Side[] = ['n', 'e', 's', 'w'];
+
+/** The side across from each. */
+export const OPPOSITE_SIDE: Readonly<Record<Side, Side>> = { n: 's', s: 'n', e: 'w', w: 'e' };
+
+/**
+ * How far a piece made facing south is turned, clockwise as the board is looked down on, to face out
+ * of each side of its cell. One with its back to a wall faces the side across from it.
+ */
+export const TURN_TO_FACE: Readonly<Record<Side, number>> = { s: 0, w: 90, n: 180, e: 270 };
+
 /** A step across a side of a square, with the heading that is, in degrees clockwise from straight up. */
 export type HeadedStep = readonly [number, number, number];
 

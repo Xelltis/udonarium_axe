@@ -1,17 +1,24 @@
 import { TestBed } from '@angular/core/testing';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import type { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
 import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import {
@@ -251,6 +258,40 @@ describe('GameTableGestureService', () => {
         expect(taken).not.toContain(head);
       } finally {
         for (const piece of [head, hidden, seen]) piece.destroy();
+      }
+    });
+
+    it('takes into a drawn box no block of glass a player is not shown, nor what lies under the fog, and all of it for the master', () => {
+      const glass = Terrain.create('見えない壁', 1, 1, 1, '', '');
+      const wall = Terrain.create('壁', 1, 1, 1, 'wall.png', 'floor.png');
+      const die = DiceSymbol.create('D6', DiceType.D6, 1);
+      const note = TextNote.create('メモ', '', 1);
+      const card = Card.create('card', 'front', 'back');
+      const things: TabletopObject[] = [glass, wall, die, note, card];
+      const viewed = TableSelecter.instance.viewTableIdentifier;
+      const table = new GameTable();
+      table.initialize();
+      TableSelecter.instance.viewTableIdentifier = table.identifier;
+      for (const block of [glass, wall]) table.appendChild(block);
+      for (const thing of [die, note, card]) thing.location = { name: 'table', x: 0, y: 0 };
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      const fogged = vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockReturnValue(true);
+      const taken = () =>
+        (service as unknown as { collectSelectableObjects(): TabletopObject[] }).collectSelectableObjects();
+      try {
+        expect(taken()).toContain(wall);
+        for (const thing of [glass, die, note, card]) expect(taken()).not.toContain(thing);
+
+        fogged.mockReturnValue(false);
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        for (const thing of things) expect(taken()).toContain(thing);
+
+        vi.spyOn(TestBed.inject(TablePiecesService), 'isShown').mockReturnValue(false);
+        expect(taken()).toEqual([]);
+      } finally {
+        for (const thing of [...things, table]) thing.destroy();
+        TableSelecter.instance.viewTableIdentifier = viewed;
+        PeerCursor.myCursor = null!;
       }
     });
 

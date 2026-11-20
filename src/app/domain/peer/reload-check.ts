@@ -26,6 +26,17 @@ export class ReloadCheck extends TabletopObject {
   }
 
   /**
+   * Gets ready for a file about to be loaded that the person has already agreed to, asked by the app
+   * itself before it began, as a load an AI asks for is asked about on the seat's screen: neither the
+   * overwrite nor the withheld question is asked again for this load.
+   */
+  agreeInAdvance() {
+    this.reloadOK = true;
+    this.isAnswer = true;
+    this.isWithheldAnswer = true;
+  }
+
+  /**
    * Whether a loaded room may overwrite the one in play, asking the user with a confirm dialog the first time.
    *
    * Later calls for the same load give the same answer without asking again.
@@ -58,6 +69,16 @@ export class ReloadCheck extends TabletopObject {
       if (!this.reloadOK) this.isAnswer = true;
     }
     return this.reloadOK;
+  }
+
+  /**
+   * Ends the check of a load: nothing is answered any longer, so room data read outside a load that
+   * starts a check of its own is asked about afresh rather than taken on an earlier load's answer.
+   */
+  reset() {
+    this.reloadOK = true;
+    this.isAnswer = false;
+    this.isWithheldAnswer = false;
   }
 
   /** The answer so far for the current load, without asking; true until the user declines. */

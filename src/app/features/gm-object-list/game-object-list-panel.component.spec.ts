@@ -1,11 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
@@ -232,5 +237,31 @@ describe('GameObjectListPanelComponent', () => {
 
       expect(openCalls).toBe(0);
     });
+  });
+
+  it('shows a die kept to a seat to everyone through the dice service when its owner is taken away, the chat saying its face', () => {
+    const notice = vi
+      .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
+      .mockReturnValue(null as unknown as ChatMessage);
+    let menu: ContextMenuAction[] = [];
+    vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation((_at, actions) => {
+      menu = actions as ContextMenuAction[];
+    });
+    const die = DiceSymbol.create('隠しダイス', DiceType.D6, 1);
+    die.location.name = 'table';
+    die.face = '4';
+    die.owner = 'p2';
+    const t = TestBed.inject(TRANSLATE_FN);
+    const row = (component as unknown as { rows: () => ObjectRow[] }).rows().find((each) => each.object === die)!;
+
+    (component as unknown as { openRowMenu(event: MouseEvent, row: ObjectRow): void }).openRowMenu(
+      new MouseEvent('contextmenu'),
+      row
+    );
+    const owner = menu.find((entry) => entry.name === t('feature.disclosure.owner'));
+    owner!.subActions!.find((entry) => entry.name.includes(t('feature.disclosure.ownerNone')))!.action!();
+
+    expect(die.owner).toBe('');
+    expect(notice).toHaveBeenCalledWith('diceReveal', expect.stringContaining('4'));
   });
 });

@@ -9,10 +9,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { CardFlipCutInService } from '@axe/application/card/card-flip-cut-in.service';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
@@ -23,14 +24,12 @@ import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/co
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { Card, CardState } from '@axe/domain/card/card';
-import { CardStack } from '@axe/domain/card/card-stack';
+import { Card } from '@axe/domain/card/card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { buildCardContextMenu } from '@axe/features/card/card/card-context-menu';
 import { selectOverlappingCards } from '@axe/features/card/card/overlapping-cards';
 import { CardDropService } from '@axe/features/card/card-drop.service';
-import { CardFlipCutInService } from '@axe/features/card/card-flip-cut-in.service';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
 import { HandDragService } from '@axe/features/card/hand-rail/hand-drag.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -75,7 +74,7 @@ export class CardComponent {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly disclosureService = inject(DisclosureService);
+  private readonly cardGame = inject(CardGameService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly tabletopService = inject(TabletopService);
@@ -120,13 +119,6 @@ export class CardComponent {
     }
     return this.card().name;
   });
-  /** Which face the card is turned to, read from and written to the shared card. */
-  get state(): CardState {
-    return this.card().state;
-  }
-  set state(state: CardState) {
-    this.card().state = state;
-  }
   /** The card's rotation on the table in degrees, read from and written to the shared card. */
   get rotate(): number {
     return this.card().rotate;
@@ -134,15 +126,9 @@ export class CardComponent {
   set rotate(rotate: number) {
     this.card().rotate = rotate;
   }
-  /**
-   * The user id of whoever is peeking at the card, empty when nobody is; written straight through
-   * to the shared card.
-   */
+  /** The user id of whoever is peeking at the card, empty when nobody is. */
   get owner(): string {
     return this.card().owner;
-  }
-  set owner(owner: string) {
-    this.card().owner = owner;
   }
   /** The card's stacking order on the table. */
   get zindex(): number {
@@ -316,17 +302,11 @@ export class CardComponent {
    * Flips the card over on a double tap, clearing whoever was peeking at it and playing the flip
    * cut-in when it turns face up.
    *
-   * Nothing happens for a user who may not edit the table, when the pointer moved between the taps,
-   * or when someone else online is holding the card face down to peek at it.
+   * Nothing happens where this seat may not handle the card: a seat that may not edit the table, or
+   * a card someone else online is holding face down to peek at.
    */
   onDoubleClick() {
-    if (!this.rolePermission.canEditTabletop()) return;
-    if (this.ownerIsOnline && !this.isPeeking) return;
-    const turnsToFront = !(this.isVisible && !this.isPeeking);
-    this.state = turnsToFront ? CardState.FRONT : CardState.BACK;
-    this.owner = '';
-    SoundEffect.play(PresetSound.cardDraw);
-    if (turnsToFront) this.flipCutIn.playFor(this.card());
+    this.cardGame.flip(this.card());
   }
 
   /** Stops the browser's own image drag, so pressing on the card moves the piece instead. */
@@ -365,11 +345,11 @@ export class CardComponent {
     const baseMenu = buildCardContextMenu(
       this.card(),
       this.gridSize,
+      this.cardGame,
       {
         onCreateStack: () => this.createStack(),
         onOverlappingToHand: () => this.overlappingToHand(),
         onShowDetail: () => this.showDetail(this.card()),
-        onFlipToFront: () => this.flipCutIn.playFor(this.card()),
         onAssignCutIn: (cutInIdentifier: string) => this.flipCutIn.assign(this.card(), cutInIdentifier),
         onPickTarget: () => this.cardTarget.beginPicking(this.card()),
         onClearTarget: () => this.cardTarget.clearTarget(this.card()),
@@ -398,22 +378,20 @@ export class CardComponent {
   /**
    * Finishes a drag or rotation of the card.
    *
-   * Let go of over the hand rail, the card returns to where it lay and goes into this user's hand.
-   * Anywhere else it stays where it landed and is offered to what it landed on, so a stack can take
-   * it in.
+   * Let go of over the hand rail, the card returns to where it lay and goes into this user's hand,
+   * where this seat may take it. Anywhere else, or where another seat peeks at it, it stays where it
+   * landed and is offered to what it landed on, so a stack can take it in.
    */
   onMoved() {
     this.handDrag.disarmTableDrag();
     const origin = this.positionBeforeDrag;
     this.positionBeforeDrag = null;
-    if (origin && this.isDroppedOnHandRail()) {
-      const card = this.card();
+    const card = this.card();
+    if (origin && this.isDroppedOnHandRail() && this.cardGame.takeToHand([card]).length > 0) {
       card.location.x = origin.x;
       card.location.y = origin.y;
-      card.toHand(PeerCursor.myCursor?.userId ?? '');
       card.update();
       this.objectChange.notifyChanged(card.identifier);
-      SoundEffect.play(PresetSound.cardDraw);
       return;
     }
     SoundEffect.play(PresetSound.cardPut);
@@ -427,17 +405,7 @@ export class CardComponent {
   }
 
   private createStack() {
-    const cardStack = CardStack.create(this.translateFn('feature.cardStack.defaultName'));
-    cardStack.location.x = this.card().location.x;
-    cardStack.location.y = this.card().location.y;
-    cardStack.posZ = this.card().posZ;
-    cardStack.location.name = this.card().location.name;
-    cardStack.rotate = this.rotate;
-    cardStack.zindex = this.card().zindex;
-
-    for (const card of this.overlappingCards()) {
-      cardStack.putOnBottom(card);
-    }
+    this.cardGame.stackUp(this.card(), this.overlappingCards());
   }
 
   private overlappingCards(): Card[] {
@@ -445,17 +413,14 @@ export class CardComponent {
   }
 
   private overlappingToHand(): void {
-    const userId = PeerCursor.myCursor?.userId ?? '';
-    if (!userId) return;
-    for (const card of this.overlappingCards()) {
-      card.toHand(userId);
+    for (const card of this.cardGame.takeToHand(this.overlappingCards())) {
       card.update();
       this.objectChange.notifyChanged(card.identifier);
     }
   }
 
   private showDetail(gameObject: Card) {
-    if (!this.disclosureService.canView(gameObject)) return;
+    if (!this.cardGame.canOpenSheet(gameObject)) return;
     const title = sheetPanelTitle(this.translateFn('feature.card.settingTitle'), gameObject.name);
     this.objectPanels.openSheet(gameObject, title, { width: 600, height: 600 });
   }

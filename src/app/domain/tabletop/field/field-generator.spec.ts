@@ -352,7 +352,9 @@ describe('planField()', () => {
   });
 
   it('leaves open country open enough to walk over, the water of a stream waded through', () => {
-    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !FIELD_ATMOSPHERES[each].town)) {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter(
+      (each) => !FIELD_ATMOSPHERES[each].town && FIELD_ATMOSPHERES[each].settlement !== 'castleTown'
+    )) {
       for (const seed of SEEDS) {
         const plan = planField({ atmosphere: id, size: 40, density: 100, seed });
         const width = plan.layout.width;

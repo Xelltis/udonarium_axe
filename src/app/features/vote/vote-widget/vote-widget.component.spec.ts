@@ -6,6 +6,7 @@ import { emitStartVote } from '@axe/core/event/domain-events';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { Vote } from '@axe/domain/vote/vote';
 import { VoteWidgetComponent } from '@axe/features/vote/vote-widget/vote-widget.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -136,6 +137,19 @@ describe('VoteWidgetComponent', () => {
 
     expect(myCursor.voteAnswer).toBe(-2);
     expect(chatStub.sendSystemMessageAsLastSpeaker).toHaveBeenCalledWith(expect.any(String), 'tab-main');
+  });
+
+  it('lets a guest answer nothing, drawing no way to', () => {
+    myCursor.role = PeerRole.Guest;
+    create();
+
+    internals.voteSend('準備完了');
+    internals.abstain();
+    fixture.detectChanges();
+
+    expect(vote.isVoteEnd('my-peer-id')).toBe(false);
+    expect(chatStub.sendSystemMessageAsLastSpeaker).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('[data-testid="vote-widget-abstain"]')).toBeNull();
   });
 
   it('lets the chair close the vote with answers outstanding', () => {

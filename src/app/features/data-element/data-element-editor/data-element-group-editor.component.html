@@ -82,6 +82,31 @@
           </button>
         </div>
         @if (state().isTable) {
+          @if (state().canBuildTable) {
+            <button
+              type="button"
+              class="border-ui-border-panel bg-ui-input text-ui-text active:bg-ui-hover mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid text-[15px]"
+              (click)="buildTable()"
+              data-testid="group-editor-build-table"
+            >
+              <i class="material-icons text-[20px]!">grid_on</i>
+              {{ 'feature.dataElement.action.buildTable' | transloco }}
+            </button>
+          }
+          @if (state().drawsAsTable) {
+            <button
+              type="button"
+              class="border-ui-border-panel bg-ui-input text-ui-text active:bg-ui-hover mt-2 flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-solid text-[15px]"
+              [class.border-ui-accent!]="state().editsAsRows"
+              [class.text-ui-accent!]="state().editsAsRows"
+              [attr.aria-pressed]="state().editsAsRows"
+              (click)="toggleEditAsRows()"
+              data-testid="group-editor-edit-as-rows"
+            >
+              <i class="material-icons text-[20px]!">view_list</i>
+              {{ 'feature.dataElement.action.editAsRows' | transloco }}
+            </button>
+          }
           <div class="mt-2">
             <game-data-element-field-options [element]="current()" kind="container" variant="sheet" />
           </div>
@@ -111,6 +136,17 @@
             >
               <i class="material-icons text-ui-muted text-[22px]!">create_new_folder</i>
               <span>{{ 'feature.dataElement.action.addGroup' | transloco }}</span>
+            </button>
+          }
+          @if (state().canAddGroup) {
+            <button
+              type="button"
+              class="border-ui-border-panel text-ui-text active:bg-ui-hover flex min-h-13 w-full cursor-pointer items-center gap-3 border-0 border-b border-solid bg-transparent px-1 text-left text-[15px]"
+              (click)="addTable()"
+              data-testid="group-editor-add-table"
+            >
+              <i class="material-icons text-ui-muted text-[22px]!">table_view</i>
+              <span>{{ 'feature.dataElement.action.addTable' | transloco }}</span>
             </button>
           }
           @if (state().templates.length > 0) {

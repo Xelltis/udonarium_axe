@@ -119,6 +119,16 @@ export class Terrain extends TabletopObject {
     return this.doorStyle !== DoorStyle.NONE;
   }
 
+  /**
+   * Makes the block a door that opens in a style, standing open or shut as asked, or no door at all,
+   * which is always shut: a block that stopped being a door does not stand open when it is made one
+   * again. Left unasked, a door stands as it stood.
+   */
+  setDoor(style: string, open: boolean = this.isDoorOpen): void {
+    this.doorStyle = style;
+    this.isDoorOpen = open && style !== DoorStyle.NONE;
+  }
+
   /** What pressing the block does, where the master has made it a switch. */
   get boardSwitch(): BoardSwitch | null {
     return switchOf(this);

@@ -13,6 +13,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CardGameService } from '@axe/application/card/card-game.service';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -126,6 +128,8 @@ export class GameCharacterSheetComponent {
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly snackbar = inject(SnackbarService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly cardGame = inject(CardGameService);
+  private readonly diceRoll = inject(DiceRollService);
   private readonly dataElementDeletion = inject(DataElementDeletionService);
   private readonly dataElementEdit = inject(DataElementEditService);
   private readonly confirm = inject(ConfirmService);
@@ -756,13 +760,21 @@ export class GameCharacterSheetComponent {
    *
    * Progress is shown while it saves and cleared half a second after. A click while a save is still
    * running is ignored, as is one for a piece a room server withholds part of from this seat, which
-   * dropped back on a table would go to the whole room in that shape, as a copy would.
+   * dropped back on a table would go to the whole room in that shape, as a copy would. So is one for
+   * a card whose front, or a die whose face, this seat may not read, which the file would hold.
    */
   async saveToXML() {
     const obj = this.tabletopObject;
     if (!obj || this.isSaving()) return;
     if (isWithheldHere(obj)) {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
+      return;
+    }
+    if (
+      (obj instanceof Card && !this.cardGame.canReadFront(obj)) ||
+      (obj instanceof DiceSymbol && !this.diceRoll.readsFace(obj))
+    ) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveFaceHidden'));
       return;
     }
     const element = obj.commonDataElement?.getFirstElementByName('name');

@@ -1,5 +1,6 @@
 import {
   ancestorFolderPaths,
+  fileUnderFolder,
   FOLDER_SEPARATOR,
   folderSegments,
   isDescendantFolderPath,
@@ -137,5 +138,43 @@ describe('folder paths kept as JSON', () => {
   it('writes nothing for no folders, and reads back what it writes', () => {
     expect(writeFolderPaths([])).toBe('');
     expect(readFolderPaths(writeFolderPaths(['a/b', 'c']))).toEqual(['a/b', 'c']);
+  });
+});
+
+describe('fileUnderFolder()', () => {
+  it('files a thing under the path as it is stored, writing only where it changes', () => {
+    let writes = 0;
+    let folderName = '';
+    const item = {
+      get folderName() {
+        return folderName;
+      },
+      set folderName(value: string) {
+        writes++;
+        folderName = value;
+      },
+    };
+
+    expect(fileUnderFolder(item, ' 第1話 ／ 村 ')).toBe(true);
+    expect(fileUnderFolder(item, '第1話/村')).toBe(false);
+    expect(fileUnderFolder(item, '')).toBe(true);
+    expect([item.folderName, writes]).toEqual(['', 2]);
+  });
+
+  it('writes nothing for a thing an older save filed with spaces round its path, filed there again', () => {
+    let writes = 0;
+    let folderName = ' 村 ';
+    const item = {
+      get folderName() {
+        return folderName;
+      },
+      set folderName(value: string) {
+        writes++;
+        folderName = value;
+      },
+    };
+
+    expect(fileUnderFolder(item, '村')).toBe(false);
+    expect(writes).toBe(0);
   });
 });

@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import type { AgentHandler } from '@axe/application/agent/agent-tool-runner.service';
 import { AgentViews } from '@axe/application/agent/agent-views.service';
+import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
@@ -39,6 +40,7 @@ export class AgentPieceTools {
   private readonly targets = inject(PieceTargetService);
   private readonly turns = inject(TurnOrderService);
   private readonly permission = inject(RolePermissionService);
+  private readonly tagLock = inject(ImageTagLockService);
 
   readonly handlers: Readonly<Record<string, AgentHandler>> = {
     move_piece: (args) => this.move(this.read.piece(textArg(args, 'piece')), args),
@@ -205,7 +207,7 @@ export class AgentPieceTools {
     const imageReference = textArg(args, 'image');
     const image = imageReference
       ? findOne(
-          ImageTag.searchImages([], this.permission.canSeeHidden()),
+          ImageTag.searchImages([], this.tagLock.sight()),
           imageReference,
           (each) => each.identifier,
           (each) => each.name,

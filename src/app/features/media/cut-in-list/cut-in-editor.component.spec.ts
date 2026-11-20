@@ -225,12 +225,12 @@ describe('CutInEditorComponent', () => {
       cutIn.imageIdentifier = 'a-picture';
       cutIn.originalSize = false;
       cutIn.keepImageAspect = false;
-      cutIn.width = 320;
+      cutIn.width = 800;
       cutIn.height = 999;
 
       component.keepImageAspect = true;
 
-      expect(cutIn.height).toBe(180);
+      expect(cutIn.height).toBe(450);
     });
   });
 
@@ -303,10 +303,117 @@ describe('CutInEditorComponent', () => {
     cutIn.keepImageAspect = true;
     await fixture.whenStable();
 
-    component.cutInWidth = 320;
-    expect([cutIn.width, cutIn.height]).toEqual([320, 180]);
+    component.cutInWidth = 800;
+    expect([cutIn.width, cutIn.height]).toEqual([800, 450]);
 
     component.cutInHeight = 360;
+    expect([cutIn.width, cutIn.height]).toEqual([640, 360]);
+  });
+
+  it('holds a side typed inside the bounds of the cut-in’s kind, and the side that follows it too', async () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = true;
+    await fixture.whenStable();
+
+    component.cutInWidth = 100;
+    expect([cutIn.width, cutIn.height]).toEqual([448, 252]);
+
+    component.cutInHeight = 5000;
+    expect([cutIn.width, cutIn.height]).toEqual([1920, 1080]);
+
+    cutIn.keepImageAspect = false;
+    component.cutInWidth = 99999;
+    component.cutInHeight = 1;
+    expect([cutIn.width, cutIn.height]).toEqual([1920, 252]);
+  });
+
+  it('takes a size into its box as it is committed, by leaving the box, Enter or its arrows, so a number is typed whole first', async () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = false;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = fixture.nativeElement.querySelector('input[name="cut-in-width"]') as HTMLInputElement;
+
+    for (const typed of ['6', '64', '640']) {
+      box.value = typed;
+      box.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(box.value).toBe(typed);
+    }
+    expect(cutIn.width).not.toBe(640);
+    box.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(cutIn.width).toBe(640);
+
+    for (const typed of ['99999', '']) {
+      box.value = typed;
+      box.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(box.value, typed).toBe(String(cutIn.width));
+    }
+    expect(cutIn.width).toBe(1920);
+  });
+
+  it('leaves the size as it is when a field is cleared', () => {
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = false;
+    cutIn.width = 300;
+    cutIn.height = 200;
+
+    component.cutInWidth = null as unknown as number;
+    component.cutInHeight = null as unknown as number;
+
+    expect([cutIn.width, cutIn.height]).toEqual([300, 200]);
+  });
+
+  it('snaps a video to its own proportions as its aspect is kept, as the AI does', () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = false;
+    cutIn.width = 800;
+    cutIn.height = 300;
+
+    component.keepImageAspect = true;
+
+    expect([cutIn.width, cutIn.height]).toEqual([800, 450]);
+  });
+
+  it('leaves the size as it is when a field is cleared while the aspect is kept', () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = true;
+    cutIn.width = 640;
+    cutIn.height = 480;
+
+    component.cutInWidth = Number.NaN;
+    component.cutInHeight = Number.NaN;
+
+    expect([cutIn.width, cutIn.height]).toEqual([640, 480]);
+  });
+
+  it('writes no size while it may not be edited, not even the side the kept aspect would follow', async () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = true;
+    cutIn.width = 640;
+    cutIn.height = 360;
+    fixture.componentRef.setInput('isEditable', false);
+    await fixture.whenStable();
+
+    component.cutInWidth = 800;
+    component.cutInHeight = 900;
+
     expect([cutIn.width, cutIn.height]).toEqual([640, 360]);
   });
 

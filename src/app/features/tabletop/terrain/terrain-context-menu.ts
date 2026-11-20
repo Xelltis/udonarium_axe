@@ -31,7 +31,8 @@ export interface TerrainContextMenuModel {
  * texture tiling, shading, sight and light, edit, copy, delete and creating an object. Entries
  * for other pieces under the pointer lead the list, the master's entries for the block's switch
  * come just before editing it, and entries that move the terrain to another surface close it. A
- * copy is placed one cell down and to the right, unlocked.
+ * copy is placed one cell down and to the right, unlocked. Opening or shutting a door is offered
+ * only where `toggleDoor` is handed in, which does it as this seat may (`DoorService`).
  */
 export function buildTerrainContextMenuModel(
   terrain: Terrain,
@@ -44,7 +45,8 @@ export function buildTerrainContextMenuModel(
   overlapEntries: ContextMenuAction[] = [],
   surfaceEntries: ContextMenuAction[] = [],
   slopeSides: readonly SlopeSide[] = SQUARE_SLOPE_SIDES,
-  switchEntries: ContextMenuAction[] = []
+  switchEntries: ContextMenuAction[] = [],
+  toggleDoor: (() => void) | null = null
 ): TerrainContextMenuModel {
   const adjustedWidth = Math.max(0, terrain.width);
   const adjustedDepth = Math.max(0, terrain.depth);
@@ -130,19 +132,17 @@ export function buildTerrainContextMenuModel(
       SoundEffect.play(PresetSound.sweep);
     },
   };
-  const doorToggleActions: ContextMenuAction[] = terrain.isDoor
-    ? [
-        {
-          name: terrain.isDoorOpen
-            ? t('feature.tabletop.contextMenu.doorClose')
-            : t('feature.tabletop.contextMenu.doorOpen'),
-          action: () => {
-            terrain.isDoorOpen = !terrain.isDoorOpen;
-            SoundEffect.play(terrain.isDoorOpen ? PresetSound.unlock : PresetSound.lock);
+  const doorToggleActions: ContextMenuAction[] =
+    terrain.isDoor && toggleDoor
+      ? [
+          {
+            name: terrain.isDoorOpen
+              ? t('feature.tabletop.contextMenu.doorClose')
+              : t('feature.tabletop.contextMenu.doorOpen'),
+            action: toggleDoor,
           },
-        },
-      ]
-    : [];
+        ]
+      : [];
   const doorStyleAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.doorStyle'),
     action: undefined,
@@ -150,14 +150,13 @@ export function buildTerrainContextMenuModel(
       {
         name: `${terrain.doorStyle === DoorStyle.NONE ? '◉' : '○'} ${t('feature.tabletop.contextMenu.doorStyleNone')}`,
         action: () => {
-          terrain.doorStyle = DoorStyle.NONE;
-          terrain.isDoorOpen = false;
+          terrain.setDoor(DoorStyle.NONE);
         },
       },
       ...DOOR_STYLES.map((style) => ({
         name: `${terrain.doorStyle === style ? '◉' : '○'} ${t('feature.tabletop.contextMenu.doorStyle' + style[0].toUpperCase() + style.slice(1))}`,
         action: () => {
-          terrain.doorStyle = style;
+          terrain.setDoor(style);
         },
       })),
       ...(terrain.isDoor

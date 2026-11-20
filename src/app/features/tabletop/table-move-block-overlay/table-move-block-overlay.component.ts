@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { MoveBlockService } from '@axe/features/tabletop/table-move-block-overlay/move-block.service';
@@ -24,6 +25,7 @@ interface MoveBlockView {
 export class TableMoveBlockOverlayComponent {
   private readonly moveBlock = inject(MoveBlockService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly vision = inject(VisionService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('blockCanvas');
   private readonly painted = laidOnCanvasFloor({
     id: () => 'move-block',
@@ -33,11 +35,13 @@ export class TableMoveBlockOverlayComponent {
 
   protected readonly zTransform = computed(() => translateZCss(Z_OFFSET_MASK_PX));
 
+  /** The ground closed to movement this seat is shown, cut back from what the fog still hides (see `VisionService.shownCells`). */
   protected readonly view = computed<MoveBlockView | null>(() => {
     const table = this.tabletopService.currentTableVersion();
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
-    const cells = this.moveBlock.blockedOn(grid);
+    const closed = this.moveBlock.blockedOn(grid);
+    const cells = closed ? this.vision.shownCells(grid, closed) : null;
     if (!cells || cells.isEmpty) return null;
     return { grid, cells };
   });

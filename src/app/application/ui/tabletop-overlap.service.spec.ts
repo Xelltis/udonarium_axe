@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { footprintOf, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { PickHit } from '@axe/domain/tabletop/pick/pick-index';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -52,6 +53,28 @@ describe('TabletopOverlapService', () => {
 
     expect(service.findAt(5, 6)).toEqual([near, merged, far]);
     expect(allAt).toHaveBeenCalledWith(5, 6);
+  });
+
+  it('leaves out a block this seat is not shown, as glass, though the line of sight meets it', () => {
+    const glass = Terrain.create('見えない壁', 1, 1, 1, '', '');
+    const wall = Terrain.create('壁', 1, 1, 1, 'wall.png', 'floor.png');
+    service.register(glass, makeElement({ x: 0, y: 0, w: 10, h: 10 }));
+    service.register(wall, makeElement({ x: 0, y: 0, w: 10, h: 10 }));
+    const blockHit = (block: Terrain) => ({ target: { id: block.identifier, layer: 'terrain' } }) as unknown as PickHit;
+    vi.spyOn(TestBed.inject(TablePickService), 'allAt').mockReturnValue([blockHit(glass), blockHit(wall)]);
+    const shown = vi
+      .spyOn(TestBed.inject(TablePiecesService), 'isBlockShown')
+      .mockImplementation((block) => block !== glass);
+
+    try {
+      expect(service.findAt(5, 6)).toEqual([wall]);
+
+      shown.mockReturnValue(true);
+      expect(service.findAt(5, 6)).toEqual([glass, wall]);
+    } finally {
+      glass.destroy();
+      wall.destroy();
+    }
   });
 
   it('returns nothing without looking when the coordinates are not numbers', () => {

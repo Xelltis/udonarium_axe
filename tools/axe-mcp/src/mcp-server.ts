@@ -15,7 +15,7 @@ import {
   RUN_SESSION_PROMPT_NAME,
 } from '@axe/core/agent/agent-guide';
 import { checkAgentInput } from '@axe/core/agent/agent-schema';
-import { AGENT_TOOLS, type AgentToolDefinition } from '@axe/core/agent/agent-tools';
+import { AGENT_TOOLS, type AgentToolDefinition, isReadOnlyTool } from '@axe/core/agent/agent-tools';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
@@ -91,9 +91,9 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
       inputSchema: { ...tool.input },
       annotations: {
         title: tool.title,
-        readOnlyHint: tool.access === 'read',
+        readOnlyHint: isReadOnlyTool(tool),
         destructiveHint: tool.destructive === true,
-        openWorldHint: false,
+        openWorldHint: tool.openWorld === true,
       },
     })),
   }));
@@ -117,7 +117,8 @@ export function createMcpServer(link: TabLink, version: string, desk?: TurnDesk)
             'not_allowed: The game master is not started, and the notebook is kept for it. Wait for a turn first.'
           );
     }
-    const timeout = tool.name === 'wait_for_events' ? waitOf(args) + WAIT_MARGIN_MS : CALL_TIMEOUT_MS;
+    const timeout =
+      tool.name === 'wait_for_events' ? waitOf(args) + WAIT_MARGIN_MS : (tool.timeoutMs ?? CALL_TIMEOUT_MS);
     const outcome = await link.call(tool.name, args, timeout, extra.signal);
     if (!outcome.ok) return failure(`${outcome.error.code}: ${outcome.error.message}`);
     return answer(outcome.value);

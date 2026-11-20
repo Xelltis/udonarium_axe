@@ -39,16 +39,21 @@ Axeのタブ（つないだ席の権限で実行する）
 
 - 席がつながった・終えた・範囲を変えた・切れたときは、システム通知の`room`の種類で全員向けの行を出す（`feature.aiLink.notice.*`）
 - AIが送った行は`ChatMessage.via`が`ai`になり、全員の画面で名前の横に印（`smart_toy`）が出る。`ChatMessageService.asAiWords`の中で送った行に付く（`asMastersWords`と同じ数え方）。初期値を持たないSyncVarなので、ほかの行と古い版の行は空で読み、保存にも書かれない
-- 書く道具の呼び出しは、つないだ席のパネルの履歴（新しい順に100件。その画面だけ）に残る
+- 書く道具の呼び出しは、つないだ席のパネルの履歴（新しい順に100件。その画面だけ）に残る。書く道具かどうかは席の許可と同じ`isReadOnlyTool`で決めるので、部屋のファイルとスナップショットの保存も残る。断った呼び出しも残す。渡されたファイルは中身を文字にせず、名前と大きさだけを書く
 
 ## 道具
 
-`AGENT_TOOLS`の29個。名前は英語のsnake_case、説明は英語（AIが読む）。マスは`col`・`row`を1から数え、東と南へ増える（`moveGridOf`の格子。まとめマスとヘクスもその格子の列と行）。コマは識別子か、その席に見える名前で指す（2つ以上に当たれば候補のidを並べて断る）。
+`AGENT_TOOLS`の45個。名前は英語のsnake_case、説明は英語（AIが読む）。マスは`col`・`row`を1から数え、東と南へ増える（`moveGridOf`の格子。まとめマスとヘクスもその格子の列と行）。コマは識別子か、その席に見える名前で指す（2つ以上に当たれば候補のidを並べて断る）。
 
 - **読む** — `get_room`・`list_pieces`・`get_piece`（シートの木とチャットパレット）・`get_turn_order`・`read_chat`・`list_assets`・`read_scenario_text`・`wait_for_events`。シナリオテキストはどのピアにも届き、画面だけがGMに限っているので、`list_assets`のシナリオテキストと`read_scenario_text`もGMの席でだけ答える
 - **チャットとダイス** — `send_chat`は入力欄と同じ`ChatSendService.send`を通るので、チャットの特殊記法がそのまま効く。ダイスの式なら`diceRolled$`で行ごとの答えを3秒まで待って一緒に返し、間に合わなければ振り直さないよう添え書きを付ける（遅れた答えは`wait_for_events`に届く）。コマとして話す行はそのコマのシートを参照し、リソースも変えるので、`as`に渡せるのは席がシートを開けるコマだけ。`to`にコマの名前を渡すと、そのコマのオーナーの席への秘話になり、ほかの席がオーナーでないコマは断る。手番のコマンドに本文を続けた行は断る（本文は手番が動いたあとに非同期で送られ、AIの印が付かないため）。`roll_dice`は、ダイスボットが振れない式なら送る前に断る。シークレットは、ダイスボットがすでにシークレットと読む式でなければ頭に`S`を付ける
 - **コマとシート** — `move_piece`は`PieceStepService.step`（ドラッグと同じ着地）。`change_resource`は`:HP-5`のような行をそのコマとして送り、値が変わるのを待って前と後を返す（`ResourceEditProcessor`の記録と秘匿にそのまま乗る）。シートの値を読み書きする道具（`change_resource`・`set_sheet_value`）は、その席がシートを開けるコマ（`AgentViews.sheetOpen`）にだけ効き、`add_buff`・`remove_buff`は、バフを隠したコマにはGMの席でだけ効く。`advance_turn`の`next_round`は`TurnOrderService.advanceRound({ ask: false })`で、未行動のコマがいても確認を出さずに進める（画面の前に人がいないため）
-- **GMの道具** — `fire_effect`はエフェクトの対象数の上限（`targetLimit`）までのコマに撃ち、残りを`not_hit`で返す。マス撃ちは`EffectCastService.fireAt`（コマのいない的）。`switch_table`はGMの切り替えと同じく卓のBGMとカットインも出す。`place_range`の`facing`は北から時計回りの角度で、射程の`rotate`は`facing - 90`（`rotate`の0は東向き）
+- **演出と卓の道具** — 画面と同じ決まりで、見学でない席が書くことも許すときに使える（`access: 'write'`）。GMの席だけの道具は、画面でもGMだけのシーンの適用（`apply_scene`）とシナリオテキスト（`send_scenario_text`）の2つ。エフェクトはその席に見せるもの（`EffectLibraryService.shownPresets`）からだけ選ぶので、GMだけのエフェクトはGMの席からだけ撃てる。画像の一覧はその席の見え方（`ImageTagLockService.sight`）で絞り、他人がロックしたタグの画像は出さない。`fire_effect`はエフェクトの対象数の上限（`targetLimit`）までのコマに撃ち、残りを`not_hit`で返す。マス撃ちは`EffectCastService.fireAt`（コマのいない的）。`switch_table`はGMの切り替えと同じく卓のBGMとカットインも出す。`place_range`の`facing`は北から時計回りの角度で、射程の`rotate`は`facing - 90`（`rotate`の0は東向き）
+
+- **汎用の道具** — `describe_kinds`・`list_objects`・`get_object`・`create_object`・`change_object`・`remove_object`・`act_on_object`は、種類ごとの定義（`AgentKind`、`features/agent-tools/kinds`）を通して物に届く。定義は、項目の形と書ける席（`write`は見学でない席、`gm`はGMの席）、その席に見せる物の一覧、作る・消す・手続きを持ち、画面と同じサービスを呼ぶ。見せない中身は読み取りで欄ごと省き、持ち主や公開の範囲のような物ごとの決まりは`refuse`で断る。書く前に読み込みの要る種類は`ready`で待つ（カットインの縦横比を絵そのものの大きさで保つため、絵を測り終えてから書く）。待ったあとは物を探し直して書き、その間に呼び出しがあきらめられていたら何も書かない。待つものがなければ、その場で書いて答える。欄は送られた順ではなく、種類の定義に並べた順に書く（カットインは絵と動画を大きさより前に並べ、新しい絵の比率で大きさを決める）。同期する種類はすべて`AGENT_KIND_COVERAGE`に載せ、汎用の道具で届くか、専用の道具で届くか、届かない理由を書く。ソースの`@SyncObject`を読むspecが、載っていない種類で落ちる
+- **音楽** — `list_music`と`play_music`（`AgentMusicTools`）。雰囲気の語は、曲名・タグ・曲を含むプレイリストの名前に当て、GMの席ではBGMを持つシーンの名前とフォルダにも当てる（`chooseMusic`、`domain/media/music-choice`）。曲に雰囲気の欄は持たない
+- **ファイル** — ファイルを読み書きする道具は、定義の`localFile`に引数と向きを持つ。ブリッジがタブを呼ぶのは`TabLink.call`の1か所で、そこで読む道具にはパスのファイルを`file`（base64）として渡し、書く道具の答えの`file`をパスに書く（`withLocalFiles`）。読み書きは`--files-dir`のフォルダの中だけで、外へ出るリンクと上書きは断る。ファイルシステムの失敗はすべて`LocalFiles`の中で道具の失敗に直す。書く間に同じパスにファイルができたときはパスの誤り（`invalid_input`）、権限やディスクの空きなどほかの失敗は`failed`で、理由をつけてAIに返す。画像・音・モデルの取り込みは`FileArchiver.loadAssets`で、落としたときと同じ上限と検査を通り、部屋のデータは開かない。部屋の読み込みでは、席の画面に処理を止めない形の確認（`ConfirmService.ask`の`signal`）を出す。はいのときだけ、`RoomFilesService.loadAgreed`か`RoomSnapshotService.restore`の`agreed`で、もう一度は尋ねずに読み込む
+- **マップの生成** — `generate_map`は生成パネルと同じ`MapGenerationService`で作る。設定から計画を作る関数（`application/tabletop/map-generation/map-settings`）もパネルと共通なので、同じ設定なら同じマップになる。`replace_previous`で片付けるのはAIが前に作ったマップだけで、パネルのマップには触らない。AIが作るマップは1度に1つで、作っている間に来た`generate_map`は何も作らずに断る。前のマップを片付けるのは新しいマップができたときだけで、作れなかったときは失敗のしかたによらず前のマップを覚えたままにする（`AgentMapTools`）。片付けはパネルと同じ`MapGenerationService.replace`で、全員が前のマップを見ていたら`switch_to`がfalseでも新しいマップへ移し、答えの`switched`をtrueにする
 
 ## 起きたこと
 

@@ -16,7 +16,7 @@ import { CUT_IN_WINDOW_LOADER, type CutInWindowType } from '@axe/features/media/
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeCutIn(overrides: Partial<CutIn> = {}): CutIn {
-  return {
+  const made = {
     identifier: 'cut-1',
     name: 'sample',
     width: 320,
@@ -27,7 +27,8 @@ function makeCutIn(overrides: Partial<CutIn> = {}): CutIn {
     audioIdentifier: '',
     frameless: false,
     ...overrides,
-  } as unknown as CutIn;
+  };
+  return { ...made, shownSize: { width: made.width, height: made.height } } as unknown as CutIn;
 }
 
 describe('CutInEventHandlerService', () => {

@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -27,6 +27,18 @@ import {
   readElementTemplates,
   saveElementTemplate,
 } from '@axe/domain/data/data-element-templates';
+import { drawsAsTable } from '@axe/domain/data/table-layout';
+import {
+  applyTableShape,
+  canBuildTable,
+  cellsLostBy,
+  createShapedTable,
+  tableBuildProblems,
+  type TableShape,
+  tableShapeOf,
+  type TableShapeProblem,
+  tableShapeProblems,
+} from '@axe/domain/data/table-shape';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
 import {
   canAcceptChildRole,
@@ -68,6 +80,8 @@ export class DataElementEditService {
   private readonly deletion = inject(DataElementDeletionService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectStore = inject(ObjectStore);
+  /** The tables this reader edits as their rows and fields rather than as the tables they are, by identifier. */
+  private readonly tablesEditedAsRows = signal<ReadonlySet<string>>(new Set());
 
   /**
    * How many items of a piece and its parts making the defaults would mark, writing nothing: every
@@ -369,6 +383,79 @@ export class DataElementEditService {
     if (element.fieldRole === DataElementRole.FIELD) return;
     element.setViewMode(this.isTableView(element) ? DataElementViewMode.NORMAL : DataElementViewMode.TABLE);
     this.objectChange.notifyChanged(element.identifier);
+  }
+
+  /** Whether a group or section is drawn as a table (see `drawsAsTable`). */
+  drawsAsTable(element: DataElement): boolean {
+    return drawsAsTable(element);
+  }
+
+  /**
+   * Whether a table is edited as its rows and fields, as edit mode drew every table before, rather
+   * than as the table it is with the table's own edit on it. This reader's own, and the same from the
+   * heading's button and from the group editor.
+   */
+  editsAsRows(element: DataElement): boolean {
+    return this.tablesEditedAsRows().has(element.identifier);
+  }
+
+  /** Switches a table between being edited as its rows and fields and being edited as the table it is. */
+  toggleEditAsRows(element: DataElement): void {
+    this.tablesEditedAsRows.update((tables) => {
+      const next = new Set(tables);
+      if (!next.delete(element.identifier)) next.add(element.identifier);
+      return next;
+    });
+  }
+
+  /** Whether a group or section may be built as a table (see `canBuildTable`). */
+  canBuildTable(element: DataElement): boolean {
+    return canBuildTable(element);
+  }
+
+  /** The table a group or section holds, its rows and columns, as the table builder starts from it. */
+  tableShapeOf(element: DataElement): TableShape {
+    return tableShapeOf(element);
+  }
+
+  /** What keeps a shape from being built on a group or section's table as it stands now (see `tableBuildProblems`). */
+  tableBuildProblems(element: DataElement, shape: TableShape): TableShapeProblem[] {
+    return tableBuildProblems(element, shape);
+  }
+
+  /** How many cells holding something building a group or section's table this way would take away. */
+  cellsLostBy(element: DataElement, shape: TableShape): number {
+    return cellsLostBy(element, shape);
+  }
+
+  /**
+   * Builds a group or section as a table of the shape given (see `applyTableShape`), the same way for
+   * the table builder and for the table's own edit. False, changing nothing, for a seat that may not
+   * edit the table, for a group or section that may not be built as one (see `canBuildTable`), and for
+   * a shape that may not be built.
+   */
+  buildTable(element: DataElement, shape: TableShape): boolean {
+    if (!this.rolePermission.canEditTabletop() || !canBuildTable(element)) return false;
+    if (tableBuildProblems(element, shape).length > 0) return false;
+    applyTableShape(element, shape);
+    for (const each of [element, ...element.children, ...element.children.flatMap((row) => row.children)]) {
+      this.objectChange.notifyChanged(each.identifier);
+    }
+    return true;
+  }
+
+  /**
+   * Adds a table of the shape given at the end of a group or section, under a name of its own among
+   * the ones beside it. Null where the container cannot hold one, for a seat that may not edit the
+   * table and for a shape that may not be built.
+   */
+  addTable(container: DataElement, name: string, shape: TableShape): DataElement | null {
+    if (!this.rolePermission.canEditTabletop() || !this.canAddGroupInside(container)) return null;
+    if (tableShapeProblems(shape).length > 0) return null;
+    const table = createShapedTable(DataElement.createUniqueSiblingName(container, name, '', new Set()), shape);
+    container.appendChild(table);
+    this.notify(container, table);
+    return table;
   }
 
   /** Deletes an element and everything under it, leaving a notice that offers to put it back. */

@@ -18,6 +18,7 @@ export const FIELD_ATMOSPHERE_IDS = [
   'village',
   'barbarianFort',
   'stoneFort',
+  'castleTown',
 ] as const;
 
 export type FieldAtmosphereId = (typeof FIELD_ATMOSPHERE_IDS)[number];
@@ -892,6 +893,35 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     settlement: 'stoneFort',
     darkness: 0,
     ambientColor: '#141a10',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
+  },
+  /**
+   * The town below a castle that stands off the board, at dusk: the castle's wall along the top of
+   * the board with its gate and its banners, cobbled streets from the gate, and a market square round
+   * a fountain. Every building has its rooms, furnished as what it is, and a few trees grow in the
+   * grass of the yards left between them. Lanterns burn by the doors and the lamp posts glow.
+   */
+  castleTown: {
+    id: 'castleTown',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_timber',
+    relief: 12,
+    damp: 0,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'stone_paving_small' },
+      { upTo: 1, texture: 'stone_paving_big' },
+      { upTo: 1, texture: 'wood_plank' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [{ prop: 'tree', chance: 0.12, bands: [0] }],
+    settlement: 'castleTown',
+    darkness: 0.3,
+    ambientColor: '#1c1626',
     weatherKind: '',
     weatherDensity: 0,
     gridShow: true,

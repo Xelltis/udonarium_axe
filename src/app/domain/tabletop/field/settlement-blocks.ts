@@ -1,4 +1,5 @@
 import type { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import { furnishingBlocks } from '@axe/domain/tabletop/dungeon/dungeon-blocks';
 import {
   DOOR_KIND_STYLES,
   DOOR_MODELS,
@@ -14,21 +15,23 @@ import {
 } from '@axe/domain/tabletop/field/mill-stream';
 import {
   type CropKind,
+  HUNG_FIXTURES,
   LOW_WALLS,
   SETTLEMENT_WALL_HEIGHTS,
   SETTLEMENT_WALL_KINDS,
+  type SettlementFixture,
   type SettlementLayout,
   type SettlementMill,
   type SettlementThing,
   type SettlementWallKind,
   SLOWING_CROPS,
+  type TownFixtureKind,
 } from '@axe/domain/tabletop/field/settlement-layout';
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
 import { areasOver, watersInLots, watersOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { blockLiftsTo } from '@axe/domain/tabletop/ground/block-lift';
 import { type GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type {
   MapAmbience,
   MapBlock,
@@ -38,7 +41,7 @@ import type {
   MapRect,
   MapSlowGround,
 } from '@axe/domain/tabletop/map-blocks';
-import { blockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
+import { cellNearest, middleOfCells } from '@axe/domain/tabletop/map-grid';
 
 /** What a settlement comes to on the table: what stands, what is painted, what is slow to cross, the water and the lights. */
 export interface SettlementBlocks {
@@ -92,7 +95,7 @@ function wallModelOf(
     case 'watchtower':
       return span > 1 && rect.w === 2 && rect.h === 2 ? { model: 'watchtower_wood', turn: 0 } : null;
     case 'timberWall':
-      return { model: settlement.kind === 'village' ? 'timber_frame_wall' : 'log_wall', turn: alongTurn(rect) };
+      return { model: settlement.kind === 'barbarianFort' ? 'log_wall' : 'timber_frame_wall', turn: alongTurn(rect) };
     case 'fence':
       return { model: 'rail_fence', turn: alongTurn(rect) };
     case 'boardWall':
@@ -103,6 +106,59 @@ function wallModelOf(
       return null;
   }
 }
+
+/** What a market stall is built of where it is drawn as a block: its boards and its canvas. */
+const STALL_SKIN: Skin = { side: 'wall_timber', top: 'felt' };
+
+/** What a shop's sign is built of, where it is drawn at all: the wall it hangs on. */
+const SIGN_SKIN: Skin = { side: 'wall_timber', top: 'wood_plank' };
+
+/**
+ * What each fixture of a town is drawn as and built of: its model, and where it is drawn without one,
+ * a block of its skin as tall as it stands filling so much of its cells; whether a piece may climb
+ * onto it, as onto a bench, or not, as onto a fountain or a lamp post. A fixture that hangs on a wall
+ * is laid only where models are asked for, over the wall's own cell and filling it; its skin is what
+ * is drawn where its model cannot be, as on a version that knows none, so it fills no less of the cell.
+ */
+const FIXTURES: Readonly<
+  Record<
+    TownFixtureKind,
+    {
+      readonly model: SettlementModelId;
+      readonly skin: Skin;
+      readonly height: number;
+      /** How much of its cells it fills, where it is a block standing on the ground; a hung one fills its wall's cell. */
+      readonly fill?: number;
+      readonly climbed: boolean;
+    }
+  >
+> = {
+  fountain: {
+    model: 'fountain',
+    skin: { side: 'wall_ashlar', top: 'shallows' },
+    height: 1.62,
+    fill: 0.9,
+    climbed: false,
+  },
+  marketStallFruit: { model: 'market_stall_fruit', skin: STALL_SKIN, height: 1.4, fill: 0.9, climbed: false },
+  marketStallCloth: { model: 'market_stall_cloth', skin: STALL_SKIN, height: 1.4, fill: 0.9, climbed: false },
+  marketStallPottery: { model: 'market_stall_pottery', skin: STALL_SKIN, height: 1.4, fill: 0.9, climbed: false },
+  lampPost: {
+    model: 'lamp_post',
+    skin: { side: 'wall_metal', top: 'wall_metal' },
+    height: 2,
+    fill: 0.35,
+    climbed: false,
+  },
+  bench: { model: 'bench', skin: { side: 'wall_timber', top: 'wood_plank' }, height: 0.47, fill: 0.8, climbed: true },
+  planter: { model: 'planter', skin: { side: 'wall_timber', top: 'forest' }, height: 0.46, fill: 0.8, climbed: true },
+  banner: { model: 'banner', skin: { side: 'wall_ashlar', top: 'stone_paving_big' }, height: 3.5, climbed: false },
+  signInn: { model: 'sign_inn', skin: SIGN_SKIN, height: 2, climbed: false },
+  signTavern: { model: 'sign_tavern', skin: SIGN_SKIN, height: 2, climbed: false },
+  signSmithy: { model: 'sign_smithy', skin: SIGN_SKIN, height: 2, climbed: false },
+  signBakery: { model: 'sign_bakery', skin: SIGN_SKIN, height: 2, climbed: false },
+  signShop: { model: 'sign_shop', skin: SIGN_SKIN, height: 2, climbed: false },
+};
 
 /** The model each small thing is drawn as, kept to its own shape within its cell. */
 const THING_MODELS: Readonly<Record<SettlementThing['thing'], SettlementModelId>> = {
@@ -241,42 +297,36 @@ function cutUp(rect: MapRect, span: number): MapRect[] {
   return parts;
 }
 
+/** How thick the block of a fixture hung on a wall is, in cells: well inside the wall it hangs on. */
+const HUNG_THICKNESS = 0.2;
+
 /**
- * How far a mill's one block is shifted from where a block of its rectangle is put, in cells, so
- * that its middle stands on the middle of a hex: a block of several cells on a board of hexes covers
- * the hexes round the one its middle stands on, and is put by its first cell otherwise. A windmill
- * stands on the middle cell of its rectangle; a watermill on the cell of its house nearest its wheel,
- * which brings the wheel over the stream. Nothing on squares, where the rectangle is the block.
+ * What a fixture hung on a wall stands as: a slab across the way it faces, in the middle of the wall's
+ * cell and well inside it, so it takes nothing a piece could bump into or climb, and a version that
+ * cannot draw its model draws nothing over the wall. Its model is drawn the size of the cell, as a model
+ * is fitted to the wider side of its block.
  */
-export function millShiftOn(mill: SettlementMill, gridType: GridType): MapPoint | undefined {
-  if (!isHexGrid(gridType)) return undefined;
-  const grid = { type: gridType, sizePx: 1 };
-  const centresOf = (rect: MapRect): MapPoint[] => {
-    const centres: MapPoint[] = [];
-    for (let dy = 0; dy < rect.h; dy++) {
-      for (let dx = 0; dx < rect.w; dx++) centres.push(cellCentre({ x: rect.x + dx, y: rect.y + dy }, grid));
-    }
-    return centres;
-  };
-  let middle = cellCentre({ x: mill.rect.x + 1, y: mill.rect.y + 1 }, grid);
-  if (mill.kind === 'watermill') {
-    const wheel = centresOf(watermillWheelOf(mill));
-    const hub = {
-      x: wheel.reduce((sum, centre) => sum + centre.x, 0) / wheel.length,
-      y: wheel.reduce((sum, centre) => sum + centre.y, 0) / wheel.length,
-    };
-    const off = (centre: MapPoint) => Math.hypot(centre.x - hub.x, centre.y - hub.y);
-    middle = centresOf(watermillHouseOf(mill)).reduce((nearest, centre) =>
-      off(centre) < off(nearest) ? centre : nearest
-    );
-  }
-  const origin = blockOrigin(mill.rect, grid);
-  return { x: middle.x - origin.x - mill.rect.w / 2, y: middle.y - origin.y - mill.rect.h / 2 };
+function hungFootprint(fixture: SettlementFixture): { w: number; d: number } {
+  const facesAcross = fixture.turn % 180 === 0;
+  return facesAcross
+    ? { w: fixture.rect.w, d: HUNG_THICKNESS * fixture.rect.h }
+    : { w: HUNG_THICKNESS * fixture.rect.w, d: fixture.rect.h };
+}
+
+/**
+ * The cell a mill's one block stands its middle on, on a board of hexes (see `blockCorner`): a
+ * windmill the middle cell of its rectangle, and a watermill the cell of its house nearest its wheel,
+ * which brings the wheel over the stream.
+ */
+export function millStandsOn(mill: SettlementMill, gridType: GridType): MapPoint {
+  return mill.kind === 'watermill'
+    ? cellNearest(watermillHouseOf(mill), middleOfCells(watermillWheelOf(mill), gridType), gridType)
+    : { x: mill.rect.x + 1, y: mill.rect.y + 1 };
 }
 
 /**
  * The blocks a mill stands as: as its model, one block the size of its rectangle wherever it stands,
- * turned as it is, and on hexes shifted as `millShiftOn` says; built of its blocks, a windmill as a box of its rectangle and a watermill as a box
+ * turned as it is, and on hexes standing on the cell `millStandsOn` says; built of its blocks, a windmill as a box of its rectangle and a watermill as a box
  * of its house without its wheel, cut up as `span` cuts every other building. A watermill's wheel
  * stands over the stream's bed, and a block is let down to the lowest of the ground under it, so each
  * is lifted as `liftOf` says to stand on the ground beside the stream.
@@ -285,7 +335,7 @@ function millBlocks(
   mill: SettlementMill,
   span: number,
   models: boolean,
-  liftOf: (rect: MapRect, shift?: MapPoint) => number | undefined,
+  liftOf: ReturnType<typeof blockLiftsTo>,
   gridType: GridType
 ): MapBlock[] {
   const standing = {
@@ -301,14 +351,14 @@ function millBlocks(
     thing: mill.kind,
   };
   if (models) {
-    const offset = millShiftOn(mill, gridType);
-    const altitude = liftOf(mill.rect, offset);
+    const standsOn = millStandsOn(mill, gridType);
+    const altitude = liftOf({ rect: mill.rect, standsOn });
     return [
       {
         ...standing,
         rect: mill.rect,
         height: MILL_SHAPES[mill.kind].tall,
-        ...(offset ? { offset } : {}),
+        standsOn,
         ...(altitude ? { altitude } : {}),
         model: mill.kind,
         modelTurn: mill.turn || undefined,
@@ -318,7 +368,7 @@ function millBlocks(
   const watermill = mill.kind === 'watermill';
   const height = watermill ? WATERMILL_HOUSE_HEIGHT : MILL_SHAPES.windmill.tall;
   return cutUp(watermill ? watermillHouseOf(mill) : mill.rect, span).map((rect) => {
-    const altitude = liftOf(rect);
+    const altitude = liftOf({ rect });
     return { ...standing, rect, height, ...(altitude ? { altitude } : {}) };
   });
 }
@@ -440,6 +490,30 @@ export function settlementBlocks(
       ...(model ? { model } : {}),
     });
   }
+  for (const fixture of settlement.fixtures ?? []) {
+    const shape = FIXTURES[fixture.kind];
+    const hung = HUNG_FIXTURES.includes(fixture.kind);
+    if (hung && !models) continue;
+    const filled = models ? 1 : (shape.fill ?? 1);
+    blocks.push({
+      kind: 'prop',
+      rect: fixture.rect,
+      blocksSight: false,
+      blocksClimb: !hung && !shape.climbed,
+      locked: false,
+      rooms: [],
+      skin: { side: { kind: 'texture', id: shape.skin.side }, top: { kind: 'texture', id: shape.skin.top } },
+      height: shape.height,
+      ...(hung
+        ? { footprint: hungFootprint(fixture) }
+        : filled < 1
+          ? { footprint: { w: fixture.rect.w * filled, d: fixture.rect.h * filled } }
+          : {}),
+      thing: fixture.kind,
+      ...(models ? { model: shape.model, modelTurn: fixture.turn || undefined } : {}),
+    });
+  }
+  for (const piece of settlement.furnishings ?? []) blocks.push(...furnishingBlocks(piece, span, { models }));
   const mills = settlement.mills ?? [];
   const liftOf = mills.length > 0 ? blockLiftsTo(level, ground, gridType) : () => undefined;
   for (const mill of mills) blocks.push(...millBlocks(mill, span, models, liftOf, gridType));

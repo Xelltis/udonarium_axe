@@ -31,6 +31,13 @@ describe('clockSky', () => {
     expect(clockSky(0.76).stars).toBeGreaterThan(0);
   });
 
+  it('dawns paler and golder than it sets', () => {
+    const channels = (rgb: string) => rgb.match(/\d+/g)!.map(Number);
+    const [dawnRed, , dawnBlue] = channels(clockSky(0.27).horizon);
+    const [duskRed, , duskBlue] = channels(clockSky(0.75).horizon);
+    expect(dawnRed - dawnBlue).toBeLessThan(duskRed - duskBlue);
+  });
+
   it('blends the colours between the points of the day either side, the same at midnight from both ends', () => {
     expect(clockSky(0).top).toBe(clockSky(1).top);
     expect(clockSky(0.5).top).toBe('rgb(47, 127, 216)');

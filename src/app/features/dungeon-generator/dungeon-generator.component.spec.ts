@@ -3,13 +3,16 @@ import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter
 import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { DUNGEON_GRID_SIZE } from '@axe/application/tabletop/dungeon-build.service';
+import { MapGenerationService } from '@axe/application/tabletop/map-generation/map-generation.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { atmosphereById } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GROUND_HEIGHT_STEP } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -47,6 +50,8 @@ type Panel = DungeonGeneratorComponent & {
   builtTable(): GameTable | null;
   summary(): string;
   canEdit: boolean;
+  lightMotion(): string;
+  setLightMotion(motion: string): void;
   setWall(material: { kind: 'texture'; id: string }): void;
   resetMaterials(): void;
   chooseAtmosphere(id: string): void;
@@ -273,6 +278,27 @@ describe('DungeonGeneratorComponent', () => {
     expect(component.builtTable()).toBeNull();
   });
 
+  it('stands the lights as the place has them until told otherwise, and remembers the motion chosen in this browser', async () => {
+    localStorage.removeItem(STORAGE_KEYS.generatedLightMotion);
+    try {
+      expect(component.lightMotion()).toBe('');
+      component.setLightMotion('none');
+      expect(localStorage.getItem(STORAGE_KEYS.generatedLightMotion)).toBe('none');
+      component.roomCount.set(3);
+      await component.generate();
+      const lights = component.builtTable()!.lightSources;
+      expect(lights.length).toBeGreaterThan(0);
+      expect(lights.every((light) => light.lightAnimation === 'none')).toBe(true);
+
+      const next = TestBed.createComponent(DungeonGeneratorComponent).componentInstance as Panel;
+      expect(next.lightMotion()).toBe('none');
+      next.setLightMotion('');
+      expect(localStorage.getItem(STORAGE_KEYS.generatedLightMotion)).toBeNull();
+    } finally {
+      localStorage.removeItem(STORAGE_KEYS.generatedLightMotion);
+    }
+  });
+
   it('builds one table and remembers it', async () => {
     component.roomCount.set(3);
 
@@ -325,6 +351,7 @@ describe('DungeonGeneratorComponent', () => {
   });
 
   it('takes the painted ground away with the table it was made for', async () => {
+    new GameTable().initialize();
     stubPainting(exportScene);
     component.roomCount.set(3);
     await component.generate();
@@ -486,13 +513,35 @@ describe('DungeonGeneratorComponent', () => {
   });
 
   it('clears the table away when asked', async () => {
+    const room = new GameTable();
+    room.initialize();
     component.roomCount.set(3);
     await component.generate();
 
     component.discardPrevious();
 
-    expect(store.getObjects(GameTable).length).toBe(0);
+    expect(store.getObjects(GameTable)).toEqual([room]);
     expect(component.builtTable()).toBeNull();
+  });
+
+  it('rolls again by building first, and shows the new map where everyone was looking at the one before', async () => {
+    new GameTable().initialize();
+    component.roomCount.set(3);
+    await component.generate();
+    const before = component.builtTable()!;
+    TableSelecter.instance.viewTableIdentifier = before.identifier;
+    let standingWhileBuilt = false;
+    const build = TestBed.inject(MapGenerationService).build.bind(TestBed.inject(MapGenerationService));
+    vi.spyOn(TestBed.inject(MapGenerationService), 'build').mockImplementation(async (...args) => {
+      standingWhileBuilt = store.get(before.identifier) === before;
+      return build(...args);
+    });
+
+    await component.generate();
+
+    expect(standingWhileBuilt).toBe(true);
+    expect(store.get(before.identifier)).toBeNull();
+    expect(TableSelecter.instance.viewTableIdentifier).toBe(component.builtTable()!.identifier);
   });
 
   it('lets the panel take the pointer again once the drag ends', async () => {

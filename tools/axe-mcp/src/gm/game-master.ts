@@ -17,7 +17,7 @@ import {
 } from '@axe/core/agent/agent-gm';
 import type { GmSettings, GmWake } from '@axe/core/agent/agent-protocol';
 import { checkAgentInput } from '@axe/core/agent/agent-schema';
-import type { AgentToolDefinition } from '@axe/core/agent/agent-tools';
+import { type AgentToolDefinition, agentToolOf } from '@axe/core/agent/agent-tools';
 
 import type { CallOutcome } from '../tab-link';
 import { costOf, isPriced, promptTokensOf, tokensOf } from './gm-models';
@@ -396,7 +396,7 @@ export class GameMaster {
       return answer('{"written":true}');
     }
     if (notebookOnly) return answer('not_allowed: Only update_notes may be used now.', true);
-    const outcome = await this.call(call.name, input, TOOL_TIMEOUT_MS, signal);
+    const outcome = await this.call(call.name, input, agentToolOf(call.name)?.timeoutMs ?? TOOL_TIMEOUT_MS, signal);
     return outcome.ok ? answer(textOf(outcome.value)) : answer(`${outcome.error.code}: ${outcome.error.message}`, true);
   }
 

@@ -4,6 +4,8 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import {
   CHAT_LOG_PREVIEW_LIMIT,
   ChatLogPreviewComponent,
@@ -188,5 +190,36 @@ describe('ChatLogPreviewComponent', () => {
     component.chooseScope('all');
 
     expect(component.effectiveScope()).toBe('tab');
+  });
+
+  describe('for a player', () => {
+    const original = PeerCursor.myCursor;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.Player;
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = original;
+    });
+
+    it('shows and saves no tab kept from them, alone or among every tab', async () => {
+      const open = addTab('雑談', 1);
+      const closed = addTab('GM用', 1);
+      closed.plCanView = false;
+      const spy = vi.spyOn(saveData, 'saveChatLog').mockResolvedValue(undefined);
+
+      component.tab.set(open);
+      component.chooseScope('all');
+      await component.save();
+      component.tab.set(closed);
+      component.chooseScope('tab');
+      await component.save();
+
+      expect(spy).toHaveBeenCalledOnce();
+      expect(spy.mock.calls[0][2]).toContain(open);
+      expect(spy.mock.calls[0][2]).not.toContain(closed);
+    });
   });
 });

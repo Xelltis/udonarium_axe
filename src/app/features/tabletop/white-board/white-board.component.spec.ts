@@ -1,14 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_DESERIALIZE_SCENE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Coin } from '@axe/domain/coin/coin';
 import { ImageLayer } from '@axe/domain/map-editor/scene';
 import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -33,7 +38,7 @@ describe('WhiteBoardComponent', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [WhiteBoardComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, { provide: TRANSLATE_FN, useValue: (key: string) => key }],
     }).compileComponents();
 
     table = new GameTable();
@@ -185,30 +190,27 @@ describe('WhiteBoardComponent', () => {
     expect(board.rotate).toBe(30);
   });
 
-  it('counts only what names it as the face it stands on, for its menu to take off it', () => {
-    const mine = place(10, 10, board.identifier);
-    const theirs = place(10, 10);
+  /** Opens the board's menu as a right click on it does, and hands back what it offers. */
+  function openMenu(): ContextMenuAction[] {
+    vi.spyOn(TestBed.inject(PointerDeviceService), 'isAllowedToOpenContextMenu', 'get').mockReturnValue(true);
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    component.onContextMenu(new MouseEvent('contextmenu'));
+    return open.mock.calls.at(-1)![1];
+  }
 
-    expect(component.characters().map((piece) => piece.identifier)).toEqual([mine.identifier]);
-    expect(component.standingCount()).toBe(1);
-    expect(theirs.location.surface).toBeUndefined();
-  });
+  function entry(menu: ContextMenuAction[], key: string): ContextMenuAction | undefined {
+    return menu.find((action) => action.name === key);
+  }
 
-  it('puts everything back where it appeared to be when the board is cleared', () => {
-    const piece = place(50, 40, board.identifier);
+  it('offers to take everything off only while something names it as the face it stands on', () => {
+    place(10, 10);
+    place(10, 10, 'north-wall');
+    expect(entry(openMenu(), 'feature.whiteBoard.contextMenu.detachAll')).toBeUndefined();
 
-    component.detachAll(board);
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', x: -40, y: 260, surface: board.identifier };
 
-    expect(piece.location.surface).toBeUndefined();
-    expect(piece.location.x).toBe(150);
-    expect(piece.location.y).toBe(240);
-  });
-
-  it('lets a piece hang over the edge', () => {
-    const piece = place(10, 10, board.identifier);
-    piece.location = { name: 'table', x: -40, y: 260, surface: board.identifier };
-
-    expect(component.characters().map((entry) => entry.identifier)).toContain(piece.identifier);
+    expect(entry(openMenu(), 'feature.whiteBoard.contextMenu.detachAll')).toBeDefined();
   });
 
   it('holds terrain as well as pieces', () => {
@@ -216,7 +218,31 @@ describe('WhiteBoardComponent', () => {
     terrain.location = { name: 'table', x: 0, y: 0, surface: board.identifier };
     table.appendChild(terrain);
 
-    expect(component.terrains().map((entry) => entry.identifier)).toEqual([terrain.identifier]);
+    expect(entry(openMenu(), 'feature.whiteBoard.contextMenu.detachAll')).toBeDefined();
+  });
+
+  it('puts everything back where it appeared to be when the board is cleared', () => {
+    const piece = place(50, 40, board.identifier);
+    const light = LightSource.create('light');
+    light.location = { name: 'table', x: 10, y: 20, surface: board.identifier };
+
+    entry(openMenu(), 'feature.whiteBoard.contextMenu.detachAll')!.action!();
+
+    expect([piece.location.surface, piece.location.x, piece.location.y]).toEqual([undefined, 150, 240]);
+    expect([light.location.surface, light.location.x, light.location.y]).toEqual([undefined, 110, 220]);
+  });
+
+  it('puts a coin and a light set on it back on the table where they appeared to be when it is deleted', () => {
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', x: 30, y: 40, surface: board.identifier };
+    const light = LightSource.create('light');
+    light.location = { name: 'table', x: 10, y: 20, surface: board.identifier };
+
+    entry(openMenu(), 'feature.whiteBoard.contextMenu.delete')!.action!();
+
+    expect(ObjectStore.instance.get(board.identifier)).toBeNull();
+    expect([coin.location.surface, coin.location.x, coin.location.y]).toEqual([undefined, 130, 240]);
+    expect([light.location.surface, light.location.x, light.location.y]).toEqual([undefined, 110, 220]);
   });
 
   it('fades only the face, so what is drawn on the board floats over it', () => {

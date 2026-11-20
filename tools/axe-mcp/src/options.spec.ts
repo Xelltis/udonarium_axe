@@ -22,9 +22,16 @@ describe('readOptions', () => {
       models: [],
       price: null,
       maxTokens: GM_MAX_TOKENS_DEFAULT,
+      filesDir: '.',
       help: false,
       version: false,
     });
+  });
+
+  it('keeps the files the AI reads and saves to a folder given, by an option or the environment', () => {
+    expect(readOptions(['--files-dir', 'sessions'], {})).toMatchObject({ filesDir: 'sessions' });
+    expect(readOptions([], { AXE_MCP_FILES_DIR: ' maps ' })).toMatchObject({ filesDir: 'maps' });
+    expect(readOptions(['--files-dir'], {})).toEqual({ error: '--files-dir needs a folder' });
   });
 
   it('runs the game master on another provider’s models, at its address, priced or counted in tokens', () => {

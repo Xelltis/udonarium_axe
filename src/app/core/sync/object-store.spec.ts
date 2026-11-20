@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
 import { GameObject } from '@axe/core/sync/game-object';
-import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-event-extension';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
+import { objectAdded$, objectRemoved$ } from '@axe/core/sync/object-store-events';
 import { DataElement } from '@axe/domain/data/data-element';
 
 type ObjectStorePrivate = {

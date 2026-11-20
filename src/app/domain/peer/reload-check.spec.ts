@@ -28,6 +28,36 @@ describe('ReloadCheck', () => {
     });
   });
 
+  describe('reset()', () => {
+    it('leaves nothing answered once a load ends, an agreed load included, so room data read after asks again', () => {
+      const confirm = vi.fn().mockReturnValue(false);
+      window.confirm = confirm;
+      reloadCheck.agreeInAdvance();
+
+      reloadCheck.reset();
+
+      expect([reloadCheck.answerWithheldCheck(), reloadCheck.answerCheck()]).toEqual([false, false]);
+      expect(confirm).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('agreeInAdvance()', () => {
+    it('asks neither question again for a load the person agreed to before it began', () => {
+      reloadCheck.reloadCheckStart(true);
+      const confirm = vi.fn().mockReturnValue(false);
+      window.confirm = confirm;
+
+      reloadCheck.agreeInAdvance();
+
+      expect([reloadCheck.answerWithheldCheck(), reloadCheck.answerCheck(), reloadCheck.isLoadOk()]).toEqual([
+        true,
+        true,
+        true,
+      ]);
+      expect(confirm).not.toHaveBeenCalled();
+    });
+  });
+
   describe('answerWithheldCheck()', () => {
     it('asks once for a load, in a room or out of one, and stops the rest of it when declined', () => {
       reloadCheck.reloadCheckStart(false);

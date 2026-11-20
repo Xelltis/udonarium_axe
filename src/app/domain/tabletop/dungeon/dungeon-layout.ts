@@ -65,6 +65,11 @@ export interface DungeonPoint {
 export interface DungeonRoom extends DungeonRect {
   index: number;
   role: DungeonRoomRoleValue;
+  /**
+   * What the room is, of the kinds of room a place keeps for the part it plays: a workshop, an
+   * observatory or a bedroom among a tower's small rooms. Left out where the place keeps one kind.
+   */
+  set?: string;
 }
 
 export interface DungeonDoor extends DungeonPoint {
@@ -109,6 +114,58 @@ export const FURNISHING_IDS = [
   'pipeValve',
   'pipeElbow',
   'pipeEnd',
+  'neonCocktail',
+  'neonDice',
+  'neonHeart',
+  'backBar',
+  'boothSofa',
+  'lowTable',
+  'jukebox',
+  'slotMachine',
+  'arcadeCabinet',
+  'rouletteTable',
+  'vendingMachine',
+  'goodsShelf',
+  'safe',
+  'executiveDesk',
+  'still',
+  'speaker',
+  'aquarium',
+  'plant',
+  'bookshelf',
+  'lectern',
+  'bookPile',
+  'alchemyTable',
+  'cauldron',
+  'potionShelf',
+  'magicCircle',
+  'crystalPedestal',
+  'orrery',
+  'telescope',
+  'canopyBed',
+  'wardrobe',
+  'treasureChest',
+  'candelabra',
+  'gargoyle',
+  'writingDesk',
+  'storageJars',
+  'bed',
+  'tableWood',
+  'chairWood',
+  'cupboard',
+  'fireplace',
+  'anvil',
+  'forge',
+  'weaponRack',
+  'breadOven',
+  'flourSacks',
+  'pew',
+  'altar',
+  'bunkBed',
+  'chestWood',
+  'shelfGoods',
+  'barCounter',
+  'tavernCounter',
 ] as const;
 
 export type FurnishingId = (typeof FURNISHING_IDS)[number];
@@ -151,8 +208,19 @@ export interface DungeonSpout extends DungeonPoint {
 /** A piece of furniture standing in a room, and the cells it takes. */
 export interface DungeonFurnishing extends DungeonRect {
   piece: FurnishingId;
+  /**
+   * On a board of hexes, the cell a piece of several cells stands its middle on: for one with its back
+   * to a wall, the cell out from the wall, so it reaches no further into the wall than its cells do.
+   * Left out, the cell nearest its middle.
+   */
+  standsOn?: DungeonPoint;
   /** How far it is turned off square, in degrees. */
   spin: number;
+  /**
+   * Which way it faces, for a piece that stands with its back to a wall or lies one way in the middle
+   * of a room: how far its model, made facing south, is turned clockwise. Left out, as made.
+   */
+  facing?: number;
   /** What is stacked on top of it, from the bottom up. */
   stack?: FurnishingId[];
 }
@@ -193,6 +261,11 @@ export interface DungeonLayout {
   spouts?: DungeonSpout[];
   /** How high its ground stands over the board, where the water run through it digs into it. */
   relief?: GroundRaster | null;
+  /**
+   * For a round place, as a tower is, the cells outside it, each as 1: no part of the place at all,
+   * so nothing is built or painted on them. Left out, the place fills the board.
+   */
+  outside?: Uint8Array;
   seed: number;
 }
 

@@ -210,6 +210,22 @@ describe('DiceChatEventHandlerService', () => {
     }
   });
 
+  it('passes over a die another seat keeps among peers too, for the game master as well', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const kept = makeDice(goblin);
+    kept.owner = 'someone-else';
+    kept.face = '1';
+    const shown = makeDice(goblin);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+    expect([kept.face, shown.face]).toEqual(['1', '4']);
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 5 }]);
+    expect([kept.face, shown.face]).toEqual(['1', '5']);
+  });
+
   it('turns a die that only lacks its face, which nobody would put back', () => {
     const goblin = makeCharacter('ゴブリンA');
     const faceless = makeDice(goblin);

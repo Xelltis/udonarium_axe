@@ -121,8 +121,9 @@ export function watermillHouseOf(mill: SettlementMill): MapRect {
  * village has no stream and no watermill.
  *
  * A watermill stands where the stream runs straight for two cells clear of the road, its wheel in the
- * stream and its house on the bank with a cell clear round it, on the bank where the foot of its wheel
- * turns the way the water runs, or on the other bank where that one has no room. A windmill stands on
+ * stream and its house on the bank with a cell clear round it, on the left bank looking the way the
+ * water runs, or on the right where that one has no room; on either, the water under its wheel turns
+ * it the way the water runs as the table draws it. A windmill stands on
  * open ground with a cell clear round it, its sails facing the road. The stream's cells but for its
  * bridges, the watermill's house and the windmill are all taken.
  */
@@ -312,9 +313,9 @@ function watermillAt(wheel: MapPoint, turn: number): SettlementMill {
 }
 
 /**
- * Where a watermill stands beside the stream, picked by the seed among the places it fits: any where
- * the foot of its wheel turns the way the water runs, and only where there is none of those, any where
- * it turns against it. Its wheel stands in two cells of the stream running straight on the same way,
+ * Where a watermill stands beside the stream, picked by the seed among the places it fits: any on the
+ * left bank, looking the way the water runs, and only where there is none of those, any on the right.
+ * Its wheel stands in two cells of the stream running straight on the same way,
  * neither of them a bridge; its house on open ground with nothing but the stream in the cells round it;
  * and the whole of it `MILL_CLEAR_OF_ROAD` cells clear of the road. Of the places it fits, those
  * `MILL_OFF_EDGE` cells in from the edge of the board are kept where there are any, and the seed
@@ -348,20 +349,20 @@ function watermillBeside(
     }
     return true;
   };
-  const along: SettlementMill[] = [];
-  const against: SettlementMill[] = [];
+  const left: SettlementMill[] = [];
+  const right: SettlementMill[] = [];
   const cells = stream.cells;
   for (let at = 0; at + 1 < cells.length; at++) {
     const here = cells[at];
     const next = cells[at + 1];
     if (here.bridge || next.bridge || here.flow !== next.flow) continue;
     const wheel = { x: Math.min(here.x, next.x), y: Math.min(here.y, next.y) };
-    const fitting = watermillAt(wheel, here.flow);
-    if (fits(fitting)) along.push(fitting);
-    const facing = watermillAt(wheel, (here.flow + 180) % 360);
-    if (fits(facing)) against.push(facing);
+    const onLeft = watermillAt(wheel, here.flow);
+    if (fits(onLeft)) left.push(onLeft);
+    const onRight = watermillAt(wheel, (here.flow + 180) % 360);
+    if (fits(onRight)) right.push(onRight);
   }
-  const places = along.length > 0 ? along : against;
+  const places = left.length > 0 ? left : right;
   if (places.length < 1) return null;
   const offEdge = ({ rect }: SettlementMill) =>
     Math.min(rect.x, rect.y, width - rect.x - rect.w, height - rect.y - rect.h);

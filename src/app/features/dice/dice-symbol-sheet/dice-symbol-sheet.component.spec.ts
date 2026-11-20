@@ -5,8 +5,11 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { DiceSymbolSheetComponent } from '@axe/features/dice/dice-symbol-sheet/dice-symbol-sheet.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('DiceSymbolSheetComponent', () => {
@@ -44,6 +47,70 @@ describe('DiceSymbolSheetComponent', () => {
     expect(shown).toHaveBeenCalledTimes(1);
     die.destroy();
     vi.restoreAllMocks();
+  });
+
+  describe('a die another seat keeps', () => {
+    let die: DiceSymbol;
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.role = PeerRole.Player;
+      die = DiceSymbol.create('隠しダイス', DiceType.D6, 1);
+      die.face = '3';
+    });
+
+    afterEach(() => {
+      die.destroy();
+      vi.restoreAllMocks();
+      PeerCursor.myCursor = null!;
+    });
+
+    function sheetOf(target: DiceSymbol) {
+      const fixture = TestBed.createComponent(DiceSymbolSheetComponent);
+      fixture.componentInstance.diceSymbol = target;
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('shows nothing of it once another seat keeps it while the sheet is open, and turns no face', async () => {
+      const fixture = sheetOf(die);
+      const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(text()).toContain('3');
+
+      die.owner = 'somebody-else';
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="dice-sheet-locked"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('input')).toBeNull();
+      fixture.componentInstance.selectFace('6');
+      fixture.componentInstance.hideName = true;
+      expect([die.face, die.hideName]).toEqual(['3', false]);
+    });
+
+    it('saves nothing of it, and says so', async () => {
+      die.owner = 'somebody-else';
+      const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync').mockResolvedValue();
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      await sheetOf(die).componentInstance.saveToXML();
+
+      expect(save).not.toHaveBeenCalled();
+      expect(shown).toHaveBeenCalledOnce();
+    });
+
+    it('is shown whole to the game master, who does not turn its face, that being its keeper’s', () => {
+      die.owner = 'somebody-else';
+      const before = die.face;
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const fixture = sheetOf(die);
+
+      expect(fixture.nativeElement.querySelector('[data-testid="dice-sheet-locked"]')).toBeNull();
+      fixture.componentInstance.selectFace('6');
+      expect(die.face).toBe(before);
+    });
   });
 
   describe('the description', () => {

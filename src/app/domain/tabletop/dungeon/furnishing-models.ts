@@ -1,6 +1,6 @@
 import type { DungeonPropId } from '@axe/domain/media/texture-catalog';
 import type { DungeonDoorStyle } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
-import type { FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { FURNISHING_IDS, type FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 
 /** The 3D models bundled with the app that the furniture and the doors of a dungeon can be stood as. */
 export const FURNISHING_MODEL_IDS = [
@@ -22,6 +22,58 @@ export const FURNISHING_MODEL_IDS = [
   'prop_pipeValve',
   'prop_pipeElbow',
   'prop_pipeEnd',
+  'prop_neonCocktail',
+  'prop_neonDice',
+  'prop_neonHeart',
+  'prop_backBar',
+  'prop_boothSofa',
+  'prop_lowTable',
+  'prop_jukebox',
+  'prop_slotMachine',
+  'prop_arcadeCabinet',
+  'prop_rouletteTable',
+  'prop_vendingMachine',
+  'prop_goodsShelf',
+  'prop_safe',
+  'prop_executiveDesk',
+  'prop_still',
+  'prop_speaker',
+  'prop_aquarium',
+  'prop_plant',
+  'prop_barCounter',
+  'prop_tavernCounter',
+  'prop_bookshelf',
+  'prop_lectern',
+  'prop_bookPile',
+  'prop_alchemyTable',
+  'prop_cauldron',
+  'prop_potionShelf',
+  'prop_magicCircle',
+  'prop_crystalPedestal',
+  'prop_orrery',
+  'prop_telescope',
+  'prop_canopyBed',
+  'prop_wardrobe',
+  'prop_treasureChest',
+  'prop_candelabra',
+  'prop_gargoyle',
+  'prop_writingDesk',
+  'prop_storageJars',
+  'prop_bed',
+  'prop_tableWood',
+  'prop_chairWood',
+  'prop_cupboard',
+  'prop_fireplace',
+  'prop_anvil',
+  'prop_forge',
+  'prop_weaponRack',
+  'prop_breadOven',
+  'prop_flourSacks',
+  'prop_pew',
+  'prop_altar',
+  'prop_bunkBed',
+  'prop_chestWood',
+  'prop_shelfGoods',
   'door_wood',
   'door_steel',
   'door_iron_grate',
@@ -43,30 +95,31 @@ export function furnishingModelUrl(id: FurnishingModelId): string {
 }
 
 /**
- * The model each piece of furniture is stood as. A pillar has none: it is of the walls' own stone and
- * as tall as they are, both of which the generator lets be chosen, so it is built of its blocks as ever.
+ * The pieces of furniture stood as a model named otherwise than `prop_` and the piece's own name, as
+ * the bar's table is stood as the model it was made as.
  */
-export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = {
-  counter: 'prop_counter',
-  shopCounter: 'prop_shopCounter',
-  table: 'prop_barTable',
-  crate: 'prop_crate',
-  stool: 'prop_stool',
-  desk: 'prop_desk',
-  gamingTable: 'prop_gamingTable',
-  rubble: 'prop_rubble',
-  containerRed: 'prop_containerRed',
-  containerBlue: 'prop_containerBlue',
-  containerGreen: 'prop_containerGreen',
-  barrel: 'prop_barrel',
-  pipe: 'prop_pipe',
-  pipeValve: 'prop_pipeValve',
-  pipeElbow: 'prop_pipeElbow',
-  pipeEnd: 'prop_pipeEnd',
-};
+const MODELS_NAMED_OTHERWISE: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = { table: 'prop_barTable' };
+
+/**
+ * The model each piece of furniture is stood as: the bundled one named `prop_` and the piece's name,
+ * or as `MODELS_NAMED_OTHERWISE` says. A piece no bundled model is named for has none, as a pillar,
+ * which is of the walls' own stone and as tall as they are, both of which the generator lets be
+ * chosen, so it is built of its blocks as ever.
+ */
+export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = Object.fromEntries(
+  FURNISHING_IDS.flatMap((piece) => {
+    const named = MODELS_NAMED_OTHERWISE[piece] ?? `prop_${piece}`;
+    return isFurnishingModel(named) ? [[piece, named]] : [];
+  })
+);
 
 /** The pieces whose model is one cell of a run: a counter of any length is a row of them, ends meeting. */
-export const FURNISHING_SEGMENT_MODELS: readonly FurnishingId[] = ['counter', 'shopCounter'];
+export const FURNISHING_SEGMENT_MODELS: readonly FurnishingId[] = [
+  'counter',
+  'shopCounter',
+  'barCounter',
+  'tavernCounter',
+];
 
 /**
  * The model each kind of door is stood as: a leaf one wide, two tall and a quarter deep, hinged at

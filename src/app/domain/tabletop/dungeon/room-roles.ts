@@ -203,3 +203,23 @@ function lockTheDeepestRoom(layout: DungeonLayout, boss: number): void {
   if (sealRoom(layout, boss).length === 0) return;
   layout.keyRoomIndex = candidate;
 }
+
+/**
+ * Gives the rooms playing each part one of the kinds of room the place keeps for that part, in turn
+ * by the order the rooms were dug in: a tower's small rooms a library, a workshop, an observatory and
+ * a bedroom, and round again. It draws nothing from the seed, so the rest of the place comes out
+ * of its seed as it would without them.
+ */
+export function assignRoomSets(
+  layout: DungeonLayout,
+  sets: Readonly<Partial<Record<DungeonRoomRoleValue, readonly string[]>>>
+): void {
+  const counted = new Map<DungeonRoomRoleValue, number>();
+  for (const room of layout.rooms) {
+    const kinds = sets[room.role];
+    if (!kinds || kinds.length === 0) continue;
+    const order = counted.get(room.role) ?? 0;
+    counted.set(room.role, order + 1);
+    room.set = kinds[order % kinds.length];
+  }
+}

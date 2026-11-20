@@ -126,6 +126,19 @@ describe('AgentGmTools', () => {
     });
   });
 
+  it('fires no effect the master keeps for themselves from a player’s seat, by name or by id', async () => {
+    const preset = new EffectPreset();
+    preset.name = '秘奥義';
+    preset.gmOnly = true;
+    ObjectStore.instance.add(preset, false);
+    pieceAt('ゴブリン', 3, 3);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    for (const effect of ['秘奥義', preset.identifier]) {
+      await expect(call('fire_effect', { effect, targets: ['ゴブリン'] })).rejects.toThrow('There is no effect');
+    }
+  });
+
   it('plays music, an ambient sound and a sound effect by name, and stops them', async () => {
     const audios = [
       { identifier: 'a1', name: '戦闘' },
@@ -151,6 +164,18 @@ describe('AgentGmTools', () => {
     expect(stopMusic).toHaveBeenCalled();
     expect(stopAmbient).toHaveBeenCalled();
     await expect(call('play_sound', { kind: 'bgm', sound: '無音' })).rejects.toThrow('There is no sound named 無音');
+  });
+
+  it('starts an ambient sound stopped before again, from a player’s seat as from the master’s', async () => {
+    vi.spyOn(TestBed.inject(AudioStorage), 'audios', 'get').mockReturnValue([
+      { identifier: 'rain-agent', name: '雨' },
+    ] as AudioFile[]);
+    const keep = vi.spyOn(BackgroundSound, 'keepPlaying').mockReturnValue(null);
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    await call('play_sound', { kind: 'ambient', sound: '雨' });
+
+    expect(keep).toHaveBeenCalledWith('rain-agent');
   });
 
   it('says a scenario text marked as the AI’s, as the lines it sends are', async () => {

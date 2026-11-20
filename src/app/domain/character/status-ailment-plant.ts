@@ -26,15 +26,17 @@ export function plantStatusAilment(
   look: Pick<BuffAppearance, 'trigger' | 'effectTiming' | 'kind'> = {}
 ): void {
   character.addBuffDataElement();
-  character.buffs.addRound(ailment.name, ailment.effect, ailment.rounds, {
-    color: ailment.color,
-    icon: ailment.icon,
-    timing: ailment.timing,
-    effectTiming: '',
-    kind: 'debuff',
-    ...look,
+  character.buffs.alter(() => {
+    character.buffs.addRound(ailment.name, ailment.effect, ailment.rounds, {
+      color: ailment.color,
+      icon: ailment.icon,
+      timing: ailment.timing,
+      effectTiming: '',
+      kind: 'debuff',
+      ...look,
+    });
+    moveStatusOf(character, ailment);
   });
-  moveStatusOf(character, ailment);
   emitStatusAilmentPlanted({ characterIdentifier: character.identifier, name: ailment.name });
 }
 

@@ -18,6 +18,151 @@
     </button>
   </div>
 }
+@if (editedColumn(); as edited) {
+  <div
+    class="bg-ui-elevated border-ui-border-panel flex flex-wrap items-center gap-1 border-b p-1 text-[0.78em]"
+    data-testid="table-edit-column"
+  >
+    <input
+      class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_7em] rounded-xs border border-solid px-1.5 py-0.75"
+      [value]="edited.column.name"
+      [attr.aria-label]="'feature.dataElement.tableBuilder.name' | transloco"
+      [placeholder]="'feature.dataElement.tableBuilder.name' | transloco"
+      (change)="setColumn(edited.index, 'name', $event.target)"
+      data-testid="table-edit-column-name"
+    />
+    <input
+      class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_6em] rounded-xs border border-solid px-1.5 py-0.75"
+      [value]="edited.column.label"
+      [attr.aria-label]="'feature.dataElement.tableBuilder.label' | transloco"
+      [placeholder]="'feature.dataElement.tableBuilder.labelHint' | transloco"
+      (change)="setColumn(edited.index, 'label', $event.target)"
+    />
+    <input
+      class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_5em] rounded-xs border border-solid px-1.5 py-0.75"
+      [value]="edited.column.group"
+      [attr.aria-label]="'feature.dataElement.tableBuilder.group' | transloco"
+      [placeholder]="'feature.dataElement.tableBuilder.group' | transloco"
+      (change)="setColumn(edited.index, 'group', $event.target)"
+    />
+    <select
+      class="bg-ui-input border-ui-border-panel cursor-pointer rounded-xs border border-solid px-1 py-0.75"
+      [attr.aria-label]="'feature.dataElement.tableBuilder.kind' | transloco"
+      (change)="setColumn(edited.index, 'kind', $event.target)"
+      data-testid="table-edit-column-kind"
+    >
+      @for (kind of kinds; track kind) {
+        <option [value]="kind" [selected]="kind === edited.column.kind">
+          {{ 'feature.dataElement.tableBuilder.kinds.' + kind | transloco }}
+        </option>
+      }
+    </select>
+    @if (edited.column.kind === 'select') {
+      <input
+        class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_100%] rounded-xs border border-solid px-1.5 py-0.75"
+        [value]="edited.column.choices"
+        [attr.aria-label]="'feature.dataElement.tableBuilder.choices' | transloco"
+        [placeholder]="'feature.dataElement.tableBuilder.choices' | transloco"
+        (change)="setColumn(edited.index, 'choices', $event.target)"
+      />
+    }
+    <span class="ml-auto flex gap-0.5">
+      <button
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [disabled]="edited.index === 0"
+        [attr.aria-label]="'feature.dataElement.tableView.edit.moveLeft' | transloco"
+        (click)="moveColumn(edited.index, -1)"
+      >
+        <i class="material-icons">arrow_back</i>
+      </button>
+      <button
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [disabled]="edited.last"
+        [attr.aria-label]="'feature.dataElement.tableView.edit.moveRight' | transloco"
+        (click)="moveColumn(edited.index, 1)"
+      >
+        <i class="material-icons">arrow_forward</i>
+      </button>
+      <button
+        type="button"
+        class="hover:text-ui-danger inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [attr.aria-label]="'feature.dataElement.tableBuilder.removeColumn' | transloco"
+        (click)="removeColumn(edited.index)"
+        data-testid="table-edit-remove-column"
+      >
+        <i class="material-icons">delete</i>
+      </button>
+      <button
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [attr.aria-label]="'feature.dataElement.tableView.edit.close' | transloco"
+        (click)="stopEditing()"
+      >
+        <i class="material-icons">close</i>
+      </button>
+    </span>
+    <p class="text-ui-dim m-0 w-full text-[11px]">{{ 'feature.dataElement.tableBuilder.renameNote' | transloco }}</p>
+  </div>
+}
+@if (editedRow(); as edited) {
+  <div
+    class="bg-ui-elevated border-ui-border-panel flex flex-wrap items-center gap-1 border-b p-1 text-[0.78em]"
+    data-testid="table-edit-row"
+  >
+    <input
+      class="bg-ui-input border-ui-border-panel min-w-0 flex-[1_1_8em] rounded-xs border border-solid px-1.5 py-0.75"
+      [value]="edited.row.name"
+      [attr.aria-label]="'feature.dataElement.tableBuilder.name' | transloco"
+      [placeholder]="'feature.dataElement.tableBuilder.name' | transloco"
+      (change)="renameRow(edited.index, $event.target)"
+      data-testid="table-edit-row-name"
+    />
+    <span class="ml-auto flex gap-0.5">
+      <button
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [disabled]="edited.index === 0"
+        [attr.aria-label]="'feature.dataElement.tableBuilder.moveUp' | transloco"
+        (click)="moveRow(edited.index, -1)"
+      >
+        <i class="material-icons">arrow_upward</i>
+      </button>
+      <button
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [disabled]="edited.last"
+        [attr.aria-label]="'feature.dataElement.tableBuilder.moveDown' | transloco"
+        (click)="moveRow(edited.index, 1)"
+      >
+        <i class="material-icons">arrow_downward</i>
+      </button>
+      <button
+        type="button"
+        class="hover:text-ui-danger inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [attr.aria-label]="'feature.dataElement.tableBuilder.removeRow' | transloco"
+        (click)="removeRow(edited.index)"
+        data-testid="table-edit-remove-row"
+      >
+        <i class="material-icons">delete</i>
+      </button>
+      <button
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center p-0 [&_.material-icons]:text-[16px]"
+        [attr.aria-label]="'feature.dataElement.tableView.edit.close' | transloco"
+        (click)="stopEditing()"
+      >
+        <i class="material-icons">close</i>
+      </button>
+    </span>
+  </div>
+}
+@if (editProblem(); as problem) {
+  <p class="text-ui-danger m-0 px-1 py-0.5 text-[11px]" role="alert">
+    {{ 'feature.dataElement.tableBuilder.problems.' + problem | transloco }}
+  </p>
+}
 <div
   class="relative ml-2.25 box-border block max-w-full min-w-0 [touch-action:pan-x_pan-y] scrollbar-thin [scrollbar-color:var(--ui-accent)_color-mix(in_srgb,var(--ui-elevated)_78%,var(--ui-surface))] scrollbar-gutter-stable overflow-x-scroll overflow-y-hidden overscroll-x-contain pb-1.5 contain-[inline-size] group-data-narrow/sheet:ml-0 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-solid [&::-webkit-scrollbar-thumb]:border-[color-mix(in_srgb,var(--ui-elevated)_78%,var(--ui-surface))] [&::-webkit-scrollbar-thumb]:bg-[color-mix(in_srgb,var(--ui-accent)_82%,var(--ui-text-muted))] [&::-webkit-scrollbar-track]:bg-[color-mix(in_srgb,var(--ui-elevated)_78%,var(--ui-surface))]"
   tabindex="0"
@@ -94,11 +239,62 @@
           }
         }
       </tr>
+      @if (editable()) {
+        <tr data-testid="table-edit-columns">
+          <th class="w-32 max-w-48 min-w-32"></th>
+          @for (column of tableColumns(); track column.name) {
+            @if (isGapTableColumn(column)) {
+              <th class="w-7 max-w-7! min-w-7! px-0"></th>
+            } @else {
+              <th class="p-0!">
+                <button
+                  type="button"
+                  class="hover:bg-ui-hover inline-flex w-full min-w-0 cursor-pointer items-center gap-1 border-none bg-transparent px-2 py-1 text-left [&_.material-icons]:text-[14px]"
+                  [class.text-ui-accent]="isEditedColumn(column.name)"
+                  [attr.aria-pressed]="isEditedColumn(column.name)"
+                  [attr.aria-label]="'feature.dataElement.tableView.edit.editColumn' | transloco: { name: column.name }"
+                  (click)="editColumn(column.name)"
+                  data-testid="table-edit-column-button"
+                >
+                  <span class="truncate">{{ column.name }}</span>
+                  <i class="material-icons ml-auto">edit</i>
+                </button>
+              </th>
+            }
+          }
+          <th class="w-8! max-w-8! min-w-8! p-0!">
+            <button
+              type="button"
+              class="hover:bg-ui-hover inline-flex size-full cursor-pointer items-center justify-center border-none bg-transparent p-1 [&_.material-icons]:text-[16px]"
+              [attr.aria-label]="'feature.dataElement.tableView.edit.addColumn' | transloco"
+              (click)="addColumn()"
+              data-testid="table-add-column"
+            >
+              <i class="material-icons">add</i>
+            </button>
+          </th>
+        </tr>
+      }
     </thead>
     <tbody>
       @for (rowElement of tableBodyRows(); track rowElement.identifier; let isFirstRow = $first) {
         <tr>
-          @if (tableRowHeaderLabel()) {
+          @if (editable()) {
+            <th class="w-32 max-w-48 min-w-32 p-0!">
+              <button
+                type="button"
+                class="hover:bg-ui-hover inline-flex w-full min-w-0 cursor-pointer items-center gap-1 border-none bg-transparent px-2 py-1.5 text-left font-bold [&_.material-icons]:text-[14px]"
+                [class.text-ui-accent]="isEditedRow(rowElement)"
+                [attr.aria-pressed]="isEditedRow(rowElement)"
+                [attr.aria-label]="'feature.dataElement.tableView.edit.editRow' | transloco: { name: rowElement.name }"
+                (click)="editRow(rowElement)"
+                data-testid="table-edit-row-button"
+              >
+                <span class="truncate">{{ rowElement.name }}</span>
+                <i class="material-icons ml-auto">edit</i>
+              </button>
+            </th>
+          } @else if (tableRowHeaderLabel()) {
             @if (isFirstRow) {
               <th
                 class="elm-view-table-row-heading--group w-7! max-w-[2.4rem]! min-w-7! text-center! align-middle! whitespace-normal! [text-orientation:upright] [writing-mode:vertical-rl]"
@@ -138,7 +334,7 @@
                     <label
                       class="text-ui-text inline-flex max-w-full min-w-0 items-center gap-1"
                       [class.cursor-pointer]="isJudgeMode()"
-                      [class.hover:bg-[var(--ui-accent-mute,rgba(100,160,255,0.15))]]="isJudgeMode()"
+                      [class.hover:bg-(--ui-accent-mute,rgba(100,160,255,0.15))]="isJudgeMode()"
                       [class.hover:rounded-[3px]]="isJudgeMode()"
                       [class.[&_input]:pointer-events-none]="isJudgeMode()"
                       (click)="isJudgeMode() ? onJudgeCheckCellClick(rowElement, column.name, $event) : null"
@@ -199,6 +395,17 @@
     </tbody>
   </table>
 </div>
+@if (editable()) {
+  <button
+    type="button"
+    class="hover:bg-ui-hover ml-2.25 inline-flex cursor-pointer items-center gap-1 rounded-sm border-none bg-transparent px-2 py-1 text-[0.78em] group-data-narrow/sheet:ml-0 [&_.material-icons]:text-[16px]"
+    (click)="addRow()"
+    data-testid="table-add-row"
+  >
+    <i class="material-icons">add</i>
+    {{ 'feature.dataElement.tableView.edit.addRow' | transloco }}
+  </button>
+}
 <judgement-candidates-modal
   [state]="judgeCandidatesState()"
   (closed)="closeJudgeCandidates()"

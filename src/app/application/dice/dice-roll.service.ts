@@ -1,7 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { callRollDiceSymbol } from '@axe/core/event/domain-events';
 import { diceRollLog, RolledDie } from '@axe/domain/dice/dice-roll-log';
@@ -15,7 +17,7 @@ interface SecretRoll {
 }
 
 /**
- * Throwing the dice that stand on the table.
+ * Throwing the dice that stand on the table, and who may read, turn, keep and show them.
  *
  * A throw of several open dice is one throw, so it sounds once and reads as one line. The
  * line goes to the tab the thrower is reading, as a coin does: a die on the table is a die
@@ -26,10 +28,94 @@ export class DiceRollService {
   private readonly activeChatTab = inject(ActiveChatTabService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly permission = inject(RolePermissionService);
+  private readonly lineEdit = inject(ChatLineEditService);
 
-  /** Throws one die, or a handful together. Whatever cannot be seen stays as it was. */
+  /**
+   * Whether this seat may read a die's face and its name, as {@link DiceSymbol.isOpenTo} says: anyone
+   * while nobody keeps it, and once a seat keeps it that seat and the game master.
+   */
+  readsFace(die: DiceSymbol): boolean {
+    return die.isOpenTo(this.permission.canSeeHidden());
+  }
+
+  /** Whether the table shows this seat a die's name, as {@link DiceSymbol.showsNameTo} says. */
+  showsName(die: DiceSymbol): boolean {
+    return die.showsNameTo(this.permission.canSeeHidden());
+  }
+
+  /**
+   * Whether this seat may turn a die, rolling it or setting its face: a seat that may change the table,
+   * for a die nobody keeps or that it keeps. The game master reads, shows and keeps another seat's kept
+   * die but does not throw it, as the kept-back line of such a throw would be the master's, which the
+   * keeper could not open as they show the die.
+   */
+  canTurn(die: DiceSymbol): boolean {
+    return this.permission.canEditTabletop() && (!die.hasOwner || die.isMine);
+  }
+
+  /**
+   * Whether this seat may change a die short of turning it, hiding or showing its name and changing it
+   * on its sheet: a seat that may change the table, for a die whose face it may read, the game master's
+   * reading of another seat's kept die included.
+   */
+  canChange(die: DiceSymbol): boolean {
+    return this.permission.canEditTabletop() && this.readsFace(die);
+  }
+
+  /** Whether this seat may show a kept die's face to everyone: the seat that keeps it, or the game master. */
+  canReveal(die: DiceSymbol): boolean {
+    if (!die.hasOwner || !this.permission.canEditTabletop()) return false;
+    return die.isMine || this.permission.canSeeHidden();
+  }
+
+  /**
+   * Whether this seat may keep a die's face to itself: one nobody keeps, or, for the game master, one
+   * another seat keeps, as a die kept is that seat's own to open.
+   */
+  canKeep(die: DiceSymbol): boolean {
+    if (PeerCursor.myUserId.length < 1 || !this.permission.canEditTabletop() || die.isMine) return false;
+    return !die.hasOwner || this.permission.canSeeHidden();
+  }
+
+  /** Turns a die to one of its faces without rolling it. False, with nothing done, where this seat may not turn it. */
+  setFace(die: DiceSymbol, face: string): boolean {
+    if (!this.canTurn(die) || !die.faces.includes(face)) return false;
+    die.face = face;
+    return true;
+  }
+
+  /** Hides a die's name from the table or shows it. False, with nothing done, where this seat may not change it. */
+  setNameHidden(die: DiceSymbol, hidden: boolean): boolean {
+    if (!this.canChange(die)) return false;
+    die.hideName = hidden;
+    return true;
+  }
+
+  /**
+   * Shows a kept die's face to everyone and plays the sound of it. Its latest throw kept back is
+   * opened in the chat; where there is none to open, as for a face set by hand or a throw already
+   * opened, a notice says the face it shows. False, with nothing done, where this seat may not show it.
+   */
+  reveal(die: DiceSymbol): boolean {
+    if (!this.canReveal(die)) return false;
+    die.owner = '';
+    SoundEffect.play(PresetSound.unlock);
+    if (this.lineEdit.discloseDieRolls(die.identifier) < 1) this.announceRevealed(die);
+    return true;
+  }
+
+  /** Keeps a die's face to this seat alone and plays the sound of it. False, with nothing done, where this seat may not. */
+  keep(die: DiceSymbol): boolean {
+    if (!this.canKeep(die)) return false;
+    die.owner = PeerCursor.myUserId;
+    SoundEffect.play(PresetSound.lock);
+    return true;
+  }
+
+  /** Throws one die, or a handful together. Whatever this seat may not turn stays as it was. */
   roll(dice: readonly DiceSymbol[]): RolledDie[] {
-    const thrown = dice.filter((die) => die.isVisible);
+    const thrown = dice.filter((die) => this.canTurn(die));
     const skipped = dice.length - thrown.length;
     if (thrown.length < 1) {
       this.announceSkipped(skipped);
@@ -53,6 +139,15 @@ export class DiceRollService {
     this.announceSecret(secret);
     this.announceSkipped(skipped);
     return rolled;
+  }
+
+  private announceRevealed(die: DiceSymbol): void {
+    const name = die.name.trim();
+    const message =
+      name.length > 0
+        ? encodeI18nMessage('feature.dice.log.reveal', { name, face: die.face })
+        : encodeI18nMessage('feature.dice.log.revealNoName', { face: die.face });
+    this.chatMessageService.sendSystemNotice('diceReveal', message);
   }
 
   private announceSkipped(count: number): void {

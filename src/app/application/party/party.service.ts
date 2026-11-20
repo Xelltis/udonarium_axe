@@ -1,6 +1,8 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BattleSide } from '@axe/domain/battle/battle-lineup';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { nextPartyColor, Party, writeAllies } from '@axe/domain/party/party';
 import { membersOfParty, membersWithoutParty } from '@axe/domain/party/party-membership';
@@ -9,6 +11,7 @@ import { membersOfParty, membersWithoutParty } from '@axe/domain/party/party-mem
 export class PartyService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly permission = inject(RolePermissionService);
 
   readonly parties = computed<Party[]>(() => {
     this.objectChange.collectionOf(Party.aliasName)();
@@ -105,6 +108,17 @@ export class PartyService {
         theirs,
         theirs.alliedWith.filter((held) => held !== party.identifier)
       );
+  }
+
+  /**
+   * Puts a party on a side of the battle stage, or on neither, for every member not put on one of its
+   * own; the game master's alone, as the lineup is. Whether it was written.
+   */
+  setBattleSide(party: Party, side: BattleSide | null): boolean {
+    if (!this.permission.isGameMaster()) return false;
+    party.battleSide = side ?? '';
+    this.objectChange.notifyChanged(party.identifier);
+    return true;
   }
 
   /** Names a player among those who play a party, or takes them off it. */

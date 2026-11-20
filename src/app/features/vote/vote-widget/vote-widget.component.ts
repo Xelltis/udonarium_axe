@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { encodeI18nList, encodeI18nMessage } from '@axe/application/i18n/i18n-message';
-import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WIDGET_VOTE } from '@axe/application/ui/widget-place';
+import { VoteService } from '@axe/application/vote/vote.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerFace, peerFaceOf } from '@axe/domain/peer/peer-face';
@@ -21,7 +19,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   imports: [TextTooltipDirective, DraggableDirective, WidgetPlaceDirective, SafePipe, TranslocoModule],
 })
 export class VoteWidgetComponent {
-  private readonly chatMessageService = inject(ChatMessageService);
+  private readonly votes = inject(VoteService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   protected readonly widgetName = WIDGET_VOTE;
@@ -30,7 +28,6 @@ export class VoteWidgetComponent {
     top: Math.max(8, window.innerHeight - el.offsetHeight - 96),
   });
   private readonly destroyRef = inject(DestroyRef);
-  private readonly t = inject(TRANSLATE_FN);
 
   protected readonly isCollapsed = signal(false);
 
@@ -51,8 +48,15 @@ export class VoteWidgetComponent {
   protected readonly isShown = computed(() => {
     const vote = this.vote();
     if (!vote || !PeerCursor.myCursor) return false;
-    if (vote.initTimeStamp <= 0 || vote.isFinish) return false;
+    if (!vote.isOpen()) return false;
     return vote.chkToMe() || vote.isChair();
+  });
+
+  /** Whether this reader may answer now: asked, not yet answered, and no guest, who answers nothing. */
+  protected readonly mayAnswer = computed(() => {
+    this.vote();
+    this.objectChange.trackMyCursor();
+    return this.votes.mayAnswer();
   });
 
   protected readonly isTarget = computed(() => {
@@ -76,45 +80,19 @@ export class VoteWidgetComponent {
     this.isCollapsed.update((collapsed) => !collapsed);
   }
 
+  /** Answers the vote with a choice through {@link VoteService.answer}. */
   protected voteSend(choice: string): void {
-    const vote = this.vote();
-    if (!vote || this.isAnswered()) return;
-    vote.voting(choice, PeerCursor.myCursor.peerId);
-    const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
-    const text = encodeI18nList(
-      [
-        this.prefixOf(vote),
-        vote.isSecret
-          ? encodeI18nMessage('feature.vote.secretAnswered', counts)
-          : encodeI18nMessage('feature.vote.voteResult', { choice, ...counts }),
-      ],
-      ''
-    );
-    this.chatMessageService.sendSystemMessageAsLastSpeaker(text, vote.chatTabIdentifier);
+    this.votes.answer(choice);
   }
 
-  /** The words a line about a vote opens with, as a roll call or a vote. */
-  private prefixOf(vote: Vote): string {
-    return encodeI18nMessage(vote.isRollCall ? 'feature.vote.rollCallPrefix' : 'feature.vote.votePrefix');
-  }
-
+  /** Abstains from the vote through {@link VoteService.answer}. */
   protected abstain(): void {
-    const vote = this.vote();
-    if (!vote || this.isAnswered()) return;
-    vote.voting(null, PeerCursor.myCursor.peerId);
-    const counts = { voted: vote.votedTotalNum(), total: vote.voteAnswer.length };
-    const text = encodeI18nList(
-      [
-        this.prefixOf(vote),
-        encodeI18nMessage(vote.isSecret ? 'feature.vote.secretAnswered' : 'feature.vote.abstainResult', counts),
-      ],
-      ''
-    );
-    this.chatMessageService.sendSystemMessageAsLastSpeaker(text, vote.chatTabIdentifier);
+    this.votes.answer(null);
   }
 
+  /** Ends the vote early, as its chair may, through {@link VoteService.finish}. */
   protected finishByChair(): void {
-    this.vote()?.finishByChair();
+    this.votes.finish();
   }
 
   /**

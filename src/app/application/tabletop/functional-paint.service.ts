@@ -96,8 +96,7 @@ function layTerrainBlock(
   terrain.altitude = gridSize > 0 ? spec.altitude / gridSize : 0;
   terrain.isAltitudeIndicate = spec.showsAltitude;
   if (spec.imageIdentifier.length > 0) terrain.setFaceImage('imageIdentifier', spec.imageIdentifier);
-  terrain.doorStyle = spec.doorStyle;
-  terrain.isDoorOpen = spec.doorOpen;
+  terrain.setDoor(spec.doorStyle, spec.doorOpen);
   terrain.doorMirrored = spec.doorMirrored;
   // The sides come first, so a brush saved before there were any still tips the block the one
   // way it knew.
@@ -258,7 +257,7 @@ export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null
  * ground under every piece that stopped on it. Spent, it has nothing left to spring. This version
  * asks the ground's own switch instead.
  */
-function guardPressedGround(trigger: TableTrigger): void {
+export function guardPressedGround(trigger: TableTrigger): void {
   trigger.once = true;
   trigger.repeat = 'once';
   trigger.spent = true;

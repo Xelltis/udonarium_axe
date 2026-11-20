@@ -36,17 +36,29 @@ export class TextNote extends OwnedTabletopObject {
   get width(): number {
     return this.getCommonValue('width', 1);
   }
+  set width(width: number) {
+    this.setCommonValue('width', width);
+  }
   /** How many grid cells tall the note is, kept in its common data. */
   get height(): number {
     return this.getCommonValue('height', 1);
+  }
+  set height(height: number) {
+    this.setCommonValue('height', height);
   }
   /** The size the note's text is drawn at, kept in its common data. */
   get fontSize(): number {
     return this.getCommonValue('fontsize', 1);
   }
+  set fontSize(fontSize: number) {
+    this.setCommonValue('fontsize', fontSize);
+  }
   /** The note's title, kept in its common data. */
   get title(): string {
     return this.getCommonValue('title', '');
+  }
+  set title(title: string) {
+    this.setCommonValue('title', title);
   }
   /** The note's body text. Setting it does nothing when the note has no text element. */
   get text(): string {

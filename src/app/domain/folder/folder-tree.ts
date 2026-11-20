@@ -1,4 +1,9 @@
-import { FOLDER_SEPARATOR, folderSegments, normalizeFolderPath } from '@axe/domain/folder/folder-path';
+import {
+  type FiledInFolder,
+  FOLDER_SEPARATOR,
+  folderSegments,
+  normalizeFolderPath,
+} from '@axe/domain/folder/folder-path';
 
 export interface FolderNode<T> {
   readonly path: string;
@@ -117,4 +122,32 @@ export function withFolderInOrder<T>(
   const queue = [...ordered];
   const inFolder = (item: T) => normalizeFolderPath(pathOf(item)) === folder;
   return list.map((item) => (inFolder(item) ? (queue.shift() ?? item) : item));
+}
+
+/** Something filed under a folder and kept in an order, as the scenario texts and the scenes are. */
+export interface FiledInOrder extends FiledInFolder {
+  order: number;
+}
+
+/** The things filed in the same folder as one, in the order of the list, itself among them. */
+export function folderSiblingsOf<T extends FiledInFolder>(list: readonly T[], item: T): T[] {
+  const folder = normalizeFolderPath(item.folderName);
+  return list.filter((each) => normalizeFolderPath(each.folderName) === folder);
+}
+
+/**
+ * The whole list as it stands once one thing is moved to a place among the others of its folder,
+ * counted from 0 and held to the folder, everything else left where it stands.
+ */
+export function withMovedInFolder<T extends FiledInFolder>(list: readonly T[], item: T, place: number): T[] {
+  const others = folderSiblingsOf(list, item).filter((each) => each !== item);
+  others.splice(Math.max(0, Math.min(others.length, Math.trunc(place))), 0, item);
+  return withFolderInOrder(list, (each) => each.folderName, normalizeFolderPath(item.folderName), others);
+}
+
+/** Numbers things from 1 in the order given, writing only the numbers that change. */
+export function numberInOrder(list: readonly FiledInOrder[]): void {
+  list.forEach((each, index) => {
+    if (Number(each.order) !== index + 1) each.order = index + 1;
+  });
 }

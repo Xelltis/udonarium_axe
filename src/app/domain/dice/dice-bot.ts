@@ -18,8 +18,8 @@ import { getAuthorityPeerId, getMyPeerId, getRoomKey, isAuthorityOpen } from '@a
 import { AuthorityEvent, MAX_ROLL_COMMAND_LENGTH } from '@axe/core/network/server/server-protocol';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
-import { objectAdded$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { objectAdded$ } from '@axe/core/sync/object-store-events';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { saidNameOf } from '@axe/domain/character/hidden-name';

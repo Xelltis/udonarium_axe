@@ -32,6 +32,43 @@ const MAX_TARGET_LIMIT = 20;
 const MAX_SHOTS = 24;
 const MAX_AREA_RADIUS = 12;
 
+/** The bounds of one number of an effect: the least and the most it is held to, and whether it is whole. */
+export interface PresetNumberBounds {
+  readonly min: number;
+  readonly max: number;
+  readonly integer: boolean;
+}
+
+/**
+ * The bounds each number of an effect is held to as it plays (see the getters that read them), which
+ * every way of writing one offers alike: the editor's fields and an AI.
+ */
+export const PRESET_NUMBER_BOUNDS = {
+  durationMs: { min: MIN_DURATION_MS, max: MAX_DURATION_MS, integer: true },
+  staggerMs: { min: 0, max: MAX_STAGGER_MS, integer: true },
+  scale: { min: MIN_SCALE, max: MAX_SCALE, integer: false },
+  maxTargets: { min: 1, max: MAX_TARGET_LIMIT, integer: true },
+  areaRadius: { min: 0, max: MAX_AREA_RADIUS, integer: false },
+  grade: { min: 1, max: 3, integer: true },
+  shots: { min: 1, max: MAX_SHOTS, integer: true },
+  shotInterval: { min: 0, max: MAX_DURATION_MS, integer: true },
+} as const satisfies Record<string, PresetNumberBounds>;
+
+/** A number of an effect that is held to bounds (see {@link PRESET_NUMBER_BOUNDS}). */
+export type BoundedPresetNumber = keyof typeof PRESET_NUMBER_BOUNDS;
+
+/**
+ * A number written to one of an effect's bounded fields, held inside its bounds and made whole where it
+ * is a whole number; null for anything but a finite number, as a field cleared gives.
+ */
+export function boundPresetNumber(key: BoundedPresetNumber, value: unknown): number | null {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  if (!Number.isFinite(numeric)) return null;
+  const bounds: PresetNumberBounds = PRESET_NUMBER_BOUNDS[key];
+  const held = Math.min(bounds.max, Math.max(bounds.min, numeric));
+  return bounds.integer ? Math.round(held) : held;
+}
+
 @SyncObject('effect-preset')
 export class EffectPreset extends GameObject {
   @SyncVar() name: string = '';
@@ -216,7 +253,7 @@ export class EffectPreset extends GameObject {
 
   /** The grade as one of 1, 2 or 3. A stored grade that is not a number reads as 2. */
   get gradeLevel(): 1 | 2 | 3 {
-    const level = Math.round(clamp(this.grade, 1, 3, 2));
+    const level = Math.round(clamp(this.grade, PRESET_NUMBER_BOUNDS.grade.min, PRESET_NUMBER_BOUNDS.grade.max, 2));
     return level === 1 || level === 3 ? level : 2;
   }
 
@@ -247,4 +284,19 @@ export class EffectPreset extends GameObject {
 
 function clamp(value: number, min: number, max: number, fallback: number): number {
   return clampOr(Number(value), min, max, fallback);
+}
+
+/**
+ * The effects a reader of this role is shown and may fire: every one for the game master, and for
+ * anyone else none the master keeps for themselves, which is part of the preparation, so its name
+ * stays off the players' lists as well. Every list and every lookup of effects a seat makes goes by
+ * it, the screen's and an AI's alike (see `EffectLibraryService.shownPresets`).
+ */
+export function presetsShownTo(presets: readonly EffectPreset[], isGameMaster: boolean): EffectPreset[] {
+  return presets.filter((preset) => isPresetShownTo(preset, isGameMaster));
+}
+
+/** Whether a reader of this role is shown one effect, and may name and fire it (see {@link presetsShownTo}). */
+export function isPresetShownTo(preset: EffectPreset, isGameMaster: boolean): boolean {
+  return isGameMaster || !preset.gmOnly;
 }

@@ -10,15 +10,11 @@ import {
   signal,
 } from '@angular/core';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
-import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
-import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -73,8 +69,6 @@ export class DiceSymbolComponent {
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly diceRollService = inject(DiceRollService);
   private readonly characterDice = inject(CharacterDiceService);
-  private readonly chat = inject(ChatMessageService);
-  private readonly lineEdit = inject(ChatLineEditService);
   private readonly objectStore = inject(ObjectStore);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly pointerDeviceService = inject(PointerDeviceService);
@@ -82,7 +76,6 @@ export class DiceSymbolComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
@@ -158,7 +151,7 @@ export class DiceSymbolComponent {
     this.objectChange.versionOf(diceSymbol.identifier)();
     this.objectChange.networkVersion();
     this.objectChange.trackMyCursor();
-    return (diceSymbol.hideName || !diceSymbol.isVisible) && !this.rolePermission.canSeeHidden();
+    return !this.diceRollService.showsName(diceSymbol);
   });
   readonly size = computed(() => {
     this.objectChange.versionOf(this.diceSymbol().identifier)();
@@ -216,7 +209,7 @@ export class DiceSymbolComponent {
    * told, so it asks directly.
    */
   private readsFace(): boolean {
-    return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden();
+    return this.diceRollService.readsFace(this.diceSymbol());
   }
 
   /** Whether the die is locked in place, which stops it being dragged or turned. */
@@ -309,27 +302,6 @@ export class DiceSymbolComponent {
     );
   }
 
-  private onDiceRevealed(face: string): void {
-    const opened = this.lineEdit.discloseDieRolls(this.diceSymbol().identifier);
-    if (opened < 1) this.announceRevealedFace(face);
-  }
-
-  /**
-   * Says what a die that was somebody's alone came to rest on, now that it is everybody's.
-   *
-   * A hidden die is thrown without a callout, so the table only ever learns the face when
-   * it is opened. Said only where there is no throw of it left to open - a face set by hand,
-   * or a throw already opened - since an opened throw gives the number itself.
-   */
-  private announceRevealedFace(face: string): void {
-    const name = this.diceSymbol().name.trim();
-    const message =
-      name.length > 0
-        ? encodeI18nMessage('feature.dice.log.reveal', { name, face })
-        : encodeI18nMessage('feature.dice.log.revealNoName', { face });
-    this.chat.sendSystemNotice('diceReveal', message);
-  }
-
   private clearRollTimers(): void {
     for (const timer of this.rollTimers.splice(0)) clearTimeout(timer);
   }
@@ -348,13 +320,9 @@ export class DiceSymbolComponent {
     this.taps.press(e);
   }
 
-  /**
-   * Rolls the die on a double tap in one place, for a role that may edit the table and a reader who
-   * can see its face.
-   */
+  /** Rolls the die on a double tap in one place, where this seat may turn it. */
   onDoubleClick() {
-    if (!this.rolePermission.canEditTabletop()) return;
-    if (this.readsFace()) this.diceRoll();
+    if (this.diceRollService.canTurn(this.diceSymbol())) this.diceRoll();
   }
 
   /**
@@ -374,6 +342,7 @@ export class DiceSymbolComponent {
     const baseMenu = buildDiceSymbolContextMenu(
       this.diceSymbol(),
       this.gridSize,
+      this.diceRollService,
       {
         onDiceRoll: () => this.diceRoll(),
         onShowDetail: () => this.showDetail(this.diceSymbol()),
@@ -381,8 +350,6 @@ export class DiceSymbolComponent {
           .filter((character) => this.visionService.isTokenVisible(character) && !this.names.isKept(character))
           .map((character) => ({ identifier: character.identifier, name: character.name })),
         onStoreToOwner: (ownerIdentifier) => this.storeToOwner(ownerIdentifier),
-        onRevealed: (face) => this.onDiceRevealed(face),
-        canRevealHidden: this.rolePermission.canSeeHidden(),
       },
       this.translateFn
     );
@@ -424,10 +391,11 @@ export class DiceSymbolComponent {
 
   /**
    * Selects the die and opens its detail sheet in a panel at the pointer. Does nothing where the
-   * reader may not view the die.
+   * reader may not view the die, nor where another seat keeps its face from this one, as the sheet
+   * shows the face, the name and every other face to turn it to.
    */
   showDetail(gameObject: DiceSymbol) {
-    if (!this.disclosureService.canView(gameObject)) return;
+    if (!this.disclosureService.canView(gameObject) || !this.diceRollService.readsFace(gameObject)) return;
     this.selectionSignalService.selectObject(gameObject.identifier, gameObject.aliasName);
     const coordinate = this.pointerDeviceService.pointers[0];
     const title = sheetPanelTitle(this.translateFn('feature.dice.symbolSheet.title'), gameObject.name);

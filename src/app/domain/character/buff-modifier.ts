@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { isAmountWritten, type ItemsLandedOn } from '@axe/domain/character/item-landing';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { evalCalcFormula } from '@axe/domain/data/data-element-calc';
 import {
@@ -27,6 +28,12 @@ export interface BuffModifier {
    * moves its status at every count, the last one it runs out at included.
    */
   lasting?: true;
+  /**
+   * How late it laid its move among the layers laid on an item that holds words or a choice (see
+   * `buff-layers`); none on a number, and on a move laid before such items were laid out in layers,
+   * which lies beneath every other layer.
+   */
+  order?: number;
 }
 
 const OPERATOR_TOKENS: Record<string, { operator: BuffModifierOperator; sign: number; repeats?: boolean }> = {
@@ -57,6 +64,25 @@ export interface ParsedBuffModifierRequest {
   step?: number;
   /** Whether it is left where it is moved once the buff goes, asked for by a `:` before the status. */
   lasting?: true;
+  /**
+   * The words to hold an item at while the buff stands, where what follows `=` is no number:
+   * `属性=炎`. Only the item's value takes words, and they move nothing at a count, so neither a
+   * slot nor a `~` is read with them. The amount is then nothing.
+   */
+  text?: string;
+}
+
+/**
+ * What a buff that writes words into an item while it stands wrote: the item, the words, and how late
+ * it laid them among the layers laid on the item (see `buff-layers`), which say what the item shows
+ * and what it goes back to as the buff goes.
+ */
+export interface BuffTextModifier {
+  target: string;
+  /** The words the buff wrote. */
+  text: string;
+  /** How late the buff laid them among the layers laid on the item: the latest is the one the item shows. */
+  order: number;
 }
 
 const LASTING_MARK = /^[:：]/;
@@ -97,6 +123,11 @@ export function readBuffAmount(words: string): number {
  *
  * A `:` before the status, as a chat line's `:HP-3` moves it, leaves it moved once the buff goes:
  * `:HP/+/0~-3` takes 3 at every count and gives none of it back, which is poison.
+ *
+ * What follows `=` with no digit in it is words to hold the value at, as a chat command reads it (see
+ * `isAmountWritten`): `属性=炎`, and `時間帯=夜〜朝` with the wave dash among them. One with a digit
+ * is an amount, and one a buff cannot work out, a roll or a slip of a sum, as `1d6` or `10+`, or words
+ * with a count after the wave, as `炎~1`, is not read.
  */
 export function parseBuffModifierRequest(
   target: string,
@@ -113,7 +144,12 @@ export function parseBuffModifierRequest(
 
   const [amountText, stepText] = (amount ?? '').split(/[~～〜]/, 2);
   const value = readBuffAmount(amountText);
-  if (!Number.isFinite(value)) return null;
+  if (!Number.isFinite(value)) {
+    const words = (amount ?? '').trim();
+    const named = readNamedResourceSlot(name);
+    if (isAmountWritten(words) || resolved.operator !== 'set' || lasting || named.slot !== 'now') return null;
+    return words.length > 0 ? { target: named.name, slot: 'now', operator: 'set', amount: 0, text: words } : null;
+  }
   const moved = resolved.operator === 'add' ? value * resolved.sign : value;
   const step = resolved.repeats ? moved : stepText === undefined ? 0 : readBuffAmount(stepText);
   if (!Number.isFinite(step)) return null;
@@ -190,12 +226,22 @@ export function movesSameStatus(
 
 /**
  * Whether a note piled on a buff speaks of nothing but the status the buff holds at a value, as
- * `HP+2` does on a buff holding HP. Such a note would only hide the value the status is held at.
+ * `HP+2` does on a buff holding HP, `ＨＰ+2` too, each status of the note named as the sheet finds it
+ * (see `BuffTarget`). Such a note would only hide the value the status is held at.
  */
-export function speaksOnlyOfHeldStatus(modifier: BuffModifier | null, note: string): boolean {
+export function speaksOnlyOfHeldStatus(
+  modifier: BuffModifier | null,
+  note: string,
+  sheet: Pick<ItemsLandedOn, 'targetOf'> | null
+): boolean {
   if (modifier?.operator !== 'set') return false;
   const items = parseBuffModifierItems(note);
-  return items !== null && items.every((item) => holdsRequestedStatus(modifier, item));
+  return (
+    items !== null &&
+    items.every((item) =>
+      holdsRequestedStatus(modifier, { ...item, target: sheet?.targetOf(item.target)?.name ?? item.target })
+    )
+  );
 }
 
 /** Parts the text at its commas of either width, leaving those inside brackets in place. */
@@ -224,7 +270,7 @@ export function describeBuffModifierTarget(request: Pick<ParsedBuffModifierReque
 /** How the buff reads on the badge and in the chat line that granted it. */
 export function describeBuffModifier(request: ParsedBuffModifierRequest): string {
   const status = `${request.lasting ? ':' : ''}${resourceSlotBadgePrefix(request.slot)}${request.target}`;
-  if (request.operator === 'set') return `${status}=${request.amount}`;
+  if (request.operator === 'set') return `${status}=${request.text ?? request.amount}`;
   return `${status}${signed(request.amount)}${describeStep(request.step)}`;
 }
 
@@ -272,7 +318,15 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
     applied: lasting ? kept : applied,
     ...(operator === 'add' && Number.isFinite(step) && step !== 0 ? { step } : {}),
     ...(lasting ? { lasting } : {}),
+    ...orderOf(element.getAttribute(DataElementAttribute.BUFF_MOD_ORDER)),
   };
+}
+
+/** An order a record keeps, as a field to spread into it; none where it keeps none that reads as one. */
+function orderOf(text: string | null | undefined): { order?: number } {
+  const trimmed = `${text ?? ''}`.trim();
+  const order = trimmed.length > 0 ? Number(trimmed) : NaN;
+  return Number.isFinite(order) ? { order } : {};
 }
 
 /**
@@ -284,30 +338,74 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
  * moves nothing, so such a version neither gives the damage back nor counts it into what it would.
  */
 export function writeBuffModifier(element: DataElement, modifier: BuffModifier): void {
-  element.setAttribute(DataElementAttribute.BUFF_MOD_TARGET, modifier.target);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_SLOT, modifier.slot);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_OPERATOR, modifier.operator);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.lasting ? 0 : modifier.applied));
-  writeOrRemove(element, DataElementAttribute.BUFF_MOD_STEP, modifier.lasting ? 0 : modifier.step);
-  if (modifier.lasting) element.setAttribute(DataElementAttribute.BUFF_MOD_KEPT, String(modifier.applied));
-  else element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT);
-  writeOrRemove(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, modifier.lasting ? modifier.step : 0);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_TARGET, modifier.target);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_SLOT, modifier.slot);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_OPERATOR, modifier.operator);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.lasting ? 0 : modifier.applied));
+  keepAmount(element, DataElementAttribute.BUFF_MOD_STEP, modifier.lasting ? 0 : modifier.step);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT, modifier.lasting ? String(modifier.applied) : null);
+  keepAmount(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, modifier.lasting ? modifier.step : 0);
+  keepRecord(
+    element,
+    DataElementAttribute.BUFF_MOD_ORDER,
+    modifier.order === undefined ? null : String(modifier.order)
+  );
 }
 
-function writeOrRemove(element: DataElement, name: string, amount: number | undefined): void {
-  if (amount) element.setAttribute(name, String(amount));
-  else element.removeAttribute(name);
+/**
+ * Writes one field of a record a buff keeps, on itself or on an item, or wipes it for null, only where
+ * that changes what the field holds. Every record here is written and wiped through it, so one written
+ * again as it stands, as a count or a change to the sheet does, sends nothing to the room.
+ */
+function keepRecord(element: DataElement, name: string, value: string | null): void {
+  const held = `${element.getAttribute(name)}`;
+  if (value === null) {
+    if (held !== '') element.removeAttribute(name);
+  } else if (held !== value) {
+    element.setAttribute(name, value);
+  }
+}
+
+/** Writes an amount into a field of a buff's record, or wipes the field where the amount is none (see {@link keepRecord}). */
+function keepAmount(element: DataElement, name: string, amount: number | undefined): void {
+  keepRecord(element, name, amount ? String(amount) : null);
+}
+
+/** What a buff that writes words into an item wrote there, as `writeBuffTextModifier` recorded it; null for any other buff. */
+export function readBuffTextModifier(element: DataElement): BuffTextModifier | null {
+  const target = (element.getAttribute(DataElementAttribute.BUFF_TEXT_TARGET) ?? '').trim();
+  if (target.length < 1) return null;
+  return {
+    target,
+    text: element.getAttribute(DataElementAttribute.BUFF_TEXT_SET) ?? '',
+    order: orderOf(element.getAttribute(DataElementAttribute.BUFF_TEXT_ORDER)).order ?? 0,
+  };
+}
+
+/** Records on the buff the words it writes into an item and how late it laid them. */
+export function writeBuffTextModifier(element: DataElement, modifier: BuffTextModifier): void {
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_TARGET, modifier.target);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, modifier.text);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, String(modifier.order));
+}
+
+/** Wipes the record of the words a buff wrote, leaving it a plain note. The sheet itself is not touched. */
+export function clearBuffTextModifier(element: DataElement): void {
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_TARGET, null);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_SET, null);
+  keepRecord(element, DataElementAttribute.BUFF_TEXT_ORDER, null);
 }
 
 /**
  * Wipes the record of what a buff moved, leaving it a plain note. The sheet itself is not touched.
  */
 export function clearBuffModifier(element: DataElement): void {
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_TARGET);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_SLOT);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_OPERATOR);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_APPLIED);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_STEP);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT);
-  element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT_STEP);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_TARGET, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_SLOT, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_OPERATOR, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_APPLIED, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_STEP, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, null);
+  keepRecord(element, DataElementAttribute.BUFF_MOD_ORDER, null);
 }

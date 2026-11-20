@@ -198,13 +198,24 @@ function findLights(
  * Where models are asked for, a piece stands as its model when it is one block; a run whose model is
  * one cell of it, as a counter's is, is built of a block to a cell, each standing as that model.
  * A piece whose model is made to the whole of its cell, as a part of a pipe is, takes the whole cell
- * as its model, so that it meets the part in the next cell.
+ * as its model, so that it meets the part in the next cell. A piece made to take several cells, as a
+ * bed is, is one block on every board, standing as its model over all of them. A piece that faces a
+ * way has its model turned that way; a run lying down the board has its model turned a quarter. A
+ * piece that lies on the floor as a picture is built as its top alone, walked over. On hexes, a piece
+ * of several cells stands on the cell the furnisher names (`DungeonFurnishing.standsOn`).
  */
-function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
+export function furnishingBlocks(
+  piece: DungeonFurnishing,
+  span: number,
+  options: Pick<DungeonBlockOptions, 'models' | 'sheerWalls'>
+): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;
   const segmented = options.models === true && span > 1 && run && FURNISHING_SEGMENT_MODELS.includes(piece.piece);
-  const rects = span > 1 && !segmented ? [piece] : cellsOf(piece);
+  const made = options.models === true && FURNISHING_SHAPES[piece.piece].cells !== undefined;
+  const rects = (span > 1 && !segmented) || made ? [piece] : cellsOf(piece);
+  const turn = piece.facing ?? ((segmented ? !lying : piece.h > piece.w) ? 90 : 0);
+  const standsOn = made && run ? piece.standsOn : undefined;
   const blocks: MapBlock[] = [];
   let altitude = 0;
   for (const level of [piece.piece, ...(piece.stack ?? [])]) {
@@ -234,7 +245,9 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
         altitude: altitude || undefined,
         rotate: piece.spin || undefined,
         thing: level,
-        ...(model ? { model, ...((segmented ? !lying : rect.h > rect.w) ? { modelTurn: 90 } : {}) } : {}),
+        ...(standsOn ? { standsOn } : {}),
+        ...(shape.floor ? { floorOnly: true } : {}),
+        ...(model ? { model, ...(turn ? { modelTurn: turn } : {}) } : {}),
       });
     }
     altitude += shape.height ?? 0;
@@ -324,7 +337,7 @@ function spoutBlock(
     return {
       ...block,
       height: SPOUT_MODEL_HEIGHT,
-      altitude: liftOf(rect),
+      altitude: liftOf({ rect }),
       model: 'prop_drainPipe',
       modelTurn: (spout.facing + 270) % 360,
     };
@@ -335,7 +348,7 @@ function spoutBlock(
   return {
     ...block,
     height: wallHeight * SPOUT_HEIGHT_SHARE,
-    altitude: liftOf(rect, offset, footprint),
+    altitude: liftOf({ rect, offset, footprint }),
     footprint,
     offset,
   };
@@ -371,7 +384,11 @@ export function layoutToBlocks(
   const ambiences: MapAmbience[] = [];
   const span = options.mergeSpan ?? MAX_MERGE_SPAN;
 
+  // A round place is no wider than its round: what lies outside it is no part of it, and stands bare.
   const rockMask = maskOfKind(layout, [DungeonCell.Rock]);
+  layout.outside?.forEach((outside, cell) => {
+    if (outside) rockMask[cell] = 0;
+  });
   for (const rect of mergeMaskToRects(rockMask, layout.width, layout.height, span)) {
     // Rock buried behind more rock cannot be seen past, so it need not be tested against.
     const boundary = touchesOpenCell(layout, rect);

@@ -11,7 +11,6 @@ import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { RoomSnapshotMeta, RoomSnapshotStore, selectExpiredSnapshots } from '@axe/core/storage/room-snapshot-store';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 @Injectable({ providedIn: 'root' })
 export class RoomSnapshotService {
@@ -125,9 +124,10 @@ export class RoomSnapshotService {
    * room cannot be read, which is said. A room to start on still being set out at launch is let
    * finish first, so the snapshot lands on it. While a replay's board is shown in place of the table
    * it restores nothing and says why, as the board and what went onto it are thrown away when the
-   * table comes back.
+   * table comes back. Given `agreed`, the reader was asked already, as for a restore an AI asks for,
+   * and is not asked again.
    */
-  async restore(id: number): Promise<boolean> {
+  async restore(id: number, options: { agreed?: boolean } = {}): Promise<boolean> {
     if (!this.isSupported || this._isRestoring()) return false;
     if (isNetworkIsolated()) {
       this.snackbar.show(this.t('app.restoreWhileReplayBoard'));
@@ -139,12 +139,11 @@ export class RoomSnapshotService {
       if (!record) return false;
 
       await this.startRoom.whenSettled();
-      const reloadCheck = this.objectStore.get<ReloadCheck>('ReloadCheck');
-      reloadCheck?.reloadCheckStart(this.currentRoomName() !== '');
-
       const file = new File([record.blob], 'room-snapshot.zip', { type: 'application/zip' });
-      const { dataRead } = await this.fileArchiver.load([file]);
-      if (!dataRead && (reloadCheck?.isLoadOk() ?? true)) {
+      const { dataRead, declined } = await this.fileArchiver.load([file], undefined, {
+        check: options.agreed ? 'agreed' : 'ask',
+      });
+      if (!dataRead && !declined) {
         this.snackbar.show(this.t('feature.roomArchive.restoreUnreadable'));
       }
       return dataRead;

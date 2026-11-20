@@ -14,7 +14,6 @@ import { StatusAilmentService } from '@axe/application/character/status-ailment.
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { textureImagesOf } from '@axe/application/file/texture-images';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -117,7 +116,6 @@ export class MapEditorFunctionPaintComponent {
   private readonly imageStorage = inject(ImageStorage);
   private readonly dungeonBuild = inject(DungeonBuildService);
   private readonly textureIntake = inject(TextureIntakeService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly tagLock = inject(ImageTagLockService);
   private readonly objectChange = inject(ObjectChangeService);
   private get tableSelecter(): TableSelecter {
@@ -439,9 +437,7 @@ export class MapEditorFunctionPaintComponent {
     this.wearFaceImage(face, identifier);
   }
 
-  protected readonly faceTextures = computed<ImageFile[]>(() =>
-    textureImagesOf(this.objectChange, this.rolePermission, this.tagLock)
-  );
+  protected readonly faceTextures = computed<ImageFile[]>(() => textureImagesOf(this.objectChange, this.tagLock));
 
   protected chooseFaceImageTexture(face: keyof TerrainFaceImages, file: ImageFile): void {
     this.wearFaceImage(face, file.identifier);

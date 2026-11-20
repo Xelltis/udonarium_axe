@@ -5,10 +5,13 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   createDefaultCutIns,
   DEFAULT_CUT_IN_SEEDS,
+  missingDefaultCutInIdentifiers,
+  restoreDefaultCutIns,
   SAMPLE_FACE_IDENTIFIER,
   SAMPLE_PORTRAIT_IDENTIFIER,
 } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { sceneDurationOf, toWebAnimationFrames } from '@axe/domain/media/cut-in-scene-timeline';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
@@ -38,6 +41,12 @@ describe('the cut-ins a new room starts with', () => {
     const identifiers = DEFAULT_CUT_IN_SEEDS.map((seed) => seed.identifier);
 
     expect(new Set(identifiers).size).toBe(identifiers.length);
+  });
+
+  it('sizes every sample inside the bounds a cut-in is held to, so it plays at the size it was laid out at', () => {
+    for (const cutIn of made()) {
+      expect(cutIn.shownSize, cutIn.name).toEqual({ width: cutIn.width, height: cutIn.height });
+    }
   });
 
   it('makes one of each', () => {
@@ -272,5 +281,70 @@ describe('the cut-ins a new room starts with', () => {
     expect(restored.scene?.layers.find((layer) => layer.kind === 'image')?.imageIdentifier).toBe(
       SAMPLE_PORTRAIT_IDENTIFIER
     );
+  });
+
+  describe('putting back what the samples have lost', () => {
+    const [seed] = DEFAULT_CUT_IN_SEEDS;
+    const layersOf = (identifier: string) =>
+      store.get<CutIn>(identifier)!.scene!.layers.map((layer) => layer.identifier);
+
+    it('makes a sample deleted whole again, under the names it had', () => {
+      made();
+      store.get<CutIn>(seed.identifier)!.destroy();
+      expect(missingDefaultCutInIdentifiers()).toEqual([
+        seed.identifier,
+        seed.sceneIdentifier,
+        ...seed.layers.map((layer) => layer.identifier),
+      ]);
+
+      expect(restoreDefaultCutIns(imageStorage)).toBe(1);
+
+      expect(store.get<CutIn>(seed.identifier)!.name).toBe(seed.name);
+      expect(layersOf(seed.identifier)).toEqual(seed.layers.map((layer) => layer.identifier));
+      expect(missingDefaultCutInIdentifiers()).toEqual([]);
+    });
+
+    it('lays a layer taken out of a sample back at its place, keeping what the room made of the sample', () => {
+      made();
+      const cutIn = store.get<CutIn>(seed.identifier)!;
+      cutIn.name = '改名';
+      const own = new CutInLayer();
+      own.initialize();
+      cutIn.scene!.appendChild(own);
+      const lost = seed.layers[1].identifier;
+      store.get(lost)!.destroy();
+      expect(missingDefaultCutInIdentifiers()).toEqual([lost]);
+
+      expect(restoreDefaultCutIns(imageStorage)).toBe(1);
+
+      expect(cutIn.name).toBe('改名');
+      expect(layersOf(seed.identifier)).toEqual([...seed.layers.map((layer) => layer.identifier), own.identifier]);
+    });
+
+    it('makes nothing where nothing is lost, and leaves the room’s own cut-ins alone', () => {
+      made();
+      const mine = new CutIn();
+      mine.name = '自作';
+      mine.initialize();
+      const before = store.getObjects(CutIn).length;
+
+      expect(missingDefaultCutInIdentifiers()).toEqual([]);
+      expect(restoreDefaultCutIns(imageStorage)).toBe(0);
+
+      expect(store.getObjects(CutIn)).toHaveLength(before);
+      expect(mine.name).toBe('自作');
+    });
+
+    it('leaves a sample the room has given a scene of its own as the room has it', () => {
+      made();
+      store.get<CutIn>(seed.identifier)!.scene!.destroy();
+      const own = new CutInScene();
+      own.cutInIdentifier = seed.identifier;
+      own.initialize();
+
+      expect(missingDefaultCutInIdentifiers()).toEqual([]);
+      expect(restoreDefaultCutIns(imageStorage)).toBe(0);
+      expect(store.get<CutIn>(seed.identifier)!.scene).toBe(own);
+    });
   });
 });

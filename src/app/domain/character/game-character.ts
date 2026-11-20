@@ -381,10 +381,13 @@ export class GameCharacter extends OwnedTabletopObject {
   set size(value: number) {
     this.setCommonValue('size', value);
   }
-  /** The piece's chat palette: the first palette among its children, or null when it has none. */
+  /**
+   * The piece's chat palette: the first palette among its children that is not the remote
+   * controller's buff palette, or null when it has none.
+   */
   get chatPalette(): ChatPalette | null {
     for (const child of this.children) {
-      if (child instanceof ChatPalette) return child;
+      if (child instanceof ChatPalette && !(child instanceof BuffPalette)) return child;
     }
     return null;
   }
@@ -506,14 +509,10 @@ export class GameCharacter extends OwnedTabletopObject {
     moveToBottommost(this);
   }
 
-  /**
-   * Gives the piece a `buff` element to hold its buffs, and drops the cached buff manager so it
-   * picks the element up. Does nothing when the piece already has one.
-   */
+  /** Gives the piece a `buff` element to hold its buffs. Does nothing when the piece already has one. */
   addBuffDataElement() {
     if (!this.buffDataElement) {
       this.rootDataElement?.appendChild(DataElement.create('buff', '', {}, `buff_${this.identifier}`));
-      this._buffs = null;
     }
   }
 
@@ -522,25 +521,26 @@ export class GameCharacter extends OwnedTabletopObject {
 
   /**
    * The buff manager for this piece, bound to its buff element, its name and identifier, and its
-   * statuses.
-   *
-   * It is made on first use and cached, so it only sees a buff element added later because
-   * `addBuffDataElement` drops the cached one.
+   * statuses. Made on first use and kept; it reads the buff element the piece holds each time, so one
+   * that reaches the piece later, from another device or by `addBuffDataElement`, is seen.
    */
   get buffs(): BuffManager {
     return (this._buffs ??= new BuffManager(
-      this.buffDataElement ?? null,
+      () => this.buffDataElement ?? null,
       () => ({ identifier: this.identifier, name: this.name }),
       () => this.status
     ));
   }
 
   /**
-   * Reads and writes the piece's statuses by name, for chat commands and buffs. Made on first use
-   * and cached.
+   * Reads and writes the piece's statuses by name, for chat commands and buffs. Made on first use and
+   * kept; it reads the sheet the piece holds each time.
    */
   get status(): StatusAccessor {
-    return (this._status ??= new StatusAccessor(this.detailDataElement ?? null, () => saidNameOf(this)));
+    return (this._status ??= new StatusAccessor(
+      () => this.detailDataElement ?? null,
+      () => saidNameOf(this)
+    ));
   }
 
   /**

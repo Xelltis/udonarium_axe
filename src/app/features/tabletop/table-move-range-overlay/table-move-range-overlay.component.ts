@@ -250,9 +250,20 @@ export class TableMoveRangeOverlayComponent {
    * from the paths already traced for them.
    */
   protected readonly othersReach = computed<DrawnReach[]>(
-    () => this.moving().map((other) => ({ grid: other.grid, reach: other.reach })),
+    () => this.moving().map((other) => ({ grid: other.grid, reach: this.shownOf(other.grid, other.reach) })),
     { equal: sameReaches }
   );
+
+  /**
+   * The cells of a reach this seat is shown, cut back from ground the fog still hides from it, as the
+   * ground closed to movement and the ground dear to cross are (see `VisionService.keptShownCells`): the
+   * shape of a reach would otherwise draw the walls and the ground in the dark it goes round. Nothing
+   * where none of it is shown.
+   */
+  private shownOf(grid: CellGrid, cells: CellBits | null): CellBits | null {
+    const shown = cells ? this.vision.keptShownCells(grid, cells) : null;
+    return shown && !shown.isEmpty ? shown : null;
+  }
 
   /** The ways everybody else is drawing, which do change as they point. */
   protected readonly othersWays = computed<DrawnWay[]>(
@@ -272,12 +283,12 @@ export class TableMoveRangeOverlayComponent {
       const range = this.view();
       const reaches = this.othersReach();
       const ways = this.othersWays();
-      if (plan) return { grid: plan.grid, cells: plan.reach, held: null, plan, reaches, ways };
+      if (plan) return { grid: plan.grid, cells: this.shownOf(plan.grid, plan.reach), held: null, plan, reaches, ways };
       if (range) {
         return {
           grid: range.grid,
-          cells: range.showsReach ? range.cells : null,
-          held: range.held,
+          cells: range.showsReach ? this.shownOf(range.grid, range.cells) : null,
+          held: this.shownOf(range.grid, range.held),
           plan: null,
           reaches,
           ways,

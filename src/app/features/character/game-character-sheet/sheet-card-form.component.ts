@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { clamp } from '@axe/core/util/clamp';
 import { debounce } from '@axe/core/util/debounce';
 import { Card } from '@axe/domain/card/card';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { setPopupMaxHeight, setPopupWidth } from '@axe/features/character/game-character-sheet/sheet-popup-size';
 import { SheetSaveButtonsComponent } from '@axe/features/character/game-character-sheet/sheet-save-buttons.component';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
@@ -16,9 +15,10 @@ import { TranslocoModule } from '@jsverse/transloco';
  * The form a card's sheet is made of: its buttons, the pictures of its two faces, its name, size and
  * face text, how large its popup opens, and its game data.
  *
- * The fields write straight to the card. Switching editing, choosing a picture, adding game data,
- * copying and saving are left to the sheet. The form stands where the sheet puts it, as the
- * component itself takes up no box.
+ * The fields write straight to the card. Its front picture, name, face text and game data are shown
+ * and written only while this seat may read the card's front, which another seat can take away while
+ * the sheet is open. Switching editing, choosing a picture, adding game data, copying and saving are
+ * left to the sheet. The form stands where the sheet puts it, as the component itself takes up no box.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,7 +29,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class SheetCardFormComponent {
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly rolePermission = inject(RolePermissionService);
+  private readonly cardGame = inject(CardGameService);
 
   /** The card the form edits. */
   readonly card = input.required<Card>();
@@ -71,8 +71,9 @@ export class SheetCardFormComponent {
     return c.name;
   }
 
-  /** Renames the card from its name field. */
+  /** Renames the card from its name field; ignored for a user who may not read its front. */
   setCardOwnName(c: Card, event: Event): void {
+    if (!this.canReadCardFace(c)) return;
     c.name = (event.target as HTMLInputElement).value;
   }
 
@@ -93,16 +94,13 @@ export class SheetCardFormComponent {
   }
 
   /**
-   * Whether this user may read and edit the text on the card's face.
-   *
-   * Anyone allowed to see hidden things always may. Everyone else may only when the card shows its
-   * face to them and nobody else is peeking at it.
+   * Whether this user may read and edit the card's front: its picture, name, face text and game data,
+   * as {@link CardGameService.canReadFront} says.
    */
   canReadCardFace(c: Card): boolean {
     this.objectChange.versionOf(c.identifier)();
-    if (PeerCursor.myCursor) this.objectChange.versionOf(PeerCursor.myCursor.identifier)();
-    const isOwnedByAnotherUser = c.hasOwner && !c.isMine;
-    return this.rolePermission.canSeeHidden() || (!isOwnedByAnotherUser && c.isVisible);
+    this.objectChange.networkVersion();
+    return this.cardGame.canReadFront(c);
   }
 
   /** The text on the card's face, or an empty string for a user who may not read it. */

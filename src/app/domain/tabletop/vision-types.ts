@@ -18,6 +18,19 @@ export enum LightAnimation {
   NEON = 'neon',
 }
 
+/**
+ * How the lights a map generator stands are to move: each as its kind of lamp does, which is the
+ * empty choice, or every one of them the same way.
+ */
+export const GENERATED_LIGHT_MOTIONS = ['', LightAnimation.NONE, LightAnimation.FLICKER, LightAnimation.PULSE] as const;
+
+export type GeneratedLightMotion = (typeof GENERATED_LIGHT_MOTIONS)[number];
+
+/** Reads a stored way for generated lights to move, anything unknown or missing as each kind's own. */
+export function generatedLightMotionOf(value: unknown): GeneratedLightMotion {
+  return (GENERATED_LIGHT_MOTIONS as readonly unknown[]).includes(value) ? (value as GeneratedLightMotion) : '';
+}
+
 export enum LightPreset {
   CUSTOM = 'custom',
   TORCH = 'torch',
@@ -287,4 +300,24 @@ export function applyLightPreset(target: MutableLightFields, preset: LightPreset
   if ('lightIgnoreOcclusion' in target) target.lightIgnoreOcclusion = def.ignoreOcclusion;
   if ('lightRevealToAll' in target) target.lightRevealToAll = def.revealToAll;
   if ('lightCastShadows' in target) target.lightCastShadows = def.castShadows;
+}
+
+/**
+ * Lays a preset on a light and then what is asked of it beyond the preset, its motion or its colour.
+ * A light asked to move otherwise than its preset does is that preset no longer, and is left as one of
+ * its own (custom), so no menu shows it as the preset, nor does choosing the preset again quietly bring
+ * back the motion asked away. Its colour is the lamp's own to choose, a bar's neon tube burning the
+ * colour it was given as a neon tube still.
+ */
+export function applyLightPresetWith(
+  target: MutableLightFields,
+  preset: LightPreset,
+  asked: { readonly animation?: string; readonly color?: string }
+): void {
+  applyLightPreset(target, preset);
+  if (asked.animation !== undefined && asked.animation !== target.lightAnimation) {
+    target.lightAnimation = asked.animation;
+    target.lightPreset = LightPreset.CUSTOM;
+  }
+  if (asked.color !== undefined) target.lightColor = asked.color;
 }

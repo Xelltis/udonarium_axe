@@ -44,7 +44,7 @@ export class RoomRoundSettingsComponent {
   readonly factionPhaseModes = FACTION_PHASE_MODES;
 
   /** How the round is taken. */
-  readonly turnOrderMode = this.access.configField('turnOrderMode');
+  readonly turnOrderMode = this.access.setting('turnOrderMode');
 
   /** Whether the round is taken side by side, which is when the faction settings are shown. */
   get takesRoundBySides(): boolean {
@@ -52,10 +52,10 @@ export class RoomRoundSettingsComponent {
   }
 
   /** How pieces take their turns within a side's phase. */
-  readonly factionPhaseMode = this.access.configField('factionPhaseMode');
+  readonly factionPhaseMode = this.access.setting('factionPhaseMode');
 
   /** Whether pieces on no party sit the round out when it is taken by sides. */
-  readonly factionSkipUnassigned = this.access.configField('factionSkipUnassigned');
+  readonly factionSkipUnassigned = this.access.setting('factionSkipUnassigned');
 
   /**
    * The sides in the order the round takes them, named and coloured as the parties are. Worked out
@@ -77,15 +77,18 @@ export class RoomRoundSettingsComponent {
     return normalizeFactionOrder(config.factionOrder, parties, { skipUnassigned: config.factionSkipUnassigned });
   }
 
+  /** The order of the sides as the room writes it down, which only moving a side does. */
+  private readonly writtenFactionOrder = this.access.setting('factionOrder');
+
   /** Moves one side up or down the order, which is the only time the order is written down. */
   moveSide(side: string, by: number): void {
-    if (this.isReadOnly()) return;
+    if (!this.access.mayChange('factionOrder')) return;
     const order = this.sidesInOrder(Config.instance, this.objectStore.getObjects<Party>(Party));
     const from = order.indexOf(side);
     const to = from + by;
     if (from < 0 || to < 0 || to >= order.length) return;
     order.splice(to, 0, ...order.splice(from, 1));
-    Config.instance.factionOrder = encodeFactionOrder(order);
+    this.writtenFactionOrder.value = encodeFactionOrder(order);
   }
 
   /** Whether buffs count down as the round goes; set through the round itself. */
@@ -97,8 +100,8 @@ export class RoomRoundSettingsComponent {
   );
 
   /** Whether the owner of a piece hears a signal when its turn begins. */
-  readonly turnSignal = this.access.configField('turnSignalEnabled', 'shared');
+  readonly turnSignal = this.access.setting('turnSignalEnabled');
 
   /** Whether everyone else hears a tick when a turn begins. */
-  readonly turnTick = this.access.configField('turnTickEnabled', 'shared');
+  readonly turnTick = this.access.setting('turnTickEnabled');
 }

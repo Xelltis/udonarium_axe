@@ -1,23 +1,31 @@
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
   ModelLayer,
+  modelPartsOf,
+  modelReadKeyOf,
   partPlacementsOf,
   placedPartsOf,
   placementOf,
+  sceneMaterialOf,
+  senseInCurrent,
   spinOf,
   spinPlacedAt,
   spoutsOf,
   standingBoxOf,
+  UNUSED_MODEL_KEEP_MS,
 } from '@axe/infrastructure/table-3d/model-layer';
 import { meshesOf, triangleCountOf } from '@axe/infrastructure/three-kit/model-faces';
 import {
   AnimationClip,
+  BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   Group,
   type InstancedMesh,
   Matrix4,
   Mesh,
+  MeshStandardMaterial,
+  Texture,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
@@ -79,7 +87,10 @@ describe('a part made to turn', () => {
     ...MADE,
     parts: [
       { within: new Matrix4() },
-      { within: new Matrix4(), spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90 } },
+      {
+        within: new Matrix4(),
+        spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90, reach: 0.5 },
+      },
     ],
   };
   const drawn = (matrix: Matrix4, x: number, y: number, z: number) => {
@@ -209,6 +220,75 @@ describe('a part made to turn', () => {
     mill.add(tower);
     expect(rounded(standingBoxOf(mill).min.toArray())).toEqual([-1.5, 0, -1.5]);
     expect(rounded(standingBoxOf(mill).max.toArray())).toEqual([1.5, 5.6, 1.5]);
+  });
+
+  it('turns the other way round where its lowest point dips into water running against the way it turns as made', () => {
+    /** The water under the knight: running so, its surface 30 up, over the wheel's lowest point 25 up. */
+    const flowing = (towardX: number, towardY: number, surfacePx = 30) =>
+      knight({ current: { towardX, towardY, surfacePx } });
+
+    expect(placedPartsOf(flowing(1, 0), wheel).spins[0].degPerSecond).toBe(90);
+    expect(placedPartsOf(flowing(-1, 0), wheel).spins[0].degPerSecond).toBe(-90);
+    const [, [turned]] = partPlacementsOf(flowing(-1, 0), wheel, 1000);
+    expect(drawn(turned, 0.5, 1, 0)).toEqual([100, 25, 200]);
+    expect(drawn(turned, 0, 0.5, 0)).toEqual([75, 50, 200]);
+
+    expect(placedPartsOf(flowing(-1, 0, 20), wheel).spins[0].degPerSecond).toBe(90);
+    expect(placedPartsOf(flowing(0, 1), wheel).spins[0].degPerSecond).toBe(90);
+  });
+
+  it('reaches as deep as it is stretched upright, however wide it is stretched', () => {
+    const model = knight({
+      boxPx: { widthPx: 150, depthPx: 50 },
+      heightPx: 100,
+      current: { towardX: -1, towardY: 0, surfacePx: 20 },
+    });
+
+    expect(placedPartsOf(model, { ...wheel, stretch: true }).spins[0].degPerSecond).toBe(90);
+    expect(
+      placedPartsOf({ ...model, current: { ...model.current!, surfacePx: 30 } }, { ...wheel, stretch: true }).spins[0]
+        .degPerSecond
+    ).toBe(-90);
+  });
+
+  it('turns with the water whichever way its model is turned', () => {
+    const current = { towardX: 1, towardY: 0, surfacePx: 30 };
+    for (const turnDeg of [0, 180]) {
+      const model = knight({ current, model: { ...knight().model, turnDeg } });
+      const [, [turned]] = partPlacementsOf(model, wheel, 1000);
+      const [, [still]] = partPlacementsOf(model, wheel, 0);
+      const lowest = (matrix: Matrix4) => new Vector3(0, 0.5, 0).applyMatrix4(matrix);
+      expect(lowest(still).y, `${turnDeg}`).toBeCloseTo(25);
+      expect(lowest(turned).x - lowest(still).x, `${turnDeg}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('is turned by no water about an upright axis', () => {
+    const current = { towardX: 1, towardY: 0, surfacePx: 1000 };
+    expect(senseInCurrent(current, new Vector3(0, 50, 0), new Vector3(0, 1, 0), 25, 90)).toBe(1);
+    expect(senseInCurrent(current, new Vector3(0, 50, 0), new Vector3(0, 0, -1), 25, 90)).toBe(-1);
+    expect(senseInCurrent(current, new Vector3(0, 50, 0), new Vector3(0, 0, -1), 25, -90)).toBe(1);
+  });
+
+  it('reaches out from its axis as far as the farthest of the meshes turning with it', () => {
+    const shaped = (points: number[]) => {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new BufferAttribute(new Float32Array(points), 3));
+      return new Mesh(geometry);
+    };
+    const scene = new Group();
+    scene.add(shaped([-1, 0, -1, 1, 2, 1]));
+    const wheel = new Group();
+    wheel.userData = { spin: [1, 0, 0, 30], spinAt: [1, 1, 0] };
+    wheel.add(shaped([1, 1, 1.2, 1, -0.2, 0, 1.2, 1, 0]));
+    wheel.add(shaped([0.9, 1.1, 0, 1.1, 0.9, 0]));
+    scene.add(wheel);
+    scene.updateMatrixWorld(true);
+
+    const { parts } = modelPartsOf(scene, new Matrix4(), undefined);
+
+    expect(parts[0].spin).toBeUndefined();
+    for (const part of parts.slice(1)) expect(part.spin!.reach).toBeCloseTo(1.2, 6);
   });
 
   it('reads nothing that names no axis, no turning, or anything but four figures', () => {
@@ -434,6 +514,85 @@ describe('placementOf', () => {
 });
 
 describe('ModelLayer', () => {
+  it('makes the copy for a piece of the one read for a block, reading the bytes once and sharing their shapes', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const geometry = new BoxGeometry();
+    const scene = new Group();
+    scene.add(new Mesh(geometry, new MeshStandardMaterial()));
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, { gltf: { scene: Group } } | null>;
+      letGoOf: (key: string, loaded: unknown) => void;
+    };
+    const reads = vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
+
+    layer.set([knight({ owner: 'tower', kind: 'terrain' }), knight()]);
+    await vi.waitFor(() => expect(internals.loaded.size).toBe(2));
+
+    expect(reads).toHaveBeenCalledTimes(1);
+    const meshOf = (key: string) => internals.loaded.get(key)!.gltf.scene.children[0] as Mesh;
+    const [block, piece] = [meshOf('blob:knight'), meshOf(modelReadKeyOf(knight()))];
+    expect(piece.geometry).toBe(block.geometry);
+    expect(piece.material).not.toBe(block.material);
+    const letGo = vi.spyOn(geometry, 'dispose');
+    internals.letGoOf('blob:knight', internals.loaded.get('blob:knight'));
+    expect(letGo).not.toHaveBeenCalled();
+    layer.dispose();
+  });
+
+  it('measures the copy for a piece as its twin was read, each part its own mesh, however the twin stands posed since', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const scene = new Group();
+    scene.add(new Mesh(new BoxGeometry(1, 2, 1), new MeshStandardMaterial()));
+    type Loaded = { gltf: { scene: Group }; size: Vector3; foot: Vector3; parts: { mesh: Mesh; within: Matrix4 }[] };
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, Loaded | null>;
+      variantOf: (other: Loaded, moonlit: boolean) => Loaded;
+    };
+    vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
+    layer.set([knight({ owner: 'tower', kind: 'terrain' })]);
+    await vi.waitFor(() => expect(internals.loaded.get('blob:knight')).toBeTruthy());
+    const block = internals.loaded.get('blob:knight')!;
+    block.gltf.scene.children[0].position.set(3, 1, 0);
+    block.gltf.scene.updateMatrixWorld(true);
+
+    const piece = internals.variantOf(block, false);
+
+    expect([piece.size, piece.foot]).toEqual([block.size, block.foot]);
+    expect(piece.parts.map((part) => part.within)).toEqual(block.parts.map((part) => part.within));
+    expect(piece.parts[0].mesh).toBe(piece.gltf.scene.children[0]);
+    expect(piece.parts[0].mesh).not.toBe(block.parts[0].mesh);
+    layer.dispose();
+  });
+
+  it('reads a model drawn for a piece apart from one drawn for a block, greying only the block by moonlight', () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const read = vi
+      .spyOn(layer as unknown as { read: (...args: unknown[]) => void }, 'read')
+      .mockImplementation(() => undefined);
+
+    layer.set([knight(), knight({ owner: 'tower', kind: 'terrain' })]);
+
+    expect(read.mock.calls.map(([key, url, , moonlit]) => [key, url, moonlit])).toEqual([
+      ['blob:knight#piece', 'blob:knight', false],
+      ['blob:knight', 'blob:knight', true],
+    ]);
+    layer.dispose();
+  });
+
   /** A model of one mesh that plays the motions named, read at once in place of a file. */
   function layerOf(motions: readonly string[]): ModelLayer {
     const layer = new ModelLayer(
@@ -449,7 +608,7 @@ describe('ModelLayer', () => {
       foot: new Vector3(0, 0, 0),
       animated: true,
     };
-    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', loaded);
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), loaded);
     return layer;
   }
 
@@ -471,6 +630,31 @@ describe('ModelLayer', () => {
 
     layer.set([knight({ model: { ...running, idle: '' }, walking: false })]);
     expect(layer.motionOf('knight')).toBe('Idle');
+  });
+
+  it('lets go of a model it could not read once it has gone unused, as of one it read', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, unknown>;
+      readUrls: Map<string, string>;
+      sweep: () => void;
+    };
+    vi.spyOn(internals.reader, 'read').mockRejectedValue(new Error('unreadable'));
+    layer.set([knight()]);
+    await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeNull());
+
+    layer.set([]);
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + UNUSED_MODEL_KEEP_MS + 1);
+    internals.sweep();
+
+    expect([internals.loaded.size, internals.readUrls.size]).toEqual([0, 0]);
+    vi.restoreAllMocks();
+    layer.dispose();
   });
 
   it('lets go of a model read after the layer was, rather than standing it in the layer', async () => {
@@ -514,7 +698,7 @@ describe('ModelLayer', () => {
     shape.setIndex([...Array(12).keys()]);
     const scene = new Group();
     scene.add(new Mesh(shape));
-    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+    (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), {
       gltf: { scene, animations: [] },
       size: new Vector3(1, 2, 1),
       foot: new Vector3(0, 0, 0),
@@ -545,7 +729,7 @@ describe('ModelLayer', () => {
       );
       const body = new Mesh(new BufferGeometry());
       const wheel = new Mesh(new BufferGeometry());
-      (layer as unknown as { loaded: Map<string, unknown> }).loaded.set('blob:knight', {
+      (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), {
         gltf: { scene: new Group(), animations: [] },
         size: MADE.size,
         foot: new Vector3(),
@@ -555,7 +739,7 @@ describe('ModelLayer', () => {
           {
             mesh: wheel,
             within: new Matrix4(),
-            spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90 },
+            spin: { at: new Vector3(0, 1, 0), axis: new Vector3(0, 0, 1), degPerSecond: 90, reach: 0.5 },
           },
         ],
       });
@@ -624,5 +808,56 @@ describe('ModelLayer', () => {
       expect(wheelAt()).toEqual([100, 75, 200]);
       layer.dispose();
     });
+  });
+});
+
+describe('sceneMaterialOf', () => {
+  it('keeps the glow a part gives off, as strong as it was made, with the picture it glows in, and notes that picture as drawn', () => {
+    const picture = new Texture();
+    const shine = new Texture();
+    const neon = new MeshStandardMaterial({
+      map: picture,
+      emissive: '#ff2bd6',
+      emissiveMap: picture,
+      emissiveIntensity: 3,
+      roughnessMap: shine,
+    });
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+
+    const made = sceneMaterialOf(neon, drawn, undrawn, true);
+
+    expect(made.emissive.getHexString()).toBe('ff2bd6');
+    expect(made.emissiveMap).toBe(picture);
+    expect(made.emissiveIntensity).toBe(3);
+    expect([...drawn]).toEqual([picture]);
+    expect([...undrawn]).toEqual([shine]);
+  });
+
+  it('draws a model brought in without the glow it was made with, as it always was, lest it stand out of the dark', () => {
+    const picture = new Texture();
+    const unlit = new MeshStandardMaterial({ map: picture, emissive: '#808080', emissiveMap: picture });
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+
+    const made = sceneMaterialOf(unlit, drawn, undrawn);
+
+    expect(made.emissive.getHex()).toBe(0);
+    expect(made.emissiveMap).toBeNull();
+    expect([...drawn]).toEqual([picture]);
+  });
+
+  it('gives a part that gives off no glow none, and draws no picture of a glow it does not give off', () => {
+    const picture = new Texture();
+    const glowless = new MeshStandardMaterial({ map: picture, emissiveMap: new Texture() });
+    const drawn = new Set<Texture>();
+    const undrawn = new Set<Texture>();
+
+    const made = sceneMaterialOf(glowless, drawn, undrawn);
+
+    expect(made.emissive.getHex()).toBe(0);
+    expect(made.emissiveMap).toBeNull();
+    expect([...drawn]).toEqual([picture]);
+    expect(undrawn.size).toBe(1);
   });
 });

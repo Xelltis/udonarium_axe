@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -67,6 +68,7 @@ const names = (a: { name: string }[]) => a.map((x) => x.name);
 const groupOf = (menu: { name: string; subActions?: { name: string }[] }[], name: string) =>
   menu.find((m) => m.name === name)!.subActions! as ReturnType<typeof buildGameCharacterContextMenu>;
 const callbacks = () => ({
+  disclosure: new DisclosureService(),
   onShowDetail: vi.fn(),
   onShowMemo: vi.fn(),
   onShowChatPalette: vi.fn(),

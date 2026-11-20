@@ -8,6 +8,7 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { type InnerXml, ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
+import { clamp } from '@axe/core/util/clamp';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 
 @SyncObject('cut-in')
@@ -42,7 +43,7 @@ export class CutIn extends GameObject implements InnerXml {
   private normalMinSizeWidth = 10;
   private normalMinSizeHeight = 10;
 
-  private normalMaxSizeWidth = 1200;
+  private normalMaxSizeWidth = 1920;
   private normalMaxSizeHeight = 1200;
 
   private videoMinSizeWidth = 448;
@@ -98,6 +99,93 @@ export class CutIn extends GameObject implements InnerXml {
     } else {
       return this.normalMaxSizeHeight;
     }
+  }
+
+  /** Whether the cut-in plays a YouTube video, which is sized within a video's bounds rather than a picture's. */
+  get playsVideo(): boolean {
+    return this.videoId.length > 0;
+  }
+
+  /**
+   * A width and a height held inside the bounds the cut-in's kind allows (see {@link minSizeWidth} and
+   * the rest), in whole pixels. A side that is not a finite number keeps the cut-in's own, or the least
+   * its kind allows where that is not one either.
+   */
+  clampSize(width: number, height: number): { width: number; height: number } {
+    const video = this.playsVideo;
+    return {
+      width: clampSide(width, this.width, this.minSizeWidth(video), this.maxSizeWidth(video)),
+      height: clampSide(height, this.height, this.minSizeHeight(video), this.maxSizeHeight(video)),
+    };
+  }
+
+  /**
+   * Sizes the cut-in, each side held inside the bounds its kind allows (see {@link clampSize}); a side
+   * given as anything but a finite number stays as it is. Only a side that changes is written.
+   */
+  setSize(width: number, height: number): void {
+    const held = this.clampSize(width, height);
+    if (this.width !== held.width) this.width = held.width;
+    if (this.height !== held.height) this.height = held.height;
+  }
+
+  /**
+   * Sizes the cut-in by one side, the other following at the proportions of `shape` where one is given
+   * with both sides known, as keeping its aspect does; both are then held inside the bounds its kind
+   * allows (see {@link setSize}). Where the side that follows would go past its bounds, it is held at
+   * them and the side given follows it back, so the proportions stay; only where no size within both
+   * bounds has them is the cut-in sized to the nearest it can be. A side given as anything but a
+   * finite number, as a field left empty gives, changes nothing, the other side included.
+   */
+  resizeSide(side: 'width' | 'height', value: number, shape: { width: number; height: number } | null): void {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return;
+    const given = this.clampSize(side === 'width' ? value : this.width, side === 'height' ? value : this.height);
+    if (!shape || !(shape.width > 0) || !(shape.height > 0)) {
+      this.setSize(given.width, given.height);
+      return;
+    }
+    const tall = shape.height / shape.width;
+    const byWidth = (width: number) => ({ width, height: Math.floor(width * tall) });
+    const byHeight = (height: number) => ({ width: Math.floor(height / tall), height });
+    const wanted = side === 'width' ? byWidth(given.width) : byHeight(given.height);
+    const held = this.clampSize(wanted.width, wanted.height);
+    const kept =
+      held.width === wanted.width && held.height === wanted.height
+        ? wanted
+        : side === 'width'
+          ? byHeight(held.height)
+          : byWidth(held.width);
+    this.setSize(kept.width, kept.height);
+  }
+
+  /**
+   * The proportions keeping the cut-in's aspect keeps (see {@link resizeSide}): a video's default size,
+   * or its picture's own size where that is known, both sides above 0; null where neither is, as for a
+   * picture not read yet. Never the size the cut-in has, which is rounded and held to its bounds.
+   */
+  ownShape(picture: { width: number; height: number } | null): { width: number; height: number } | null {
+    if (this.playsVideo) return { width: this.defVideoSizeWidth, height: this.defVideoSizeHeight };
+    return picture && picture.width > 0 && picture.height > 0 ? { width: picture.width, height: picture.height } : null;
+  }
+
+  /**
+   * Takes the size of the cut-in's own picture or video as it is while original size is on, which the
+   * bounds do not apply to; nothing while it is off, nor for a side not known yet (not above 0).
+   */
+  fitOwnSize(width: number, height: number): void {
+    if (!this.originalSize) return;
+    if (width > 0 && this.width !== width) this.width = width;
+    if (height > 0 && this.height !== height) this.height = height;
+  }
+
+  /**
+   * The size the cut-in plays at: its picture's or video's own at original size, and otherwise the size
+   * it was given held inside the bounds its kind allows, which one saved or sent from elsewhere may lie
+   * outside.
+   */
+  get shownSize(): { width: number; height: number } {
+    if (this.originalSize) return { width: Number(this.width), height: Number(this.height) };
+    return this.clampSize(Number(this.width), Number(this.height));
   }
 
   /** The sound the cut-in plays, or null when none is set or its file is not in this peer's storage. */
@@ -286,12 +374,22 @@ export function cutInPanelBox(
   viewport: { readonly width: number; readonly height: number }
 ): { left: number; top: number; width: number; height: number } {
   const chrome = cutInPanelChrome(cutIn);
-  const marginWidth = Math.max(0, viewport.width - cutIn.width);
-  const marginHeight = Math.max(0, viewport.height - cutIn.height - chrome);
+  const size = cutIn.shownSize;
+  const marginWidth = Math.max(0, viewport.width - size.width);
+  const marginHeight = Math.max(0, viewport.height - size.height - chrome);
   return {
     left: (marginWidth * cutIn.x_pos) / 100,
     top: (marginHeight * cutIn.y_pos) / 100,
-    width: cutIn.width,
-    height: cutIn.height + chrome,
+    width: size.width,
+    height: size.height + chrome,
   };
+}
+
+/**
+ * One side of a cut-in held inside its bounds, in whole pixels: `value` where it is a finite number, else
+ * `fallback`, else the least allowed.
+ */
+function clampSide(value: number, fallback: number, min: number, max: number): number {
+  const given = Number.isFinite(value) ? value : Number.isFinite(fallback) ? fallback : min;
+  return clamp(Math.round(given), min, max);
 }

@@ -9,11 +9,10 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
-import { GameObject } from '@axe/core/sync/game-object';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
-import { withFolderInOrder } from '@axe/domain/folder/folder-tree';
+import { folderSiblingsOf } from '@axe/domain/folder/folder-tree';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
@@ -351,9 +350,8 @@ export class ScenarioTextPanelComponent {
     event.stopPropagation();
     const { held, over, side } = dropped;
     this.shelf.fileInto([held], over.folderName);
-    const siblings = this.siblingsOf(held).filter((text) => text !== held);
-    siblings.splice(siblings.indexOf(over) + (side === 'after' ? 1 : 0), 0, held);
-    this.putInOrder(held, siblings);
+    const others = this.siblingsOf(held).filter((text) => text !== held);
+    this.texts.moveInFolder(held, others.indexOf(over) + (side === 'after' ? 1 : 0));
   }
 
   /** A text dropped on a folder goes into it, last. */
@@ -362,7 +360,7 @@ export class ScenarioTextPanelComponent {
     this.reorder.cancel();
     if (!held) return;
     this.shelf.fileInto([held], path);
-    this.putInOrder(held, [...this.siblingsOf(held).filter((text) => text !== held), held]);
+    this.texts.moveInFolder(held, Infinity);
   }
 
   protected dragEnd(): void {
@@ -381,25 +379,12 @@ export class ScenarioTextPanelComponent {
     if (this.canEdit() && pending.text.text !== pending.words) pending.text.write(pending.words);
   }
 
+  /** The texts in the same folder as this one, in the list order, itself among them. */
   private siblingsOf(text: ScenarioText): ScenarioText[] {
-    const folder = normalizeFolderPath(text.folderName);
-    return ScenarioText.all().filter((candidate) => normalizeFolderPath(candidate.folderName) === folder);
+    return folderSiblingsOf(ScenarioText.all(), text);
   }
 
   private moveWithin(text: ScenarioText, to: number): void {
-    const siblings = this.siblingsOf(text).filter((candidate) => candidate !== text);
-    siblings.splice(Math.max(0, Math.min(siblings.length, to)), 0, text);
-    this.putInOrder(text, siblings);
-  }
-
-  private putInOrder(moved: ScenarioText, ordered: readonly ScenarioText[]): void {
-    if (!this.canEdit()) return;
-    const folder = normalizeFolderPath(moved.folderName);
-    const list = withFolderInOrder(ScenarioText.all(), (text) => text.folderName, folder, ordered);
-    GameObject.batch(() => {
-      list.forEach((text, index) => {
-        if (Number(text.order) !== index + 1) text.order = index + 1;
-      });
-    });
+    this.texts.moveInFolder(text, to);
   }
 }

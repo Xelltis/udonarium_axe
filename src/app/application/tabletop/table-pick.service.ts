@@ -138,7 +138,7 @@ export class TablePickService {
    * range is still taken.
    */
   pressedAt(pageX: number, pageY: number): PickHit | null {
-    const hits = passingSolids(this.allAt(pageX, pageY));
+    const hits = passingSolids(this.shownAt(pageX, pageY));
     const first = hits[0];
     if (!first || !this.lockedBlock(first.target)) return first ?? null;
     for (const hit of hits) {
@@ -211,10 +211,29 @@ export class TablePickService {
     return hit.t < along - HIDDEN_SLACK_PX;
   }
 
-  /** Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the eye first. */
+  /**
+   * Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the
+   * eye first, whether or not this seat is shown it: what a piece moved over the point comes to rest on.
+   */
   allAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit[] {
     const ray = this.rayAt(pageX, pageY);
     return ray ? pickAll(this.everyTarget(), ray, accepts) : [];
+  }
+
+  /**
+   * Everything a point of the page lands on that this seat is shown, nearest the eye first: what a press
+   * there may take, and what is listed as lying under it. A block this seat is not shown, as glass, is
+   * passed through (see `TablePiecesService.isBlockShown`), though it stops what is moved and put down.
+   */
+  shownAt(pageX: number, pageY: number): PickHit[] {
+    return this.allAt(pageX, pageY).filter((hit) => this.isShownTarget(hit.target));
+  }
+
+  /** Whether this seat is shown what a target stands for: every target but that of a block not shown to it. */
+  private isShownTarget(target: PickTarget): boolean {
+    if (target.layer !== TERRAIN_PICK_LAYER) return true;
+    const block = this.objectStore.get(target.id);
+    return !(block instanceof Terrain) || this.pieces.isBlockShown(block);
   }
 
   private everyTarget(): PickTarget[] {
@@ -248,8 +267,9 @@ export class TablePickService {
   }
 
   /**
-   * The targets of the blocks standing on the table in view and not hidden from this seat, which
-   * are what a piece may be put on and what stops the line of sight a piece is moved along.
+   * The targets of the blocks standing on the table in view that the fog does not lie over whole for
+   * this seat, which are what a piece may be put on and what stops the line of sight a piece is moved
+   * along: glass among them, which stops what it stops whoever is shown it.
    */
   targets(): PickTarget[] {
     return untracked(() => {
@@ -286,7 +306,7 @@ export class TablePickService {
   }
 
   /**
-   * Makes the target of a block as the table stands now, or null for one not drawn for this seat:
+   * Makes the target of a block as the table stands now, or null for one the fog lies over whole for this seat:
    * made anew as the block changes, and as the table's grid, its size and its walls do, which say
    * where a block put on a wall stands.
    */
@@ -300,8 +320,8 @@ export class TablePickService {
       wallHeightPx: table.wallHeight * table.gridSize,
     };
     return (terrain) => {
+      if (this.vision.isTerrainHiddenByFog(terrain)) return null;
       const onFloor = surfaceOf(terrain) === 'floor';
-      if (onFloor && this.hiddenByFog(terrain)) return null;
       const board = boardSurfaceOf(terrain);
       const boardFrame = board ? this.surfaces.frameOf(board) : null;
       if (board && !boardFrame) return null;
@@ -508,12 +528,6 @@ export class TablePickService {
       this.tabletop.whiteBoards.forEach((board, index) => face(board.identifier, index + 1));
       return faces;
     });
-  }
-
-  /** A block the fog lies over entirely is not drawn, so nothing lands on it. */
-  private hiddenByFog(terrain: Terrain): boolean {
-    const cover = this.vision.terrainFogCover(terrain);
-    return cover !== null && !cover.cleared.some((cell) => cell);
   }
 }
 

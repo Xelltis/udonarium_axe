@@ -17,6 +17,7 @@ import {
   removedBuffName,
   splitBuffRounds,
 } from '@axe/domain/character/buff-command';
+import { BUFF_ITEMS_SECTION } from '@axe/domain/character/buff-made-items';
 import {
   describeBuffModifier,
   describeBuffModifierTarget,
@@ -35,6 +36,7 @@ import {
 } from '@axe/domain/character/default-value';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
+import { type BuffRequestOutcome, isAmountWritten, type ItemLanding } from '@axe/domain/character/item-landing';
 import { isResourceSpentAt } from '@axe/domain/character/piece-gauge';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -190,22 +192,22 @@ export function convertCommandToResourceEdit(
   if (parts.operator !== '>' && parts.amount === '') return false;
 
   const named = readNamedResourceSlot(parts.name);
-  const reg1 = named.name;
-  const reg1HalfWidth = toHalfWidth(reg1);
   oneResourceEdit.nowOrMax = named.slot;
 
   oneResourceEdit.operator = parts.operator;
 
-  if (object.status.canChangeName(reg1)) {
-    oneResourceEdit.target = reg1;
-  } else if (object.status.canChangeName(reg1HalfWidth)) {
-    oneResourceEdit.target = reg1HalfWidth;
-  } else {
-    return false;
-  }
+  const target = statusNamedIn(object, named.name);
+  if (target === null) return false;
+  oneResourceEdit.target = target;
 
   if (oneResourceEdit.operator === '>') {
     oneResourceEdit.replace = parts.amount;
+    return true;
+  }
+  const landing = commandLanding(object, target, named.slot, parts.operator, parts.amount);
+  if (!readsOptions(landing)) {
+    oneResourceEdit.operator = '>';
+    oneResourceEdit.replace = landing.kind === 'words' ? landing.words : parts.amount;
     return true;
   }
 
@@ -225,10 +227,97 @@ export function convertCommandToResourceEdit(
   return true;
 }
 
-/** Writes a `>` command's text into the character's status and returns the chat text reporting it. */
-export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): string {
+/**
+ * The status a `:` command names, as the character's sheet has it: the name as written, or else in
+ * half-width characters. Null where the sheet has neither, or nothing can be written into it.
+ */
+export function statusNamedIn(object: GameCharacter, name: string): string | null {
+  const named = object.status.nameOf(name);
+  return named !== null && object.status.canChangeName(named) ? named : null;
+}
+
+/**
+ * The slot of a status a `:` command reaches: the one it names, but the value itself for the maximum
+ * of a status that has none, as a line of text has none.
+ */
+export function slotWrittenTo(object: GameCharacter, target: string, slot: ResourceSlot): ResourceSlot {
+  return slot === 'max' && object.status.getValue(target, 'max') == null ? 'now' : slot;
+}
+
+/**
+ * Whether a `:` command's value is worked out as an amount where it lands, reading the option letters
+ * at its end: everywhere but where it is written as words, or turned away from a choice.
+ */
+export function readsOptions(landing: ItemLanding): boolean {
+  return landing.kind !== 'words' && landing.kind !== 'notAChoice';
+}
+
+/**
+ * Where a `:` command's value lands on the status it names (see {@link landingOn}), in the slot it
+ * reaches (see {@link slotWrittenTo}): `>` writes words wherever it is told to, `=` writes words into
+ * an item that takes words or a choice and works an amount out to hold the item at, a plain number
+ * being one worked out already, held to a choice's choices as it is, and the other operators move
+ * the number by it.
+ */
+export function commandLanding(
+  object: GameCharacter,
+  target: string,
+  slot: ResourceSlot,
+  operator: string,
+  amount: string
+): ItemLanding {
+  if (operator === '>') return object.status.landingOf(target, 'now', amount, 'wordsAnywhere');
+  const reached = slotWrittenTo(object, target, slot);
+  if (operator !== '=') return object.status.landingOf(target, reached, amount, 'moveBy');
+  if (!isAmountWritten(amount)) return object.status.landingOf(target, reached, amount, 'words');
+  const plain = toHalfWidth(amount).trim();
+  return Number.isFinite(Number(plain))
+    ? object.status.landingOf(target, reached, plain, 'amount')
+    : object.status.landingOf(target, reached, amount, 'formula');
+}
+
+/**
+ * Writes a `>` command's text into the character's status, or a `=` one's words, and returns the chat
+ * text reporting it (see {@link wordsReport}). An item holding a choice takes only one of its choices;
+ * anything else is left as it was and the report names the choices.
+ */
+export function applyTextEdit(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
+  const landing = character.status.landingOf(edit.target, 'now', edit.replace, 'wordsAnywhere');
+  if (landing.kind === 'notAChoice') {
+    return wordsReport(character, edit.target, notAChoiceText(edit.target, edit.replace, landing.choices));
+  }
   character.status.setText(edit.target, edit.replace);
-  return `${edit.target}＞${edit.replace}    `;
+  return wordsReport(character, edit.target, `${edit.target}＞${edit.replace}`);
+}
+
+/**
+ * The report of words written into a status, or turned away from a choice: in full, and as it is said
+ * to everyone, which of a piece whose contents are kept from anyone is only that the status was written
+ * into, as only the change is said of a value set on one: what it holds, a roll's answer, and the
+ * choices it offers stay with those who may see them.
+ */
+function wordsReport(character: GameCharacter, target: string, full: string): ResourceEditReport {
+  return keptReport(character, `${full}    `, `${target}＞${KEPT_VALUE}    `);
+}
+
+/**
+ * A report of a change to one piece: in full, and as it is said to everyone, which is `kept` for a
+ * piece whose contents are kept from anyone, and the full report for any other. Every report of a
+ * change to one piece's items, by a `:` command or a `&!` buff, goes through here.
+ */
+function keptReport(character: GameCharacter, full: string, kept: string): ResourceEditReport {
+  return { full, shown: isKeptFromAnyone(character) ? kept : full };
+}
+
+/** A report said to everyone as it is. */
+function sayToAll(text: string): ResourceEditReport {
+  return { full: text, shown: text };
+}
+
+/** What a report says of words that are none of the choices an item offers, naming the choices where there are any to say. */
+function notAChoiceText(target: string, words: string, choices: readonly string[]): string {
+  const offered = choices.length > 0 ? `: ${choices.join('・')}` : '';
+  return `${target}に「${words.trim()}」はありません${offered}`;
 }
 
 /**
@@ -256,13 +345,20 @@ export interface ResourceEditReport {
  * one changes the current value instead. Both texts are empty when the status has no value to change.
  */
 export function applyResourceEditReport(edit: ResourceEdit, character: GameCharacter): ResourceEditReport {
-  let optionText = '';
-  let nowOrMax = edit.nowOrMax;
-
-  const maxNum = character.status.getValue(edit.target, 'max');
-  if (nowOrMax === 'max' && maxNum == null) {
-    nowOrMax = 'now';
+  const nowOrMax = slotWrittenTo(character, edit.target, edit.nowOrMax);
+  if (edit.operator === '=') {
+    const answer = String(edit.calcAns);
+    const landing = character.status.landingOf(edit.target, nowOrMax, answer, 'amount');
+    if (landing.kind === 'notAChoice') {
+      return wordsReport(character, edit.target, notAChoiceText(edit.target, answer, landing.choices));
+    }
+    if (landing.kind === 'words') {
+      character.status.setText(edit.target, landing.words);
+      return wordsReport(character, edit.target, `${edit.target}＞${landing.words}`);
+    }
   }
+  let optionText = '';
+  const maxNum = character.status.getValue(edit.target, 'max');
 
   const oldNum = character.status.getValue(edit.target, nowOrMax);
   if (oldNum == null) return { full: '', shown: '' };
@@ -335,9 +431,9 @@ export function applyResourceEditReport(edit: ResourceEdit, character: GameChara
   const full = `${edit.target}${suffix}:${oldNum}${operatorText}${edit.diceResult}＞${newNum}${optionText}${sideEffectText}    `;
   const beaten =
     nowOrMax === 'now' && isResourceSpentAt(targetElement, newNum, character.status.getValue(edit.target, 'max'));
-  if (!isKeptFromAnyone(character) || beaten) return { full, shown: full };
+  if (beaten) return sayToAll(full);
   const change = edit.operator === '=' ? `=${KEPT_VALUE}` : `${operatorText}${edit.diceResult}`;
-  return { full, shown: `${edit.target}${suffix}:${change}    ` };
+  return keptReport(character, full, `${edit.target}${suffix}:${change}    `);
 }
 
 /** What stands in for a value said to be set on a piece whose contents are kept from anyone. */
@@ -423,16 +519,18 @@ function slotSuffix(slot: ResourceSlot): string {
  * twice is still holding it there, so that starts over as always. For the same reason a helping
  * stacked on a buff that holds its status leaves the status held, adding only to the rounds.
  */
-function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
+function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): ResourceEditReport {
   const { name, requests, rest } = readCalculatedBuff(command);
-  if (name.length < 1) return '';
-  if (!requests) return `バフの書式が読めません ${name}    `;
+  if (name.length < 1) return sayToAll('');
+  if (!requests) return sayToAll(`バフの書式が読めません ${name}    `);
   return grantCalculatedBuff(character, name, requests, rest, piles);
 }
 
 /**
  * Lays a buff of one row a status, or stacks it, and says in the chat what it did. A single status
- * stacked on a buff of several leaves the buff marked as several; laid anew, it is one again.
+ * stacked on a buff of several leaves the buff marked as several; laid anew, it is one again. Taking
+ * the buff off and laying it again is one change to the piece's buffs, so an item it made and stands
+ * on again is kept.
  */
 function grantCalculatedBuff(
   character: GameCharacter,
@@ -440,53 +538,95 @@ function grantCalculatedBuff(
   requests: readonly ParsedBuffModifierRequest[],
   rest: readonly string[],
   piles: BuffPileOn
-): string {
-  const { rounds, look } = splitBuffRounds(rest);
-  const roundText = (rounds ?? '').trim();
-  const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
-  const stacking =
-    piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
-  if (!stacking) character.buffs.removeGroupMembers(name);
-  const grouped = requests.length > 1;
-  const group = grouped ? name : stacking ? undefined : '';
-  const written = readCalculatedBuffLook(look);
-  // Laid anew, a buff written without a moment for its effect has none, whatever one of its name had.
-  const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
+): ResourceEditReport {
+  return character.buffs.alter(() => {
+    const { rounds, look } = splitBuffRounds(rest);
+    const roundText = (rounds ?? '').trim();
+    const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
+    const stacking =
+      piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
+    if (!stacking) character.buffs.removeGroupMembers(name);
+    const grouped = requests.length > 1;
+    const group = grouped ? name : stacking ? undefined : '';
+    const written = readCalculatedBuffLook(look);
+    // Laid anew, a buff written without a moment for its effect has none, whatever one of its name had.
+    const appearance = { ...written, effectTiming: written.effectTiming ?? (stacking ? undefined : ''), group };
 
-  const missing: string[] = [];
-  const effects: string[] = [];
-  requests.forEach((request, index) => {
-    const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
-    const effect = describeBuffModifier(request);
-    const standing = stacking ? character.buffs.find(rowName) : null;
-    const rowStacking = standing != null;
-    const note = standing && holdsRequestedStatus(readBuffModifier(standing), request) ? '' : effect;
-    if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
-    else if (piles === 'extend') character.buffs.extendRound(rowName, note, round, appearance);
-    else character.buffs.stackRound(rowName, note, round, appearance);
+    const missing: string[] = [];
+    const made: string[] = [];
+    const refused: string[] = [];
+    const effects: string[] = [];
+    requests.forEach((request, index) => {
+      const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
+      const effect = describeBuffModifier(request);
+      const standing = stacking ? character.buffs.find(rowName) : null;
+      const rowStacking = standing != null;
+      const note = standing && holdsRequestedStatus(readBuffModifier(standing), request) ? '' : effect;
+      if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
+      else if (piles === 'extend') character.buffs.extendRound(rowName, note, round, appearance);
+      else character.buffs.stackRound(rowName, note, round, appearance);
 
-    const data = character.buffs.find(rowName);
-    if (!data) return;
-    // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
-    if (!isAimedAtStatus(request.target)) {
-      const applied = rowStacking
-        ? character.buffs.stackModifier(data, request)
-        : character.buffs.applyModifier(data, request);
-      if (!applied) missing.push(request.target);
-    }
-    effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
+      const data = character.buffs.find(rowName);
+      if (!data) return;
+      // A status moved for whoever aims at the piece is the note's to tell, not the piece's to move.
+      if (!isAimedAtStatus(request.target)) {
+        const outcome = rowStacking
+          ? character.buffs.stackModifier(data, request, true)
+          : character.buffs.applyModifier(data, request, true);
+        if (outcome.kind === 'makes') made.push(request.target);
+        else if (outcome.kind !== 'lands') {
+          const said = refusalOf(outcome, request);
+          if (said) refused.push(said);
+          else missing.push(request.target);
+        }
+      }
+      effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
+    });
+
+    const data = character.buffs.find(name);
+    if (!data) return sayToAll('');
+    const verb = stacking ? '加算' : '付与';
+    const lack =
+      (missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '') +
+      (made.length > 0 ? ` (${made.join('・')}を${BUFF_ITEMS_SECTION}に作りました)` : '') +
+      refused.map((said) => ` (${said})`).join('');
+    const left = buffExpires(data) ? `/${data.value}R` : '';
+    const laid = `${name}を${verb} ${effects.join(',')}${left}`;
+    return keptReport(character, `${laid}${lack}    `, `${laid}    `);
   });
-
-  const data = character.buffs.find(name);
-  if (!data) return '';
-  const verb = stacking ? '加算' : '付与';
-  const lack = missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '';
-  const left = buffExpires(data) ? `/${data.value}R` : '';
-  return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
 }
 
 /**
- * Runs one `&` buff command on the character and returns the chat text reporting it.
+ * What the report of laying a `&!` buff says of a request it laid nowhere (see
+ * `buffRequestOutcome`), as the chat's lint says it; null for an item the sheet lacks, which the
+ * report names among those not found.
+ */
+function refusalOf(outcome: BuffRequestOutcome, request: ParsedBuffModifierRequest): string | null {
+  switch (outcome.kind) {
+    case 'notAChoice':
+      return notAChoiceText(request.target, request.text ?? String(request.amount), outcome.choices);
+    case 'notWords':
+      return `${request.target}は数の項目なので「${request.text}」は書けません`;
+    case 'lastingWords':
+      return `${request.target}に書く値はバフが外れると戻るため、「:」では残せません`;
+    case 'unwritable':
+      return `${request.target}には書けません`;
+    case 'noNumber':
+      return `${request.target}に動かす数がありません`;
+    default:
+      return null;
+  }
+}
+
+/** Runs one `&` buff command on the character and returns the chat text reporting it in full; see {@link applyBuffEditReport}. */
+export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
+  return applyBuffEditReport(buff, character).full;
+}
+
+/**
+ * Runs one `&` buff command on the character and returns the chat text reporting it: in full, and as
+ * it is said to everyone, which of a piece whose contents are kept from anyone leaves out what a `&!`
+ * buff found of its items (see {@link keptReport}).
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
  * removes one buff, `&*-`, `&*バフ-` and `&*デバフ-` clear the piece and its parts of every buff, of
@@ -496,7 +636,7 @@ function grantCalculatedBuff(
  * stacks onto a buff of the same name rather than starting it over, and `++` lengthens it by the
  * rounds asked for as well. A targeted command's text starts with the character's name.
  */
-export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
+export function applyBuffEditReport(buff: BuffEdit, character: GameCharacter): ResourceEditReport {
   const { piles, command } = readBuffStacking(buff.command);
   let text = '';
   if (buff.targeted) {
@@ -522,12 +662,13 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       text += `${reg1}を消去    `;
     }
   } else if (kind === 'calculated') {
-    text += applyCalculatedBuff(command, character, piles);
+    const report = applyCalculatedBuff(command, character, piles);
+    return { full: text + report.full, shown: text + report.shown };
   } else {
     const splittext = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
     const state = findStatusAilment(StatusAilmentCatalog.instance.ailments, splittext[0]);
     if (state && (piles === 'none' || !character.buffs.find(state.name))) {
-      return text + plantCommandedState(state, splittext, character);
+      return sayToAll(text + plantCommandedState(state, splittext, character));
     }
     let round: number | undefined = undefined;
     let sub = '';
@@ -571,7 +712,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
     }
   }
 
-  return text;
+  return sayToAll(text);
 }
 
 /**

@@ -1,20 +1,34 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewContainerRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SCENE_IMAGE_EXPORTER } from '@axe/application/file/scene-image-exporter';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PartyService } from '@axe/application/party/party.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { DungeonMaterial } from '@axe/application/tabletop/dungeon-build.service';
 import {
-  DUNGEON_GRID_SIZE,
-  DungeonBuildService,
-  DungeonMaterial,
-} from '@axe/application/tabletop/dungeon-build.service';
+  type GeneratedMap,
+  MapGenerationService,
+} from '@axe/application/tabletop/map-generation/map-generation.service';
+import {
+  dungeonPlanOf,
+  fieldPlanOf,
+  fieldShapeOf,
+  MAP_KINDS,
+  MAP_SEED_LIMIT,
+  mapCorridorWidthOf,
+  mapDoorWidthOf,
+  mapDoubleDoorsOf,
+  mapEntranceOf,
+  mapFloorOf,
+  type MapKind,
+  type MapSettings,
+  mapWallHeightOf,
+  mapWallOf,
+} from '@axe/application/tabletop/map-generation/map-settings';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
-import { ImageStorage } from '@axe/core/storage/image-storage';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
-import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import {
   TEXTURE_ASSET_URLS,
   TEXTURE_IDS,
@@ -25,15 +39,12 @@ import {
   clampDoorWidth,
   clampDoubleDoorPercent,
   DoorWidths,
-  doorWidthsFor,
   MAX_DOOR_WIDTH,
   MAX_DOUBLE_DOOR_PERCENT,
   MIN_DOOR_WIDTH,
   MIN_DOUBLE_DOOR_PERCENT,
 } from '@axe/domain/tabletop/dungeon/door-hanging';
 import {
-  atmosphereById,
-  clampWallHeight,
   DUNGEON_ATMOSPHERE_IDS,
   DUNGEON_ENTRANCE_STYLES,
   DungeonAtmosphereId,
@@ -44,18 +55,14 @@ import {
 import {
   clampRoomCount,
   CorridorWidths,
-  corridorWidthsFor,
   MAX_ROOM_COUNT,
   MIN_ROOM_COUNT,
-  planDungeon,
 } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import {
   clampCorridorWidth,
-  DungeonPoint,
   MAX_CORRIDOR_WIDTH,
   MIN_CORRIDOR_WIDTH,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
 import { DOOR_KINDS, type DoorKind } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import {
@@ -72,26 +79,19 @@ import {
   MIN_FIELD_DENSITY,
   MIN_FIELD_SIZE,
 } from '@axe/domain/tabletop/field/field-atmosphere';
-import { FieldPlan, planField } from '@axe/domain/tabletop/field/field-generator';
+import { FieldPlan } from '@axe/domain/tabletop/field/field-generator';
 import { FIELD_SEASONS, type FieldSeason } from '@axe/domain/tabletop/field/field-models';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { MAP_HEAVY_TERRAINS, MAP_MAX_TERRAINS, syncObjectCount } from '@axe/domain/tabletop/map-blocks';
+import {
+  GENERATED_LIGHT_MOTIONS,
+  type GeneratedLightMotion,
+  generatedLightMotionOf,
+} from '@axe/domain/tabletop/vision-types';
 import { DungeonMaterialPickerComponent } from '@axe/features/dungeon-generator/dungeon-material-picker.component';
-import { describeDungeon } from '@axe/features/dungeon-generator/dungeon-notes';
-import { withFieldMaterials } from '@axe/features/dungeon-generator/field-materials';
-import { describeField } from '@axe/features/dungeon-generator/field-notes';
-import { buildGroundScene } from '@axe/features/dungeon-generator/ground-scene';
 import { buildMapPreview, previewColors } from '@axe/features/dungeon-generator/map-preview';
 import { TranslocoModule } from '@jsverse/transloco';
-
-const SEED_LIMIT = 2 ** 31;
-
-type DungeonPlan = ReturnType<typeof planDungeon>;
-
-export type MapKind = 'dungeon' | 'field';
-
-export const MAP_KINDS: readonly MapKind[] = ['dungeon', 'field'];
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,10 +103,9 @@ export class DungeonGeneratorComponent {
   private readonly viewContainerRef = inject(ViewContainerRef);
   private readonly panelService = inject(PanelService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly dungeonBuild = inject(DungeonBuildService);
+  private readonly mapGeneration = inject(MapGenerationService);
   private readonly partyService = inject(PartyService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
 
   protected readonly atmosphereIds = DUNGEON_ATMOSPHERE_IDS;
@@ -155,12 +154,20 @@ export class DungeonGeneratorComponent {
   protected readonly fieldSeason = signal<FieldSeason>('');
   protected readonly roomCount = signal(8);
   protected readonly trapCount = signal(0);
-  protected readonly seed = signal(Math.floor(Math.random() * SEED_LIMIT));
+  protected readonly seed = signal(Math.floor(Math.random() * MAP_SEED_LIMIT));
   protected readonly tableName = signal('');
   protected readonly placeDoors = signal(true);
   protected readonly placeStairs = signal(true);
   protected readonly sheerWalls = signal(false);
   protected readonly fogEnabled = signal(false);
+  protected readonly lightMotions = GENERATED_LIGHT_MOTIONS;
+  /**
+   * How the lights stood on the map move, kept in this browser so that a master who finds the
+   * flicker too much has to say so once rather than at every map.
+   */
+  protected readonly lightMotion = signal<GeneratedLightMotion>(
+    generatedLightMotionOf(readLocal(STORAGE_KEYS.generatedLightMotion))
+  );
 
   private readonly wallOverride = signal<DungeonMaterial | null>(null);
   private readonly floorOverride = signal<DungeonMaterial | null>(null);
@@ -175,9 +182,10 @@ export class DungeonGeneratorComponent {
 
   protected readonly busy = signal(false);
   protected readonly progress = signal(0);
-  protected readonly builtTable = signal<GameTable | null>(null);
+  /** The map the panel built last, which rolling again throws away. */
+  private readonly built = signal<GeneratedMap | null>(null);
+  protected readonly builtTable = computed<GameTable | null>(() => this.built()?.table ?? null);
   protected readonly summary = signal('');
-  private readonly floorImage = signal('');
   protected readonly copied = signal(false);
 
   constructor() {
@@ -190,33 +198,35 @@ export class DungeonGeneratorComponent {
 
   protected readonly field = computed(() => this.kind() === 'field');
 
-  protected readonly wall = computed<DungeonMaterial>(() => {
-    if (this.wallOverride()) return this.wallOverride()!;
-    const id = this.field()
-      ? fieldAtmosphereById(this.fieldAtmosphere()).defaultProp
-      : atmosphereById(this.atmosphere()).defaultWall;
-    return { kind: 'texture', id };
-  });
-  protected readonly floor = computed<DungeonMaterial>(() => {
-    if (this.floorOverride()) return this.floorOverride()!;
-    const id = this.field()
-      ? fieldAtmosphereById(this.fieldAtmosphere()).defaultGround
-      : atmosphereById(this.atmosphere()).defaultFloor;
-    return { kind: 'texture', id };
-  });
-  protected readonly wallHeight = computed(() =>
-    clampWallHeight(this.heightOverride() ?? atmosphereById(this.atmosphere()).wallHeight)
+  protected readonly wall = computed<DungeonMaterial>(() =>
+    mapWallOf({
+      kind: this.kind(),
+      atmosphere: this.atmosphere(),
+      fieldAtmosphere: this.fieldAtmosphere(),
+      wall: this.wallOverride(),
+    })
   );
-  protected readonly entrance = computed<DungeonEntranceStyle>(
-    () => this.entranceOverride() ?? atmosphereById(this.atmosphere()).entrance
+  protected readonly floor = computed<DungeonMaterial>(() =>
+    mapFloorOf({
+      kind: this.kind(),
+      atmosphere: this.atmosphere(),
+      fieldAtmosphere: this.fieldAtmosphere(),
+      floor: this.floorOverride(),
+    })
+  );
+  protected readonly wallHeight = computed(() =>
+    mapWallHeightOf({ atmosphere: this.atmosphere(), wallHeight: this.heightOverride() })
+  );
+  protected readonly entrance = computed<DungeonEntranceStyle>(() =>
+    mapEntranceOf({ atmosphere: this.atmosphere(), entrance: this.entranceOverride() })
   );
   /** How wide the passages are cut, which each atmosphere has its own idea of. */
   protected readonly corridorWidth = computed(() =>
-    corridorWidthsFor(atmosphereById(this.atmosphere()), this.corridorOverride() ?? undefined)
+    mapCorridorWidthOf({ atmosphere: this.atmosphere(), corridor: this.corridorOverride() })
   );
   /** How wide the doors are hung, and how many of them part in the middle rather than swing whole. */
-  protected readonly doorWidth = computed(() => doorWidthsFor(this.doorOverride() ?? undefined));
-  protected readonly doubleDoors = computed(() => clampDoubleDoorPercent(this.doubleDoorOverride() ?? undefined));
+  protected readonly doorWidth = computed(() => mapDoorWidthOf({ door: this.doorOverride() }));
+  protected readonly doubleDoors = computed(() => mapDoubleDoorsOf({ doubleDoors: this.doubleDoorOverride() }));
   protected readonly usingDefaults = computed(
     () =>
       this.wallOverride() === null &&
@@ -241,46 +251,69 @@ export class DungeonGeneratorComponent {
 
   /** Materials do not change the shape, so a new swatch must not roll the dungeon again. */
   protected readonly plan = computed(() =>
-    planDungeon(
-      {
-        atmosphere: this.atmosphere(),
-        roomCount: this.roomCount(),
-        seed: this.seed(),
-        entrance: this.entrance(),
-        corridorWidth: this.corridorWidth(),
-        doorWidth: this.doorWidth(),
-        doubleDoorPercent: this.doubleDoors(),
-        trapCount: this.trapCount(),
-        gridType: this.gridType(),
-      },
-      {
-        placeDoors: this.placeDoors(),
-        placeStairs: this.placeStairs(),
-        sheerWalls: this.sheerWalls(),
-        models: this.models(),
-        ...(this.doorKind() ? { door: this.doorKind()! } : {}),
-      }
-    )
+    dungeonPlanOf({
+      atmosphere: this.atmosphere(),
+      roomCount: this.roomCount(),
+      seed: this.seed(),
+      entrance: this.entranceOverride(),
+      corridor: this.corridorOverride(),
+      door: this.doorOverride(),
+      doubleDoors: this.doubleDoorOverride(),
+      trapCount: this.trapCount(),
+      gridType: this.gridType(),
+      placeDoors: this.placeDoors(),
+      placeStairs: this.placeStairs(),
+      sheerWalls: this.sheerWalls(),
+      models: this.models(),
+      doorKind: this.doorKind(),
+    })
   );
 
   /** Rolled from the shape alone, so a new swatch does not roll the field again either. */
   private readonly fieldShape = computed(() =>
-    planField({
-      atmosphere: this.fieldAtmosphere(),
-      size: this.fieldSize(),
-      density: this.fieldDensity(),
+    fieldShapeOf({
+      fieldAtmosphere: this.fieldAtmosphere(),
+      fieldSize: this.fieldSize(),
+      fieldDensity: this.fieldDensity(),
       seed: this.seed(),
       gridType: this.gridType(),
-      relief: this.fieldRelief(),
+      fieldRelief: this.fieldRelief(),
       models: this.models(),
-      season: this.fieldSeason(),
+      fieldSeason: this.fieldSeason(),
     })
   );
 
-  protected readonly fieldPlan = computed<FieldPlan>(() => {
-    const plan = this.fieldShape();
-    return { ...plan, blocks: withFieldMaterials(plan.blocks, plan.atmosphere, this.floor(), this.wallOverride()) };
-  });
+  protected readonly fieldPlan = computed<FieldPlan>(() => fieldPlanOf(this.fieldShape(), this.settings()));
+
+  /**
+   * Everything the map is made from as the panel is set now, which the plans above are laid out from
+   * and the build is handed, so the map previewed is the map built.
+   */
+  private readonly settings = computed<MapSettings>(() => ({
+    kind: this.kind(),
+    atmosphere: this.atmosphere(),
+    fieldAtmosphere: this.fieldAtmosphere(),
+    fieldSize: this.fieldSize(),
+    fieldDensity: this.fieldDensity(),
+    fieldRelief: this.fieldRelief(),
+    fieldSeason: this.fieldSeason(),
+    models: this.models(),
+    roomCount: this.roomCount(),
+    trapCount: this.trapCount(),
+    seed: this.seed(),
+    gridType: this.gridType(),
+    placeDoors: this.placeDoors(),
+    placeStairs: this.placeStairs(),
+    sheerWalls: this.sheerWalls(),
+    doorKind: this.doorKind(),
+    wall: this.wallOverride(),
+    floor: this.floorOverride(),
+    wallHeight: this.heightOverride(),
+    entrance: this.entranceOverride(),
+    corridor: this.corridorOverride(),
+    door: this.doorOverride(),
+    doubleDoors: this.doubleDoorOverride(),
+  }));
 
   protected readonly blocks = computed(() => (this.field() ? this.fieldPlan().blocks : this.plan().blocks));
   protected readonly terrainCount = computed(() => this.blocks().blocks.length);
@@ -289,8 +322,6 @@ export class DungeonGeneratorComponent {
   protected readonly syncCount = computed(() => syncObjectCount(this.blocks().blocks));
   protected readonly tooMany = computed(() => this.terrainCount() > MAP_MAX_TERRAINS);
   protected readonly heavy = computed(() => this.terrainCount() > MAP_HEAVY_TERRAINS && !this.tooMany());
-
-  private readonly exportScene = inject(SCENE_IMAGE_EXPORTER);
 
   protected readonly preview = computed(() => {
     const wall = this.wall();
@@ -387,6 +418,13 @@ export class DungeonGeneratorComponent {
     this.musterParty.set(identifier);
   }
 
+  /** Chooses how the lights stood on the map move, and remembers it in this browser. */
+  protected setLightMotion(motion: GeneratedLightMotion): void {
+    const chosen = generatedLightMotionOf(motion);
+    this.lightMotion.set(chosen);
+    writeLocal(STORAGE_KEYS.generatedLightMotion, chosen || null);
+  }
+
   protected resetMaterials(): void {
     this.wallOverride.set(null);
     this.floorOverride.set(null);
@@ -399,108 +437,43 @@ export class DungeonGeneratorComponent {
   }
 
   protected reroll(): void {
-    this.seed.set(Math.floor(Math.random() * SEED_LIMIT));
+    this.seed.set(Math.floor(Math.random() * MAP_SEED_LIMIT));
   }
 
   protected nameFor(): string {
-    const typed = this.tableName().trim();
-    if (typed.length > 0) return typed;
-    if (this.field()) return this.t(`feature.tabletop.dungeonGenerator.field.${this.fieldAtmosphere()}`);
-    return this.t(`feature.tabletop.dungeonGenerator.atmosphere.${this.atmosphere()}`);
+    return this.mapGeneration.nameOf(this.settings(), this.tableName());
   }
 
+  /**
+   * Builds the map the panel is set to, and once it is built throws the one built before away, so a
+   * shelf of rejected tables never builds up; where everyone was looking at that one, everyone is shown
+   * the new one instead (see `MapGenerationService.replace`). A map that fails to be built leaves the
+   * one before as it was.
+   */
   protected async generate(): Promise<void> {
     if (!this.canEdit || this.busy() || this.tooMany()) return;
     this.busy.set(true);
     this.progress.set(0);
     try {
-      // Rolling again throws the last one away, so a shelf of rejected tables never builds up.
-      this.discardPrevious();
-      const name = this.nameFor();
-      const plan = this.field() ? this.fieldPlan() : this.plan();
-      const blocks = plan.blocks;
-      const summary = this.field()
-        ? describeField(plan as FieldPlan, name, this.seed(), this.t)
-        : describeDungeon(
-            (plan as DungeonPlan).layout,
-            blocks,
-            name,
-            this.t,
-            (plan as DungeonPlan).atmosphere.roleNames
-          );
-      const result = await this.dungeonBuild.build(
-        plan.layout,
-        plan.atmosphere,
-        blocks,
+      const previous = this.built();
+      const built = await this.mapGeneration.build(
+        this.settings(),
         {
-          name,
-          wall: this.wall(),
-          wallHeight: this.wallHeight(),
-          floorImage: await this.paintFloor(plan),
-          summary,
-          gridType: this.gridType(),
+          name: this.nameFor(),
           fogEnabled: this.fogEnabled(),
-          muster: this.musterStands(plan),
-          ground: (this.field() ? (plan as FieldPlan).layout.relief : (plan as DungeonPlan).layout.relief) ?? null,
-          skyKind: this.field() ? 'clock' : '',
+          musterParty: this.musterParty(),
+          lightMotion: this.lightMotion(),
         },
         // A map with nothing standing on it is finished the moment it starts, not NaN done.
         (done, total) => this.progress.set(total > 0 ? Math.round((done / total) * 100) : 100)
       );
-      this.builtTable.set(result.table);
-      this.summary.set(result.summary);
+      if (!built) return;
+      this.mapGeneration.replace(previous, built);
+      this.built.set(built);
+      this.summary.set(built.summary);
       this.copied.set(false);
-      SoundEffect.play(PresetSound.blockPut);
     } finally {
       this.busy.set(false);
-    }
-  }
-
-  /**
-   * Where each of the party stands once the map is built, or nobody where none was picked.
-   *
-   * The way in is the break in the outer wall where the dungeon has one, since that is the way
-   * the party walked in; where it has none, the stair comes to the same thing. A field has no
-   * way in to speak of, so nobody is gathered onto one.
-   */
-  private musterStands(plan: DungeonPlan | FieldPlan): { piece: GameCharacter; cell: DungeonPoint }[] {
-    const identifier = this.musterParty();
-    if (!identifier || this.field() || !('layout' in plan)) return [];
-    const layout = (plan as DungeonPlan).layout;
-    const party = this.partyService.membersOf(identifier);
-    if (party.length < 1) return [];
-    const cells = musterCells(layout, layout.mouth ?? layout.entrance, party.length);
-    return cells.map((cell, index) => ({ piece: party[index], cell }));
-  }
-
-  /**
-   * Paints the ground and hands back the picture the table wears.
-   *
-   * Nothing is left of the dungeon if the canvas will not draw, so a failure costs the
-   * floor rather than the table.
-   */
-  private async paintFloor(plan: DungeonPlan | FieldPlan): Promise<string> {
-    const floor = this.floor();
-    const hazardId =
-      'atmosphere' in plan ? ((plan.atmosphere as { cave?: { hazardFloor?: string } }).cave?.hazardFloor ?? '') : '';
-    const scene = buildGroundScene(
-      plan.layout,
-      plan.blocks.paint,
-      { floor, hazard: hazardId ? { kind: 'texture', id: hazardId } : floor },
-      DUNGEON_GRID_SIZE,
-      this.gridType()
-    );
-    try {
-      const blob = await this.exportScene(scene, [], {
-        drawGrid: false,
-        resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
-      });
-      const file = await this.imageStorage.addAsync(blob, { putBack: true });
-      this.floorImage.set(file?.identifier ?? '');
-      return file?.identifier ?? '';
-    } catch {
-      this.floorImage.set('');
-      return '';
     }
   }
 
@@ -510,13 +483,8 @@ export class DungeonGeneratorComponent {
   }
 
   protected discardPrevious(): void {
-    // Everything the generator makes is a child of its table, so the table takes it all with it.
-    this.builtTable()?.destroy();
-    this.builtTable.set(null);
-    // The painted ground is not a child of anything, and rolling again would leave it behind.
-    const painted = this.floorImage();
-    if (painted) this.imageStorage.delete(painted);
-    this.floorImage.set('');
+    this.mapGeneration.discard(this.built());
+    this.built.set(null);
     this.summary.set('');
   }
 

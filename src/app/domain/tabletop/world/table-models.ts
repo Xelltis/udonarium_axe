@@ -1,4 +1,5 @@
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
+import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 
 /**
@@ -57,6 +58,11 @@ export interface TableWorldModel {
    * arms it reaches out to them with. Left out for a block that reaches out to nothing.
    */
   readonly joins?: readonly WallJoinCell[];
+  /**
+   * For a block standing in flowing water: the current under it, which turns a part of its model
+   * that dips into it, as a watermill's wheel, the way it runs. Left out where none flows under it.
+   */
+  readonly current?: WaterCurrent;
 }
 
 /** Where an open door has gone from where it stands shut, on the board. */

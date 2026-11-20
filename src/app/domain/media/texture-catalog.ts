@@ -45,6 +45,7 @@ export const TEXTURE_IDS = [
   'sf_walkway',
   'sf_rooftop',
   'tar_roof',
+  'bar_terrazzo',
 ] as const;
 
 export type TextureId = (typeof TEXTURE_IDS)[number];
@@ -93,6 +94,7 @@ export const TEXTURE_ASSET_URLS: Record<TextureId, string> = {
   sf_walkway: 'assets/images/tiles/sf_walkway.webp',
   sf_rooftop: 'assets/images/tiles/sf_rooftop.webp',
   tar_roof: 'assets/images/tiles/tar_roof.webp',
+  bar_terrazzo: 'assets/images/tiles/bar_terrazzo.webp',
 };
 
 export const TEXTURE_BASE_COLOR: Record<TextureId, string> = {
@@ -139,6 +141,7 @@ export const TEXTURE_BASE_COLOR: Record<TextureId, string> = {
   sf_walkway: '#7c8999',
   sf_rooftop: '#474e59',
   tar_roof: '#424446',
+  bar_terrazzo: '#312f34',
 };
 
 /** Whether a stored value names one of the bundled floor textures. */
@@ -174,6 +177,7 @@ export const WALL_TEXTURE_IDS = [
   'container_green',
   'cactus_skin',
   'wall_sewer_brick',
+  'wall_bar_brick',
 ] as const;
 
 export type WallTextureId = (typeof WALL_TEXTURE_IDS)[number];
@@ -206,6 +210,7 @@ export const WALL_TEXTURE_ASSET_URLS: Record<WallTextureId, string> = {
   container_green: 'assets/images/walls/container_green.webp',
   cactus_skin: 'assets/images/walls/cactus_skin.webp',
   wall_sewer_brick: 'assets/images/walls/wall_sewer_brick.webp',
+  wall_bar_brick: 'assets/images/walls/wall_bar_brick.webp',
 };
 
 /** The floor tile a wall shows on its top and bottom, seen from above. */
@@ -237,6 +242,7 @@ export const WALL_TOP_TEXTURE: Record<WallTextureId, TextureId> = {
   container_green: 'metal_grate',
   cactus_skin: 'steppe',
   wall_sewer_brick: 'moss_stone_floor',
+  wall_bar_brick: 'metal_grate',
 };
 
 export const WALL_TEXTURE_BASE_COLOR: Record<WallTextureId, string> = {
@@ -267,6 +273,7 @@ export const WALL_TEXTURE_BASE_COLOR: Record<WallTextureId, string> = {
   container_green: '#2e7241',
   cactus_skin: '#1d6411',
   wall_sewer_brick: '#2f2110',
+  wall_bar_brick: '#262026',
 };
 
 /** Whether a stored value names one of the bundled wall textures. */

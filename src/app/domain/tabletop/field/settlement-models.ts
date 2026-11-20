@@ -24,6 +24,19 @@ export const SETTLEMENT_MODEL_IDS = [
   'crop_rice',
   'crop_corn',
   'crop_vegetable',
+  'fountain',
+  'market_stall_fruit',
+  'market_stall_cloth',
+  'market_stall_pottery',
+  'lamp_post',
+  'bench',
+  'planter',
+  'banner',
+  'sign_inn',
+  'sign_tavern',
+  'sign_smithy',
+  'sign_bakery',
+  'sign_shop',
 ] as const;
 
 export type SettlementModelId = (typeof SETTLEMENT_MODEL_IDS)[number];
