@@ -19,7 +19,7 @@ signalの外の判断は、`PeerCursor.myRole`をdomainの関数に渡す（`Dis
 | `canRoleEditShared` | `canEditShared()`       | `gm`         | 1つの画面から全員の画面の設定を変える |
 
 たとえばジュークボックスで曲を流すのは`canEditTabletop`、部屋のシャッフルとリピートは`canEditShared`で決める（`JukeboxPlaybackService`）。
-部屋設定の`RoomSettingsAccessService.mayWrite`（`features/room-settings/room-settings-access.service`）は、遊びのルール（`'table'`）を`canEditTabletop`で、全員の画面に出る物（`'shared'`）を`canEditShared`で通す。1つの画面だけに効く設定には誰の許しも要らない。
+部屋設定は、設定ごとの書ける人（遊びのルールの`'table'`と、全員の画面に出る物の`'shared'`）と読み書きの変換を、`ROOM_SETTINGS`（`application/tabletop/room-settings`）の1か所に持つ。パネル（`RoomSettingsAccessService.setting`）とAIの部屋設定の欄はどちらもこれを読み、`'table'`を`canEditTabletop`で、`'shared'`を`canEditShared`で通す。1つの画面だけに効く設定には誰の許しも要らない。
 
 ### 役割の決まり方
 
@@ -63,12 +63,12 @@ GMと持ち主はいつも読め、ほかの席は範囲で決まる（`canViewD
 
 持ち主の意味は物の種類で次のように違う。
 
-| 物     | `owner`の意味                                                                |
-| ------ | ---------------------------------------------------------------------------- |
-| コマ   | その人の持ちコマ。ステルスや名前を隠したコマも持ち主には見える               |
-| ダイス | 出目を読める人。持ち主のいないダイスは全員が読める（`DiceSymbol.isVisible`） |
-| カード | 覗いている人（`Card.isPeeking`）。表にする・伏せる・手札に移すと外れる       |
-| メモ   | いつも中身を読め、公開範囲を変えられる人                                     |
+| 物     | `owner`の意味                                                                                                                                                                                             |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| コマ   | その人の持ちコマ。ステルスや名前を隠したコマも持ち主には見える                                                                                                                                            |
+| ダイス | 出目を読める人。持ち主のいないダイスは全員が読める（`DiceSymbol.isVisible`）                                                                                                                              |
+| カード | 覗いている人（`Card.isPeeking`）。表にする・伏せる・手札に移す・山札に入れると外れる。つながっているほかの席が覗いているカードは、GMも含めて誰も裏返さず、覗かず、取らない（`CardGameService.canHandle`） |
+| メモ   | いつも中身を読め、公開範囲を変えられる人                                                                                                                                                                  |
 
 持ち主を変えられるのはGMと持ち主で、持ち主のいない物は、卓を変えられる席が自分の物にできる（`DisclosureService.canSetOwner`）。
 部屋のサーバーでは、GM以外の席がメモ・ダイス・カードに付けられる持ち主は自分だけで、中身を読めないメモは自分の物にもできない（`ownerRuledByServer`・`canClaimOwnership`）。
