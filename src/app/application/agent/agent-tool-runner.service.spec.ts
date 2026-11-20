@@ -122,4 +122,28 @@ describe('AgentToolRunner', () => {
     runner.clearHistory();
     expect(runner.history()).toEqual([]);
   });
+
+  it('keeps the calls that keep something for the person by the same test as their leave, a file noted by name and size', async () => {
+    runner.provide({
+      save_room: () => ({ room: 'r' }),
+      save_room_snapshot: () => ({ id: 's1' }),
+      import_asset: () => ({ id: 'a1' }),
+      list_room_snapshots: () => ({ snapshots: [] }),
+    });
+    const file = { name: 'goblin.png', type: 'image/png', base64: 'A'.repeat(4_000_000) + 'AQ==' };
+    const stringify = vi.spyOn(JSON, 'stringify');
+
+    await runner.run('save_room', { path: 'room.zip' }, 'write', signal);
+    await runner.run('save_room_snapshot', {}, 'write', signal);
+    await runner.run('list_room_snapshots', {}, 'write', signal);
+    await runner.run('import_asset', { path: 'goblin.png', file }, 'write', signal);
+
+    expect(runner.history().map((entry) => entry.tool)).toEqual(['import_asset', 'save_room_snapshot', 'save_room']);
+    expect(runner.history()[0].input).toBe('{"path":"goblin.png","file":"goblin.png (3000001 bytes)"}');
+    const longest = Math.max(
+      ...stringify.mock.results.map(({ value }) => (typeof value === 'string' ? value.length : 0))
+    );
+    stringify.mockRestore();
+    expect(longest).toBeLessThan(1000);
+  });
 });

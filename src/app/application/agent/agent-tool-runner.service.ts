@@ -3,7 +3,13 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { type AgentOutcome, outcomeOfError } from '@axe/core/agent/agent-error';
 import type { AgentError, AgentScope } from '@axe/core/agent/agent-protocol';
 import { checkAgentInput } from '@axe/core/agent/agent-schema';
-import { type AgentToolDefinition, agentToolOf, isReadOnlyTool, tabInputOf } from '@axe/core/agent/agent-tools';
+import {
+  type AgentFileContent,
+  type AgentToolDefinition,
+  agentToolOf,
+  isReadOnlyTool,
+  tabInputOf,
+} from '@axe/core/agent/agent-tools';
 import { canRoleEdit, PeerRole } from '@axe/domain/peer/peer-role';
 
 /** What a tool is given beside its input: a signal that says when the AI gave up on it. */
@@ -64,17 +70,28 @@ export function refusalOf(
   return null;
 }
 
+/** A file handed in, as the history notes it: its name and size; null for anything else. */
+function fileNoteOf(value: unknown): string | null {
+  if (value === null || typeof value !== 'object') return null;
+  const { name, base64 } = value as Partial<AgentFileContent>;
+  if (typeof base64 !== 'string') return null;
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return `${typeof name === 'string' ? name : 'file'} (${Math.floor((base64.length * 3) / 4) - padding} bytes)`;
+}
+
 /**
  * The layer of operations an AI drives the table through, apart from how it reaches the table: each
  * tool's input is checked against its definition and the seat's leave before it runs, what it throws
- * is turned into an answer, and the calls that change the room are kept for the seat to look over.
+ * is turned into an answer, and the calls that change something, the room or what the person keeps,
+ * are kept for the seat to look over, told apart from reading by the same test its leave is
+ * (`isReadOnlyTool`, see {@link refusalOf}).
  */
 @Injectable({ providedIn: 'root' })
 export class AgentToolRunner {
   private readonly permission = inject(RolePermissionService);
   private readonly handlers = new Map<string, AgentHandler>();
 
-  /** The calls that changed, or tried to change, the room, newest first. */
+  /** The calls that changed, or tried to change, the room or what the person keeps, newest first. */
   readonly history = signal<readonly AgentHistoryEntry[]>([]);
 
   /** Makes tools runnable, each by its name. */
@@ -111,7 +128,7 @@ export class AgentToolRunner {
         outcome = outcomeOfError(error);
       }
     }
-    if (definition.access !== 'read' || refusal) this.remember(tool, args, outcome);
+    if (!isReadOnlyTool(definition) || refusal) this.remember(tool, args, outcome);
     return outcome;
   }
 
@@ -120,8 +137,12 @@ export class AgentToolRunner {
     this.history.set([]);
   }
 
+  /**
+   * Keeps a call, its input written out as far as the history shows it, a file handed in as its name
+   * and size rather than its contents, which may run to many megabytes.
+   */
   private remember(tool: string, args: Readonly<Record<string, unknown>>, outcome: AgentOutcome): void {
-    const text = JSON.stringify(args);
+    const text = JSON.stringify(args, (_key, value: unknown) => fileNoteOf(value) ?? value);
     const entry: AgentHistoryEntry = {
       at: Date.now(),
       tool,
