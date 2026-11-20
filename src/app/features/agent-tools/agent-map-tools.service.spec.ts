@@ -117,7 +117,10 @@ describe('AgentMapTools', () => {
     const second = `table-${made}`;
     await call({ kind: 'dungeon', replace_previous: true, switch_to: false });
 
-    expect(discard.mock.calls.map(([map]) => (map as GeneratedMap).table.identifier)).toEqual([first, second]);
+    expect(discard.mock.calls.map((args: unknown[]) => (args[0] as GeneratedMap).table.identifier)).toEqual([
+      first,
+      second,
+    ]);
   });
 
   it('stands the party it names at the way in, and refuses a map too large', async () => {
