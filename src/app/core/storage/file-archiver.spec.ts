@@ -96,6 +96,7 @@ describe('FileArchiver', () => {
     // answer drops made up by every spec that runs after this one in the same worker.
     FileArchiver.instance.destroy();
     (FileArchiver as unknown as { _instance: FileArchiver | undefined })._instance = undefined;
+    delete (Network.instance as unknown as Record<string, unknown>)['peerContext'];
     vi.restoreAllMocks();
   });
 
