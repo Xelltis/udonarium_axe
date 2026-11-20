@@ -9,6 +9,7 @@ import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GameTableService } from '@axe/application/tabletop/game-table.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { ForegroundSeeThroughService } from '@axe/application/ui/foreground-see-through.service';
@@ -143,6 +144,7 @@ export class GameTableSettingComponent {
   private readonly imageService = inject(ImageService);
   private readonly panelService = inject(PanelService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly tables = inject(GameTableService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
   private get tableSelecter(): TableSelecter {
@@ -827,16 +829,19 @@ export class GameTableSettingComponent {
     if (copy) this.selectGameTable(copy.identifier);
   }
 
+  /** Whether the picked table may be taken away, which the delete button is offered by (see `GameTableService.mayRemove`). */
+  readonly mayDelete = computed(() => this.tables.mayRemove(this.picked()));
+
   /**
-   * Destroys the picked table, keeping its XML so it can be restored from this panel; does nothing
-   * for a reader who may not edit the table.
+   * Takes the picked table away, keeping its XML so it can be restored from this panel; does nothing
+   * where it may not be (see `GameTableService.mayRemove`), as for the last table or a reader who may
+   * not edit the table.
    */
   delete() {
-    if (!this.rolePermission.canEditTabletop()) return;
-    if (!this.isEmpty && this.selectedTable) {
-      this.selectedTableXml = this.selectedTable.toXml();
-      this.selectedTable.destroy();
-    }
+    const table = this.selectedTable;
+    if (!table) return;
+    const xml = table.toXml();
+    if (this.tables.remove(table)) this.selectedTableXml = xml;
   }
 
   /**

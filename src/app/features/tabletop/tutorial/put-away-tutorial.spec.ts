@@ -11,22 +11,21 @@ import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Coin } from '@axe/domain/coin/coin';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { boardSurfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 
-/** What putting the tutorial away reads of the table: the pieces that may stand on the welcome board. */
+/**
+ * The table, of which putting the tutorial away reads nothing: what stands on a board is read off the
+ * whole room, so a list of the table's own kinds would leave some behind.
+ */
 function tabletopOf(): TabletopService {
-  return {
-    characters: ObjectStore.instance.getObjects<GameCharacter>(GameCharacter),
-    terrains: [],
-    tableMasks: [],
-    textNotes: [],
-    cards: [],
-    diceSymbols: [],
-  } as unknown as TabletopService;
+  return {} as TabletopService;
 }
 
 describe('putting the first table’s tutorial away', () => {
@@ -60,6 +59,20 @@ describe('putting the first table’s tutorial away', () => {
     expect(boardSurfaceOf(piece)).toBe('');
     expect(piece.location.x).toBe(boardAt.x + 30);
     expect(piece.location.y).toBe(boardAt.y + 40);
+  });
+
+  it('puts a coin and a light of the room’s own set on the welcome board back on the table too', () => {
+    const board = ObjectStore.instance.get<WhiteBoard>('tutorialBoard')!;
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', surface: board.identifier, x: 30, y: 40 };
+    const light = LightSource.create('light');
+    light.location = { name: 'table', surface: board.identifier, x: 10, y: 20 };
+    const boardAt = { ...board.location };
+
+    putAwayTutorial(tabletopOf(), ObjectStore.instance);
+
+    expect([boardSurfaceOf(coin), coin.location.x, coin.location.y]).toEqual(['', boardAt.x + 30, boardAt.y + 40]);
+    expect([boardSurfaceOf(light), light.location.x, light.location.y]).toEqual(['', boardAt.x + 10, boardAt.y + 20]);
   });
 
   it('takes away only what is left, once some of it has gone already', () => {

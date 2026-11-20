@@ -154,19 +154,17 @@ export class CutInEditorComponent {
   }
 
   /**
-   * The cut-in's width in pixels, from the width field.
+   * The cut-in's width in pixels, from the width field, held inside the bounds its kind allows (see
+   * `CutIn.resizeSide`); a cleared field leaves it as it is.
    *
    * Writing it also sets the height when the aspect is kept, from the video's default proportions
    * or the picture's, once the picture's size is known. While original size is on it reads the picture's or video's own width, without
-   * writing it to the cut-in. Reads 0 while not editable.
+   * writing it to the cut-in. Reads 0, and writes nothing, while not editable.
    */
   set cutInWidth(cutInWidth: number) {
     const cutIn = this.c;
-    if (!cutIn) return;
-    if (this.editable) cutIn.width = cutInWidth;
-    if (!this.keepImageAspect) return;
-    const own = this.ownSize(cutIn);
-    if (own.width > 0 && own.height > 0) cutIn.height = Math.floor((cutInWidth * own.height) / own.width);
+    if (!this.editable || !cutIn) return;
+    cutIn.resizeSide('width', cutInWidth, this.keepImageAspect ? this.ownSize(cutIn) : null);
   }
 
   get cutInWidth(): number {
@@ -176,19 +174,17 @@ export class CutInEditorComponent {
   }
 
   /**
-   * The cut-in's height in pixels, from the height field.
+   * The cut-in's height in pixels, from the height field, held inside the bounds its kind allows (see
+   * `CutIn.resizeSide`); a cleared field leaves it as it is.
    *
    * Writing it also sets the width when the aspect is kept, from the video's default proportions or
    * the picture's, once the picture's size is known. While original size is on it reads the picture's or video's own height, without
-   * writing it to the cut-in. Reads 0 while not editable.
+   * writing it to the cut-in. Reads 0, and writes nothing, while not editable.
    */
   set cutInHeight(cutInHeight: number) {
     const cutIn = this.c;
-    if (!cutIn) return;
-    if (this.editable) cutIn.height = cutInHeight;
-    if (!this.keepImageAspect) return;
-    const own = this.ownSize(cutIn);
-    if (own.width > 0 && own.height > 0) cutIn.width = Math.floor((cutInHeight * own.width) / own.height);
+    if (!this.editable || !cutIn) return;
+    cutIn.resizeSide('height', cutInHeight, this.keepImageAspect ? this.ownSize(cutIn) : null);
   }
 
   get cutInHeight(): number {
@@ -213,10 +209,9 @@ export class CutInEditorComponent {
    */
   private fitToOriginal(): void {
     const cutIn = this.c;
-    if (!this.editable || !cutIn || !cutIn.originalSize) return;
+    if (!this.editable || !cutIn) return;
     const { width, height } = this.ownSize(cutIn);
-    if (width > 0 && cutIn.width !== width) cutIn.width = width;
-    if (height > 0 && cutIn.height !== height) cutIn.height = height;
+    cutIn.fitOwnSize(width, height);
   }
 
   /**
@@ -235,13 +230,8 @@ export class CutInEditorComponent {
     if (!this.editable || !cutIn) return;
     cutIn.keepImageAspect = aspect;
     if (!aspect || !this.cutInImage().url) return;
-    if (cutIn.videoId) {
-      cutIn.height = Math.floor((cutIn.width * cutIn.defVideoSizeHeight) / cutIn.defVideoSizeWidth);
-      return;
-    }
-    const width = this.originalImgWidth();
-    const height = this.originalImgHeight();
-    if (width > 0 && height > 0) cutIn.height = Math.floor((cutIn.width * height) / width);
+    const own = this.ownSize(cutIn);
+    if (own.width > 0 && own.height > 0) cutIn.resizeSide('width', cutIn.width, own);
   }
 
   /** Whether the cut-in is shown without its window frame. */
@@ -425,18 +415,21 @@ export class CutInEditorComponent {
   private setDefaultControl(isVideo: boolean) {
     if (!this.editable || !this.c) return;
     if (isVideo) {
-      this.c.width = this.c.defVideoSizeWidth;
-      this.c.height = this.c.defVideoSizeHeight;
+      this.c.setSize(this.c.defVideoSizeWidth, this.c.defVideoSizeHeight);
     } else {
       this.writePictureSize(this.c);
     }
   }
 
+  /**
+   * Sizes a cut-in to its picture once the picture is measured: at original size the picture's own size
+   * as it is (see `CutIn.fitOwnSize`), and otherwise its proportions held inside a picture's bounds.
+   */
   private writePictureSize(cutIn: CutIn): void {
-    const { width, height } = this.originalImgSize();
-    if (width <= 0 || height <= 0) return;
-    cutIn.width = width;
-    cutIn.height = height;
+    const own = this.originalImgSize();
+    if (own.width <= 0 || own.height <= 0) return;
+    if (cutIn.originalSize) cutIn.fitOwnSize(own.width, own.height);
+    else cutIn.resizeSide('width', own.width, own);
   }
 
   /** The natural width of the cut-in's picture, or 0 when it has none or it has not loaded yet. */

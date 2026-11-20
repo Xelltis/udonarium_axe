@@ -2,6 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { createDefaultCutIns, DEFAULT_CUT_IN_SEEDS } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -9,6 +12,9 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { CutInListComponent } from '@axe/features/media/cut-in-list/cut-in-list.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+/** The first of the samples a room starts with. */
+const SAMPLE = DEFAULT_CUT_IN_SEEDS[0].identifier;
 
 describe('CutInListComponent', () => {
   let component: CutInListComponent;
@@ -87,6 +93,7 @@ describe('CutInListComponent', () => {
 
       expect(icons).not.toContain('add');
       expect(icons).not.toContain('delete');
+      expect(icons).not.toContain('restore');
     });
 
     it('draws both for a player', async () => {
@@ -97,6 +104,62 @@ describe('CutInListComponent', () => {
 
       expect(icons).toContain('add');
       expect(icons).toContain('delete');
+      expect(icons).toContain('restore');
+    });
+
+    it('brings back no sample for a seat that is only watching', () => {
+      createDefaultCutIns(ImageStorage.instance);
+      ObjectStore.instance.get<CutIn>(SAMPLE)!.destroy();
+      beSeat(PeerRole.Guest);
+
+      component.restoreSamples();
+
+      expect(ObjectStore.instance.get(SAMPLE)).toBeNull();
+    });
+  });
+
+  describe('putting the samples back', () => {
+    const restoreButton = (): HTMLButtonElement =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="cut-in-restore-samples"]'
+      )!;
+
+    async function drawn(): Promise<void> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    }
+
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'seat-cursor' } as PeerCursor;
+      createDefaultCutIns(ImageStorage.instance);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('offers to bring back a sample once it is deleted, and brings it back whole', async () => {
+      await drawn();
+      expect(restoreButton().disabled).toBe(true);
+
+      component.selectCutIn(SAMPLE);
+      vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+      await component.delete();
+      await drawn();
+      expect(restoreButton().disabled).toBe(false);
+
+      restoreButton().click();
+      await drawn();
+
+      expect(ObjectStore.instance.get<CutIn>(SAMPLE)?.scene?.layers).toHaveLength(
+        DEFAULT_CUT_IN_SEEDS[0].layers.length
+      );
+      expect(restoreButton().disabled).toBe(true);
+    });
+
+    it('offers to bring back a layer taken out of a sample', async () => {
+      ObjectStore.instance.get(DEFAULT_CUT_IN_SEEDS[0].layers[0].identifier)!.destroy();
+      await drawn();
+
+      expect(restoreButton().disabled).toBe(false);
     });
   });
 

@@ -2,11 +2,17 @@ import { computed, effect, inject, Injectable } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+
+/** How many cells across an effect left standing covers, one where it says none. */
+function cellsAcross(field: EffectField): number {
+  return field.size > 0 ? field.size : 1;
+}
 
 /** One frame of an effect left standing on the board. */
 export interface EffectFieldRenderable {
@@ -22,7 +28,8 @@ export interface EffectFieldRenderable {
  * An effect left standing, such as a poison swamp or a wall of fire.
  *
  * It replays the same preset a cast would use, looping over its length.
- * It is an object on the board, so everyone in the room sees it and the room data keeps it.
+ * It is an object on the board, so the room data keeps it and every seat sees it, but one the fog
+ * keeps the ground from (see {@link EffectFieldService.isShown}).
  */
 @Injectable({ providedIn: 'root' })
 export class EffectFieldService {
@@ -31,6 +38,7 @@ export class EffectFieldService {
   private readonly tabletopService = inject(TabletopService);
   private readonly playbackService = inject(EffectPlaybackService);
   private readonly motion = inject(MotionService);
+  private readonly vision = inject(VisionService);
 
   readonly fields = computed<EffectField[]>(() => {
     this.objectChange.collectionOf('effect-field')();
@@ -38,6 +46,18 @@ export class EffectFieldService {
     for (const field of fields) this.objectChange.versionOf(field.identifier)();
     return fields;
   });
+
+  /** The effects left standing this seat is shown (see {@link isShown}), for what draws them or names them. */
+  readonly shownFields = computed<EffectField[]>(() => this.fields().filter((field) => this.isShown(field)));
+
+  /**
+   * Whether this seat is shown an effect left standing: not one on ground nobody has walked to yet while
+   * the fog is on, as a lamp or a note there is not, since where it burns would show what the fog hides.
+   * Everywhere for the game master.
+   */
+  isShown(field: EffectField): boolean {
+    return !this.vision.isPieceHiddenByFog(field, cellsAcross(field));
+  }
 
   constructor() {
     // The draw loop runs for as long as a field exists; unlike a cast, it never ends.
@@ -83,11 +103,11 @@ export class EffectFieldService {
     const gridSize = this.tabletopService.gridSize();
     const renderables: EffectFieldRenderable[] = [];
 
-    for (const field of this.fields()) {
+    for (const field of this.shownFields()) {
       const preset = this.presetOf(field);
       if (!preset || !field.isVisibleOnTable) continue;
 
-      const half = (gridSize * (field.size > 0 ? field.size : 1)) / 2;
+      const half = (gridSize * cellsAcross(field)) / 2;
       renderables.push({
         key: `field-${field.identifier}`,
         preset,

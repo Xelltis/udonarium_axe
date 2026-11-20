@@ -2,7 +2,7 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { centerFollowerOnCharacter } from '@axe/domain/tabletop/following';
+import { lightCornerOnPiece } from '@axe/domain/tabletop/following';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import {
@@ -69,8 +69,9 @@ export class LightSource extends OwnedTabletopObject {
   }
 
   /**
-   * Moves the light onto the centre of the character it follows, on a table whose cells are
-   * `gridSize` across, and bumps the follow counter so that peers redraw it.
+   * Moves the light so that its middle, which it is drawn and shines from, is on the middle of the
+   * character it follows (see {@link lightCornerOnPiece}), on a table whose cells are `gridSize` across,
+   * and bumps the follow counter so that peers redraw it.
    *
    * When that character is gone, the light stops following instead.
    */
@@ -80,7 +81,9 @@ export class LightSource extends OwnedTabletopObject {
       this.followingCharacterIdentifier = '';
       return;
     }
-    centerFollowerOnCharacter(this, character, gridSize);
+    const corner = lightCornerOnPiece(character, gridSize);
+    this.location.x = corner.x;
+    this.location.y = corner.y;
     this.followingCounterDummy = (this.followingCounterDummy + 1) % 50;
   }
 

@@ -4,14 +4,16 @@ import { PieceNameService } from '@axe/application/character/piece-name.service'
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { DoorService } from '@axe/application/tabletop/door.service';
 import { PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
 import { RulerReadingService } from '@axe/application/tabletop/ruler-reading.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { WhiteBoardService } from '@axe/application/tabletop/white-board.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
 import type { AgentObjectSchema, AgentSchema } from '@axe/core/agent/agent-schema';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -23,7 +25,6 @@ import { AMBIENCE_BRIGHTNESS, type AmbienceBrightness } from '@axe/domain/effect
 import { type AmbienceKind, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
-import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
 import {
   MAX_BACKGROUND_LAYER_SCALE,
@@ -46,7 +47,7 @@ import {
   type TableLayerPlacement,
 } from '@axe/domain/tabletop/table-background-layer';
 import { TableRuler } from '@axe/domain/tabletop/table-ruler';
-import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   DoorStyle,
   Terrain,
@@ -197,7 +198,9 @@ export class AgentBoardKinds {
   private readonly tabletop = inject(TabletopService);
   private readonly actions = inject(TabletopActionService);
   private readonly vision = inject(VisionService);
-  private readonly permission = inject(RolePermissionService);
+  private readonly pieces = inject(TablePiecesService);
+  private readonly doors = inject(DoorService);
+  private readonly boards = inject(WhiteBoardService);
   private readonly tagLock = inject(ImageTagLockService);
   private readonly names = inject(PieceNameService);
   private readonly standing = inject(StandingGroundService);
@@ -297,15 +300,6 @@ export class AgentBoardKinds {
       (piece) => this.views.nameOf(piece),
       'piece'
     );
-  }
-
-  /**
-   * Whether a block standing on the floor is wholly on ground nobody has walked to, which the screen does not draw
-   * for this seat (table-3d.service.ts `hiddenByFog`).
-   */
-  private underFog(terrain: Terrain): boolean {
-    const cover = this.vision.terrainFogCover(terrain);
-    return cover !== null && !cover.cleared.some((cell) => cell);
   }
 
   /** Its name, written as the screen's sheet writes it. */
@@ -556,20 +550,14 @@ export class AgentBoardKinds {
     };
     const door = (open: boolean) => (terrain: Terrain) => {
       if (!terrain.isDoor) throw new AgentToolError('invalid_input', 'This block is not a door.');
-      terrain.isDoorOpen = open;
-      SoundEffect.play(open ? PresetSound.unlock : PresetSound.lock);
+      if (!this.doors.setOpen(terrain, open)) throw new AgentToolError('not_allowed', 'This seat may not open it.');
       return { id: terrain.identifier, door_open: terrain.isDoorOpen };
     };
     return {
       kind: Terrain.aliasName,
       description:
-        "A block of terrain on the table in view: a floor, a wall, a step, a slope, a door, built as a box of squares. A block with no pictures is see-through glass that still stops what it stops; only the game master's seat comes across it. Blocks wholly under the fog are left out.",
-      list: () => {
-        const seesGlass = this.permission.canSeeHidden();
-        return this.tabletop.terrains.filter(
-          (terrain) => (seesGlass || terrain.hasFaceImage) && !this.underFog(terrain)
-        );
-      },
+        "A block of terrain on the table in view: a floor, a wall, a step, a slope, a door, built as a box of squares. A block with neither pictures nor a model is see-through glass that still stops what it stops; only the game master's seat comes across it. Blocks wholly under the fog are left out.",
+      list: () => this.tabletop.terrains.filter((terrain) => this.pieces.isBlockShown(terrain)),
       idOf: (terrain) => terrain.identifier,
       nameOf: (terrain) => terrain.name,
       fields: [
@@ -722,8 +710,7 @@ export class AgentBoardKinds {
           DOOR_STYLES,
           (terrain) => terrain.doorStyle,
           (terrain, value) => {
-            terrain.doorStyle = value;
-            if (value === DoorStyle.NONE) terrain.isDoorOpen = false;
+            terrain.setDoor(value);
           }
         ),
         flagField<Terrain>(
@@ -755,9 +742,9 @@ export class AgentBoardKinds {
         },
         flagField<Terrain>(
           'glass',
-          "Whether it has no pictures at all, which makes it see-through glass only the game master's seat comes across.",
+          "Whether it is drawn with nothing, neither a picture on any face nor a model, which makes it see-through glass only the game master's seat comes across.",
           null,
-          (terrain) => !terrain.hasFaceImage
+          (terrain) => this.pieces.isGlass(terrain)
         ),
         flagField<Terrain>(
           'light',
@@ -969,35 +956,12 @@ export class AgentBoardKinds {
     };
   }
 
-  /**
-   * Puts everything standing on a board back on the table where it appears to be, as the board's own menu does
-   * before it is taken away (white-board.component.ts `remove`, white-board-contents.ts `detachAllFrom`).
-   */
-  private putBackOffBoard(board: WhiteBoard): void {
-    const lying: TabletopObject[] = [
-      ...this.tabletop.characters,
-      ...this.tabletop.terrains,
-      ...this.tabletop.tableMasks,
-      ...this.tabletop.textNotes,
-      ...this.tabletop.cards,
-      ...this.tabletop.diceSymbols,
-    ];
-    for (const object of lying.filter((each) => boardSurfaceOf(each) === board.identifier)) {
-      object.location = {
-        name: 'table',
-        x: board.location.x + object.location.x,
-        y: board.location.y + object.location.y,
-      };
-      object.update();
-    }
-  }
-
   private whiteBoard(): AgentKind<WhiteBoard> {
     const gridOf = (board: WhiteBoard) => (board.parent instanceof GameTable ? board.parent.gridSize : this.grid());
     return {
       kind: WhiteBoard.aliasName,
       description:
-        'A white board on the table in view: a sheet to draw on, standing up behind the map or laid over it, which pieces, blocks, masks, notes, cards and dice may be set on. Its drawing is made on the screen and only read here.',
+        'A white board on the table in view: a sheet to draw on, standing up behind the map or laid over it, which anything on the table may be set on; taking it away puts what is on it back on the table where it appeared to be. Its drawing is made on the screen and only read here.',
       list: () => this.tabletop.whiteBoards,
       idOf: (board) => board.identifier,
       nameOf: (board) => board.name,
@@ -1101,10 +1065,7 @@ export class AgentBoardKinds {
       },
       remove: {
         access: 'write',
-        take: (board) => {
-          this.putBackOffBoard(board);
-          board.destroy();
-        },
+        take: (board) => this.boards.takeDown(board),
       },
     };
   }
@@ -1696,15 +1657,12 @@ export class AgentBoardKinds {
   }
 
   private effectField(): AgentKind<EffectField> {
-    const shownPreset = (field: EffectField) => {
-      const preset = this.effectFields.presetOf(field);
-      return preset && this.effects.shownPresets().includes(preset) ? preset : null;
-    };
+    const shownPreset = (field: EffectField) => this.effects.shownPreset(field.presetIdentifier);
     return {
       kind: EffectField.aliasName,
       description:
-        'An effect left standing on the table, replaying its preset over and over, as a poison swamp or a wall of fire. The preset of one kept for the game master is left out for other seats.',
-      list: () => this.effectFields.fields().filter((field) => field.isVisibleOnTable),
+        'An effect left standing on the table, replaying its preset over and over, as a poison swamp or a wall of fire. The preset of one kept for the game master is left out for other seats, and one standing where the fog keeps the ground from this seat is not listed.',
+      list: () => this.effectFields.shownFields().filter((field) => field.isVisibleOnTable),
       idOf: (field) => field.identifier,
       nameOf: (field) => shownPreset(field)?.name ?? '',
       fields: [

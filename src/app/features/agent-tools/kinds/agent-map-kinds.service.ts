@@ -8,6 +8,7 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { guardPressedGround } from '@axe/application/tabletop/functional-paint.service';
+import { GameTableService } from '@axe/application/tabletop/game-table.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -35,7 +36,7 @@ import {
   SWITCH_SPEAKERS,
   type SwitchDefinition,
 } from '@axe/domain/tabletop/board-switch/switch-definition';
-import { cellCenterOf, type CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { type CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn, FogMemory, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, FOG_MODES } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
@@ -282,6 +283,7 @@ function namedInput(name: string, description: string): AgentObjectSchema {
 export class AgentMapKinds {
   private readonly views = inject(AgentViews);
   private readonly tabletop = inject(TabletopService);
+  private readonly tables = inject(GameTableService);
   private readonly permission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly images = inject(ImageService);
@@ -313,23 +315,14 @@ export class AgentMapKinds {
     return table;
   }
 
-  /** Whether this seat is shown a cell of a table: anywhere for the master, out of the unexplored fog for the rest. */
+  /** Whether this seat is shown a cell of a table, as the screen shows it (see `VisionService.isCellShown`). */
   private seesCell(grid: CellGrid, col: number, row: number): boolean {
-    const index = cellIndexOf(grid, col, row);
-    if (index < 0) return false;
-    const middle = cellCenterOf(grid, index);
-    return !this.vision.isHiddenByFog(middle.x, middle.y);
+    return this.vision.isCellShown(grid, cellIndexOf(grid, col, row));
   }
 
-  /** Whether this seat is shown any cell of a block laid on the table in view. */
+  /** Whether this seat is shown a block laid on the table in view, as the screen shows it (see `VisionService.isGroundShown`). */
   private seesBlock(table: GameTable, rect: CellBlock): boolean {
-    const grid = boardGridOf(table);
-    for (let row = rect.row; row < rect.row + rect.height; row++) {
-      for (let col = rect.col; col < rect.col + rect.width; col++) {
-        if (this.seesCell(grid, col, row)) return true;
-      }
-    }
-    return false;
+    return this.vision.isGroundShown(boardGridOf(table), rect);
   }
 
   /** A field read by the game master's seat alone, and left out for every other. */
@@ -826,10 +819,9 @@ export class AgentMapKinds {
       remove: {
         access: 'write',
         take: (table) => {
-          if (this.views.tables().length <= 1) {
+          if (!this.tables.remove(table)) {
             throw new AgentToolError('not_allowed', 'The last table cannot be taken away; make another first.');
           }
-          table.destroy();
         },
       },
       actions: [

@@ -13,7 +13,7 @@ import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
 import { BEAM_LOOKS } from '@axe/domain/effect/beam-looks';
 import { EFFECT_KINDS, type EffectKind, PROJECTILE_STYLES } from '@axe/domain/effect/effect-kind';
 import { EFFECT_MOTE_OPTIONS } from '@axe/domain/effect/effect-motes';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { BoundedPresetNumber, EffectPreset, PRESET_NUMBER_BOUNDS } from '@axe/domain/effect/effect-preset';
 import { EFFECT_TARGETING_OPTIONS, SLASH_STYLE_OPTIONS } from '@axe/domain/effect/effect-preset-form';
 import {
   EFFECT_STAGE_ROLES,
@@ -302,35 +302,22 @@ export class AgentMediaKinds {
   }
 
   private cutIn(): AgentKind<CutIn> {
-    const isVideo = (cutIn: CutIn) => cutIn.videoId.length > 0;
+    const isVideo = (cutIn: CutIn) => cutIn.playsVideo;
     const sizeFollowsPicture = (cutIn: CutIn) =>
       cutIn.originalSize ? 'Its size follows its own picture while original_size is on; turn that off first.' : null;
     const resizingOnKindChange = (cutIn: CutIn, write: () => void) => {
       const wasVideo = isVideo(cutIn);
       write();
-      if (!wasVideo && isVideo(cutIn)) {
-        cutIn.width = cutIn.defVideoSizeWidth;
-        cutIn.height = cutIn.defVideoSizeHeight;
-      }
+      if (!wasVideo && isVideo(cutIn)) cutIn.setSize(cutIn.defVideoSizeWidth, cutIn.defVideoSizeHeight);
     };
     const proportion = (cutIn: CutIn) =>
       isVideo(cutIn)
         ? { width: cutIn.defVideoSizeWidth, height: cutIn.defVideoSizeHeight }
         : { width: cutIn.width, height: cutIn.height };
-    const setWidth = (cutIn: CutIn, value: number) => {
-      const own = proportion(cutIn);
-      cutIn.width = value;
-      if (cutIn.keepImageAspect && own.width > 0 && own.height > 0) {
-        cutIn.height = Math.floor((value * own.height) / own.width);
-      }
-    };
-    const setHeight = (cutIn: CutIn, value: number) => {
-      const own = proportion(cutIn);
-      cutIn.height = value;
-      if (cutIn.keepImageAspect && own.width > 0 && own.height > 0) {
-        cutIn.width = Math.floor((value * own.width) / own.height);
-      }
-    };
+    const setWidth = (cutIn: CutIn, value: number) =>
+      cutIn.resizeSide('width', value, cutIn.keepImageAspect ? proportion(cutIn) : null);
+    const setHeight = (cutIn: CutIn, value: number) =>
+      cutIn.resizeSide('height', value, cutIn.keepImageAspect ? proportion(cutIn) : null);
     const sizeRefusal = (side: 'wide' | 'tall') => (cutIn: CutIn, value: unknown) => {
       const followed = sizeFollowsPicture(cutIn);
       if (followed) return followed;
@@ -364,7 +351,7 @@ export class AgentMediaKinds {
         {
           ...numberField<CutIn>(
             'width',
-            'How wide it is shown, in pixels: 10 to 1200 for a picture, 448 to 1920 for a video. With keep_aspect on, the height follows.',
+            'How wide it is shown, in pixels: 10 to 1920 for a picture, 448 to 1920 for a video. With keep_aspect on, the height follows.',
             'write',
             { minimum: 10, maximum: 1920, integer: true },
             (cutIn) => cutIn.width,
@@ -400,9 +387,7 @@ export class AgentMediaKinds {
             (cutIn) => cutIn.keepImageAspect,
             (cutIn, value) => {
               cutIn.keepImageAspect = value;
-              if (value && isVideo(cutIn)) {
-                cutIn.height = Math.floor((cutIn.width * cutIn.defVideoSizeHeight) / cutIn.defVideoSizeWidth);
-              }
+              if (value && isVideo(cutIn)) cutIn.resizeSide('width', cutIn.width, proportion(cutIn));
             }
           ),
           refuse: sizeFollowsPicture,
@@ -534,7 +519,7 @@ export class AgentMediaKinds {
         ),
         flagField<CutIn>(
           'sample',
-          'Whether it is one of the samples a room starts with, which cannot be taken away.',
+          'Whether it is one of the samples a room starts with. One taken away, or a layer taken out of one, can be put back from the cut-in list on the screen.',
           null,
           (cutIn) => this.builtIn.has(cutIn.identifier)
         ),
@@ -557,18 +542,7 @@ export class AgentMediaKinds {
           return cutIn;
         },
       },
-      remove: {
-        access: 'write',
-        take: (cutIn) => {
-          if (this.builtIn.has(cutIn.identifier)) {
-            throw new AgentToolError(
-              'not_allowed',
-              'A sample cut-in cannot be taken away: its identifier could never be used again in this room.'
-            );
-          }
-          cutIn.destroy();
-        },
-      },
+      remove: { access: 'write', take: (cutIn) => cutIn.destroy() },
       actions: [
         {
           name: 'play',
@@ -1204,10 +1178,7 @@ export class AgentMediaKinds {
         make: (args) => {
           const cutIn = this.cutInNamed(args['cut_in'] as string);
           const kind = args['kind'] as CutInLayerKind;
-          const layer = addLayer(ensureScene(cutIn), kind, this.t(NEW_LAYER_NAMES[kind]), {
-            width: cutIn.width,
-            height: cutIn.height,
-          });
+          const layer = addLayer(ensureScene(cutIn), kind, this.t(NEW_LAYER_NAMES[kind]), cutIn.shownSize);
           cutIn.originalSize = false;
           return layer;
         },
@@ -1215,12 +1186,6 @@ export class AgentMediaKinds {
       remove: {
         access: 'write',
         take: (layer) => {
-          if (this.builtIn.has(layer.identifier)) {
-            throw new AgentToolError(
-              'not_allowed',
-              'A layer of a sample cut-in cannot be taken away: its identifier could never be used again in this room.'
-            );
-          }
           const scene = this.sceneOf(layer);
           if (scene) removeLayer(scene, layer);
         },
@@ -1811,6 +1776,10 @@ export class AgentMediaKinds {
       read: (preset: EffectPreset) => number,
       write: (preset: EffectPreset, value: number) => void
     ) => numberField<EffectPreset>(name, description, 'write', bounds, read, write);
+    const within = (key: BoundedPresetNumber) => {
+      const bounds = PRESET_NUMBER_BOUNDS[key];
+      return { minimum: bounds.min, maximum: bounds.max, integer: bounds.integer };
+    };
     const choice = <C extends string>(
       name: string,
       description: string,
@@ -1871,21 +1840,21 @@ export class AgentMediaKinds {
         amount(
           'duration_ms',
           "How long one target's playback lasts, in ms (while it has no stages).",
-          { minimum: 120, maximum: 6000, integer: true },
+          within('durationMs'),
           (preset) => preset.durationMs,
           (preset, value) => (preset.durationMs = value)
         ),
         amount(
           'stagger_ms',
           'How long each target waits after the one before, in ms.',
-          { minimum: 0, maximum: 2000, integer: true },
+          within('staggerMs'),
           (preset) => preset.staggerMs,
           (preset, value) => (preset.staggerMs = value)
         ),
         amount(
           'scale',
           'How large it is drawn against a piece.',
-          { minimum: 0.2, maximum: 6 },
+          within('scale'),
           (preset) => preset.scale,
           (preset, value) => (preset.scale = value)
         ),
@@ -1906,21 +1875,21 @@ export class AgentMediaKinds {
         amount(
           'max_targets',
           'How many targets one cast takes when targeting is multi.',
-          { minimum: 1, maximum: 20, integer: true },
+          within('maxTargets'),
           (preset) => preset.maxTargets,
           (preset, value) => (preset.maxTargets = value)
         ),
         amount(
           'area_radius',
           'How far it reaches, in squares, when targeting is multi; 0 to choose targets one at a time.',
-          { minimum: 0, maximum: 12 },
+          within('areaRadius'),
           (preset) => preset.areaRadius,
           (preset, value) => (preset.areaRadius = value)
         ),
         amount(
           'grade',
           'Its grade from 1 to 3: higher is thicker and runs longer.',
-          { minimum: 1, maximum: 3, integer: true },
+          within('grade'),
           (preset) => preset.grade,
           (preset, value) => (preset.grade = value)
         ),
@@ -1941,14 +1910,14 @@ export class AgentMediaKinds {
         amount(
           'shots',
           'For a projectile: how many shots one firing makes.',
-          { minimum: 1, maximum: 24, integer: true },
+          within('shots'),
           (preset) => preset.shots,
           (preset, value) => (preset.shots = value)
         ),
         amount(
           'shot_interval',
           'For a projectile: ms between shots; 0 spreads them evenly.',
-          { minimum: 0, maximum: 6000, integer: true },
+          within('shotInterval'),
           (preset) => preset.shotInterval,
           (preset, value) => (preset.shotInterval = value)
         ),

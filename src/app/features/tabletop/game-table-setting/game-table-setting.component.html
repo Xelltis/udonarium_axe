@@ -745,8 +745,9 @@
             <button
               type="button"
               class="rounded-ui-sm border-ui-danger text-ui-danger hover:border-ui-danger hover:text-ui-danger m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-3 py-1.25 text-[12px] font-semibold transition-[background,opacity] hover:bg-[color-mix(in_srgb,var(--ui-danger)_15%,transparent)] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[15px]!"
+              data-testid="table-delete"
               (click)="delete()"
-              [attr.disabled]="getGameTables().length <= 1 ? '' : null"
+              [attr.disabled]="mayDelete() ? null : ''"
             >
               <i class="material-icons">delete</i>{{ 'feature.tabletop.tableSetting.delete' | transloco }}
             </button>

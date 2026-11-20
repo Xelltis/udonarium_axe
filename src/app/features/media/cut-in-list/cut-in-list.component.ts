@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { SaveProgress } from '@axe/application/file/save-progress';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
@@ -36,6 +37,7 @@ export class CutInListComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
+  private readonly cutInService = inject(CutInService);
 
   /** The cut-in picked in the list for editing, or null when none is. */
   readonly selectedCutIn = signal<CutIn | null>(null);
@@ -132,6 +134,22 @@ export class CutInListComponent {
     cutIn.imageIdentifier = 'testTableBackgroundImage_image';
     cutIn.initialize();
     this.selectCutIn(cutIn.identifier);
+  }
+
+  /**
+   * Whether the samples a room starts with have lost something to put back, which the button that puts
+   * them back is offered by (see `CutInService.missingSampleCount`).
+   */
+  readonly samplesMissing = computed(() => this.cutInService.missingSampleCount() > 0);
+
+  /**
+   * Puts back what the samples have lost, a sample deleted or a layer taken out of one, leaving the
+   * room's own cut-ins and its changes to the samples as they are (see `CutInService.restoreSamples`);
+   * does nothing for a reader who may not edit cut-ins.
+   */
+  restoreSamples(): void {
+    if (!this.canEditCutIns) return;
+    this.cutInService.restoreSamples();
   }
 
   /** Saves the picked cut-in to a file named after it, showing progress while the file is written. */

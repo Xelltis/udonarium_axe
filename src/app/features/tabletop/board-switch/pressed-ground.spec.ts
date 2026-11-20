@@ -3,12 +3,14 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { defaultSwitchDefinition, encodeSwitchDefinition } from '@axe/domain/tabletop/board-switch/switch-definition';
+import { cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
   blockKey,
   DEFAULT_FUNCTION_SPEC,
@@ -149,6 +151,18 @@ describe('pressed ground', () => {
     hidden.pressSwitch!.retired = true;
     expect(await presses.pressGroundAt(5.5 * GRID, 5.5 * GRID)).toBeNull();
     expect(said).toEqual([]);
+  });
+
+  it('is not pressed from a cell of it the fog still hides from the seat, though the rest of it is shown', async () => {
+    lay(pressBrush());
+    vi.spyOn(TestBed.inject(VisionService), 'isCellShown').mockImplementation(
+      (grid, index) => index !== cellIndexOf(grid, 6, 5)
+    );
+    const presses = TestBed.inject(SwitchPressService);
+
+    expect(await presses.pressGroundAt(6.5 * GRID, 5.5 * GRID)).toBeNull();
+    expect(said).toEqual([]);
+    expect(await presses.pressGroundAt(5.5 * GRID, 5.5 * GRID)).toBe('pressed');
   });
 
   it('is listed for the master once pressed, and set back as it was painted when its presses are cleared', async () => {

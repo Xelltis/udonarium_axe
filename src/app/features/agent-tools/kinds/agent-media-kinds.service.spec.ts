@@ -9,7 +9,7 @@ import type { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { BoundedPresetNumber, EffectPreset, PRESET_NUMBER_BOUNDS } from '@axe/domain/effect/effect-preset';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { createDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
@@ -150,8 +150,8 @@ describe('AgentMediaKinds', () => {
       const cutIn = cutInNamed('火球');
 
       expect(() =>
-        call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { tag: '炎', width: 1900 } })
-      ).toThrow(/A picture cut-in is 10 to 1200 pixels wide/);
+        call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { tag: '炎', width: 2000 } })
+      ).toThrow(/at most 1920/);
       expect([cutIn.width, cutIn.tagName]).toEqual([480, '']);
 
       call('change_object', {
@@ -169,6 +169,17 @@ describe('AgentMediaKinds', () => {
 
       call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { keep_aspect: true, width: 800 } });
       expect([cutIn.width, cutIn.height]).toEqual([800, 450]);
+    });
+
+    it('holds the side that follows a kept aspect inside the bounds as well', () => {
+      const cutIn = cutInNamed('縦長');
+      cutIn.originalSize = false;
+      cutIn.width = 100;
+      cutIn.height = 1000;
+
+      call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { keep_aspect: true, width: 1900 } });
+
+      expect([cutIn.width, cutIn.height]).toEqual([1900, 1200]);
     });
 
     it('holds the size as it is while the cut-in is shown at its picture’s own size', () => {
@@ -194,11 +205,14 @@ describe('AgentMediaKinds', () => {
       expect(cutIn.outTime).toBe(0);
     });
 
-    it('takes no sample cut-in away, whose identifier could never come back', () => {
+    it('takes a sample cut-in away like any other, for the samples to be put back whole', () => {
       createDefaultCutIns(ImageStorage.instance);
 
-      expect(() => call('remove_object', { kind: 'cut-in', id: 'sample-cut-in-flash' })).toThrow(AgentToolError);
-      expect(ObjectStore.instance.get('sample-cut-in-flash')).toBeInstanceOf(CutIn);
+      call('remove_object', { kind: 'cut-in', id: 'sample-cut-in-flash' });
+      expect(ObjectStore.instance.get('sample-cut-in-flash')).toBeNull();
+
+      TestBed.inject(CutInService).restoreSamples();
+      expect(ObjectStore.instance.get<CutIn>('sample-cut-in-flash')?.scene?.layers.length).toBeGreaterThan(0);
     });
 
     it('puts on it only a picture this seat may come across, and a sound of the library, writing nothing else when refused', () => {
@@ -385,12 +399,13 @@ describe('AgentMediaKinds', () => {
       expect(call('change_object', { kind: 'cut-in-layer', id: made.id, fields: { y: 10 } })).toMatchObject({ y: 10 });
     });
 
-    it('takes no layer of a sample cut-in away', () => {
+    it('takes a layer of a sample cut-in away like any other, for the samples to be put back whole', () => {
       createDefaultCutIns(ImageStorage.instance);
 
-      expect(() => call('remove_object', { kind: 'cut-in-layer', id: 'sample-cut-in-flash-word' })).toThrow(
-        AgentToolError
-      );
+      call('remove_object', { kind: 'cut-in-layer', id: 'sample-cut-in-flash-word' });
+      expect(ObjectStore.instance.get('sample-cut-in-flash-word')).toBeNull();
+
+      TestBed.inject(CutInService).restoreSamples();
       expect(ObjectStore.instance.get('sample-cut-in-flash-word')).toBeInstanceOf(CutInLayer);
     });
   });
@@ -638,6 +653,28 @@ describe('AgentMediaKinds', () => {
       expect(copy.name).toBe('火球 (2)');
       call('remove_object', { kind: 'effect-preset', id: made.id });
       expect(ObjectStore.instance.getObjects(EffectPreset).map((preset) => preset.identifier)).toEqual([copy.id]);
+    });
+
+    it('offers every number of an effect within the bounds the effect plays within', () => {
+      const kind = TestBed.inject(AgentMediaKinds).kinds.find((each) => each.kind === 'effect-preset')!;
+      const fields: readonly [string, BoundedPresetNumber][] = [
+        ['duration_ms', 'durationMs'],
+        ['stagger_ms', 'staggerMs'],
+        ['scale', 'scale'],
+        ['max_targets', 'maxTargets'],
+        ['area_radius', 'areaRadius'],
+        ['grade', 'grade'],
+        ['shots', 'shots'],
+        ['shot_interval', 'shotInterval'],
+      ];
+
+      for (const [name, key] of fields) {
+        const schema = kind.fields.find((field) => field.name === name)!.schema as { minimum: number; maximum: number };
+        expect([schema.minimum, schema.maximum], name).toEqual([
+          PRESET_NUMBER_BOUNDS[key].min,
+          PRESET_NUMBER_BOUNDS[key].max,
+        ]);
+      }
     });
 
     it('lays no stage whose role cannot draw the look it names', () => {

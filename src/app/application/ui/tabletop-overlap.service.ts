@@ -90,14 +90,15 @@ export class TabletopOverlapService {
   }
 
   /**
-   * The registered pieces that lie under a point: those the line of sight through it meets, nearest
-   * first, as the table's canvas draws them. Empty for a non-finite point.
+   * The registered pieces that lie under a point: those the line of sight through it meets that this
+   * seat is shown, nearest first, as the table's canvas draws them (`TablePickService.shownAt`). Empty
+   * for a non-finite point.
    */
   findAt(x: number, y: number): TabletopObject[] {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
     // Looked up when asked rather than when made: what picks things up reads, through the table,
     // services that look back to this one.
-    const met = this.injector.get(TablePickService).allAt(x, y);
+    const met = this.injector.get(TablePickService).shownAt(x, y);
     const objects = met.map((hit) => this.registry.get(hit.target.id)?.object);
     return objects.filter((object, at): object is TabletopObject => !!object && objects.indexOf(object) === at);
   }

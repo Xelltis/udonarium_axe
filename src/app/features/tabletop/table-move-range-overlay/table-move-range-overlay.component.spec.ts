@@ -245,6 +245,55 @@ describe('TableMoveRangeOverlayComponent', () => {
     expect(filled).toEqual([MOVE_ZOC_FILL, MOVE_RANGE_FILL]);
   });
 
+  describe('ground the fog still hides from this seat', () => {
+    /** Fog over every cell, as for a seat that has explored none of the board. */
+    function fogOverAll(): void {
+      vi.spyOn(TestBed.inject(VisionService), 'shownCells').mockImplementation(
+        (_grid, cells) => new CellBits(cells.count)
+      );
+    }
+
+    afterEach(() => {
+      TestBed.inject(MovePlanService).cancel();
+    });
+
+    it('takes neither the reach of a piece carried nor the ground held against it', () => {
+      fogOverAll();
+      carry({
+        characterIdentifier: 'piece',
+        grid,
+        cells: cellsAt(cellIndexOf(grid, 2, 2)),
+        held: cellsAt(cellIndexOf(grid, 3, 3)),
+        showsReach: true,
+      });
+
+      fixture.detectChanges();
+
+      expect(filled).toEqual([]);
+    });
+
+    it('takes no reach of a move being planned', () => {
+      tableOf();
+      fogOverAll();
+      TestBed.inject(MovePlanService).begin(pieceAt(0, 0, 2));
+
+      fixture.detectChanges();
+
+      expect(filled).not.toContain(MOVE_RANGE_FILL);
+    });
+
+    it('takes no reach of a piece somebody else is moving', () => {
+      const table = tableOf();
+      const piece = pieceAt(1, 1, 3);
+      otherWalking(table.identifier, piece.identifier, []);
+      fogOverAll();
+
+      fixture.detectChanges();
+
+      expect(filled).not.toContain(MOVE_RANGE_OTHERS_FILL);
+    });
+  });
+
   it('paints the held ground alone where the reach is not to be shown', () => {
     carry({
       characterIdentifier: 'piece',

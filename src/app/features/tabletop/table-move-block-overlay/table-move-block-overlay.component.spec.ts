@@ -6,6 +6,7 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { ensureMoveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableMoveBlockOverlayComponent } from '@axe/features/tabletop/table-move-block-overlay/table-move-block-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -72,6 +73,25 @@ describe('TableMoveBlockOverlayComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('canvas')).not.toBeNull();
+  });
+
+  it('keeps ground the fog lies over from a player, and shows it to the master', () => {
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    table.fogEnabled = true;
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Player;
+    paintOneCell();
+
+    const fixture = TestBed.createComponent(TableMoveBlockOverlayComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('canvas')).toBeNull();
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ imports: [TableMoveBlockOverlayComponent], providers: [...TEST_PROVIDERS] });
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    const master = TestBed.createComponent(TableMoveBlockOverlayComponent);
+    master.detectChanges();
+    expect(master.nativeElement.querySelector('canvas')).not.toBeNull();
   });
 
   it('shows nothing where no ground has been closed', () => {

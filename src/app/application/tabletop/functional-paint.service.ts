@@ -96,8 +96,7 @@ function layTerrainBlock(
   terrain.altitude = gridSize > 0 ? spec.altitude / gridSize : 0;
   terrain.isAltitudeIndicate = spec.showsAltitude;
   if (spec.imageIdentifier.length > 0) terrain.setFaceImage('imageIdentifier', spec.imageIdentifier);
-  terrain.doorStyle = spec.doorStyle;
-  terrain.isDoorOpen = spec.doorOpen;
+  terrain.setDoor(spec.doorStyle, spec.doorOpen);
   terrain.doorMirrored = spec.doorMirrored;
   // The sides come first, so a brush saved before there were any still tips the block the one
   // way it knew.

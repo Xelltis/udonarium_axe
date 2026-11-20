@@ -620,6 +620,46 @@ describe('GameTableSettingComponent', () => {
     expect(named('table-name').hasAttribute('disabled')).toBe(true);
   });
 
+  describe('deleting a table', () => {
+    let first: GameTable;
+    const deleteButton = (): HTMLButtonElement =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="table-delete"]')!;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      for (const table of ObjectStore.instance.getObjects(GameTable)) ObjectStore.instance.remove(table);
+      first = new GameTable();
+      first.initialize();
+      component.selectGameTable(first.identifier);
+    });
+
+    it('keeps the last table, even where delete is reached past its button', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(deleteButton().disabled).toBe(true);
+
+      component.delete();
+
+      expect(ObjectStore.instance.get(first.identifier)).toBe(first);
+      expect(component.selectedTableXml).toBe('');
+    });
+
+    it('takes a table that is not the last away, keeping it to be restored', async () => {
+      const second = new GameTable();
+      second.initialize();
+      component.selectGameTable(second.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(deleteButton().disabled).toBe(false);
+
+      component.delete();
+
+      expect(ObjectStore.instance.get(second.identifier)).toBeNull();
+      expect(component.selectedTableXml).toContain('<game-table');
+    });
+  });
+
   describe('restoring a deleted table', () => {
     let table: GameTable;
 

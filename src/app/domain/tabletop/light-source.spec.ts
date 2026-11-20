@@ -2,7 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { collectLights } from '@axe/domain/tabletop/vision-scene-assembly';
 import { LightAnimation, LightCategory, LightPreset } from '@axe/domain/tabletop/vision-types';
 
 describe('LightSource', () => {
@@ -71,7 +73,7 @@ describe('LightSource', () => {
   });
 
   describe('following()', () => {
-    it('moves the light to the centre of the character it follows', () => {
+    it('puts the corner of the light half a cell up and to the left of the middle of the character', () => {
       const character = GameCharacter.create('対象', 2, '');
       character.location.x = 100;
       character.location.y = 200;
@@ -80,9 +82,40 @@ describe('LightSource', () => {
 
       light.following(80);
 
-      expect(light.location.x).toBe(100 + (80 * 2) / 2);
-      expect(light.location.y).toBe(200 + (80 * 2) / 2);
+      expect(light.location.x).toBe(100 + 80 - 40);
+      expect(light.location.y).toBe(200 + 80 - 40);
     });
+
+    it.each([0.5, 1, 2, 3])(
+      'shines from the same point whether a character %s cells across is on the table or not',
+      (size) => {
+        const table = new GameTable();
+        table.gridSize = 50;
+        table.width = 20;
+        table.height = 20;
+        table.initialize();
+        const character = GameCharacter.create('対象', size, '');
+        character.location.x = 150;
+        character.location.y = 250;
+        const light = LightSource.create('追従光');
+        light.followingCharacterIdentifier = character.identifier;
+        light.following(50);
+        const shining = () => {
+          const lit = collectLights(table, [], 50, () => character).find((one) => one.sourceId === light.identifier);
+          return lit ? [lit.x, lit.y] : null;
+        };
+
+        const onTable = shining();
+        character.location.name = 'graveyard';
+        const offTable = shining();
+
+        expect(offTable).toEqual(onTable);
+        expect([light.location.x + 25, light.location.y + 25]).toEqual(onTable);
+        light.destroy();
+        character.destroy();
+        table.destroy();
+      }
+    );
 
     it('stops following a character that is not there', () => {
       const light = LightSource.create('test');

@@ -5,14 +5,29 @@
         'feature.media.cutIn.sidebarTitle' | transloco
       }}</span>
       @if (canEditCutIns) {
-        <button
-          class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-base!"
-          type="button"
-          [title]="'feature.media.cutIn.createNew' | transloco"
-          (click)="createCutIn()"
-        >
-          <i class="material-icons">add</i>
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color] disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-base!"
+            type="button"
+            data-testid="cut-in-restore-samples"
+            [title]="
+              (samplesMissing() ? 'feature.media.cutIn.restoreSamples' : 'feature.media.cutIn.noSamplesMissing')
+                | transloco
+            "
+            [disabled]="!samplesMissing()"
+            (click)="restoreSamples()"
+          >
+            <i class="material-icons">restore</i>
+          </button>
+          <button
+            class="border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex size-6.5 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-base!"
+            type="button"
+            [title]="'feature.media.cutIn.createNew' | transloco"
+            (click)="createCutIn()"
+          >
+            <i class="material-icons">add</i>
+          </button>
+        </div>
       }
     </div>
 

@@ -2,8 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Coin } from '@axe/domain/coin/coin';
 import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/domain/map-editor/scene';
 import { deserializeScene, serializeScene } from '@axe/domain/map-editor/serialize';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { WhiteBoardEditorComponent } from '@axe/features/tabletop/white-board/white-board-editor.component';
 import { SAVE_DELAY } from '@axe/features/tabletop/white-board/white-board-keeper';
@@ -230,6 +232,26 @@ describe('WhiteBoardEditorComponent', () => {
     expect(drawer.groups()).not.toBe(before);
     expect(drawer.groups()).toHaveLength(2);
     expect(drawer.layerCount()).toBe(2);
+  });
+
+  it('lists a coin and a light set on the board for the layer drawer to take off, back where they appeared to be', () => {
+    const { fixture, board } = mount();
+    board.location = { name: 'table', x: 100, y: 200 };
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', x: 10, y: 20, surface: board.identifier };
+    const light = LightSource.create('light');
+    light.location = { name: 'table', x: 30, y: 40, surface: board.identifier };
+    fixture.detectChanges();
+    const drawer = fixture.debugElement.query(By.directive(WhiteBoardLayerDrawerComponent))
+      .componentInstance as WhiteBoardLayerDrawerComponent;
+    const listed = () => drawer.standing().map((object) => object.identifier);
+    expect(listed()).toEqual(expect.arrayContaining([coin.identifier, light.identifier]));
+
+    drawer.action.emit({ kind: 'takeOff', object: coin });
+    fixture.detectChanges();
+
+    expect([coin.location.surface, coin.location.x, coin.location.y]).toEqual([undefined, 110, 220]);
+    expect(listed()).toEqual([light.identifier]);
   });
 
   describe('keyboard', () => {

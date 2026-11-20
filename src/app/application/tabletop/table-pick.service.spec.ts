@@ -15,6 +15,8 @@ import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -54,11 +56,12 @@ describe('TablePickService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    PeerCursor.myCursor = null!;
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
   function blockAt(col: number, row: number, height = 2): Terrain {
-    const terrain = Terrain.create('block', 1, 1, height, '', '');
+    const terrain = Terrain.create('block', 1, 1, height, 'wall.png', 'floor.png');
     terrain.location = { name: 'table', x: col * GRID, y: row * GRID };
     table.appendChild(terrain);
     return terrain;
@@ -404,6 +407,29 @@ describe('TablePickService', () => {
     held.initialize();
     door.appendChild(held);
     expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(door.identifier);
+  });
+
+  it('passes a press, and the list of what lies under a point, through a block this seat is not shown, which still bears what is put down', async () => {
+    const glass = blockAt(5, 5);
+    glass.clearFaceImages();
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    PeerCursor.createMyCursor().role = PeerRole.Player;
+    await settled();
+    const top = onPage(5, 5, 2 * GRID);
+    const frame = onPage(5, 5, 1);
+
+    expect(service.pressedAt(top.x, top.y)).toBeNull();
+    expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(die.identifier);
+    expect(service.shownAt(frame.x, frame.y).map((hit) => hit.target.id)).not.toContain(glass.identifier);
+    expect(service.allAt(frame.x, frame.y).map((hit) => hit.target.id)).toContain(glass.identifier);
+    expect(service.landingAt(top.x, top.y).z).toBeCloseTo(2 * GRID, 6);
+
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    expect(service.pressedAt(top.x, top.y)?.target.id).toBe(glass.identifier);
+
+    vi.spyOn(TestBed.inject(TablePiecesService), 'isBlockShown').mockReturnValue(false);
+    expect(service.pressedAt(top.x, top.y)).toBeNull();
   });
 
   it('keeps a press on a block locked in place with no piece behind it, for its menu and its door', async () => {

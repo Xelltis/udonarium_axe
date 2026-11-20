@@ -16,12 +16,15 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import type { CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import {
+  cellCenterOf,
   cellCount,
   CellGrid,
   cellGridOf,
   cellIndexAt,
+  cellIndexOf,
   forEachCellInBox,
   sameCellGrid,
 } from '@axe/domain/tabletop/fog/cell-grid';
@@ -652,6 +655,92 @@ export class VisionService {
     if (!scene?.fogEnabled || !object.isVisibleOnTable || surfaceOf(object) !== 'floor') return false;
     const half = (scene.gridSize * Math.max(sizeCells, 0.25)) / 2;
     return this.isHiddenByFog(object.location.x + half, object.location.y + half);
+  }
+
+  /**
+   * Whether the fog lies over the whole of a block standing on the floor, which is then not drawn for
+   * this seat at all: nothing of it is on ground the party has walked to. A block the party has reached
+   * part of stays, cut back to that part (see {@link terrainFogCover}). Never for the game master, nor
+   * for a block put on a wall or a board.
+   */
+  isTerrainHiddenByFog(terrain: Terrain): boolean {
+    const cover = this.terrainFogCover(terrain);
+    return cover !== null && !cover.cleared.some((cell) => cell);
+  }
+
+  /**
+   * Whether this seat is shown what lies on a cell of a grid of the table in view: anywhere for the game
+   * master, and for the rest anywhere but ground nobody has walked to yet while the fog is on, read at
+   * the middle of the cell. What is painted on the ground itself answers to it, so that the shape of
+   * what is painted there does not show through the fog.
+   */
+  isCellShown(grid: CellGrid, index: number): boolean {
+    if (index < 0 || index >= cellCount(grid)) return false;
+    const middle = cellCenterOf(grid, index);
+    return !this.isHiddenByFog(middle.x, middle.y);
+  }
+
+  /**
+   * Those of the cells given this seat is shown (see {@link isCellShown}), for ground painted cell by
+   * cell, as where movement is closed; the very cells given where nothing is hidden from this seat.
+   */
+  shownCells(grid: CellGrid, cells: CellBits): CellBits {
+    if (!this.hidesGround()) return cells;
+    const shown = new CellBits(cells.count);
+    for (let index = 0; index < cells.count; index++) {
+      if (cells.get(index) && this.isCellShown(grid, index)) shown.set(index);
+    }
+    return shown;
+  }
+
+  /** What {@link keptShownCells} last cut each set of cells to, and the fog it was cut under. */
+  private readonly keptCuts = new WeakMap<
+    CellBits,
+    { grid: CellGrid; viewer: SceneViewer; explored: CellBits | null; vision: VisionCells; shown: CellBits }
+  >();
+
+  /**
+   * {@link shownCells}, kept for a set of cells until the fog over it moves on, for ground painted from
+   * the same set again and again, as a reach is: the same set comes back while nothing the fog hides from
+   * this seat has changed, so what is drawn from it need not be drawn again.
+   */
+  keptShownCells(grid: CellGrid, cells: CellBits): CellBits {
+    const viewer = this.viewer();
+    const explored = this.exploredCells();
+    const vision = this.visionCells();
+    const kept = this.keptCuts.get(cells);
+    if (
+      kept &&
+      kept.viewer === viewer &&
+      kept.explored === explored &&
+      kept.vision === vision &&
+      sameCoverGrid(kept.grid, grid)
+    ) {
+      return kept.shown;
+    }
+    const shown = this.shownCells(grid, cells);
+    this.keptCuts.set(cells, { grid, viewer, explored, vision, shown });
+    return shown;
+  }
+
+  /**
+   * Whether this seat is shown a stretch of ground laid as one, as ground dear to cross or a trap: any
+   * one cell of it shown (see {@link isCellShown}), which then shows the whole of it, as a stretch the
+   * party has come to the edge of is one they are looking at.
+   */
+  isGroundShown(grid: CellGrid, rect: CellRect): boolean {
+    if (!this.hidesGround()) return true;
+    for (let row = rect.row; row < rect.row + rect.height; row++) {
+      for (let col = rect.col; col < rect.col + rect.width; col++) {
+        if (this.isCellShown(grid, cellIndexOf(grid, col, row))) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Whether the fog keeps any ground from this seat: never from the game master, nor where there is no fog. */
+  private hidesGround(): boolean {
+    return !this.viewer().isGameMaster && this.exploredCells() !== null;
   }
 
   /** What the fog over this table is made of, for whatever has to paint some of its own. */

@@ -13,7 +13,6 @@ import {
 import { EffectFrameService } from '@axe/application/effect/effect-frame.service';
 import { EffectLightService } from '@axe/application/effect/effect-light.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
@@ -146,7 +145,6 @@ export class Table3dService {
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
-  private readonly rolePermission = inject(RolePermissionService);
   private readonly pieces = inject(TablePiecesService);
   private readonly solidRanges = inject(SolidRangeService);
   private readonly ruler = inject(RulerService);
@@ -230,8 +228,9 @@ export class Table3dService {
   });
 
   /**
-   * The faces of the board and of the blocks this seat may see. A block nobody gave a picture to
-   * stops what it stops but is shown only to a seat that sees what is hidden, as glass.
+   * The faces of the board and of the blocks this seat is shown that are not drawn as models (see
+   * `TablePiecesService.isBlockShown`): a block nobody gave a picture to is drawn as glass, for a seat
+   * that sees what is hidden alone.
    */
   private readonly builtFaces = computed(() => {
     this.objectChange.fileVersion();
@@ -240,11 +239,9 @@ export class Table3dService {
     this.objectChange.trackMyCursor();
     const table = this.tabletop.currentTableVersion();
     const modelled = new Set(this.terrainModels().map((model) => model.owner));
-    const seesGlass = this.rolePermission.canSeeHidden();
     const terrains = this.tabletop.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
-      if (!seesGlass && !terrain.hasFaceImage) return false;
-      return !this.hiddenByFog(terrain) && !modelled.has(terrain.identifier);
+      return this.pieces.isBlockShown(terrain) && !modelled.has(terrain.identifier);
     });
     return tableWorldOf(
       table,
@@ -318,7 +315,7 @@ export class Table3dService {
         this.objectChange.versionOf(terrain.identifier)();
         const model = pieceModelOf(terrain);
         const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
-        if (model && url && !this.hiddenByFog(terrain)) drawn.push({ terrain, model, url });
+        if (model && url && !this.vision.isTerrainHiddenByFog(terrain)) drawn.push({ terrain, model, url });
       }
       return drawn;
     }
@@ -337,7 +334,9 @@ export class Table3dService {
     const walls = drawn.filter(({ url }) => this.modelFits.isJoined(url)).map(({ terrain }) => terrain);
     let joins = new Map<string, WallJoinCell[]>();
     if (walls.length > 0) {
-      const doors = this.tabletop.terrains.filter((terrain) => terrain.isDoor && !this.hiddenByFog(terrain));
+      const doors = this.tabletop.terrains.filter(
+        (terrain) => terrain.isDoor && !this.vision.isTerrainHiddenByFog(terrain)
+      );
       const grid = cellGridOf(table.width, table.height, gridSize, table.gridType);
       joins = wallJoinsOf(grid, joinableBlocksOf([...walls, ...doors], grid));
     }
@@ -559,11 +558,6 @@ export class Table3dService {
     inject(DestroyRef).onDestroy(() => {
       for (const letGo of [...this.attached]) letGo();
     });
-  }
-
-  private hiddenByFog(terrain: Terrain): boolean {
-    const cover = this.vision.terrainFogCover(terrain);
-    return cover !== null && !cover.cleared.some((cell) => cell);
   }
 
   /**

@@ -1279,6 +1279,40 @@ describe('VisionService', () => {
       expect(service.isPieceHiddenByFog(lamp)).toBe(false);
     });
 
+    it('shows a player what is painted on the ground only where the party has walked, and the master all of it', () => {
+      tableRememberingCell('normal', NPC_CELL);
+      makeMyCursor('p1', PeerRole.Player);
+      const painted = new CellBits(cellCount(GRID));
+      painted.set(NPC_CELL);
+      painted.set(NPC_CELL + 1);
+      const reached = { col: 3, row: 3, width: 2, height: 2 };
+      const beyond = { col: 10, row: 10, width: 3, height: 3 };
+
+      expect(service.isCellShown(GRID, NPC_CELL)).toBe(true);
+      expect(service.isCellShown(GRID, NPC_CELL + 1)).toBe(false);
+      expect(service.isCellShown(GRID, -1)).toBe(false);
+      const shown = service.shownCells(GRID, painted);
+      expect(shown.get(NPC_CELL)).toBe(true);
+      expect(shown.get(NPC_CELL + 1)).toBe(false);
+      expect(service.isGroundShown(GRID, reached)).toBe(true);
+      expect(service.isGroundShown(GRID, beyond)).toBe(false);
+
+      makeMyCursor('gm', PeerRole.GameMaster);
+      expect(service.shownCells(GRID, painted)).toBe(painted);
+      expect(service.isGroundShown(GRID, beyond)).toBe(true);
+    });
+
+    it('hides from a player a block the fog lies over whole, and not one the party has reached part of', () => {
+      tableRememberingCell('normal', NPC_CELL);
+      makeMyCursor('p1', PeerRole.Player);
+
+      expect(service.isTerrainHiddenByFog(terrainAt(600, 600, 2, true))).toBe(true);
+      expect(service.isTerrainHiddenByFog(terrainAt(150, 150, 2, true))).toBe(false);
+
+      makeMyCursor('gm', PeerRole.GameMaster);
+      expect(service.isTerrainHiddenByFog(terrainAt(650, 650, 2, true))).toBe(false);
+    });
+
     function terrainAt(x: number, y: number, cells: number, blocksSight: boolean, deep = cells): Terrain {
       const terrain = Terrain.create('block', cells, deep, 1, '', '');
       terrain.mode = TerrainViewState.ALL;

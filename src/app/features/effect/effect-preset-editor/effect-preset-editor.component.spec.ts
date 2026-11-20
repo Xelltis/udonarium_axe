@@ -7,7 +7,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AILMENT_LOOKS } from '@axe/domain/effect/ailment-looks';
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { BoundedPresetNumber, EffectPreset, PRESET_NUMBER_BOUNDS } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
 import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
@@ -94,6 +94,53 @@ describe('EffectPresetEditorComponent', () => {
 
       expect(tried).toHaveBeenCalledWith(preset);
       tried.mockRestore();
+    });
+  });
+
+  describe('the number fields', () => {
+    const FIELDS: readonly [string, BoundedPresetNumber][] = [
+      ['effect-scale', 'scale'],
+      ['effect-duration', 'durationMs'],
+      ['effect-stagger', 'staggerMs'],
+      ['effect-area-radius', 'areaRadius'],
+      ['effect-max-targets', 'maxTargets'],
+      ['effect-shots', 'shots'],
+      ['effect-shot-interval', 'shotInterval'],
+    ];
+
+    beforeEach(() => {
+      preset.kind = 'projectile';
+      preset.targeting = 'multi';
+    });
+
+    function editor(): { editNumber(key: BoundedPresetNumber, value: unknown): void } {
+      return fixture.componentInstance as unknown as { editNumber(key: BoundedPresetNumber, value: unknown): void };
+    }
+
+    it('offers each the bounds the effect plays within', () => {
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      for (const [name, key] of FIELDS) {
+        const input = host.querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+        expect([input.getAttribute('min'), input.getAttribute('max')], name).toEqual([
+          String(PRESET_NUMBER_BOUNDS[key].min),
+          String(PRESET_NUMBER_BOUNDS[key].max),
+        ]);
+      }
+    });
+
+    it('holds what is typed inside those bounds, and writes nothing for a field cleared', () => {
+      fixture.detectChanges();
+
+      for (const [, key] of FIELDS) {
+        editor().editNumber(key, 99999);
+        expect(preset[key], key).toBe(PRESET_NUMBER_BOUNDS[key].max);
+        editor().editNumber(key, -99999);
+        expect(preset[key], key).toBe(PRESET_NUMBER_BOUNDS[key].min);
+        editor().editNumber(key, null);
+        expect(preset[key], key).toBe(PRESET_NUMBER_BOUNDS[key].min);
+      }
     });
   });
 

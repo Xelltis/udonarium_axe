@@ -1113,6 +1113,30 @@ describe('Table3dService', () => {
     }
   });
 
+  it('draws no face of a block this seat is not shown, whatever keeps it from the seat', () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    const wall = Terrain.create('壁', 1, 1, 2, 'wall-picture', 'floor-picture');
+    table.appendChild(wall);
+    const shown = vi.spyOn(TestBed.inject(TablePiecesService), 'isBlockShown').mockReturnValue(false);
+    const wallFaces = () => scene.world().walls.filter((face) => face.id.startsWith(wall.identifier));
+
+    try {
+      expect(wallFaces()).toEqual([]);
+
+      shown.mockReturnValue(true);
+      TestBed.inject(ObjectChangeService).notifyChanged(wall.identifier);
+
+      expect(wallFaces().length).toBeGreaterThan(0);
+    } finally {
+      vi.restoreAllMocks();
+      wall.destroy();
+      table.destroy();
+    }
+  });
+
   it('draws a block given a model held here as the model, in place of its faces', async () => {
     const scene = service();
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:tree' } as never);

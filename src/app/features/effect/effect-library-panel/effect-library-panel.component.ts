@@ -271,8 +271,8 @@ export class EffectLibraryPanelComponent {
   /** Whether the effect held ready has a caster to take away. */
   readonly hasCaster = computed<boolean>(() => this.targeting.casterIdentifier().length > 0);
 
-  /** An effect left standing, which stays on the board unless it can be taken away. */
-  readonly fields = computed<EffectField[]>(() => this.fieldService.fields());
+  /** The effects left standing this seat is shown, which stay on the board unless they are taken away. */
+  readonly fields = computed<EffectField[]>(() => this.fieldService.shownFields());
 
   readonly lastFired = signal('');
   readonly notice = signal('');
@@ -867,8 +867,14 @@ export class EffectLibraryPanelComponent {
     this.fieldService.remove(field);
   }
 
+  /**
+   * What an effect left standing is called in the list: the name of the effect it plays, what stands in
+   * for a name kept from this seat where that effect is kept for the game master, and nothing where the
+   * effect is gone from the room.
+   */
   protected fieldName(field: EffectField): string {
-    return this.fieldService.presetOf(field)?.name ?? '';
+    if (!this.fieldService.presetOf(field)) return '';
+    return this.library.shownPreset(field.presetIdentifier)?.name ?? this.t('common.hiddenName');
   }
 
   protected previewPreset(preset: EffectPreset): void {

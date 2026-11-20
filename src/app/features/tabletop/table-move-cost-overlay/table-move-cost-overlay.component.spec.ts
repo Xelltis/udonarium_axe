@@ -67,6 +67,22 @@ describe('TableMoveCostOverlayComponent', () => {
     expect(canvas()).not.toBeNull();
   });
 
+  it('keeps a stretch the fog lies wholly over from a player, and draws it for the master', () => {
+    table.fogEnabled = true;
+    PeerCursor.myCursor.role = PeerRole.Player;
+    bog();
+
+    fixture.detectChanges();
+    expect(canvas()).toBeNull();
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ imports: [TableMoveCostOverlayComponent], providers: [...TEST_PROVIDERS] });
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    fixture = TestBed.createComponent(TableMoveCostOverlayComponent);
+    fixture.detectChanges();
+    expect(canvas()).not.toBeNull();
+  });
+
   it('draws a stretch that has been painted off the edge of the board no more than the board holds', () => {
     const area = bog();
     area.col = 40;

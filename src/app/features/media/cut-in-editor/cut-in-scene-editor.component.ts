@@ -272,8 +272,10 @@ export class CutInSceneEditorComponent {
   /** Whether a sound stands at the playhead, for the button that takes it away. */
   protected readonly hasSoundAtPlayhead = computed(() => soundIndexAt(this.sounds(), this.playheadMs()) >= 0);
 
-  readonly sceneWidth = computed(() => this.watchCutIn()?.width ?? 0);
-  readonly sceneHeight = computed(() => this.watchCutIn()?.height ?? 0);
+  /** How wide the stage is, as the cut-in plays (see `CutIn.shownSize`). */
+  readonly sceneWidth = computed(() => this.watchCutIn()?.shownSize.width ?? 0);
+  /** How tall the stage is, as the cut-in plays (see `CutIn.shownSize`). */
+  readonly sceneHeight = computed(() => this.watchCutIn()?.shownSize.height ?? 0);
 
   readonly durationMs = computed(() => {
     const scene = this.scene();
@@ -393,10 +395,7 @@ export class CutInSceneEditorComponent {
     if (!cutIn || !this.isEditable()) return;
 
     const scene = ensureScene(cutIn);
-    const layer = addLayer(scene, kind, this.t(`feature.media.cutInEditor.${nameKey}`), {
-      width: cutIn.width,
-      height: cutIn.height,
-    });
+    const layer = addLayer(scene, kind, this.t(`feature.media.cutInEditor.${nameKey}`), cutIn.shownSize);
     // A cut-in built out of layers is no longer the size of one picture.
     cutIn.originalSize = false;
     this.selectedIdentifier.set(layer.identifier);

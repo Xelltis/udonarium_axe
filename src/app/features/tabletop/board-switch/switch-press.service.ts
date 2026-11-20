@@ -152,8 +152,9 @@ export class SwitchPressService {
   }
 
   /**
-   * Presses the pressed ground under a point of the table, where there is any this seat is shown,
-   * and answers how it went; null where there is none to press.
+   * Presses the pressed ground under a point of the table, where there is any this seat is shown on a
+   * cell the fog does not hide from it (see `VisionService.isCellShown`), and answers how it went; null
+   * where there is none to press.
    *
    * Where two stretches overlap, the one laid last is pressed, which is the one drawn on top.
    * Ground that gives itself away is shown to the room by being pressed, as a trap is by going off.
@@ -162,7 +163,7 @@ export class SwitchPressService {
     const grid = this.grid();
     if (!grid) return null;
     const cell = cellIndexAt(grid, x, y);
-    if (cell < 0) return null;
+    if (cell < 0 || !this.vision.isCellShown(grid, cell)) return null;
     const { col, row } = cellColRow(grid, cell);
     const ground = this.triggers
       .shown()

@@ -12,7 +12,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { switchOf } from '@axe/domain/tabletop/board-switch/board-switch';
 import { stashOf } from '@axe/domain/tabletop/board-switch/concealment';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellColRow, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
@@ -70,9 +70,18 @@ describe('AgentMapKinds', () => {
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
-  /** Hides the cells west of a column under fog nobody has explored, as a seat that is not the master sees it. */
+  /**
+   * Hides the cells west of a column under fog nobody has explored, as a seat that is not the master sees
+   * it: the cells the screen shows (`VisionService.isCellShown`), which a stretch of ground is shown by,
+   * and any point of the table.
+   */
   function fogWestOf(col: number): void {
-    vi.spyOn(TestBed.inject(VisionService), 'isHiddenByFog').mockImplementation((x) => x < col * GRID);
+    const vision = TestBed.inject(VisionService);
+    vi.spyOn(vision, 'isHiddenByFog').mockImplementation((x) => x < col * GRID);
+    vi.spyOn(vision as unknown as { hidesGround(): boolean }, 'hidesGround').mockReturnValue(true);
+    vi.spyOn(vision, 'isCellShown').mockImplementation(
+      (grid, index) => index >= 0 && cellColRow(grid, index).col >= col
+    );
   }
 
   describe('game-table', () => {
@@ -482,6 +491,25 @@ describe('AgentMapKinds', () => {
       fogWestOf(4);
       expect(call('get_object', { kind: 'move-block-map' })).toMatchObject({ closed: [{ row: 2, cols: '8' }] });
     });
+  });
+
+  it('keeps from a seat the closed cells and the dear ground the screen keeps from it, by the same rule', () => {
+    const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
+    const bits = new CellBits(grid.cols * grid.rows);
+    bits.set(22);
+    ensureMoveBlockMapOn(table).write(grid, bits);
+    call('create_object', {
+      kind: 'table-move-cost',
+      options: { area: { col: 2, row: 2, width: 2, height: 2 } },
+      fields: { extra_cost: 3 },
+    });
+    seat(PeerRole.Player);
+    const vision = TestBed.inject(VisionService);
+    vi.spyOn(vision as unknown as { hidesGround(): boolean }, 'hidesGround').mockReturnValue(true);
+    vi.spyOn(vision, 'isCellShown').mockReturnValue(false);
+
+    expect(call('get_object', { kind: 'move-block-map' })).toMatchObject({ closed: [] });
+    expect(call('list_objects', { kind: 'table-move-cost' })).toEqual([]);
   });
 
   describe('ground-chunk', () => {

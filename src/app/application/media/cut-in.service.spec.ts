@@ -5,9 +5,12 @@ import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { createDefaultCutIns, DEFAULT_CUT_IN_SEEDS } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { withPortraitFits } from '@axe/domain/media/cut-in-portrait-fit';
@@ -300,5 +303,38 @@ describe('what a line arriving sets off', () => {
     tab.addMessage({ from: 'me', name: '術者', text: '斬る 炎の剣', tag: 'secret', timestamp: Date.now() });
 
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('CutInService.restoreSamples()', () => {
+  const sample = DEFAULT_CUT_IN_SEEDS[0].identifier;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    createDefaultCutIns(ImageStorage.instance);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
+  });
+
+  it('says a sample is coming back before it is made again, then counts nothing missing', () => {
+    const store = ObjectStore.instance;
+    store.get<CutIn>(sample)!.destroy();
+    const service = TestBed.inject(CutInService);
+    expect(service.missingSampleCount()).toBeGreaterThan(0);
+    let heldWhenSaid: boolean | null = null;
+    const announce = store.announceComingBack.bind(store);
+    vi.spyOn(store, 'announceComingBack').mockImplementation((identifiers) => {
+      if (identifiers.includes(sample)) heldWhenSaid = store.get(sample) !== null;
+      announce(identifiers);
+    });
+
+    expect(service.restoreSamples()).toBe(1);
+
+    expect(heldWhenSaid).toBe(false);
+    expect(store.get(sample)).toBeInstanceOf(CutIn);
+    expect(service.missingSampleCount()).toBe(0);
   });
 });

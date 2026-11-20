@@ -1,10 +1,14 @@
 import { TestBed } from '@angular/core/testing';
+import { DoorService } from '@axe/application/tabletop/door.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import type { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Coin } from '@axe/domain/coin/coin';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -15,7 +19,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import type { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import type { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { AgentKindTools } from '@axe/features/agent-tools/agent-kind-tools.service';
@@ -185,6 +189,18 @@ describe('AgentBoardKinds', () => {
       expect(() => read('terrain', glass.identifier)).toThrow(/no terrain named/);
     });
 
+    it('calls glass only a block drawn with nothing, neither a picture nor a model held here', () => {
+      const glass = block('ガラス', '');
+      const tree = block('木', '');
+      tree.modelIdentifier = 'tree-model';
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation((identifier) =>
+        identifier === 'tree-model' ? ({ isReady: true, url: 'blob:tree' } as never) : null
+      );
+
+      expect(read('terrain', glass.identifier)).toMatchObject({ glass: true });
+      expect(read('terrain', tree.identifier)).toMatchObject({ glass: false });
+    });
+
     it('leaves out a block wholly on ground nobody has walked to', () => {
       const hidden = block('奥の壁', picture('stone-3'));
       const seen = block('手前の壁', 'stone-3');
@@ -195,6 +211,26 @@ describe('AgentBoardKinds', () => {
       seat(PeerRole.Player);
 
       expect(listed('terrain')).toEqual([seen.identifier]);
+    });
+
+    it('lists, reads and opens only the blocks this seat is shown, as the screen offers them', () => {
+      const wall = block('石壁', picture('stone-4'));
+      const kept = block('奥の扉', 'stone-4');
+      kept.doorStyle = DoorStyle.SWING;
+      vi.spyOn(TestBed.inject(TablePiecesService), 'isBlockShown').mockImplementation((terrain) => terrain !== kept);
+
+      expect(listed('terrain')).toEqual([wall.identifier]);
+      expect(() => act('terrain', kept.identifier, 'open_door')).toThrow(/no terrain named/);
+      expect(kept.isDoorOpen).toBe(false);
+    });
+
+    it('opens no door for a seat the doors refuse', () => {
+      const door = block('扉', picture('stone-5'));
+      door.doorStyle = DoorStyle.SWING;
+      vi.spyOn(TestBed.inject(DoorService), 'setOpen').mockReturnValue(false);
+
+      expect(() => act('terrain', door.identifier, 'open_door')).toThrow(/may not open/);
+      expect(door.isDoorOpen).toBe(false);
     });
 
     it('neither moves nor turns a block locked in place until it is unlocked', () => {
@@ -274,11 +310,17 @@ describe('AgentBoardKinds', () => {
       const goblin = pieceAt('ゴブリン', 1, 1);
       goblin.location = { name: 'table', x: 50, y: 100, surface: board.identifier };
       goblin.update();
+      const coin = Coin.create('コイン');
+      coin.location = { name: 'table', x: 20, y: 30, surface: board.identifier };
+      const lamp = LightSource.create('ランタン');
+      lamp.location = { name: 'table', x: 40, y: 10, surface: board.identifier };
       const { x, y } = board.location;
       call('remove_object', { kind: 'white-board', id: made.id });
 
       expect(ObjectStore.instance.get(made.id)).toBeNull();
       expect(goblin.location).toEqual({ name: 'table', x: x + 50, y: y + 100 });
+      expect(coin.location).toEqual({ name: 'table', x: x + 20, y: y + 30 });
+      expect(lamp.location).toEqual({ name: 'table', x: x + 40, y: y + 10 });
     });
   });
 
@@ -424,6 +466,18 @@ describe('AgentBoardKinds', () => {
       );
       call('remove_object', { kind: 'effect-field', id: trap.id });
       expect(ObjectStore.instance.getObjects(EffectField).map((field) => field.identifier)).toEqual([swamp.id]);
+    });
+
+    it('leaves out for a player an effect standing where the fog keeps the ground from it', () => {
+      presetNamed('毒沼');
+      const near = make('effect-field', { options: { preset: '毒沼', at: { col: 2, row: 3 } } });
+      const far = make('effect-field', { options: { preset: '毒沼', at: { col: 15, row: 12 } } });
+      seat(PeerRole.Player);
+      vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockImplementation(
+        (object) => object.identifier === far.id
+      );
+
+      expect(listed('effect-field')).toEqual([near.id]);
     });
   });
 });

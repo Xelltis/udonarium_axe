@@ -1,4 +1,9 @@
-import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import {
+  BoundedPresetNumber,
+  boundPresetNumber,
+  EffectPreset,
+  PRESET_NUMBER_BOUNDS,
+} from '@axe/domain/effect/effect-preset';
 
 describe('EffectPreset', () => {
   function makePreset(): EffectPreset {
@@ -126,6 +131,37 @@ describe('EffectPreset', () => {
 
       expect(preset.isStaged).toBe(false);
       expect(preset.duration).toBe(preset.durationMs);
+    });
+  });
+
+  describe('the bounds its numbers are held to', () => {
+    const READ: readonly [BoundedPresetNumber, (preset: EffectPreset) => number][] = [
+      ['durationMs', (preset) => preset.duration],
+      ['staggerMs', (preset) => preset.stagger],
+      ['scale', (preset) => preset.sizeScale],
+      ['maxTargets', (preset) => preset.targetLimit],
+      ['areaRadius', (preset) => preset.areaRadiusCells],
+      ['grade', (preset) => preset.gradeLevel],
+      ['shots', (preset) => preset.shotCount],
+      ['shotInterval', (preset) => preset.shotIntervalMs],
+    ];
+
+    it.each(READ)('are the ones %s is played within', (key, read) => {
+      const preset = new EffectPreset();
+      preset.targeting = 'multi';
+
+      preset[key] = 99999;
+      expect(read(preset)).toBe(PRESET_NUMBER_BOUNDS[key].max);
+      preset[key] = -99999;
+      expect(read(preset)).toBe(PRESET_NUMBER_BOUNDS[key].min);
+    });
+
+    it('hold a number written, whole where it is whole, and take nothing but a number', () => {
+      expect(boundPresetNumber('scale', 10)).toBe(PRESET_NUMBER_BOUNDS.scale.max);
+      expect(boundPresetNumber('scale', '1.5')).toBe(1.5);
+      expect(boundPresetNumber('shots', 3.6)).toBe(4);
+      expect(boundPresetNumber('shotInterval', null)).toBeNull();
+      expect(boundPresetNumber('shotInterval', '')).toBeNull();
     });
   });
 });

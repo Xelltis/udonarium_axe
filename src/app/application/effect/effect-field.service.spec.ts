@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -32,6 +33,16 @@ describe('EffectFieldService', () => {
     expect(service.fields()).toEqual([field]);
     expect(service.presetOf(field)).toBe(preset);
     expect(field.isVisibleOnTable).toBe(true);
+  });
+
+  it('neither draws nor names an effect standing where the fog keeps the ground from this seat', () => {
+    const near = service.place(preset, 0, 0, 0);
+    const far = service.place(preset, 500, 500, 0);
+    vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockImplementation((object) => object === far);
+
+    expect(service.shownFields()).toEqual([near]);
+    expect(service.renderables(0).map((drawn) => drawn.cast.targets[0].identifier)).toEqual([near.identifier]);
+    expect(service.fields()).toEqual([near, far]);
   });
 
   it('loops the effect over its own length', () => {

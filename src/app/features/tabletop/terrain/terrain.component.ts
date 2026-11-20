@@ -10,13 +10,12 @@ import {
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
+import { DoorService } from '@axe/application/tabletop/door.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { imageFileEqual } from '@axe/core/storage/image-file';
@@ -55,7 +54,7 @@ const PRESS_SLOP_PX = 6;
   ],
   host: {
     class: 'block',
-    '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[style.display]': "isShown() ? null : 'none'",
     '[attr.data-object-id]': 'terrain().identifier',
     '[attr.data-door]': "isDoor() ? (isDoorOpen() ? 'open' : 'closed') : null",
     '(dragstart)': 'onDragstart($event)',
@@ -67,9 +66,8 @@ export class TerrainComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   protected readonly tabletopService = inject(TabletopService);
-  protected readonly visionService = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly rolePermission = inject(RolePermissionService);
+  private readonly doors = inject(DoorService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly terrainMenu = inject(TerrainMenuService);
   private readonly switchPresses = inject(SwitchPressService);
@@ -244,14 +242,16 @@ export class TerrainComponent {
     this.switchNotice.show(this.t(`feature.boardSwitch.refused.${outcome}`));
   }
 
-  /** Whether this seat may open and shut a door, which a guest may not. */
-  protected readonly mayOpenDoor = computed(() => this.rolePermission.canEditTabletop());
+  /** Whether this seat may open and shut the block, as `DoorService.mayWork` says: a guest none. */
+  protected readonly mayOpenDoor = computed(() => {
+    this.terrainVersion();
+    return this.doors.mayWork(this.terrain());
+  });
 
+  /** Opens the door or shuts it, where this seat may, unless the click ends a drag. */
   protected onDoorClick(): void {
-    if (!this.isDoor() || !this.mayOpenDoor() || this.pointerDeviceService.isDragging) return;
-    const terrain = this.terrain();
-    terrain.isDoorOpen = !terrain.isDoorOpen;
-    SoundEffect.play(terrain.isDoorOpen ? PresetSound.unlock : PresetSound.lock);
+    if (this.pointerDeviceService.isDragging) return;
+    this.doors.toggle(this.terrain());
   }
 
   readonly isSlope = computed(() => {
@@ -317,21 +317,14 @@ export class TerrainComponent {
   /** Whether the block stands on the hexes of a hex table, which it is turned by a ring round. */
   readonly isHex = computed(() => isHexGrid(this.gridType()) && Math.min(this.width(), this.depth()) >= 1);
 
-  private readonly fogCover = computed(() => {
-    const terrain = this.terrain();
-    this.objectChange.versionOf(terrain.identifier)();
-    return this.visionService.terrainFogCover(terrain);
-  });
-
   /**
-   * Ground nobody has walked to yet is not drawn at all.
-   *
-   * Only when none of it has been: a terrain the party has reached part of stays drawn, and
-   * its faces are cut back to the part instead.
+   * Whether this seat is shown the block (see `TablePiecesService.isBlockShown`). One it is not shown,
+   * glass or a block the fog lies over whole, has nothing of it on the screen for this seat: nothing to
+   * take hold of, turn, press or read over it.
    */
-  readonly isHiddenByFog = computed(() => {
-    const cover = this.fogCover();
-    return cover !== null && !cover.cleared.some((cell) => cell);
+  readonly isShown = computed(() => {
+    this.terrainVersion();
+    return this.pieces.isBlockShown(this.terrain());
   });
 
   /** Stops the browser starting a native drag on the terrain. */

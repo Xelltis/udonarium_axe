@@ -38,20 +38,24 @@ export class TableTriggerService {
   /**
    * The ones to draw: everything for the master, and whatever the rest have been shown.
    *
-   * Pressed ground the master has put away is the master's alone to see again.
+   * Pressed ground the master has put away is the master's alone to see again, and ground laid wholly
+   * where the fog still lies over ground nobody has walked to is not shown however it was painted, as
+   * nothing else painted on the ground is (see `VisionService.isGroundShown`).
    */
   shown(): TableTrigger[] {
     this.objectChange.trackMyCursor();
     const all = this.all();
     if (this.rolePermission.canSeeHidden()) return all;
-    const triggers = all.filter((trigger) => !trigger.pressSwitch?.retired);
+    const table = this.tableSelecter.viewTable;
+    const grid =
+      table && table.gridSize > 0 ? cellGridOf(table.width, table.height, table.gridSize, table.gridType) : null;
+    const triggers = all.filter(
+      (trigger) => !trigger.pressSwitch?.retired && (grid === null || this.vision.isGroundShown(grid, trigger.rect))
+    );
     if (!triggers.some((trigger) => trigger.shows === 'sight')) {
       return triggers.filter((trigger) => trigger.isShown);
     }
     const seen = this.seenCells();
-    const table = this.tableSelecter.viewTable;
-    const grid =
-      table && table.gridSize > 0 ? cellGridOf(table.width, table.height, table.gridSize, table.gridType) : null;
     return triggers.filter(
       (trigger) =>
         trigger.isShown || (trigger.shows === 'sight' && grid !== null && groundInSight(grid, trigger.rect, seen))

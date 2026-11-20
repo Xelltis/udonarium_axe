@@ -41,8 +41,8 @@
       <cut-in-stage
         class="pointer-events-none absolute inset-0"
         [scene]="scene"
-        [sceneWidth]="cutIn.width"
-        [sceneHeight]="cutIn.height"
+        [sceneWidth]="cutIn.shownSize.width"
+        [sceneHeight]="cutIn.shownSize.height"
         [playing]="playbackStarted()"
         [startOffsetMs]="playbackOffsetMs"
         [speaker]="speaker"

@@ -15,25 +15,18 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { WhiteBoardService } from '@axe/application/tabletop/white-board.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_DESERIALIZE_SCENE, perfCounters } from '@axe/core/util/perf-counters';
-import { Card } from '@axe/domain/card/card';
-import { GameCharacter } from '@axe/domain/character/game-character';
-import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { deserializeScene } from '@axe/domain/map-editor/serialize';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
-import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
-import { detachAllFrom } from '@axe/features/tabletop/white-board/white-board-contents';
 import { buildWhiteBoardContextMenu } from '@axe/features/tabletop/white-board/white-board-context-menu';
 import { LivePicture, livePicturesOf } from '@axe/features/tabletop/white-board/white-board-live-pictures';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
@@ -70,6 +63,7 @@ export class WhiteBoardComponent {
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly boards = inject(WhiteBoardService);
   private readonly objectStore = inject(ObjectStore);
   private readonly panelService = inject(PanelService);
   private readonly saveDataService = inject(SaveDataService);
@@ -191,69 +185,6 @@ export class WhiteBoardComponent {
       .filter((picture) => picture.url.length > 0);
   });
 
-  private readonly contentsOf = <T extends TabletopObject>(list: readonly T[]): T[] => {
-    const identifier = this.whiteBoard().identifier;
-    return list.filter((object) => boardSurfaceOf(object) === identifier);
-  };
-
-  /**
-   * Reads the collections, then hands back the table.
-   *
-   * It is the same table every time, so under the default equality a piece put on the board
-   * would never reach anything that reads this: the collection would say it has changed and the
-   * answer that it has not.
-   */
-  private readonly surfaceVersion = computed(
-    () => {
-      for (const alias of ['character', 'terrain', 'table-mask', 'text-note', 'card', 'dice-symbol']) {
-        this.objectChange.collectionOf(alias)();
-      }
-      return this.tabletopService.currentTable.identifier;
-    },
-    { equal: () => false }
-  );
-
-  /** The characters on the board, which its menu counts and takes off it; the table draws them over it. */
-  readonly characters = computed<GameCharacter[]>(() => {
-    this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.characters);
-  });
-  /** The blocks on the board, which its menu counts and takes off it; the table draws them over it. */
-  readonly terrains = computed<Terrain[]>(() => {
-    this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.terrains);
-  });
-  /** The masks on the board, which its menu counts and takes off it; the table draws them over it. */
-  readonly masks = computed<GameTableMask[]>(() => {
-    this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.tableMasks);
-  });
-  /** The notes on the board, which its menu counts and takes off it; the table draws them over it. */
-  readonly textNotes = computed<TextNote[]>(() => {
-    this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.textNotes);
-  });
-  /** The cards on the board, which its menu counts and takes off it; the table draws them over it. */
-  readonly cards = computed<Card[]>(() => {
-    this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.cards);
-  });
-  /** The dice on the board, which its menu counts and takes off it; the table draws them over it. */
-  readonly diceSymbols = computed<DiceSymbol[]>(() => {
-    this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.diceSymbols);
-  });
-
-  readonly standingCount = computed(
-    () =>
-      this.characters().length +
-      this.terrains().length +
-      this.masks().length +
-      this.textNotes().length +
-      this.cards().length +
-      this.diceSymbols().length
-  );
-
   /** Plays the pick-up sound when a drag or a turn of the board begins. */
   onMove(): void {
     SoundEffect.play(PresetSound.cardPick);
@@ -283,7 +214,7 @@ export class WhiteBoardComponent {
     const position = this.pointerDeviceService.pointers[0];
     if (this.pieceContextMenu.openForSelection(board, this.gridSize, position)) return;
 
-    const menu = buildWhiteBoardContextMenu(board, this.standingCount(), this.translateFn, {
+    const menu = buildWhiteBoardContextMenu(board, this.boards.standingOn(board).length, this.translateFn, {
       onDraw: (target) => this.openDrawing(target),
       onDetachAll: (target) => this.detachAll(target),
       onCopy: (target) => this.copy(target),
@@ -303,19 +234,8 @@ export class WhiteBoardComponent {
 
   /** Everything on the board goes back to the table, keeping the place it appears to be in. */
   detachAll(board: WhiteBoard): void {
-    detachAllFrom(board, this.standing());
+    this.boards.clear(board);
     SoundEffect.play(PresetSound.cardPut);
-  }
-
-  private standing(): TabletopObject[] {
-    return [
-      ...this.characters(),
-      ...this.terrains(),
-      ...this.masks(),
-      ...this.textNotes(),
-      ...this.cards(),
-      ...this.diceSymbols(),
-    ];
   }
 
   private copy(board: WhiteBoard): void {
@@ -340,8 +260,7 @@ export class WhiteBoardComponent {
   }
 
   private remove(board: WhiteBoard): void {
-    this.detachAll(board);
-    board.destroy();
+    this.boards.takeDown(board);
     SoundEffect.play(PresetSound.sweep);
   }
 
