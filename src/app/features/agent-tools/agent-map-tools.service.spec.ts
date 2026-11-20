@@ -37,7 +37,7 @@ describe('AgentMapTools', () => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     const maps = TestBed.inject(MapGenerationService);
     build = vi.spyOn(maps, 'build').mockImplementation(async () => mapOf());
-    discard = vi.spyOn(maps, 'discard').mockImplementation(() => undefined);
+    discard = vi.spyOn(maps, 'discard').mockImplementation(() => true);
     tools = TestBed.inject(AgentMapTools);
   });
 
