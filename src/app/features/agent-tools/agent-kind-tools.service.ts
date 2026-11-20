@@ -87,14 +87,20 @@ export class AgentKindTools {
     const refused = fields
       .map(({ field, value }) => field.refuse?.(made, value) ?? null)
       .find((reason) => reason !== null);
-    if (refused) {
+    const takeBack = () => {
       if (making.unmake) making.unmake(made);
       else (made as unknown as { destroy?: () => void }).destroy?.();
+    };
+    if (refused) {
+      takeBack();
       throw new AgentToolError('not_allowed', refused);
     }
-    GameObject.batch(() => {
-      for (const { field, value } of fields) field.put!(made, value);
-    });
+    try {
+      this.putAll(made, fields);
+    } catch (reason) {
+      takeBack();
+      throw reason;
+    }
     return this.view(kind, made);
   }
 
@@ -107,10 +113,31 @@ export class AgentKindTools {
       .map(({ field, value }) => field.refuse?.(thing, value) ?? null)
       .find((reason) => reason !== null);
     if (refused) throw new AgentToolError('not_allowed', refused);
-    GameObject.batch(() => {
-      for (const { field, value } of fields) field.put!(thing, value);
-    });
+    this.putAll(thing, fields);
     return this.view(kind, thing);
+  }
+
+  /**
+   * Writes every field given, in one batch. Where one throws partway, the fields written before it are
+   * put back as they read before, so a call changes all it names or none of it, and the error thrown is
+   * the one answered.
+   */
+  private putAll(thing: Thing, fields: readonly { field: AgentKindField<Thing>; value: unknown }[]): void {
+    const before = fields.map(({ field }) => field.read(thing));
+    const written: number[] = [];
+    try {
+      GameObject.batch(() => {
+        fields.forEach(({ field, value }, index) => {
+          field.put!(thing, value);
+          written.push(index);
+        });
+      });
+    } catch (reason) {
+      GameObject.batch(() => {
+        for (const index of written.reverse()) fields[index].field.put!(thing, before[index]);
+      });
+      throw reason;
+    }
   }
 
   private remove(args: AgentArgs): unknown {

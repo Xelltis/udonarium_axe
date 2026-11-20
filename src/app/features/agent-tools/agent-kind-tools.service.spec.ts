@@ -11,8 +11,8 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { AgentKindTools } from '@axe/features/agent-tools/agent-kind-tools.service';
 import { type AgentKind, anyKind, numberField, objectInput } from '@axe/features/agent-tools/kinds/agent-kind';
-import { AgentSquares } from '@axe/features/agent-tools/kinds/agent-squares.service';
 import { AgentKinds } from '@axe/features/agent-tools/kinds/agent-kinds.service';
+import { AgentSquares } from '@axe/features/agent-tools/kinds/agent-squares.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -202,6 +202,58 @@ describe('AgentKindTools', () => {
     );
     expect(things[0].level).toBe(1);
     expect(() => call('create_object', { kind: 'probe', fields: { level: 5, odd: 4 } })).toThrow(/Only odd numbers/);
+    expect(kind.list().map((thing) => thing.label)).toEqual(['kept']);
+  });
+
+  it('puts back the fields written before one that fails as it is written, and takes back a thing just made', () => {
+    const kinds = TestBed.inject(AgentKinds);
+    const things: { level: number; label: string; destroyed?: boolean }[] = [{ level: 1, label: 'kept' }];
+    const kind: AgentKind<(typeof things)[number]> = {
+      kind: 'probe',
+      description: '',
+      list: () => things.filter((thing) => !thing.destroyed),
+      idOf: (thing) => `probe-${things.indexOf(thing)}`,
+      nameOf: (thing) => thing.label,
+      fields: [
+        numberField(
+          'level',
+          '',
+          'write',
+          {},
+          (thing) => thing.level,
+          (thing, value) => {
+            thing.level = value;
+          }
+        ),
+        numberField(
+          'broken',
+          '',
+          'write',
+          {},
+          () => 0,
+          () => {
+            throw new Error('cannot write it');
+          }
+        ),
+      ],
+      create: {
+        access: 'write',
+        description: '',
+        input: objectInput(),
+        make: () => {
+          const made = { level: 0, label: 'made', destroy: () => (made.destroyed = true), destroyed: false };
+          things.push(made);
+          return made;
+        },
+      },
+    };
+    vi.spyOn(kinds, 'of').mockReturnValue(anyKind(kind));
+
+    expect(() => call('change_object', { kind: 'probe', id: 'kept', fields: { level: 5, broken: 1 } })).toThrow(
+      /cannot write it/
+    );
+    expect(things[0].level).toBe(1);
+    expect(() => call('create_object', { kind: 'probe', fields: { level: 5, broken: 1 } })).toThrow(/cannot write it/);
     expect(kind.list().map((thing) => thing.label)).toEqual(['kept']);
   });
 
