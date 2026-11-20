@@ -329,7 +329,7 @@ describe('CutInEditorComponent', () => {
     expect([cutIn.width, cutIn.height]).toEqual([1920, 252]);
   });
 
-  it('takes a size typed into its box only as the box is left, so a number is typed whole before it is held to the bounds', async () => {
+  it('takes a size into its box as it is committed, by leaving the box, Enter or its arrows, so a number is typed whole first', async () => {
     cutIn.isVideoCutIn = true;
     cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
     cutIn.originalSize = false;
@@ -345,7 +345,8 @@ describe('CutInEditorComponent', () => {
       await fixture.whenStable();
       expect(box.value).toBe(typed);
     }
-    box.dispatchEvent(new Event('blur'));
+    expect(cutIn.width).not.toBe(640);
+    box.dispatchEvent(new Event('change'));
     fixture.detectChanges();
     await fixture.whenStable();
 
