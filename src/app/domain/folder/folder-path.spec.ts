@@ -160,4 +160,21 @@ describe('fileUnderFolder()', () => {
     expect(fileUnderFolder(item, '')).toBe(true);
     expect([item.folderName, writes]).toEqual(['', 2]);
   });
+
+  it('writes nothing for a thing an older save filed with spaces round its path, filed there again', () => {
+    let writes = 0;
+    let folderName = ' 村 ';
+    const item = {
+      get folderName() {
+        return folderName;
+      },
+      set folderName(value: string) {
+        writes++;
+        folderName = value;
+      },
+    };
+
+    expect(fileUnderFolder(item, '村')).toBe(false);
+    expect(writes).toBe(0);
+  });
 });

@@ -33,12 +33,12 @@ export interface FiledInFolder {
 
 /**
  * Files a thing under a folder, or under none for an empty path, the path written as it is stored,
- * and only where it changes, so that filing a thing where it is already filed sends nothing. Whether
- * it changed.
+ * and only where it changes, the two paths compared as they read, so that filing a thing where it is
+ * already filed sends nothing, one an older save stored with spaces round it as well. Whether it changed.
  */
 export function fileUnderFolder(item: FiledInFolder, path: string): boolean {
   const folder = normalizeFolderPath(path);
-  if (item.folderName === folder) return false;
+  if (normalizeFolderPath(item.folderName) === folder) return false;
   item.folderName = folder;
   return true;
 }
