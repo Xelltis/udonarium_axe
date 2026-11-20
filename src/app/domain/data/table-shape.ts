@@ -41,17 +41,24 @@ export interface TableShapeRow {
   readonly from: string | null;
 }
 
+/** The rows and columns of a table as a shape was read from it, in order, each as it then read. */
+export interface TableShapeSeen {
+  readonly columns: readonly TableShapeColumn[];
+  readonly rows: readonly TableShapeRow[];
+}
+
 /**
  * A table as it is built: its columns and its rows, in order, the names of the gap columns the table
- * keeps as they are, which no column may go by, and the rows and columns the shape was read from, by
- * identifier and by name. Building takes away only rows and columns the shape was read from and no
- * longer has; one added to the table since, as by another seat, is kept.
+ * keeps as they are, which no column may go by, and the rows and columns the shape was read from, as
+ * they then read. Building takes away only rows and columns the shape was read from and no longer has;
+ * one added to the table since, as by another seat, is kept. A shape is built only on a table whose
+ * rows and columns it was read from read as they did (see {@link tableBuildProblems}).
  */
 export interface TableShape {
   readonly columns: readonly TableShapeColumn[];
   readonly rows: readonly TableShapeRow[];
   readonly gaps?: readonly string[];
-  readonly seen?: { readonly rows: readonly string[]; readonly columns: readonly string[] };
+  readonly seen?: TableShapeSeen;
 }
 
 const KIND_OF_FIELD: Readonly<Record<string, TableCellKind>> = {
@@ -78,6 +85,12 @@ function kindOf(cell: DataElement): TableCellKind {
  * over it, and its kind and choices those of the first of its cells in a row of the table's body.
  */
 export function tableShapeOf(table: DataElement): TableShape {
+  const read = readTable(table);
+  return { ...read, seen: { columns: read.columns, rows: read.rows } };
+}
+
+/** A table's columns, rows and gap columns as they stand (see {@link tableShapeOf}). */
+function readTable(table: DataElement): Required<Omit<TableShape, 'seen'>> {
   const rows = getTableBodyRows(table);
   const columns = getTableColumns(table)
     .filter((column) => !isGapColumn(column))
@@ -95,11 +108,14 @@ export function tableShapeOf(table: DataElement): TableShape {
   const gaps = getTableColumns(table)
     .filter((column) => isGapColumn(column))
     .map((column) => column.name);
+  return { columns, rows: rows.map((row) => ({ name: row.name, from: row.identifier })), gaps };
+}
+
+/** The identifiers of the rows and the names of the columns a shape was read from: none where it was read from no table. */
+function seenOf(shape: TableShape): { rows: Set<string | null>; columns: Set<string> } {
   return {
-    columns,
-    rows: rows.map((row) => ({ name: row.name, from: row.identifier })),
-    gaps,
-    seen: { rows: rows.map((row) => row.identifier), columns: columns.map((column) => column.name) },
+    rows: new Set((shape.seen?.rows ?? []).map((row) => row.from)),
+    columns: new Set((shape.seen?.columns ?? []).map((column) => column.name)),
   };
 }
 
@@ -109,23 +125,24 @@ export function tableShapeOf(table: DataElement): TableShape {
  * take, besides its gap columns.
  */
 function standingApart(table: DataElement, shape: TableShape): { rows: string[]; columns: string[] } {
-  const seen = shape.seen ?? { rows: [], columns: [] };
+  const seen = seenOf(shape);
   return {
     rows: getTableBodyRows(table)
-      .filter((row) => !seen.rows.includes(row.identifier))
+      .filter((row) => !seen.rows.has(row.identifier))
       .map((row) => row.name),
     columns: getTableColumns(table)
-      .filter((column) => !isGapColumn(column) && !seen.columns.includes(column.name))
+      .filter((column) => !isGapColumn(column) && !seen.columns.has(column.name))
       .map((column) => column.name),
   };
 }
 
 /**
  * What keeps a shape from being built on a table as it stands now (see {@link tableShapeProblems}):
- * a row or column the shape was read from that the table no longer has under its name or identifier, as
- * another seat took it away or named it again while the shape was being built, which builds nothing
- * rather than guessing which is which; and besides what is wrong with the shape itself, a row or column
- * taking the name of one the table holds apart from it, a gap column or one added since the shape was read.
+ * a row or column the shape was read from that no longer reads as it did, as another seat took it
+ * away, named it again, moved it or changed its words, group, kind or choices while the shape was
+ * being built, which builds nothing rather than write what the shape read over what was changed;
+ * and besides what is wrong with the shape itself, a row or column taking the name of one the table
+ * holds apart from it, a gap column or one added since the shape was read.
  */
 export function tableBuildProblems(table: DataElement, shape: TableShape): TableShapeProblem[] {
   if (changedSince(table, shape)) return ['changedSince'];
@@ -140,13 +157,21 @@ export function tableBuildProblems(table: DataElement, shape: TableShape): Table
   });
 }
 
-/** Whether a row or column the shape was read from is gone from the table, by its identifier or its name. */
+/**
+ * Whether the rows and columns a shape was read from read otherwise now: any of them gone, named
+ * again, moved among the others, or a column's words, group, kind or choices changed, everything a
+ * build writes. Rows and columns added since, and the values of cells, are not counted.
+ */
 function changedSince(table: DataElement, shape: TableShape): boolean {
-  const seen = shape.seen;
-  if (!seen) return false;
-  const rows = new Set(getTableBodyRows(table).map((row) => row.identifier));
-  const columns = new Set(getTableColumns(table).map((column) => column.name));
-  return seen.rows.some((row) => !rows.has(row)) || seen.columns.some((column) => !columns.has(column));
+  if (!shape.seen) return false;
+  const seen = seenOf(shape);
+  const now = readTable(table);
+  const standing: TableShapeSeen = {
+    columns: now.columns.filter((column) => seen.columns.has(column.name)),
+    rows: now.rows.filter((row) => seen.rows.has(row.from)),
+  };
+  const read: TableShapeSeen = { columns: shape.seen.columns, rows: shape.seen.rows };
+  return JSON.stringify(standing) !== JSON.stringify(read);
 }
 
 /**
@@ -221,12 +246,12 @@ export function cellsLostBy(table: DataElement, shape: TableShape): number {
 
 /** Whether building the shape takes a body row away: one it was read from and no longer has. */
 function dropsRow(shape: TableShape, row: DataElement): boolean {
-  return (shape.seen?.rows ?? []).includes(row.identifier) && !shape.rows.some((each) => each.from === row.identifier);
+  return seenOf(shape).rows.has(row.identifier) && !shape.rows.some((each) => each.from === row.identifier);
 }
 
 /** Whether building the shape takes a column away, by its name as it stands: one it was read from and no longer has. */
 function dropsColumn(shape: TableShape, name: string): boolean {
-  return (shape.seen?.columns ?? []).includes(name) && !shape.columns.some((each) => each.from === name);
+  return seenOf(shape).columns.has(name) && !shape.columns.some((each) => each.from === name);
 }
 
 /** A value carried into a cell of another kind, as far as it reads as one: ticked or not, a number, or as it was. */
