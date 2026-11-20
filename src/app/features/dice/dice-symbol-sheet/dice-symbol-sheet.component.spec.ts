@@ -101,14 +101,15 @@ describe('DiceSymbolSheetComponent', () => {
       expect(shown).toHaveBeenCalledOnce();
     });
 
-    it('is shown whole to the game master, who may turn its face', () => {
+    it('is shown whole to the game master, who does not turn its face, that being its keeper’s', () => {
       die.owner = 'somebody-else';
+      const before = die.face;
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       const fixture = sheetOf(die);
 
       expect(fixture.nativeElement.querySelector('[data-testid="dice-sheet-locked"]')).toBeNull();
       fixture.componentInstance.selectFace('6');
-      expect(die.face).toBe('6');
+      expect(die.face).toBe(before);
     });
   });
 

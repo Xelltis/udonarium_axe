@@ -45,10 +45,21 @@ export class DiceRollService {
   }
 
   /**
-   * Whether this seat may turn a die: roll it, set its face, hide or show its name, and change it on
-   * its sheet. A seat that may change the table may, for a die whose face it may read.
+   * Whether this seat may turn a die, rolling it or setting its face: a seat that may change the table,
+   * for a die nobody keeps or that it keeps. The game master reads, shows and keeps another seat's kept
+   * die but does not throw it, as the kept-back line of such a throw would be the master's, which the
+   * keeper could not open as they show the die.
    */
   canTurn(die: DiceSymbol): boolean {
+    return this.permission.canEditTabletop() && (!die.hasOwner || die.isMine);
+  }
+
+  /**
+   * Whether this seat may change a die short of turning it, hiding or showing its name and changing it
+   * on its sheet: a seat that may change the table, for a die whose face it may read, the game master's
+   * reading of another seat's kept die included.
+   */
+  canChange(die: DiceSymbol): boolean {
     return this.permission.canEditTabletop() && this.readsFace(die);
   }
 
@@ -74,9 +85,9 @@ export class DiceRollService {
     return true;
   }
 
-  /** Hides a die's name from the table or shows it. False, with nothing done, where this seat may not turn it. */
+  /** Hides a die's name from the table or shows it. False, with nothing done, where this seat may not change it. */
   setNameHidden(die: DiceSymbol, hidden: boolean): boolean {
-    if (!this.canTurn(die)) return false;
+    if (!this.canChange(die)) return false;
     die.hideName = hidden;
     return true;
   }

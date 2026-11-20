@@ -95,6 +95,15 @@ export class DiceSymbolSheetComponent {
     return this.diceRoll.readsFace(dice);
   });
 
+  /** Whether this seat may turn the die to a face from the sheet (see `DiceRollService.canTurn`). */
+  readonly turnsFace = computed(() => {
+    const dice = this._diceSymbol();
+    if (!dice) return false;
+    this.objectChange.versionOf(dice.identifier)();
+    this.objectChange.networkVersion();
+    return this.diceRoll.canTurn(dice);
+  });
+
   readonly hasDiceDefault = computed(() => {
     const dice = this._diceSymbol();
     if (!dice) return false;

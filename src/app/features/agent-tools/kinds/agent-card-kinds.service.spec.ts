@@ -483,10 +483,9 @@ describe('AgentCardKinds', () => {
       expect(die.face).toBe('6');
 
       PeerCursor.myCursor.role = PeerRole.GameMaster;
-      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSecretSystemMessageToMainTab').mockReturnValue(null!);
-      expect(act('dice-symbol', die.identifier, 'set_face', { face: '2' })).toMatchObject({ face: '2' });
-      act('dice-symbol', die.identifier, 'roll');
-      expect(said).toHaveBeenCalledTimes(1);
+      expect(() => act('dice-symbol', die.identifier, 'roll')).toThrow(/Another seat keeps this die/);
+      expect(() => act('dice-symbol', die.identifier, 'set_face', { face: '2' })).toThrow(/Another seat keeps/);
+      expect([die.face, said.mock.calls.length]).toEqual(['6', 1]);
     });
 
     it('keeps a player from renaming, resizing or hiding the name of a die another seat keeps', () => {

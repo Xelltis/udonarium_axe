@@ -254,15 +254,14 @@ describe('DiceSymbolComponent', () => {
       expect(openLazy).toHaveBeenCalledOnce();
     });
 
-    it('is rolled by a double tap of the game master and not of a player', () => {
+    it('is rolled by a double tap of neither a player nor the game master, being its keeper’s to throw', () => {
       const roll = vi.spyOn(component, 'diceRoll').mockReturnValue('1');
 
       component.onDoubleClick();
-      expect(roll).not.toHaveBeenCalled();
-
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       component.onDoubleClick();
-      expect(roll).toHaveBeenCalledOnce();
+
+      expect(roll).not.toHaveBeenCalled();
     });
   });
 

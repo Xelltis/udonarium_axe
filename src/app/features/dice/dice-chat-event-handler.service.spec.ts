@@ -210,7 +210,7 @@ describe('DiceChatEventHandlerService', () => {
     }
   });
 
-  it('passes over a die another seat keeps among peers too, and turns it for the game master', () => {
+  it('passes over a die another seat keeps among peers too, for the game master as well', () => {
     const goblin = makeCharacter('ゴブリンA');
     const kept = makeDice(goblin);
     kept.owner = 'someone-else';
@@ -223,7 +223,7 @@ describe('DiceChatEventHandlerService', () => {
 
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 5 }]);
-    expect(kept.face).toBe('5');
+    expect([kept.face, shown.face]).toEqual(['1', '5']);
   });
 
   it('turns a die that only lacks its face, which nobody would put back', () => {

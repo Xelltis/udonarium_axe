@@ -747,9 +747,10 @@ export class AgentCardKinds {
     const seesFace = (die: DiceSymbol) => this.diceRoll.readsFace(die);
     const seesName = (die: DiceSymbol) => this.diceRoll.showsName(die);
     const turned = (die: DiceSymbol) => (this.diceRoll.canTurn(die) ? null : KEPT_BY_ANOTHER);
+    const changed = (die: DiceSymbol) => (this.diceRoll.canChange(die) ? null : KEPT_BY_ANOTHER);
     const sheet = (die: DiceSymbol) =>
       this.disclosure.canView(die)
-        ? turned(die)
+        ? changed(die)
         : "This die's sheet is not shown to this seat, so it is not its to change.";
     const thrown = (die: DiceSymbol) => {
       const reason = turned(die);
@@ -758,7 +759,7 @@ export class AgentCardKinds {
     const kind: AgentKind<DiceSymbol> = {
       kind: DiceSymbol.aliasName,
       description:
-        'A die standing on the table. A die a seat keeps shows its face to that seat alone (and the game master), and its face is left out for any other, its name too, as it is where the name is hidden; only those two may roll it, set its face, hide its name or change it. Roll it, set its face, show it or keep it with its actions.',
+        'A die standing on the table. A die a seat keeps shows its face to that seat alone (and the game master), and its face is left out for any other, its name too, as it is where the name is hidden; only its keeper may roll it or set its face, and those two may hide its name or change it. Roll it, set its face, show it or keep it with its actions.',
       list: () =>
         this.objectStore.getObjects<DiceSymbol>(DiceSymbol).filter((die) => this.placedFor(die, Math.max(0, die.size))),
       idOf: (die) => die.identifier,
@@ -803,7 +804,7 @@ export class AgentCardKinds {
               this.diceRoll.setNameHidden(die, value);
             }
           ),
-          refuse: turned,
+          refuse: changed,
         },
         flagField<DiceSymbol>(
           'used',

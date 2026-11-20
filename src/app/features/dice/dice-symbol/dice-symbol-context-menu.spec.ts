@@ -61,6 +61,7 @@ const cb = (ownerCandidates: { identifier: string; name: string }[] = []) => ({
 const rules = (overrides: Partial<Record<keyof DiceFaceRules, unknown>> = {}) =>
   ({
     canTurn: vi.fn(() => true),
+    canChange: vi.fn(() => true),
     canReveal: vi.fn(() => false),
     canKeep: vi.fn(() => false),
     setFace: vi.fn(() => true),
@@ -84,7 +85,7 @@ describe('buildDiceSymbolContextMenu()', () => {
     const menu = buildDiceSymbolContextMenu(
       dice as unknown as DiceSymbol,
       50,
-      rules({ canTurn: vi.fn(() => false) }),
+      rules({ canTurn: vi.fn(() => false), canChange: vi.fn(() => false) }),
       cb(),
       t
     );
@@ -220,14 +221,13 @@ describe('buildDiceSymbolContextMenu()', () => {
       }
     });
 
-    it('offers the game master all of them on that die', () => {
+    it('offers the game master every entry on that die but throwing it and setting its face, which are its keeper’s', () => {
       PeerCursor.myCursor.role = PeerRole.GameMaster;
 
       const menu = menuOf();
 
-      for (const entry of ['ダイスを振る', 'ダイス目を設定', '☐ 名前を隠す', 'ダイスを公開', '自分だけ見る']) {
-        expect(menu).toContain(entry);
-      }
+      for (const entry of ['☐ 名前を隠す', 'ダイスを公開', '自分だけ見る']) expect(menu).toContain(entry);
+      for (const entry of ['ダイスを振る', 'ダイス目を設定']) expect(menu).not.toContain(entry);
     });
 
     it('lets its keeper show it, which says the face it shows', () => {

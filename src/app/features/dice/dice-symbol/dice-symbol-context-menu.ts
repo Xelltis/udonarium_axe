@@ -18,7 +18,7 @@ export interface DiceOwnerCandidate {
 /** Who may turn, show and keep a die, and the doing of each, as the dice service holds them. */
 export type DiceFaceRules = Pick<
   DiceRollService,
-  'canTurn' | 'canReveal' | 'canKeep' | 'setFace' | 'setNameHidden' | 'reveal' | 'keep'
+  'canTurn' | 'canChange' | 'canReveal' | 'canKeep' | 'setFace' | 'setNameHidden' | 'reveal' | 'keep'
 >;
 
 /**
@@ -116,7 +116,7 @@ export function buildDiceSymbolContextMenu(
 
   actions.push(buildLockToggleAction(diceSymbol.isLock, (next) => (diceSymbol.isLock = next), t));
 
-  if (turns) {
+  if (dice.canChange(diceSymbol)) {
     actions.push({
       name: t(diceSymbol.hideName ? 'feature.dice.contextMenu.hideNameOn' : 'feature.dice.contextMenu.hideNameOff'),
       action: () => {

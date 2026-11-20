@@ -340,20 +340,21 @@ describe('DiceRollService', () => {
       expect(service.showsName(theirs)).toBe(false);
     });
 
-    it('lets the game master read, turn and throw a die another seat keeps, in secret', () => {
+    it('lets the game master read and change a die another seat keeps, but not throw it, so the keeper opens its throws', () => {
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       const theirs = theirDie();
 
-      expect([service.readsFace(theirs), service.canTurn(theirs), service.showsName(theirs)]).toEqual([
+      expect([service.readsFace(theirs), service.canChange(theirs), service.showsName(theirs)]).toEqual([
         true,
         true,
         true,
       ]);
-      expect(service.roll([theirs])).toHaveLength(1);
-      expect(sendSecret).toHaveBeenCalledOnce();
+      expect(service.canTurn(theirs)).toBe(false);
+      expect(service.roll([theirs])).toEqual([]);
+      expect(sendSecret).not.toHaveBeenCalled();
     });
 
-    it('sets the face and hides the name only of a die this seat may turn', () => {
+    it('sets the face only of a die this seat may turn, and hides the name of one it may change', () => {
       const theirs = theirDie();
       theirs.face = '1';
 
@@ -362,10 +363,9 @@ describe('DiceRollService', () => {
       expect([theirs.face, theirs.hideName]).toEqual(['1', false]);
 
       PeerCursor.myCursor.role = PeerRole.GameMaster;
-      expect(service.setFace(theirs, '7')).toBe(false);
-      expect(service.setFace(theirs, '6')).toBe(true);
+      expect(service.setFace(theirs, '6')).toBe(false);
       expect(service.setNameHidden(theirs, true)).toBe(true);
-      expect([theirs.face, theirs.hideName]).toEqual(['6', true]);
+      expect([theirs.face, theirs.hideName]).toEqual(['1', true]);
     });
 
     it('turns nothing for a guest', () => {
