@@ -23,6 +23,11 @@ export interface AgentToolDefinition {
    * or writes the `file` the tab answers with there. The bridge keeps both to a folder it was told.
    */
   readonly localFile?: { readonly arg: string; readonly mode: 'read' | 'write' };
+  /**
+   * Whether the tool keeps something in this browser for the person, as a snapshot of the room is kept,
+   * changing nothing of the room but what this browser holds (an older snapshot let go to make room).
+   */
+  readonly keepsHere?: true;
   /** How long the bridge gives a call, for a tool that takes longer than most. */
   readonly timeoutMs?: number;
   /** Whether the tool reaches out to sites beyond the room and the person's computer. */
@@ -40,13 +45,13 @@ export const MAX_AGENT_FILE_BYTES = 96 * 1024 * 1024;
 export const MAX_AGENT_MESSAGE_BYTES = Math.ceil(MAX_AGENT_FILE_BYTES / 3) * 4 + 1024 * 1024;
 
 /**
- * Whether a tool changes nothing at all, as an MCP client is told by its read-only hint: one that only
- * reads the room, and writes no file to the computer the bridge runs on either. A tool that reads the
- * room but saves it to a file is no read of the person's own disk, and a client that lets read-only
- * tools run unasked must still ask for it.
+ * Whether a tool changes nothing at all, as an MCP client is told by its read-only hint and as a seat
+ * letting its AI read the room only lets it run: one that only reads the room, writing no file to the
+ * computer the bridge runs on and keeping nothing in this browser either. A tool that reads the room but
+ * saves it to a file or keeps a snapshot of it changes what the person holds, and is asked for.
  */
-export function isReadOnlyTool(tool: Pick<AgentToolDefinition, 'access' | 'localFile'>): boolean {
-  return tool.access === 'read' && tool.localFile?.mode !== 'write';
+export function isReadOnlyTool(tool: Pick<AgentToolDefinition, 'access' | 'localFile' | 'keepsHere'>): boolean {
+  return tool.access === 'read' && tool.localFile?.mode !== 'write' && tool.keepsHere !== true;
 }
 
 /** A file as the bridge and the tab hand it to each other: its name, its media type and its bytes. */
@@ -286,6 +291,7 @@ export const AGENT_TOOLS: readonly AgentToolDefinition[] = [
     name: 'save_room_snapshot',
     title: 'Take a room snapshot',
     access: 'read',
+    keepsHere: true,
     description: 'Keep a snapshot of the room in this browser now, as the room archive panel does. Answers its number.',
     input: input({}),
   },

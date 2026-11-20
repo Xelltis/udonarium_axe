@@ -2,22 +2,31 @@ import { TestBed } from '@angular/core/testing';
 import { AgentToolRunner, refusalOf } from '@axe/application/agent/agent-tool-runner.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
+import { agentToolOf } from '@axe/core/agent/agent-tools';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 
 describe('refusalOf', () => {
   it('lets any seat read', () => {
-    expect(refusalOf('read', 'read', PeerRole.Guest)).toBeNull();
+    expect(refusalOf({ access: 'read' }, 'read', PeerRole.Guest)).toBeNull();
   });
 
   it('lets a seat change the room only where it allows it and its role may', () => {
-    expect(refusalOf('write', 'write', PeerRole.Player)).toBeNull();
-    expect(refusalOf('write', 'read', PeerRole.GameMaster)?.message).toContain('read the room only');
-    expect(refusalOf('write', 'write', PeerRole.Guest)?.message).toContain('watches the room');
+    expect(refusalOf({ access: 'write' }, 'write', PeerRole.Player)).toBeNull();
+    expect(refusalOf({ access: 'write' }, 'read', PeerRole.GameMaster)?.message).toContain('read the room only');
+    expect(refusalOf({ access: 'write' }, 'write', PeerRole.Guest)?.message).toContain('watches the room');
+  });
+
+  it('keeps a tool that writes a file or keeps a snapshot for the person to a seat letting its AI change things', () => {
+    for (const tool of [agentToolOf('save_room')!, agentToolOf('save_room_snapshot')!]) {
+      expect(refusalOf(tool, 'read', PeerRole.Player)?.message, tool.name).toContain('keeps a file or a snapshot');
+      expect(refusalOf(tool, 'write', PeerRole.Guest), tool.name).toBeNull();
+    }
+    expect(refusalOf(agentToolOf('get_room')!, 'read', PeerRole.Guest)).toBeNull();
   });
 
   it('leaves the master’s tools to the master’s seat', () => {
-    expect(refusalOf('gm', 'write', PeerRole.GameMaster)).toBeNull();
-    expect(refusalOf('gm', 'write', PeerRole.Player)).toEqual({
+    expect(refusalOf({ access: 'gm' }, 'write', PeerRole.GameMaster)).toBeNull();
+    expect(refusalOf({ access: 'gm' }, 'write', PeerRole.Player)).toEqual({
       code: 'not_allowed',
       message: "Only the game master's seat may use this tool.",
     });

@@ -3,7 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { type AgentOutcome, outcomeOfError } from '@axe/core/agent/agent-error';
 import type { AgentError, AgentScope } from '@axe/core/agent/agent-protocol';
 import { checkAgentInput } from '@axe/core/agent/agent-schema';
-import { type AgentAccess, agentToolOf, tabInputOf } from '@axe/core/agent/agent-tools';
+import { type AgentToolDefinition, agentToolOf, isReadOnlyTool, tabInputOf } from '@axe/core/agent/agent-tools';
 import { canRoleEdit, PeerRole } from '@axe/domain/peer/peer-role';
 
 /** What a tool is given beside its input: a signal that says when the AI gave up on it. */
@@ -29,11 +29,25 @@ const HISTORY_LENGTH = 100;
 const INPUT_LENGTH = 120;
 
 /**
- * Why a seat may not run a tool needing some access, or null where it may: what the person at the
- * seat lets the AI do, and what the seat's own role may do, both bound it.
+ * Why a seat may not run a tool, or null where it may: what the person at the seat lets the AI do, and
+ * what the seat's own role may do, both bound it. A tool reading the room runs for any seat; one that
+ * reads the room but writes a file or keeps a snapshot for the person (see `isReadOnlyTool`) also needs
+ * the person to let the AI change things, as it changes what they hold, though not the room.
  */
-export function refusalOf(access: AgentAccess, scope: AgentScope, role: PeerRole): AgentError | null {
-  if (access === 'read') return null;
+export function refusalOf(
+  tool: Pick<AgentToolDefinition, 'access' | 'localFile' | 'keepsHere'>,
+  scope: AgentScope,
+  role: PeerRole
+): AgentError | null {
+  const access = tool.access;
+  if (access === 'read') {
+    if (isReadOnlyTool(tool) || scope === 'write') return null;
+    return {
+      code: 'not_allowed',
+      message:
+        'This seat lets the AI read the room only, and this tool keeps a file or a snapshot. Ask the person at the seat to allow changes in its AI link panel.',
+    };
+  }
   if (!canRoleEdit(role)) {
     return { code: 'not_allowed', message: 'This seat watches the room and may not change it.' };
   }
@@ -84,7 +98,7 @@ export class AgentToolRunner {
     if (!definition) return { ok: false, error: { code: 'unknown_tool', message: `There is no tool named ${tool}.` } };
     const problems = checkAgentInput(tabInputOf(definition), args);
     if (problems.length > 0) return { ok: false, error: { code: 'invalid_input', message: problems.join('; ') } };
-    const refusal = refusalOf(definition.access, scope, this.permission.role());
+    const refusal = refusalOf(definition, scope, this.permission.role());
     const handler = this.handlers.get(tool);
     let outcome: AgentOutcome;
     if (refusal) outcome = { ok: false, error: refusal };
