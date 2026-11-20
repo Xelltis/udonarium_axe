@@ -50,6 +50,17 @@ describe('buff-layers', () => {
       expect(composeLayers('2', [move(-5, 1)])).toBe('-3');
     });
 
+    it('works a moved number out in decimals, however small, large or long the amount and the number are', () => {
+      expect(composeLayers('1', [move(0.0000001, 1)])).toBe('1.0000001');
+      expect(composeLayers('1', [move(1e-11, 1)])).toBe('1');
+      expect(composeLayers('0.3', [move(-0.1, 1)])).toBe('0.2');
+      expect(composeLayers('123456789012345678901234', [move(1, 1)])).toBe('123456789012345678901235');
+      expect(composeLayers('1', [move(1e21, 1)])).toBe('1000000000000000000001');
+      expect(composeLayers('0.05', [move(-0.1, 1)])).toBe('-0.05');
+      expect(composeLayers('+1', [move(-1, 1)])).toBe('+0');
+      expect(composeLayers('1', [move(Number.NaN, 1)])).toBe('1');
+    });
+
     it('takes words written otherwise as a layer of their own, over those laid before and under those laid after', () => {
       const item = DataElement.create('属性', '炎');
       noteLeftByBuffs(item);

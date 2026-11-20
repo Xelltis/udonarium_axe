@@ -20,35 +20,56 @@ export function numberIn(text: string): number | null {
   return found ? Number(found[2]) : null;
 }
 
-/** How many places after the point a number is written with. */
-function placesOf(number: string): number {
-  const point = number.indexOf('.');
-  return point < 0 ? 0 : number.length - point - 1;
+/** A number in decimals, as a whole number of units of ten to the minus `places`, so sums carry no binary error. */
+interface Decimal {
+  readonly units: bigint;
+  readonly places: number;
 }
 
-/** How far a sum of amounts may be worked to, past which the places are only the arithmetic's own. */
+/** A number as it is written, a sign and places after the point with it, read as a {@link Decimal}. */
+function decimalOf(written: string): Decimal {
+  const [whole, fraction = ''] = written.replace(/^[+-]/, '').split('.');
+  const units = BigInt(`${whole}${fraction}`);
+  return { units: written.startsWith('-') ? -units : units, places: fraction.length };
+}
+
+/** How far an amount is worked to, past which the places are only the arithmetic's own. */
 const SUM_PLACES = 10;
+
+/** An amount as a {@link Decimal}, worked out to no more than {@link SUM_PLACES}, its noughts at the end dropped. */
+function amountOf(by: number): Decimal {
+  if (Math.abs(by) >= 1e21) return { units: BigInt(by), places: 0 };
+  return decimalOf(by.toFixed(SUM_PLACES).replace(/\.?0+$/, ''));
+}
+
+/** A decimal in as many places as given, which are at least its own. */
+function scaled(decimal: Decimal, places: number): bigint {
+  return decimal.units * 10n ** BigInt(places - decimal.places);
+}
 
 /**
  * Words with the number they lead with moved by an amount, in its place: what follows it, as a unit,
  * kept as it is, and the number written as it was written, to as many places after the point as it
- * and the amount had (an amount worked out to no more than {@link SUM_PLACES}), a plus sign kept, and
- * the noughts a number written with them led with kept to its width; words leading with no number as
- * they are.
+ * and the amount had (an amount worked out to no more than {@link SUM_PLACES}, below which it moves
+ * nothing), a plus sign kept, and the noughts a number written with them led with kept to its width;
+ * words leading with no number as they are. The sum is worked in decimals, as it is written.
  */
 export function movedBy(text: string, by: number): string {
   const found = LEADING_NUMBER.exec(text);
-  if (!found || by === 0) return text;
+  if (!found || !Number.isFinite(by)) return text;
+  const amount = amountOf(by);
+  if (amount.units === 0n) return text;
   const written = found[2];
-  const amount = Number(by.toFixed(SUM_PLACES));
-  const places = Math.max(placesOf(written), placesOf(String(amount)));
-  const moved = Number((Number(written) + amount).toFixed(places));
-  const integer = written.replace(/^[+-]/, '').split('.')[0];
-  const digits = integer.length > 1 && integer.startsWith('0') ? integer.length : 0;
-  const whole = Math.abs(moved).toFixed(places);
-  const padded = whole.padStart(whole.length - whole.split('.')[0].length + digits, '0');
-  const sign = moved < 0 ? '-' : written.startsWith('+') ? '+' : '';
-  return `${found[1]}${sign}${padded}${text.slice(found[0].length)}`;
+  const number = decimalOf(written);
+  const places = Math.max(number.places, amount.places);
+  const sum = scaled(number, places) + scaled(amount, places);
+  const digits = (sum < 0n ? -sum : sum).toString().padStart(places + 1, '0');
+  const integer = digits.slice(0, digits.length - places);
+  const writtenWhole = written.replace(/^[+-]/, '').split('.')[0];
+  const width = writtenWhole.length > 1 && writtenWhole.startsWith('0') ? writtenWhole.length : 0;
+  const fraction = places > 0 ? `.${digits.slice(digits.length - places)}` : '';
+  const sign = sum < 0n ? '-' : written.startsWith('+') ? '+' : '';
+  return `${found[1]}${sign}${integer.padStart(width, '0')}${fraction}${text.slice(found[0].length)}`;
 }
 
 /**
