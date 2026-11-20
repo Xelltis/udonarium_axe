@@ -132,17 +132,28 @@ export class CutIn extends GameObject implements InnerXml {
   /**
    * Sizes the cut-in by one side, the other following at the proportions of `shape` where one is given
    * with both sides known, as keeping its aspect does; both are then held inside the bounds its kind
-   * allows (see {@link setSize}).
+   * allows (see {@link setSize}). Where the side that follows would go past its bounds, it is held at
+   * them and the side given follows it back, so the proportions stay; only where no size within both
+   * bounds has them is the cut-in sized to the nearest it can be.
    */
   resizeSide(side: 'width' | 'height', value: number, shape: { width: number; height: number } | null): void {
     const given = this.clampSize(side === 'width' ? value : this.width, side === 'height' ? value : this.height);
     if (!shape || !(shape.width > 0) || !(shape.height > 0)) {
       this.setSize(given.width, given.height);
-    } else if (side === 'width') {
-      this.setSize(given.width, Math.floor((given.width * shape.height) / shape.width));
-    } else {
-      this.setSize(Math.floor((given.height * shape.width) / shape.height), given.height);
+      return;
     }
+    const tall = shape.height / shape.width;
+    const byWidth = (width: number) => ({ width, height: Math.floor(width * tall) });
+    const byHeight = (height: number) => ({ width: Math.floor(height / tall), height });
+    const wanted = side === 'width' ? byWidth(given.width) : byHeight(given.height);
+    const held = this.clampSize(wanted.width, wanted.height);
+    const kept =
+      held.width === wanted.width && held.height === wanted.height
+        ? wanted
+        : side === 'width'
+          ? byHeight(held.height)
+          : byWidth(held.width);
+    this.setSize(kept.width, kept.height);
   }
 
   /**

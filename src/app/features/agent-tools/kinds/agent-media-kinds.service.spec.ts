@@ -171,7 +171,7 @@ describe('AgentMediaKinds', () => {
       expect([cutIn.width, cutIn.height]).toEqual([800, 450]);
     });
 
-    it('holds the side that follows a kept aspect inside the bounds as well', () => {
+    it('holds the side that follows a kept aspect inside the bounds, the side given following it back', () => {
       const cutIn = cutInNamed('縦長');
       cutIn.originalSize = false;
       cutIn.width = 100;
@@ -179,7 +179,7 @@ describe('AgentMediaKinds', () => {
 
       call('change_object', { kind: 'cut-in', id: cutIn.identifier, fields: { keep_aspect: true, width: 1900 } });
 
-      expect([cutIn.width, cutIn.height]).toEqual([1900, 1200]);
+      expect([cutIn.width, cutIn.height]).toEqual([120, 1200]);
     });
 
     it('holds the size as it is while the cut-in is shown at its picture’s own size', () => {

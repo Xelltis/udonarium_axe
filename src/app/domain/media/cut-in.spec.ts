@@ -171,9 +171,12 @@ describe('CutIn', () => {
       expect([cutIn.width, cutIn.height]).toEqual([300, 200]);
     });
 
-    it('has the other side follow the shape given, held inside the bounds as well', () => {
+    it('has the other side follow the shape given, the side given following it back where it meets its bounds', () => {
       cutIn.resizeSide('width', 1000, { width: 1, height: 2 });
-      expect([cutIn.width, cutIn.height]).toEqual([1000, 1200]);
+      expect([cutIn.width, cutIn.height]).toEqual([600, 1200]);
+
+      cutIn.resizeSide('width', 1500, { width: 1000, height: 1000 });
+      expect([cutIn.width, cutIn.height]).toEqual([1200, 1200]);
 
       cutIn.resizeSide('height', 5, { width: 4, height: 1 });
       expect([cutIn.width, cutIn.height]).toEqual([40, 10]);

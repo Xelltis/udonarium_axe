@@ -329,6 +329,29 @@ describe('CutInEditorComponent', () => {
     expect([cutIn.width, cutIn.height]).toEqual([1920, 252]);
   });
 
+  it('takes a size typed into its box only as the box is left, so a number is typed whole before it is held to the bounds', async () => {
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://www.youtube.com/watch?v=abcdefghijk';
+    cutIn.originalSize = false;
+    cutIn.keepImageAspect = false;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = fixture.nativeElement.querySelector('input[name="cut-in-width"]') as HTMLInputElement;
+
+    for (const typed of ['6', '64', '640']) {
+      box.value = typed;
+      box.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(box.value).toBe(typed);
+    }
+    box.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(cutIn.width).toBe(640);
+  });
+
   it('leaves the size as it is when a field is cleared', () => {
     cutIn.originalSize = false;
     cutIn.keepImageAspect = false;
