@@ -1,4 +1,4 @@
-@if (diceSymbol) {
+@if (diceSymbol && readsFace()) {
   <div class="flex flex-col gap-4">
     <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
       <h3
@@ -173,5 +173,13 @@
         }
       </button>
     </section>
+  </div>
+} @else if (diceSymbol) {
+  <div
+    class="text-ui-muted bg-ui-input border-ui-border-panel flex min-h-20 items-center justify-center gap-1.5 rounded-md border border-solid px-3 py-2 text-[0.78em]"
+    data-testid="dice-sheet-locked"
+  >
+    <i class="material-icons text-[16px]!">lock</i>
+    <span>{{ 'feature.disclosure.locked' | transloco }}</span>
   </div>
 }

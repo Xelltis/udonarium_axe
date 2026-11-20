@@ -23,7 +23,7 @@ export function drawDie(
   pictures: PiecePictures
 ): TableWorldSprite[] {
   const picture = pictures.sized(pictures.urlOf(die.imageFile));
-  const reads = die.isVisible || seesHidden;
+  const reads = die.isOpenTo(seesHidden);
   return diceSymbolSprites({
     id: die.identifier,
     ...place,

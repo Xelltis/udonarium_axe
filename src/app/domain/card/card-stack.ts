@@ -72,15 +72,15 @@ export class CardStack extends OwnedTabletopObject {
   }
 
   /**
-   * Takes the top card off the stack and leaves it on the stack's spot, above the other cards.
+   * Takes a card out of the stack, its top card unless another of its cards is given, and leaves it on
+   * the stack's spot, above the other cards.
    *
    * The card keeps its lie relative to the stack by taking on the stack's rotation. Returns null when the
-   * stack is empty.
+   * stack is empty or does not hold the card given.
    */
-  drawCard(): Card | null {
-    const topCard = this.topCard;
+  drawCard(chosen: Card | null = this.topCard): Card | null {
     const cardRoot = this.cardRoot;
-    const card = topCard && cardRoot ? cardRoot.removeChild(topCard) : null;
+    const card = chosen && cardRoot ? cardRoot.removeChild(chosen) : null;
     if (card) {
       card.rotate += this.rotate;
       if (card.rotate > 360) card.rotate -= 360;

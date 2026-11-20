@@ -1,13 +1,24 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { CardFlipCutInService } from '@axe/application/card/card-flip-cut-in.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Card } from '@axe/domain/card/card';
+import { clamp } from '@axe/core/util/clamp';
+import { Card, CardState } from '@axe/domain/card/card';
 import { planDeal } from '@axe/domain/card/card-deal';
 import { CardStack } from '@axe/domain/card/card-stack';
+import {
+  brokenCardOffset,
+  drawnCardOffset,
+  splitPileIndexes,
+  splitPileOffset,
+} from '@axe/domain/card/card-stack-spread';
 import { selectHandCardsOf } from '@axe/domain/card/hand-cards';
 import { handHolderOf, isHandOf } from '@axe/domain/card/hand-location';
 import { findTrumpPairs, selectExtraJokers, trumpRankOf } from '@axe/domain/card/trump-card';
@@ -42,6 +53,10 @@ export class CardGameService {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly permission = inject(RolePermissionService);
+  private readonly disclosure = inject(DisclosureService);
+  private readonly flipCutIn = inject(CardFlipCutInService);
+  private readonly tabletop = inject(TabletopService);
 
   /**
    * The name each user last spoke under in chat, for the hands of those who have left. It is looked
@@ -79,6 +94,213 @@ export class CardGameService {
       seats.unshift({ userId: myUserId, name: PeerCursor.myCursor?.name ?? '' });
     }
     return seats;
+  }
+
+  /**
+   * Whether this seat may see and change a card's front: its picture, its name, its words and its
+   * data. The game master always may; any other seat as {@link Card.isFrontOpenTo} says, which is
+   * never for a card inside a stack.
+   */
+  canReadFront(card: Card): boolean {
+    return card.isFrontOpenTo(this.permission.canSeeHidden());
+  }
+
+  /** Whether this seat may open a card's sheet: its disclosure lets the seat see it, and so does its front. */
+  canOpenSheet(card: Card): boolean {
+    return this.disclosure.canView(card) && this.canReadFront(card);
+  }
+
+  /**
+   * Whether this seat may turn a card over, peek at it or take it into a hand: a seat that may change
+   * the table, for a card no other seat connected now is peeking at, the game master included.
+   */
+  canHandle(card: Card): boolean {
+    return this.permission.canEditTabletop() && !card.isPeekedByAnother;
+  }
+
+  /**
+   * Turns a card face up for everyone, ending any peek, and plays its sound and the cut-in tied to it.
+   * False, with nothing done, where this seat may not handle the card.
+   */
+  faceUp(card: Card): boolean {
+    if (!this.canHandle(card)) return false;
+    card.faceUp();
+    SoundEffect.play(PresetSound.cardDraw);
+    this.flipCutIn.playFor(card);
+    return true;
+  }
+
+  /**
+   * Turns a card face down, ending any peek, and plays its sound. False, with nothing done, where this
+   * seat may not handle the card.
+   */
+  faceDown(card: Card): boolean {
+    if (!this.canHandle(card)) return false;
+    card.faceDown();
+    SoundEffect.play(PresetSound.cardDraw);
+    return true;
+  }
+
+  /**
+   * Turns a card over as a double tap does: face down when this seat sees its face without peeking at
+   * it, and face up otherwise. False, with nothing done, where this seat may not handle the card.
+   */
+  flip(card: Card): boolean {
+    return card.isVisible && !card.isPeeking ? this.faceDown(card) : this.faceUp(card);
+  }
+
+  /**
+   * Lays a card face down with its face shown to this seat alone, and plays its sound. False, with
+   * nothing done, where this seat may not handle the card or has no user id yet.
+   */
+  peek(card: Card): boolean {
+    const myUserId = this.myUserId();
+    if (myUserId.length < 1 || !this.canHandle(card)) return false;
+    card.state = CardState.BACK;
+    card.owner = myUserId;
+    SoundEffect.play(PresetSound.cardDraw);
+    return true;
+  }
+
+  /**
+   * Takes cards into this seat's hand, leaving out any this seat may not handle, and plays one sound
+   * when it took any. Gives back the cards it took; none while this seat has no user id yet.
+   */
+  takeToHand(cards: readonly Card[]): Card[] {
+    const myUserId = this.myUserId();
+    if (myUserId.length < 1) return [];
+    const taken = cards.filter((card) => this.canHandle(card));
+    for (const card of taken) card.toHand(myUserId);
+    if (taken.length > 0) SoundEffect.play(PresetSound.cardDraw);
+    return taken;
+  }
+
+  /**
+   * Puts loose cards into a stack one after another, each on its top or at its bottom, leaving out any
+   * this seat may not handle, as a card put into a stack is no longer anybody's to peek at. Gives back
+   * the cards it put in.
+   */
+  putIntoStack(stack: CardStack, cards: readonly Card[], at: 'top' | 'bottom'): Card[] {
+    const taken = cards.filter((card) => this.canHandle(card));
+    for (const card of taken) {
+      if (at === 'top') stack.putOnTop(card);
+      else stack.putOnBottom(card);
+    }
+    return taken;
+  }
+
+  /**
+   * Gathers loose cards into a new stack lying where `origin` lies and turned as it is, the first of
+   * them on top, leaving out any this seat may not handle. Null, with no stack made, where this seat
+   * may not handle `origin` itself.
+   */
+  stackUp(origin: Card, cards: readonly Card[]): CardStack | null {
+    if (!this.canHandle(origin)) return null;
+    const stack = CardStack.create(this.t('feature.cardStack.defaultName'));
+    stack.location.x = origin.location.x;
+    stack.location.y = origin.location.y;
+    stack.posZ = origin.posZ;
+    stack.location.name = origin.location.name;
+    stack.rotate = origin.rotate;
+    stack.zindex = origin.zindex;
+    this.putIntoStack(stack, cards, 'bottom');
+    return stack;
+  }
+
+  /**
+   * Takes a card out of a stack, its top card unless another of its cards is given, and lays it beside
+   * the stack: down and to the right, the `index`th card of one draw a step further along. Null where
+   * the stack holds no such card.
+   */
+  drawCard(stack: CardStack, index = 0, chosen?: Card): Card | null {
+    const card = stack.drawCard(chosen ?? stack.topCard);
+    if (!card) return null;
+    stack.update();
+    const offset = drawnCardOffset(index, this.tabletop.gridSize());
+    card.location.x += offset.x;
+    card.location.y += offset.y;
+    card.setLocation(stack.location.name);
+    return card;
+  }
+
+  /**
+   * Draws up to `count` cards off the top of a stack one after another, laid beside it, and gives
+   * them back; as many as the stack holds where it asks for more, and none for a count that is no
+   * whole number of cards.
+   */
+  drawCards(stack: CardStack, count: number): Card[] {
+    const wanted = clamp(Number.isFinite(count) ? Math.floor(count) : 0, 0, stack.cards.length);
+    const cards: Card[] = [];
+    for (let index = 0; index < wanted; index++) {
+      const card = this.drawCard(stack, index);
+      if (!card) break;
+      cards.push(card);
+    }
+    return cards;
+  }
+
+  /** Draws the top card of a stack into this seat's hand. Null, with nothing drawn, while this seat has no user id yet. */
+  drawToHand(stack: CardStack): Card | null {
+    const myUserId = this.myUserId();
+    if (myUserId.length < 1) return null;
+    const card = this.drawCard(stack);
+    card?.toHand(myUserId);
+    return card;
+  }
+
+  /**
+   * Scatters a stack's cards loose where it lay, as they lie, takes the empty stack away and plays the
+   * sound of it. Gives back the cards, the bottom one first.
+   */
+  breakUp(stack: CardStack): Card[] {
+    const cards = stack.drawCardAll().reverse();
+    const gridSize = this.tabletop.gridSize();
+    for (const card of cards) {
+      const offset = brokenCardOffset(gridSize);
+      card.location.x += offset.x;
+      card.location.y += offset.y;
+      card.toTopmost();
+      card.setLocation(stack.location.name);
+    }
+    stack.setLocation('graveyard');
+    stack.destroy();
+    SoundEffect.play(PresetSound.cardShuffle);
+    return cards;
+  }
+
+  /** How many piles a stack is split into: one for each participant, each counted once. */
+  splitSeats(): number {
+    return this.participants().length;
+  }
+
+  /**
+   * Deals a stack's cards in turn into one new stack for each participant, laid beside it, takes it
+   * away and plays the sound of it. Gives back the new stacks; none, with nothing done, where fewer
+   * than two seats play. The cards go into the new stacks before it goes, as a room server takes
+   * away with a stack all it still holds.
+   */
+  split(stack: CardStack): CardStack[] {
+    const count = this.splitSeats();
+    if (count < 2) return [];
+    const gridSize = this.tabletop.gridSize();
+    const piles: CardStack[] = [];
+    for (let i = 0; i < count; i++) {
+      const pile = CardStack.create(stack.name);
+      const offset = splitPileOffset(gridSize);
+      pile.location.x = stack.location.x + offset.x;
+      pile.location.y = stack.location.y + offset.y;
+      pile.posZ = stack.posZ;
+      pile.location.name = stack.location.name;
+      pile.rotate = stack.rotate;
+      pile.toTopmost();
+      piles.push(pile);
+    }
+    const cards = stack.drawCardAll();
+    splitPileIndexes(cards.length, count).forEach((pile, index) => piles[pile].putOnBottom(cards[index]));
+    stack.setLocation('graveyard');
+    stack.destroy();
+    SoundEffect.play(PresetSound.cardDraw);
+    return piles;
   }
 
   /** The cards in a user's hand, in the order they were taken into it. */

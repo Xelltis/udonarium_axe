@@ -4,8 +4,12 @@ import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CardStackCardListComponent } from '@axe/features/card/card-stack-card-list/card-stack-card-list.component';
+import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
+import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardStackCardListComponent', () => {
@@ -21,6 +25,10 @@ describe('CardStackCardListComponent', () => {
   });
 
   beforeEach(() => {
+    beMyself('me');
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.userId = 'me';
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
     stack = CardStack.create('テスト山札');
     stack.putOnBottom(Card.create('A', './assets/images/trump/s01.webp', './assets/images/trump/z02.webp'));
     stack.putOnBottom(Card.create('B', './assets/images/trump/h13.webp', './assets/images/trump/z02.webp'));
@@ -28,6 +36,10 @@ describe('CardStackCardListComponent', () => {
     fixture = TestBed.createComponent(CardStackCardListComponent);
     fixture.componentRef.setInput('cardStack', stack);
     component = fixture.componentInstance;
+  });
+
+  afterEach(() => {
+    PeerCursor.myCursor = null!;
   });
 
   it('closes once its seat is made a guest, who may no longer write what it writes', () => {
@@ -98,7 +110,7 @@ describe('CardStackCardListComponent', () => {
       expect(row(hidden).querySelector('[data-testid="card-list-face-withheld"]')).not.toBeNull();
       expect(row(hidden).querySelector('card-face-preview')).toBeNull();
       expect(row(hidden).textContent).toContain('表は伏せられています');
-      expect(row(hidden).querySelector<HTMLInputElement>('input[type="text"]')!.disabled).toBe(true);
+      expect(row(hidden).querySelector('input[type="text"]')).toBeNull();
       expect(row(shown).querySelector('[data-testid="card-list-face-withheld"]')).toBeNull();
       expect(row(shown).querySelector<HTMLInputElement>('input[type="text"]')!.disabled).toBe(false);
     });
@@ -109,6 +121,72 @@ describe('CardStackCardListComponent', () => {
 
       expect(component.isFaceWithheld(stack.cards[0])).toBe(false);
     });
+  });
+
+  describe('seen by a player', () => {
+    const row = (card: Card) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(`[data-card-id="${card.identifier}"]`)!;
+
+    beforeEach(() => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('shows the backs and the count, and no front, name, label or edit of any card, even one face up', () => {
+      stack.cards[0].faceText = '山札内の文章';
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+      expect(stack.cards[0].isFront).toBe(true);
+      for (const card of stack.cards) {
+        expect(row(card).querySelector('[data-testid="card-list-face-withheld"]')).not.toBeNull();
+        expect(row(card).querySelector('card-face-preview')).toBeNull();
+        expect(row(card).querySelector('input[type="text"]')).toBeNull();
+        expect(row(card).querySelector('[data-testid="card-list-edit"]')).toBeNull();
+      }
+      expect(text).not.toContain('♠');
+      expect(text).not.toContain('山札内の文章');
+    });
+
+    it('takes no name or front picture from a player, and opens no card sheet', async () => {
+      const card = stack.cards[0];
+      const openSheet = vi.spyOn(TestBed.inject(ObjectPanelService), 'openSheet').mockReturnValue();
+      const modal = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('new-front');
+
+      component.setCardName(card, { target: { value: '偽物' } } as unknown as Event);
+      component.setImage(card, 'front');
+      component.showDetail(card);
+      await Promise.resolve();
+
+      expect(card.name).toBe('A');
+      expect(modal).not.toHaveBeenCalled();
+      expect(openSheet).not.toHaveBeenCalled();
+    });
+
+    it('still lets a player draw a card out of the deck, to where one drawn off the top lands', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      stack.location.name = 'table';
+      stack.location.x = 10;
+      stack.location.y = 20;
+      stack.posZ = 30;
+      const target = stack.cards[1];
+
+      component.drawCard(target);
+
+      expect(stack.cards.includes(target)).toBe(false);
+      expect([target.location.name, target.location.x, target.location.y, target.posZ]).toEqual(['table', 110, 45, 30]);
+    });
+  });
+
+  it('opens the sheet of a card for the game master', () => {
+    const openSheet = vi.spyOn(TestBed.inject(ObjectPanelService), 'openSheet').mockReturnValue();
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-testid="card-list-edit"]')!.click();
+
+    expect(openSheet).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
   });
 
   it('takes the card out of the deck', () => {

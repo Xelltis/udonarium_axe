@@ -147,6 +147,34 @@ describe('CardStack', () => {
       const drawn = stack.drawCard();
       expect(drawn).toBeFalsy();
     });
+
+    it('draws a card picked out of the deck, turned with it and laid on its spot, and none it does not hold', () => {
+      const stack = CardStack.create('test');
+      stack.location.name = 'table';
+      stack.location.x = 120;
+      stack.location.y = 80;
+      stack.posZ = 30;
+      stack.rotate = 90;
+      const [top, middle] = [Card.create('上', '', ''), Card.create('中', '', '')];
+      const stranger = Card.create('よそ', '', '');
+      stack.putOnBottom(top);
+      stack.putOnBottom(middle);
+      try {
+        expect(stack.drawCard(stranger)).toBeNull();
+
+        expect(stack.drawCard(middle)).toBe(middle);
+        expect(stack.cards).toEqual([top]);
+        expect([middle.location.name, middle.location.x, middle.location.y, middle.posZ]).toEqual([
+          'table',
+          120,
+          80,
+          30,
+        ]);
+        expect(middle.rotate).toBe(90);
+      } finally {
+        for (const object of [stack, top, middle, stranger]) object.destroy();
+      }
+    });
   });
 
   describe('drawCardAll()', () => {

@@ -153,6 +153,7 @@ describe('AgentCardKinds', () => {
       card.faceText = '地下室を開ける';
       card.faceDown();
       const title = TestBed.inject(TRANSLATE_FN)('feature.card.title');
+      asPlayer();
 
       const read = get('card', card.identifier);
 
@@ -175,6 +176,43 @@ describe('AgentCardKinds', () => {
         face_shown_to_me: true,
         peeked_by: 'AI',
       });
+    });
+
+    it('shows the game master the face of a card face down, as its sheet does, and lets it change it', () => {
+      const card = cardOf('秘密の鍵');
+      card.faceText = '地下室を開ける';
+      card.faceDown();
+      card.owner = 'someone-else';
+
+      expect(get('card', card.identifier)).toMatchObject({
+        name: '秘密の鍵',
+        text: '地下室を開ける',
+        face_shown_to_me: true,
+      });
+      expect(change('card', card.identifier, { name: '偽物' })).toMatchObject({ name: '偽物' });
+    });
+
+    it('turns, peeks at and takes no card another seat connected now peeks at, the master no more than a player', () => {
+      const them = { userId: 'someone-else', isOpen: true } as IPeerContext;
+      setPeerContextProvider({
+        peerContext: { userId: 'ai-user' } as IPeerContext,
+        peerContexts: [them],
+        get peerIds() {
+          return peerIds;
+        },
+        peerId: 'ai-peer',
+      });
+      const card = cardOf('秘密の鍵');
+      card.faceDown();
+      card.owner = 'someone-else';
+
+      for (const role of [PeerRole.GameMaster, PeerRole.Player]) {
+        PeerCursor.myCursor.role = role;
+        for (const action of ['face_up', 'face_down', 'peek', 'to_hand']) {
+          expect(() => act('card', card.identifier, action)).toThrow(/Another seat connected now is peeking/);
+        }
+      }
+      expect([card.isFront, card.owner, card.location.name]).toEqual([false, 'someone-else', 'table']);
     });
 
     it('lays a blank card in a square, changes it as the screen lets it and takes it away', () => {
@@ -233,7 +271,7 @@ describe('AgentCardKinds', () => {
       expect(act('card', card.identifier, 'play', { face_up: false, at: { col: 4, row: 3 } }) as View).toMatchObject({
         in_my_hand: false,
         face_up: false,
-        face_shown_to_me: false,
+        face_shown_to_me: true,
         square: { col: 4, row: 3 },
       });
       expect(card.location.name).toBe('table');
@@ -273,6 +311,7 @@ describe('AgentCardKinds', () => {
     it('draws cards onto the table face as they lie, and into the hand face shown', () => {
       const stack = deckOf(['一', '二', '三', '四']);
       stack.faceDownAll();
+      asPlayer();
       const title = TestBed.inject(TRANSLATE_FN)('feature.card.title');
 
       const { drawn } = act('card-stack', stack.identifier, 'draw', { count: 2 }) as { drawn: View[] };
@@ -324,6 +363,36 @@ describe('AgentCardKinds', () => {
         /locked in place/
       );
       expect(bottom.parent).not.toBeNull();
+    });
+
+    it('takes in no loose card another seat connected now peeks at, the master no more than a player', () => {
+      const them = { userId: 'someone-else', isOpen: true } as IPeerContext;
+      setPeerContextProvider({
+        peerContext: { userId: 'ai-user' } as IPeerContext,
+        peerContexts: [them],
+        get peerIds() {
+          return peerIds;
+        },
+        peerId: 'ai-peer',
+      });
+      const stack = deckOf(['底']);
+      const held = cardOf('秘密の鍵');
+      held.faceDown();
+      held.owner = 'someone-else';
+
+      for (const role of [PeerRole.GameMaster, PeerRole.Player]) {
+        PeerCursor.myCursor.role = role;
+        for (const at of ['top', 'bottom']) {
+          expect(() => act('card-stack', stack.identifier, 'put_card', { card: held.identifier, at })).toThrow(
+            /That card: Another seat connected now is peeking/
+          );
+        }
+      }
+      expect([stack.cards.map((card) => card.name), held.owner, held.location.name]).toEqual([
+        ['底'],
+        'someone-else',
+        'table',
+      ]);
     });
 
     it('splits a deck for every seat playing and breaks one up, taking the old stack away', () => {
@@ -408,9 +477,29 @@ describe('AgentCardKinds', () => {
       expect(() => act('dice-symbol', die.identifier, 'set_face', { face: '7' })).toThrow(/no face 7/);
 
       die.owner = 'someone-else';
+      asPlayer();
       expect(() => act('dice-symbol', die.identifier, 'roll')).toThrow(/Another seat keeps this die/);
       expect(() => act('dice-symbol', die.identifier, 'set_face', { face: '1' })).toThrow(/Another seat keeps/);
       expect(die.face).toBe('6');
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      vi.spyOn(TestBed.inject(ChatMessageService), 'sendSecretSystemMessageToMainTab').mockReturnValue(null!);
+      expect(act('dice-symbol', die.identifier, 'set_face', { face: '2' })).toMatchObject({ face: '2' });
+      act('dice-symbol', die.identifier, 'roll');
+      expect(said).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a player from renaming, resizing or hiding the name of a die another seat keeps', () => {
+      const die = dieOf('隠しダイス', 'someone-else');
+      asPlayer();
+
+      expect(() => change('dice-symbol', die.identifier, { name: '偽物' })).toThrow(/Another seat keeps/);
+      expect(() => change('dice-symbol', die.identifier, { size: 3 })).toThrow(/Another seat keeps/);
+      expect(() => change('dice-symbol', die.identifier, { hide_name: true })).toThrow(/Another seat keeps/);
+      expect([die.name, die.size, die.hideName]).toEqual(['隠しダイス', 1, false]);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(change('dice-symbol', die.identifier, { hide_name: true })).toMatchObject({ hide_name: true });
     });
 
     it('shows a kept die only for its keeper or the master, and keeps one only where nobody does', () => {

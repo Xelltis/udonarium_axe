@@ -1,9 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { CardFlipCutInService } from '@axe/application/card/card-flip-cut-in.service';
 import { CardGameService } from '@axe/application/card/card-game.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { Network } from '@axe/core/network/network';
+import type { IPeerContext } from '@axe/core/network/peer-context';
+import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Card } from '@axe/domain/card/card';
+import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { handLocationOf } from '@axe/domain/card/hand-location';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -284,6 +287,273 @@ describe('CardGameService', () => {
 
       expect(service.handCardsOf('gone')).toHaveLength(1);
       expect(sendSystemNotice).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('whose front a seat reads', () => {
+    function looseCard(state: CardState, owner = ''): Card {
+      const card = Card.create('秘密', 'front.png', 'back.png');
+      card.location.name = 'table';
+      card.state = state;
+      card.owner = owner;
+      created.push(card);
+      return card;
+    }
+
+    it('lets a player read a card showing them its face and no other, and the game master every one', () => {
+      const faceUp = looseCard(CardState.FRONT);
+      const faceDown = looseCard(CardState.BACK);
+      const peekedByThem = looseCard(CardState.BACK, 'them');
+      const stack = CardStack.create('山札');
+      created.push(stack);
+      const inDeck = looseCard(CardState.FRONT);
+      stack.putOnBottom(inDeck);
+
+      expect([faceUp, faceDown, peekedByThem, inDeck].map((card) => service.canReadFront(card))).toEqual([
+        true,
+        false,
+        false,
+        false,
+      ]);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect([faceUp, faceDown, peekedByThem, inDeck].map((card) => service.canReadFront(card))).toEqual([
+        true,
+        true,
+        true,
+        true,
+      ]);
+    });
+
+    it('opens the sheet of a card only where its disclosure and its front both let the seat', () => {
+      const faceUp = looseCard(CardState.FRONT);
+      const faceDown = looseCard(CardState.BACK);
+      expect(service.canOpenSheet(faceUp)).toBe(true);
+      expect(service.canOpenSheet(faceDown)).toBe(false);
+
+      faceUp.disclosureMode = 'gm';
+      expect(service.canOpenSheet(faceUp)).toBe(false);
+    });
+  });
+
+  describe('a card another seat connected now peeks at', () => {
+    function peekedByThem(): Card {
+      const card = Card.create('秘密', 'front.png', 'back.png');
+      card.location.name = 'table';
+      card.state = CardState.BACK;
+      card.owner = 'them';
+      created.push(card);
+      return card;
+    }
+
+    function themOnline(isOpen: boolean): void {
+      const me = { userId: 'me', isOpen: true } as IPeerContext;
+      const them = { userId: 'them', isOpen } as IPeerContext;
+      setPeerContextProvider({ peerContext: me, peerContexts: [me, them], peerIds: [...linked], peerId: 'me' });
+    }
+
+    function aStack(): CardStack {
+      const stack = CardStack.create('山札');
+      created.push(stack);
+      return stack;
+    }
+
+    const ways: [string, (card: Card) => unknown][] = [
+      ['turning it face up', (card) => service.faceUp(card)],
+      ['turning it face down', (card) => service.faceDown(card)],
+      ['flipping it', (card) => service.flip(card)],
+      ['peeking at it', (card) => service.peek(card)],
+      ['taking it into the hand', (card) => service.takeToHand([card])],
+      ['putting it on top of a stack', (card) => service.putIntoStack(aStack(), [card], 'top')],
+      ['putting it at the bottom of a stack', (card) => service.putIntoStack(aStack(), [card], 'bottom')],
+      [
+        'gathering it into a new stack',
+        (card) => {
+          const stack = service.stackUp(card, [card]);
+          if (stack) created.push(stack);
+        },
+      ],
+    ];
+
+    it.each(ways)('is left as it lies by %s, for a player and the game master alike', (_way, handle) => {
+      themOnline(true);
+      const cutIn = vi.spyOn(TestBed.inject(CardFlipCutInService), 'playFor');
+      for (const role of [PeerRole.Player, PeerRole.GameMaster]) {
+        PeerCursor.myCursor.role = role;
+        const card = peekedByThem();
+
+        handle(card);
+
+        expect([card.state, card.owner, card.location.name]).toEqual([CardState.BACK, 'them', 'table']);
+        expect(service.canHandle(card)).toBe(false);
+      }
+      expect(cutIn).not.toHaveBeenCalled();
+    });
+
+    it.each(ways)('is handled as any other by %s once that seat has gone', (_way, handle) => {
+      themOnline(false);
+      const card = peekedByThem();
+
+      handle(card);
+
+      expect([card.state, card.owner, card.location.name]).not.toEqual([CardState.BACK, 'them', 'table']);
+    });
+
+    it('takes into the hand only the cards of a handful nobody else holds', () => {
+      themOnline(true);
+      const theirs = peekedByThem();
+      const free = Card.create('自由', 'front.png', 'back.png');
+      free.location.name = 'table';
+      created.push(free);
+
+      expect(service.takeToHand([theirs, free])).toEqual([free]);
+      expect(free.isInMyHand).toBe(true);
+      expect(theirs.location.name).toBe('table');
+    });
+
+    it('puts into a stack only the cards of a handful nobody else holds, and gathers none round a card another holds', () => {
+      themOnline(true);
+      const theirs = peekedByThem();
+      const free = Card.create('自由', 'front.png', 'back.png');
+      free.location.name = 'table';
+      created.push(free);
+      const stack = aStack();
+
+      expect(service.putIntoStack(stack, [theirs, free], 'top')).toEqual([free]);
+      expect(stack.cards).toEqual([free]);
+      expect(service.stackUp(theirs, [theirs])).toBeNull();
+      expect(theirs.location.name).toBe('table');
+    });
+
+    it('handles nothing for a guest', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const card = Card.create('自由', 'front.png', 'back.png');
+      card.location.name = 'table';
+      created.push(card);
+
+      expect(service.faceDown(card)).toBe(false);
+      expect(service.takeToHand([card])).toEqual([]);
+      expect(card.isFront).toBe(true);
+    });
+  });
+
+  describe('drawing, breaking up and splitting a stack', () => {
+    function deckOf(count: number): CardStack {
+      const stack = CardStack.create('山札');
+      stack.location.name = 'table';
+      stack.location.x = 100;
+      stack.location.y = 200;
+      created.push(stack);
+      for (let i = 0; i < count; i++) {
+        const card = Card.create(`札${i}`, 'front.png', 'back.png');
+        created.push(card);
+        stack.putOnBottom(card);
+      }
+      return stack;
+    }
+
+    it('draws as many as it is asked for, staggered beside the stack, and what is left where it asks for more', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const stack = deckOf(3);
+
+      const drawn = service.drawCards(stack, 2);
+      expect(drawn.map((card) => [card.location.name, card.location.x, card.location.y])).toEqual([
+        ['table', 200, 225],
+        ['table', 218, 233],
+      ]);
+      expect(service.drawCards(stack, 5)).toHaveLength(1);
+      expect(stack.cards).toHaveLength(0);
+      expect(service.drawCard(stack)).toBeNull();
+    });
+
+    it('draws a card picked out of the stack to where one drawn off the top lands', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const stack = deckOf(3);
+      stack.posZ = 40;
+      const picked = stack.cards[1];
+
+      expect(service.drawCard(stack, 0, picked)).toBe(picked);
+      expect([picked.location.name, picked.location.x, picked.location.y, picked.posZ]).toEqual([
+        'table',
+        200,
+        225,
+        40,
+      ]);
+      expect(stack.cards).not.toContain(picked);
+    });
+
+    it('draws the top card into this seat’s hand, and none while it has no user id', () => {
+      const stack = deckOf(2);
+      const top = stack.topCard!;
+
+      expect(service.drawToHand(stack)).toBe(top);
+      expect(top.isInMyHand).toBe(true);
+
+      PeerCursor.myCursor.userId = '';
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: '' } as IPeerContext);
+      expect(service.drawToHand(stack)).toBeNull();
+      expect(stack.cards).toHaveLength(1);
+    });
+
+    it('scatters a stack broken up where it lay and takes the stack away', () => {
+      const stack = deckOf(3);
+      const cards = [...stack.cards];
+
+      const loose = service.breakUp(stack);
+
+      expect(loose).toEqual([...cards].reverse());
+      expect(loose.every((card) => card.isLoose && card.location.name === 'table')).toBe(true);
+      expect(ObjectStore.instance.get(stack.identifier)).toBeFalsy();
+    });
+
+    it('splits a stack into a pile for each participant, each counted once, and none for a seat alone', () => {
+      const stack = deckOf(4);
+      expect(service.splitSeats()).toBe(1);
+      expect(service.split(stack)).toEqual([]);
+      expect(stack.cards).toHaveLength(4);
+
+      peer('again', 'さいど');
+      const secondTab = new PeerCursor();
+      secondTab.userId = 'again';
+      secondTab.peerId = 'peer-again-2';
+      secondTab.role = PeerRole.Player;
+      secondTab.initialize();
+      created.push(secondTab);
+      linked.push(secondTab.peerId);
+      peer('guest', 'けんがく', PeerRole.Guest);
+      expect(service.splitSeats()).toBe(2);
+      const piles = service.split(stack);
+      created.push(...piles);
+
+      expect(piles.map((pile) => pile.cards.length)).toEqual([2, 2]);
+      expect(ObjectStore.instance.get(stack.identifier)).toBeFalsy();
+    });
+
+    it('puts the cards in the new piles before taking away the stack, which takes all it still holds', () => {
+      peer('other', 'あいて');
+      const internals = Network.instance as unknown as { connection: unknown; sendQueue(): void };
+      const send = vi.fn();
+      const stack = deckOf(4);
+      const cards = [...stack.cards];
+      internals.connection = { send };
+      try {
+        for (let i = 0; i < 5; i++) internals.sendQueue();
+        send.mockClear();
+
+        created.push(...service.split(stack));
+        for (let i = 0; i < 5; i++) internals.sendQueue();
+
+        const events = send.mock.calls.flatMap(
+          (call) => call[0] as { eventName: string; data: { identifier?: string } }[]
+        );
+        const firstDelete = events.findIndex((event) => event.eventName === 'DELETE_GAME_OBJECT');
+        const cardMoves = events.flatMap((event, index) =>
+          cards.some((card) => card.identifier === event.data.identifier) ? [index] : []
+        );
+        expect(firstDelete).toBeGreaterThan(-1);
+        expect(firstDelete).toBeGreaterThan(Math.max(...cardMoves));
+      } finally {
+        internals.connection = null;
+      }
     });
   });
 

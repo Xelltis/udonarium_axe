@@ -66,6 +66,23 @@ export class DiceSymbol extends OwnedTabletopObject {
     return !this.hasOwner || this.isMine;
   }
 
+  /**
+   * Whether a seat may read the die's face and its name, and turn it: roll it, set its face, hide or
+   * show its name, and change it on its sheet. Anyone may while nobody keeps the die. Once a seat
+   * keeps it, that seat may, and so may a seat that sees what is kept back.
+   */
+  isOpenTo(seesHidden: boolean): boolean {
+    return seesHidden || this.isVisible;
+  }
+
+  /**
+   * Whether the table shows a seat the die's name: a seat that sees what is kept back always, and any
+   * other while the die is open to it and its name is not hidden.
+   */
+  showsNameTo(seesHidden: boolean): boolean {
+    return seesHidden || (this.isVisible && !this.hideName);
+  }
+
   /** Turns the die to a random face and returns that face. Empty for a die with no faces. */
   diceRoll(): string {
     const faces = this.faces;

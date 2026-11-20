@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
+import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 describe('Card', () => {
@@ -483,6 +485,118 @@ describe('Card', () => {
       card.overViewMaxHeight = 400;
 
       expect(card.overViewMaxHeight).toBe(400);
+    });
+  });
+
+  describe('who may read its front', () => {
+    const seat = (userId: string) =>
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId } as IPeerContext);
+    let made: Card[];
+    const card = (state: CardState, owner = '') => {
+      const made1 = Card.create('札', 'front.png', 'back.png');
+      made1.state = state;
+      made1.owner = owner;
+      made.push(made1);
+      return made1;
+    };
+
+    let cursorBefore: PeerCursor;
+
+    beforeEach(() => {
+      made = [];
+      cursorBefore = PeerCursor.myCursor;
+      PeerCursor.myCursor = null!;
+      seat('me');
+    });
+
+    afterEach(() => {
+      for (const each of made) each.destroy();
+      PeerCursor.myCursor = cursorBefore;
+      vi.restoreAllMocks();
+    });
+
+    it('opens to a seat a card that shows it its face, lying on its own', () => {
+      const inMyHand = card(CardState.BACK);
+      inMyHand.toHand('me');
+      expect(card(CardState.FRONT).isFrontOpenTo(false)).toBe(true);
+      expect(card(CardState.BACK, 'me').isFrontOpenTo(false)).toBe(true);
+      expect(inMyHand.isFrontOpenTo(false)).toBe(true);
+    });
+
+    it('keeps from a seat one face down, one in another hand, and one another seat peeks at even face up', () => {
+      const inTheirHand = card(CardState.BACK);
+      inTheirHand.toHand('them');
+      expect(card(CardState.BACK).isFrontOpenTo(false)).toBe(false);
+      expect(inTheirHand.isFrontOpenTo(false)).toBe(false);
+      expect(card(CardState.BACK, 'them').isFrontOpenTo(false)).toBe(false);
+      expect(card(CardState.FRONT, 'them').isFrontOpenTo(false)).toBe(false);
+    });
+
+    it('keeps from a seat the front of every card inside a stack, face up or its own', () => {
+      const stack = CardStack.create('山札');
+      const faceUp = card(CardState.FRONT);
+      stack.putOnBottom(faceUp);
+      try {
+        expect(faceUp.isFrontOpenTo(false)).toBe(false);
+        faceUp.owner = 'me';
+        expect(faceUp.isFrontOpenTo(false)).toBe(false);
+        expect(faceUp.isFrontOpenTo(true)).toBe(true);
+      } finally {
+        stack.destroy();
+      }
+    });
+
+    it('opens every front to a seat that sees what is kept back', () => {
+      const inTheirHand = card(CardState.BACK);
+      inTheirHand.toHand('them');
+      expect(card(CardState.BACK).isFrontOpenTo(true)).toBe(true);
+      expect(card(CardState.BACK, 'them').isFrontOpenTo(true)).toBe(true);
+      expect(inTheirHand.isFrontOpenTo(true)).toBe(true);
+    });
+  });
+
+  describe('a card another seat peeks at', () => {
+    let cursorBefore: PeerCursor;
+
+    beforeEach(() => {
+      cursorBefore = PeerCursor.myCursor;
+      PeerCursor.myCursor = null!;
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = cursorBefore;
+      resetPeerContextProvider();
+      vi.restoreAllMocks();
+    });
+
+    const among = (contexts: { userId: string; isOpen: boolean }[]) =>
+      setPeerContextProvider({
+        peerContext: { userId: 'me', isOpen: true } as IPeerContext,
+        peerContexts: contexts as IPeerContext[],
+        peerIds: [],
+        peerId: 'me',
+      });
+
+    it('is theirs while they are connected, and nobody else’s', () => {
+      const card = Card.create('札', 'front.png', 'back.png');
+      card.state = CardState.BACK;
+      card.owner = 'them';
+      try {
+        among([{ userId: 'them', isOpen: true }]);
+        expect(card.isPeekedByAnother).toBe(true);
+
+        among([{ userId: 'them', isOpen: false }]);
+        expect(card.isPeekedByAnother).toBe(false);
+
+        among([{ userId: 'me', isOpen: true }]);
+        card.owner = 'me';
+        expect(card.isPeekedByAnother).toBe(false);
+
+        card.owner = '';
+        expect(card.isPeekedByAnother).toBe(false);
+      } finally {
+        card.destroy();
+      }
     });
   });
 

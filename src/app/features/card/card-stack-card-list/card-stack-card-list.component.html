@@ -24,7 +24,7 @@
   } @else {
     <ol class="m-0 flex list-none flex-col gap-1.5 p-0">
       @for (card of cards(); track trackByCard($index, card); let index = $index) {
-        @let withheld = isFaceWithheld(card);
+        @let withheld = !readsFront(card);
         @let label = withheld ? null : trumpLabel(card);
         @let fallbackHint = label || withheld ? '' : cardImageHint(card);
         <li
@@ -117,14 +117,15 @@
                 'feature.cardStack.list.faceWithheld' | transloco
               }}</span>
             }
-            <input
-              type="text"
-              class="border-ui-border-panel/60 bg-ui-input/60 text-ui-text focus:border-ui-accent focus:bg-ui-input rounded-ui-sm w-full max-w-xs border border-solid px-2 py-0.75 text-[0.78em] transition-colors outline-none placeholder:italic"
-              [value]="cardName(card)"
-              [disabled]="withheld"
-              [placeholder]="'feature.cardStack.list.namePlaceholder' | transloco"
-              (change)="setCardName(card, $event)"
-            />
+            @if (!withheld) {
+              <input
+                type="text"
+                class="border-ui-border-panel/60 bg-ui-input/60 text-ui-text focus:border-ui-accent focus:bg-ui-input rounded-ui-sm w-full max-w-xs border border-solid px-2 py-0.75 text-[0.78em] transition-colors outline-none placeholder:italic"
+                [value]="cardName(card)"
+                [placeholder]="'feature.cardStack.list.namePlaceholder' | transloco"
+                (change)="setCardName(card, $event)"
+              />
+            }
           </div>
 
           <div class="flex shrink-0 items-center gap-1">
@@ -136,14 +137,17 @@
               <i class="material-icons">arrow_outward</i>
               {{ 'feature.cardStack.list.drawFromStack' | transloco }}
             </button>
-            <button
-              type="button"
-              class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm flex size-7 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-[16px]!"
-              [attr.title]="'feature.cardStack.list.edit' | transloco"
-              (click)="showDetail(card)"
-            >
-              <i class="material-icons">settings</i>
-            </button>
+            @if (opensSheet(card)) {
+              <button
+                type="button"
+                class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm flex size-7 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-[16px]!"
+                data-testid="card-list-edit"
+                [attr.title]="'feature.cardStack.list.edit' | transloco"
+                (click)="showDetail(card)"
+              >
+                <i class="material-icons">settings</i>
+              </button>
+            }
           </div>
         </li>
       }

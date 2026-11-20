@@ -7,7 +7,10 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { beMyself } from '@axe/testing/peer-context-stub';
 
 const t = ((key: string, params?: Record<string, unknown>) => {
   if (params?.count != null) return `${key}(${params.count})`;
@@ -200,6 +203,42 @@ describe('the dice among a selection', () => {
     away.subActions?.[0].action?.();
 
     expect(stored).toEqual([{ count: 2, owner: 'goblin' }]);
+  });
+
+  it('throws and puts away a die another seat keeps for the game master alone, as its own menu rolls it', () => {
+    beMyself('me');
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.userId = 'me';
+    const theirs = makeDie('theirs');
+    (theirs as unknown as DiceSymbol).owner = 'somebody-else';
+    const menuFor = (role: PeerRole) => {
+      PeerCursor.myCursor.role = role;
+      return buildMultiSelectionContextMenu([makeDie('a'), theirs], {
+        t,
+        selectionSignalService: new SelectionSignalService(),
+        gridSize: 50,
+        rollDice: () => undefined,
+        diceOwners: owners,
+        storeDice: () => undefined,
+      }).map((entry) => (entry as ContextMenuAction).name);
+    };
+
+    try {
+      expect(menuFor(PeerRole.Player)).toEqual(
+        expect.arrayContaining([
+          'feature.tabletop.selection.rollAllDice(1)',
+          'feature.tabletop.selection.storeAllDice(1)',
+        ])
+      );
+      expect(menuFor(PeerRole.GameMaster)).toEqual(
+        expect.arrayContaining([
+          'feature.tabletop.selection.rollAllDice(2)',
+          'feature.tabletop.selection.storeAllDice(2)',
+        ])
+      );
+    } finally {
+      PeerCursor.myCursor = null!;
+    }
   });
 
   it('offers neither where the selection holds no dice', () => {

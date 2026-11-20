@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -11,7 +12,6 @@ import {
   serverRollUnanswered$,
   ServerRollUnansweredEvent,
 } from '@axe/core/event/domain-events';
-import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -51,6 +51,7 @@ export class DiceChatEventHandlerService {
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly snackbar = inject(SnackbarService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly diceRoll = inject(DiceRollService);
   private readonly t = inject(TRANSLATE_FN);
   /**
    * The line last pointed out as unrolled. One line can go unrolled for each target it was sent to
@@ -132,14 +133,14 @@ export class DiceChatEventHandlerService {
   }
 
   /**
-   * Its dice, in the order they were made, so the same line lands the same way twice. A die whose
-   * face a room server keeps from this user is passed over, as the server would put the face it
-   * took back, and the roll goes on to the next die; one that only lacks its face takes the roll.
+   * Its dice, in the order they were made, so the same line lands the same way twice. A die this
+   * seat may not turn, one another seat keeps unless this seat is the game master, is passed over,
+   * as its face is the keeper's to turn and a room server would put back the face it took, and the
+   * roll goes on to the next die; one that only lacks its face takes the roll.
    */
   private diceOf(owner: GameCharacter): DiceSymbol[] {
-    const keptByServer = getAuthorityPeerId() !== null && !PeerCursor.isMyselfGameMaster;
     return this.objectStore
       .getObjects<DiceSymbol>(DiceSymbol)
-      .filter((die) => die.ownerCharacterIdentifier === owner.identifier && !(keptByServer && !die.isVisible));
+      .filter((die) => die.ownerCharacterIdentifier === owner.identifier && this.diceRoll.canTurn(die));
   }
 }

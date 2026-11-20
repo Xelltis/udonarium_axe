@@ -1,4 +1,3 @@
-import { Network } from '@axe/core/network/network';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -18,6 +17,7 @@ function menuOf(cardStack: CardStack, onShowDetail: (cs: CardStack) => void = vi
     vi.fn(),
     vi.fn(),
     vi.fn(),
+    2,
     vi.fn(),
     vi.fn(),
     vi.fn(),
@@ -32,47 +32,33 @@ function choose(actions: { name: string; action?: () => void }[], name: string):
 }
 
 describe('buildCardStackContextMenu', () => {
-  it('splits the deck into a pile for each seat that plays, this one included, but no guest or seat gone', () => {
+  it('splits the deck through its callback only where two seats or more play', () => {
     const cardStack = CardStack.create('test stack');
-    const onSplitStack = vi.fn();
-    PeerCursor.createMyCursor().role = PeerRole.Player;
-    const seat = (peerId: string, role: PeerRole) => {
-      const cursor = new PeerCursor();
-      cursor.peerId = peerId;
-      cursor.role = role;
-      cursor.isDisConnect = false;
-      cursor.initialize();
-      return cursor;
-    };
-    const others = [
-      seat('gm', PeerRole.GameMaster),
-      seat('guest', PeerRole.Guest),
-      seat('gone', PeerRole.Player),
-      seat('reloaded', PeerRole.Player),
-      seat('reloaded', PeerRole.Player),
-    ];
-    vi.spyOn(Network, 'peerIds', 'get').mockReturnValue(['gm', 'guest', 'reloaded']);
-
-    try {
-      const actions = buildCardStackContextMenu(
+    const split = (seats: number, onSplitStack: () => unknown) =>
+      buildCardStackContextMenu(
         cardStack,
         50,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         onSplitStack,
+        seats,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
         t
-      );
-      actions.find((action) => action.name === t('feature.cardStack.contextMenu.splitByPeers'))?.action?.();
+      ).find((action) => action.name === t('feature.cardStack.contextMenu.splitByPeers'))!;
 
-      expect(onSplitStack).toHaveBeenCalledWith(3);
+    try {
+      expect(split(1, vi.fn()).enabled).toBe(false);
+
+      const onSplitStack = vi.fn();
+      const entry = split(2, onSplitStack);
+      expect(entry.enabled).toBe(true);
+      entry.action?.();
+      expect(onSplitStack).toHaveBeenCalledOnce();
     } finally {
-      vi.restoreAllMocks();
-      for (const cursor of others) cursor.destroy();
       cardStack.destroy();
     }
   });
@@ -94,6 +80,7 @@ describe('buildCardStackContextMenu', () => {
         vi.fn(),
         vi.fn(),
         vi.fn(),
+        2,
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -124,6 +111,7 @@ describe('buildCardStackContextMenu', () => {
         onDrawToHand,
         onDrawCards,
         vi.fn(),
+        2,
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -156,6 +144,7 @@ describe('buildCardStackContextMenu', () => {
         vi.fn(),
         vi.fn(),
         vi.fn(),
+        2,
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -181,6 +170,7 @@ describe('buildCardStackContextMenu', () => {
         vi.fn(),
         vi.fn(),
         vi.fn(),
+        2,
         vi.fn(),
         vi.fn(),
         vi.fn(),

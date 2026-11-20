@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { Card } from '@axe/domain/card/card';
@@ -13,12 +14,14 @@ import { surfaceKeyOf, TabletopObject } from '@axe/domain/tabletop/tabletop-obje
  * dropped within half a cell of another stack is merged with it into a new stack that replaces
  * both. Only what stands on the same face is asked, the stacks first and then the cards, the order
  * the table draws them in, and the first stack to take what was dropped in is the only one: it is no
- * longer there to be taken in again.
+ * longer there to be taken in again. A card another seat connected now peeks at is theirs and is
+ * taken into no stack, as {@link CardGameService.putIntoStack} leaves it out: it stays where it lies.
  */
 @Injectable({ providedIn: 'root' })
 export class CardDropService {
   private readonly tabletop = inject(TabletopService);
   private readonly multiMovable = inject(MultiMovableService);
+  private readonly cardGame = inject(CardGameService);
 
   /** Lets what a card or a stack was dropped on take it in. */
   drop(dropped: Card | CardStack): void {
@@ -34,14 +37,16 @@ export class CardDropService {
     return list.filter((object) => object !== dropped && surfaceKeyOf(object) === face);
   }
 
-  /** Whether a stack took what was dropped in, on itself or merged with it. */
+  /**
+   * Whether what was dropped landed on a stack, which then took in as much of it as this seat may put
+   * there, or merged with it.
+   */
   private dropOnStack(stack: CardStack, dropped: Card | CardStack, gridSize: number): boolean {
     if (dropped instanceof Card) {
       if (distanceSquared(dropped, stack) >= gridSize ** 2) return false;
-      stack.putOnTop(dropped);
-      for (const follower of this.multiMovable.settledFollowersFor(dropped.identifier)) {
-        if (follower instanceof Card) stack.putOnTop(follower);
-      }
+      const followers = this.multiMovable.settledFollowersFor(dropped.identifier);
+      const cards = [dropped, ...followers.filter((follower): follower is Card => follower instanceof Card)];
+      this.cardGame.putIntoStack(stack, cards, 'top');
       return true;
     }
     if (distanceSquared(dropped, stack) >= (gridSize / 2) ** 2) return false;
@@ -51,10 +56,11 @@ export class CardDropService {
 
   private dropOnCard(card: Card, dropped: Card | CardStack, gridSize: number): void {
     if (!(dropped instanceof CardStack) || distanceSquared(dropped, card) >= (gridSize / 2) ** 2) return;
+    if (!this.cardGame.canHandle(card)) return;
     dropped.location.x = card.location.x;
     dropped.location.y = card.location.y;
     dropped.posZ = card.posZ;
-    dropped.putOnBottom(card);
+    this.cardGame.putIntoStack(dropped, [card], 'bottom');
   }
 }
 

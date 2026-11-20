@@ -1,9 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
+import type { IPeerContext } from '@axe/core/network/peer-context';
+import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Card } from '@axe/domain/card/card';
+import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { CardDropService } from '@axe/features/card/card-drop.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -25,6 +29,8 @@ describe('CardDropService', () => {
   });
 
   afterEach(() => {
+    resetPeerContextProvider();
+    PeerCursor.myCursor = null!;
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.remove(object);
   });
 
@@ -137,5 +143,45 @@ describe('CardDropService', () => {
     service.drop(onWall);
 
     expect(onFloor.cards).toHaveLength(0);
+  });
+
+  describe('a card another seat connected now peeks at', () => {
+    beforeEach(() => {
+      PeerCursor.createMyCursor().role = PeerRole.Player;
+      PeerCursor.myCursor.userId = 'me';
+      const me = { userId: 'me', isOpen: true } as IPeerContext;
+      const them = { userId: 'them', isOpen: true } as IPeerContext;
+      setPeerContextProvider({ peerContext: me, peerContexts: [me, them], peerIds: [], peerId: 'me' });
+    });
+
+    function theirs(x: number, y: number): Card {
+      const held = card(x, y);
+      held.state = CardState.BACK;
+      held.owner = 'them';
+      return held;
+    }
+
+    it('stays where it was let go of on a stack, theirs still, while the cards moved along with it go in', () => {
+      const deck = stack(100, 100);
+      const held = theirs(110, 100);
+      const follower = card(400, 400);
+      vi.spyOn(TestBed.inject(MultiMovableService), 'settledFollowersFor').mockReturnValue([follower]);
+
+      service.drop(held);
+
+      expect(deck.cards).toEqual([follower]);
+      expect([held.owner, held.location]).toEqual(['them', expect.objectContaining({ name: 'table', x: 110 })]);
+    });
+
+    it('is not taken in by a stack let go of on it, which stays where it landed', () => {
+      const held = theirs(200, 200);
+      const deck = stack(215, 210, undefined, 2);
+
+      service.drop(deck);
+
+      expect(deck.cards).not.toContain(held);
+      expect(deck.location).toMatchObject({ x: 215, y: 210 });
+      expect(held.owner).toBe('them');
+    });
   });
 });

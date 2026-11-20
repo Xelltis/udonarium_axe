@@ -12,8 +12,10 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { CardGameService } from '@axe/application/card/card-game.service';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
+import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -104,6 +106,8 @@ export class OverviewPanelComponent {
   private readonly memoPreference = inject(OverviewMemoPreferenceService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly disclosureService = inject(DisclosureService);
+  private readonly cardGame = inject(CardGameService);
+  private readonly diceRoll = inject(DiceRollService);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Whether this seat may edit the table, which moving a resource with its slider needs. */
@@ -184,22 +188,47 @@ export class OverviewPanelComponent {
   /** Told whenever a pinned detail has been placed, so its owner can see what it now covers. */
   placementListener: (() => void) | null = null;
 
+  /**
+   * The picture the panel shows: for a card, its front where this seat may read it and its back
+   * otherwise, and for anything else its own picture.
+   */
   readonly imageUrl = computed(() => {
     this.objectChange.fileVersion();
-    if (this.tabletopObject) this.objectChange.versionOf(this.tabletopObject.identifier)();
-    return this.tabletopObject && this.tabletopObject.imageFile ? this.tabletopObject.imageFile.url : '';
+    const object = this.tabletopObject;
+    if (!object) return '';
+    this.objectChange.versionOf(object.identifier)();
+    if (object instanceof Card) {
+      return (this.cardGame.canReadFront(object) ? object.frontImage : object.backImage)?.url ?? '';
+    }
+    return object.imageFile ? object.imageFile.url : '';
   });
   readonly hasImage = computed(() => this.imageUrl().length > 0);
 
   /**
-   * The card whose face the panel previews: the card itself, a stack's top card, or null for
-   * anything else.
+   * The card whose face the panel previews: the card itself where this seat may read its front, a
+   * stack's top card as the table shows it, or null for anything else.
    */
   get overviewFaceCard(): Card | null {
     const object = this.tabletopObject;
-    if (object instanceof Card) return object;
+    if (object instanceof Card) return this.cardGame.canReadFront(object) ? object : null;
     if (object instanceof CardStack) return object.topCard;
     return null;
+  }
+
+  /** Whether the panel's object is a card whose front, name and data this seat may read. */
+  readsCardFront(): boolean {
+    const object = this.tabletopObject;
+    return object instanceof Card && this.cardGame.canReadFront(object);
+  }
+
+  /** Whether this seat may read a die's face and the data it holds. */
+  readsDieFace(die: DiceSymbol): boolean {
+    return this.diceRoll.readsFace(die);
+  }
+
+  /** Whether the table shows this seat a die's name, which the panel shows the same way. */
+  showsDieName(die: DiceSymbol): boolean {
+    return this.diceRoll.showsName(die);
   }
 
   /** The whiteboard whose face the panel shows, or null for anything else. */

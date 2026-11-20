@@ -54,4 +54,15 @@ describe('drawDie', () => {
     expect(hidden[1].brightness).toBe(0);
     expect(seen[1].brightness).toBe(1);
   });
+
+  it('blacks out the face as the die itself says who may read it, whatever is asked of it', () => {
+    const one = die();
+    vi.spyOn(one, 'imageFile', 'get').mockReturnValue({ isEmpty: false, url: 'blob:face' } as never);
+    const openTo = vi.spyOn(one, 'isOpenTo').mockReturnValue(false);
+
+    const drawn = drawDie(one, floorPlace(0, 0), { ...look, seesHidden: true }, pictures());
+
+    expect(openTo).toHaveBeenCalledWith(true);
+    expect(drawn[1].brightness).toBe(0);
+  });
 });

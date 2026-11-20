@@ -10,7 +10,6 @@ import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
-import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -129,38 +128,6 @@ describe('CardStackComponent', () => {
     component.onInputStart(new MouseEvent('mousedown'));
     expect(topmost).toHaveBeenCalledTimes(1);
     cardStack.destroy();
-  });
-
-  it('splits a deck, putting its cards in the new piles before taking away the deck, which takes all it still holds', () => {
-    const internals = Network.instance as unknown as { connection: unknown; sendQueue(): void };
-    const send = vi.fn();
-    const deck = CardStack.create('山札');
-    const cards = [0, 1, 2, 3].map((i) => Card.create(`札${i}`, 'front.png', 'back.png'));
-    for (const card of cards) deck.putOnBottom(card);
-    const before = new Set(ObjectStore.instance.getObjects(CardStack));
-    fixture.componentRef.setInput('cardStack', deck);
-    internals.connection = { send };
-    try {
-      for (let i = 0; i < 5; i++) internals.sendQueue();
-      send.mockClear();
-
-      (component as unknown as { splitStack(split: number): void }).splitStack(2);
-      for (let i = 0; i < 5; i++) internals.sendQueue();
-
-      const events = send.mock.calls.flatMap(
-        (call) => call[0] as { eventName: string; data: { identifier?: string } }[]
-      );
-      const firstDelete = events.findIndex((event) => event.eventName === 'DELETE_GAME_OBJECT');
-      const cardMoves = events.flatMap((event, index) =>
-        cards.some((card) => card.identifier === event.data.identifier) ? [index] : []
-      );
-      const lastCardMove = Math.max(...cardMoves);
-      expect(firstDelete).toBeGreaterThan(-1);
-      expect(firstDelete).toBeGreaterThan(lastCardMove);
-    } finally {
-      internals.connection = null;
-      for (const pile of ObjectStore.instance.getObjects(CardStack)) if (!before.has(pile)) pile.destroy();
-    }
   });
 
   describe('signal-driven CD', () => {
@@ -358,50 +325,5 @@ describe('CardStackComponent', () => {
       deck.destroy();
       other.destroy();
     }
-  });
-
-  describe('drawing several', () => {
-    it('draws as many as it is asked for and staggers them', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0);
-      const cardStack = CardStack.create('draw-stack');
-      cardStack.location.name = 'table';
-      cardStack.location.x = 100;
-      cardStack.location.y = 200;
-      cardStack.putOnBottom(Card.create('c1', '', '', 2));
-      cardStack.putOnBottom(Card.create('c2', '', '', 2));
-      cardStack.putOnBottom(Card.create('c3', '', '', 2));
-      fixture.componentRef.setInput('cardStack', cardStack);
-
-      try {
-        const drawn = (component as unknown as { drawCards(count: number): Card[] }).drawCards(3);
-
-        expect(drawn).toHaveLength(3);
-        expect(cardStack.cards).toHaveLength(0);
-        expect(drawn.map((card) => card.location.name)).toEqual(['table', 'table', 'table']);
-        expect(drawn.map((card) => card.location.x)).toEqual([200, 218, 236]);
-        expect(drawn.map((card) => card.location.y)).toEqual([225, 233, 241]);
-      } finally {
-        cardStack.destroy();
-        vi.restoreAllMocks();
-      }
-    });
-
-    it('draws what is left when it is asked for more', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0);
-      const cardStack = CardStack.create('draw-stack-limit');
-      cardStack.putOnBottom(Card.create('c1', '', '', 2));
-      cardStack.putOnBottom(Card.create('c2', '', '', 2));
-      fixture.componentRef.setInput('cardStack', cardStack);
-
-      try {
-        const drawn = (component as unknown as { drawCards(count: number): Card[] }).drawCards(5);
-
-        expect(drawn).toHaveLength(2);
-        expect(cardStack.cards).toHaveLength(0);
-      } finally {
-        cardStack.destroy();
-        vi.restoreAllMocks();
-      }
-    });
   });
 });

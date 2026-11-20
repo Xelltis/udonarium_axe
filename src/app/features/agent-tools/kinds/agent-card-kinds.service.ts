@@ -1,12 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { type AgentSquare, AgentViews } from '@axe/application/agent/agent-views.service';
-import { CardFlipCutInService } from '@axe/application/card/card-flip-cut-in.service';
 import { CardGameService } from '@axe/application/card/card-game.service';
-import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CoinFlipService } from '@axe/application/coin/coin-flip.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
-import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -25,13 +21,12 @@ import { callShuffleCardStack } from '@axe/core/event/domain-events';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Card, CardState } from '@axe/domain/card/card';
+import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin, type CoinFace } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CONCEALED_LOCATION } from '@axe/domain/tabletop/board-switch/concealment';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
@@ -63,37 +58,18 @@ const LOCKED = 'It is locked in place; unlock it first.';
 /** Why a card in this seat's hand is not handled as one on the table. */
 const IN_HAND = "It is in this seat's hand; play it to the table first.";
 
-/** The cell, in px, that the screen laid out where drawn and scattered cards land. */
-const LAID_OUT_FOR_CELL_PX = 50;
-const DRAW_OFFSET_PX = { x: 100, y: 25 };
-const DRAW_STEP_PX = { x: 18, y: 8 };
-const DRAW_JITTER_PX = 50;
-const BREAK_SCATTER_PX = 25;
-const SPLIT_SCATTER_PX = 50;
+/** Why a card another seat peeks at is not turned, peeked at, taken or put into a stack. */
+const PEEKED_BY_ANOTHER =
+  'Another seat connected now is peeking at this card, so it is theirs; it is not turned over, peeked at, taken into a hand or put into a stack until they let it go.';
+
+/** Why a die another seat keeps is not turned or changed. */
+const KEPT_BY_ANOTHER = "Another seat keeps this die, so its face is not this seat's to turn.";
 
 /** The kinds of die the screen's create menu offers, by the name it gives each. */
 const DICE_TYPES = getDiceMenuItems().map((item) => item.menuName);
 
 /** A thing that lies on the table where it was put, and can be locked there and turned. */
 type Placed = TabletopObject & { isLock: boolean; rotate: number };
-
-/** A random offset of up to `reach` to either side. */
-function scatter(reach: number): number {
-  return reach - Math.random() * reach * 2;
-}
-
-/**
- * How many seats play at the table, this one included: every seat linked now but a guest, each once,
- * and never fewer than one. The number a deck is split into, as the stack's menu counts it.
- */
-function playingSeatCount(): number {
-  return Math.max(1, PeerCursor.linkedCursors().filter((cursor) => cursor.role !== PeerRole.Guest).length);
-}
-
-/** Whether a card lies loose rather than inside a stack, or its stack is gone. */
-function isLoose(card: Card): boolean {
-  return !card.parentIsAssigned || card.parentIsDestroyed;
-}
 
 /**
  * The kinds of the cards, the stacks of them, the dice and the coins on the table, as the AI link's
@@ -113,10 +89,7 @@ export class AgentCardKinds {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly diceRoll = inject(DiceRollService);
-  private readonly lineEdit = inject(ChatLineEditService);
-  private readonly chat = inject(ChatMessageService);
   private readonly coinFlip = inject(CoinFlipService);
-  private readonly flipCutIn = inject(CardFlipCutInService);
   private readonly cardGame = inject(CardGameService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -245,11 +218,11 @@ export class AgentCardKinds {
   private cards(): Card[] {
     return this.objectStore
       .getObjects<Card>(Card)
-      .filter((card) => isLoose(card) && (card.isInMyHand || this.placedFor(card, Math.max(0, card.size))));
+      .filter((card) => card.isLoose && (card.isInMyHand || this.placedFor(card, Math.max(0, card.size))));
   }
 
   private card(): AgentKind<Card> {
-    const shown = (card: Card) => card.isVisible;
+    const shown = (card: Card) => this.cardGame.canReadFront(card);
     const face = (read: (card: Card) => unknown) => (card: Card) => (shown(card) ? read(card) : undefined);
     const sheet = (card: Card) =>
       this.disclosure.canView(card) ? null : "This card's sheet is not shown to this seat, so it is not its to change.";
@@ -260,11 +233,17 @@ export class AgentCardKinds {
       const reason = inHand(card);
       if (reason) throw new AgentToolError('not_allowed', reason);
     };
+    const handled = (card: Card) => {
+      onTable(card);
+      if (card.isPeekedByAnother) throw new AgentToolError('not_allowed', PEEKED_BY_ANOTHER);
+      if (!this.cardGame.canHandle(card))
+        throw new AgentToolError('not_allowed', 'This seat may not change the table.');
+    };
     const kind = () => this.cardKind;
     return {
       kind: Card.aliasName,
       description:
-        "A card lying loose on the table, or held in this seat's hand. Where its face is not shown to this seat it goes by a plain title, and its name, words and how they are drawn are left out. Cards inside a stack are not listed here: reach them through the card-stack's actions.",
+        "A card lying loose on the table, or held in this seat's hand. Where its face is not shown to this seat it goes by a plain title, and its name, words and how they are drawn are left out; the game master is shown every face. A card another seat connected now peeks at is theirs: it is not turned over, peeked at or taken into a hand. Cards inside a stack are not listed here: reach them through the card-stack's actions.",
       list: () => this.cards(),
       idOf: (card) => card.identifier,
       nameOf: (card) => (shown(card) ? card.name : this.t('feature.card.title')),
@@ -344,7 +323,7 @@ export class AgentCardKinds {
           null,
           (card) => card.isFront
         ),
-        flagField<Card>('face_shown_to_me', 'Whether this seat sees its face.', null, (card) => card.isVisible),
+        flagField<Card>('face_shown_to_me', 'Whether this seat sees its face.', null, (card) => shown(card)),
         textField<Card>(
           'peeked_by',
           'The seat looking at its face alone while it lies face down, as the label on its back says.',
@@ -375,46 +354,41 @@ export class AgentCardKinds {
         {
           name: 'face_up',
           description:
-            'Turns a card on the table face up for everyone, ending any peek, and plays the cut-in tied to it.',
+            'Turns a card on the table face up for everyone, ending a peek of this seat or of a seat gone, and plays the cut-in tied to it.',
           access: 'write',
           input: objectInput(),
           run: (card) => {
-            onTable(card);
+            handled(card);
             if (card.isFront) throw new AgentToolError('invalid_input', 'It already lies face up.');
-            card.faceUp();
-            SoundEffect.play(PresetSound.cardDraw);
-            this.flipCutIn.playFor(card);
+            this.cardGame.faceUp(card);
             return this.shown(kind(), card);
           },
         },
         {
           name: 'face_down',
-          description: 'Turns a card on the table face down, ending any peek.',
+          description: 'Turns a card on the table face down, ending a peek of this seat or of a seat gone.',
           access: 'write',
           input: objectInput(),
           run: (card) => {
-            onTable(card);
+            handled(card);
             if (!card.isFront && !card.isPeeking) {
               throw new AgentToolError('invalid_input', 'It already lies face down.');
             }
-            card.faceDown();
-            SoundEffect.play(PresetSound.cardDraw);
+            this.cardGame.faceDown(card);
             return this.shown(kind(), card);
           },
         },
         {
           name: 'peek',
           description:
-            'Turns a card on the table face down with its face shown to this seat alone ("show only me"), taking over from any seat peeking at it.',
+            'Turns a card on the table face down with its face shown to this seat alone ("show only me"), taking over from a seat that peeked at it and has gone.',
           access: 'write',
           input: objectInput(),
           run: (card) => {
-            onTable(card);
+            handled(card);
             if (card.isPeeking) throw new AgentToolError('invalid_input', 'This seat already peeks at it.');
-            const userId = this.myUserId();
-            SoundEffect.play(PresetSound.cardDraw);
-            card.state = CardState.BACK;
-            card.owner = userId;
+            this.myUserId();
+            this.cardGame.peek(card);
             return this.shown(kind(), card);
           },
         },
@@ -424,9 +398,9 @@ export class AgentCardKinds {
           access: 'write',
           input: objectInput(),
           run: (card) => {
-            onTable(card);
-            card.toHand(this.myUserId());
-            SoundEffect.play(PresetSound.cardDraw);
+            handled(card);
+            this.myUserId();
+            this.cardGame.takeToHand([card]);
             return this.shown(kind(), card);
           },
         },
@@ -495,69 +469,6 @@ export class AgentCardKinds {
       'card on the table'
     );
     return card;
-  }
-
-  /**
-   * Takes the top card off a stack and leaves it beside it, the `index`th of one draw a step further
-   * along, as the stack's menu draws one.
-   */
-  private drawFrom(stack: CardStack, index: number): Card | null {
-    const card = stack.drawCard();
-    if (!card) return null;
-    stack.update();
-    const scale = this.tabletop.gridSize() / LAID_OUT_FOR_CELL_PX;
-    card.location.x += (DRAW_OFFSET_PX.x + index * DRAW_STEP_PX.x + Math.random() * DRAW_JITTER_PX) * scale;
-    card.location.y += (DRAW_OFFSET_PX.y + index * DRAW_STEP_PX.y + Math.random() * DRAW_JITTER_PX) * scale;
-    card.setLocation(stack.location.name);
-    return card;
-  }
-
-  /** Scatters a stack's cards where it lay and takes the empty stack away, as its menu breaks it up. */
-  private breakUp(stack: CardStack): Card[] {
-    const cards = stack.drawCardAll().reverse();
-    const scale = this.tabletop.gridSize() / LAID_OUT_FOR_CELL_PX;
-    for (const card of cards) {
-      card.location.x += scatter(BREAK_SCATTER_PX) * scale;
-      card.location.y += scatter(BREAK_SCATTER_PX) * scale;
-      card.toTopmost();
-      card.setLocation(stack.location.name);
-    }
-    stack.setLocation('graveyard');
-    stack.destroy();
-    return cards;
-  }
-
-  /**
-   * Deals a stack's cards in turn into `split` new stacks beside it and takes it away, as its menu
-   * splits it. The cards go into the new stacks before it goes, as a room server takes away with a
-   * stack all it still holds.
-   */
-  private splitUp(stack: CardStack, split: number): CardStack[] {
-    const scale = this.tabletop.gridSize() / LAID_OUT_FOR_CELL_PX;
-    const stacks: CardStack[] = [];
-    for (let i = 0; i < split; i++) {
-      const pile = CardStack.create(stack.name);
-      pile.location.x = stack.location.x + scatter(SPLIT_SCATTER_PX) * scale;
-      pile.location.y = stack.location.y + scatter(SPLIT_SCATTER_PX) * scale;
-      pile.posZ = stack.posZ;
-      pile.location.name = stack.location.name;
-      pile.rotate = stack.rotate;
-      pile.toTopmost();
-      stacks.push(pile);
-    }
-    const cards = stack.drawCardAll();
-    let pile = 0;
-    let splitIndex = (cards.length / split) * (pile + 1);
-    for (let i = 0; i < cards.length; i++) {
-      stacks[pile].putOnBottom(cards[i]);
-      if (splitIndex <= i + 1) {
-        pile++;
-        splitIndex = (cards.length / split) * (pile + 1);
-      }
-    }
-    stack.setLocation('graveyard');
-    stack.destroy();
-    return stacks;
   }
 
   private cardStack(): AgentKind<CardStack> {
@@ -682,13 +593,12 @@ export class AgentCardKinds {
           run: (stack, args) => {
             filled(stack);
             const toHand = args['to'] === 'hand';
-            const userId = toHand ? this.myUserId() : '';
+            if (toHand) this.myUserId();
             const count = Math.min(typeof args['count'] === 'number' ? args['count'] : 1, stack.cards.length);
             const cards: Card[] = [];
             for (let index = 0; index < count; index++) {
-              const card = this.drawFrom(stack, toHand ? 0 : index);
+              const card = toHand ? this.cardGame.drawToHand(stack) : this.cardGame.drawCard(stack, index);
               if (!card) break;
-              if (toHand) card.toHand(userId);
               cards.push(card);
             }
             if (cards.length > 0) SoundEffect.play(PresetSound.cardDraw);
@@ -735,8 +645,10 @@ export class AgentCardKinds {
           run: (stack, args) => {
             const card = this.tableCard(String(args['card']));
             if (card.isLock) throw new AgentToolError('not_allowed', `That card: ${LOCKED}`);
-            if (args['at'] === 'bottom') stack.putOnBottom(card);
-            else stack.putOnTop(card);
+            const at = args['at'] === 'bottom' ? 'bottom' : 'top';
+            if (this.cardGame.putIntoStack(stack, [card], at).length < 1) {
+              throw new AgentToolError('not_allowed', `That card: ${PEEKED_BY_ANOTHER}`);
+            }
             SoundEffect.play(PresetSound.cardPut);
             return this.shown(kind, stack);
           },
@@ -796,12 +708,9 @@ export class AgentCardKinds {
           input: objectInput(),
           destructive: true,
           run: (stack) => {
-            const seats = playingSeatCount();
-            if (seats < 2)
+            if (this.cardGame.splitSeats() < 2)
               throw new AgentToolError('invalid_input', 'Only one seat plays, so there is none to split it for.');
-            const stacks = this.splitUp(stack, seats);
-            SoundEffect.play(PresetSound.cardDraw);
-            return { stacks: stacks.map(named) };
+            return { stacks: this.cardGame.split(stack).map(named) };
           },
         },
         {
@@ -811,9 +720,7 @@ export class AgentCardKinds {
           input: objectInput(),
           destructive: true,
           run: (stack) => {
-            const cards = this.breakUp(stack);
-            SoundEffect.play(PresetSound.cardShuffle);
-            return { cards: drawn(cards) };
+            return { cards: drawn(this.cardGame.breakUp(stack)) };
           },
         },
         this.copyAction<CardStack>(
@@ -836,31 +743,22 @@ export class AgentCardKinds {
     return kind;
   }
 
-  /** Says the face a die nobody else could see came to, now everyone can, as its menu does on showing it. */
-  private announceRevealed(die: DiceSymbol): void {
-    if (this.lineEdit.discloseDieRolls(die.identifier) > 0) return;
-    const name = die.name.trim();
-    const message =
-      name.length > 0
-        ? encodeI18nMessage('feature.dice.log.reveal', { name, face: die.face })
-        : encodeI18nMessage('feature.dice.log.revealNoName', { face: die.face });
-    this.chat.sendSystemNotice('diceReveal', message);
-  }
-
   private diceSymbol(): AgentKind<DiceSymbol> {
-    const seesFace = (die: DiceSymbol) => die.isVisible || this.permission.canSeeHidden();
-    const seesName = (die: DiceSymbol) => !((die.hideName || !die.isVisible) && !this.permission.canSeeHidden());
+    const seesFace = (die: DiceSymbol) => this.diceRoll.readsFace(die);
+    const seesName = (die: DiceSymbol) => this.diceRoll.showsName(die);
+    const turned = (die: DiceSymbol) => (this.diceRoll.canTurn(die) ? null : KEPT_BY_ANOTHER);
     const sheet = (die: DiceSymbol) =>
-      this.disclosure.canView(die) ? null : "This die's sheet is not shown to this seat, so it is not its to change.";
+      this.disclosure.canView(die)
+        ? turned(die)
+        : "This die's sheet is not shown to this seat, so it is not its to change.";
     const thrown = (die: DiceSymbol) => {
-      if (!die.isVisible) {
-        throw new AgentToolError('not_allowed', "Another seat keeps this die, so its face is not this seat's to turn.");
-      }
+      const reason = turned(die);
+      if (reason) throw new AgentToolError('not_allowed', reason);
     };
     const kind: AgentKind<DiceSymbol> = {
       kind: DiceSymbol.aliasName,
       description:
-        'A die standing on the table. A die a seat keeps shows its face to that seat alone (and the game master), and its face is left out for any other, its name too, as it is where the name is hidden. Roll it, set its face, show it or keep it with its actions.',
+        'A die standing on the table. A die a seat keeps shows its face to that seat alone (and the game master), and its face is left out for any other, its name too, as it is where the name is hidden; only those two may roll it, set its face, hide its name or change it. Roll it, set its face, show it or keep it with its actions.',
       list: () =>
         this.objectStore.getObjects<DiceSymbol>(DiceSymbol).filter((die) => this.placedFor(die, Math.max(0, die.size))),
       idOf: (die) => die.identifier,
@@ -895,15 +793,18 @@ export class AgentCardKinds {
         this.squareField<DiceSymbol>(),
         this.rotateField<DiceSymbol>(),
         this.lockedField<DiceSymbol>(),
-        flagField<DiceSymbol>(
-          'hide_name',
-          'Whether its name is kept off the table for every seat but the game master.',
-          'write',
-          (die) => die.hideName,
-          (die, value) => {
-            die.hideName = value;
-          }
-        ),
+        {
+          ...flagField<DiceSymbol>(
+            'hide_name',
+            'Whether its name is kept off the table for every seat but the game master.',
+            'write',
+            (die) => die.hideName,
+            (die, value) => {
+              this.diceRoll.setNameHidden(die, value);
+            }
+          ),
+          refuse: turned,
+        },
         flagField<DiceSymbol>(
           'used',
           'Whether it is marked as spent.',
@@ -982,7 +883,7 @@ export class AgentCardKinds {
             if (!die.faces.includes(face)) {
               throw new AgentToolError('invalid_input', `It has no face ${face} (it has ${die.faces.join(', ')}).`);
             }
-            die.face = face;
+            this.diceRoll.setFace(die, face);
             SoundEffect.play(PresetSound.dicePut);
             return this.shown(kind, die);
           },
@@ -995,15 +896,12 @@ export class AgentCardKinds {
           input: objectInput(),
           run: (die) => {
             if (!die.hasOwner) throw new AgentToolError('invalid_input', 'No seat keeps it.');
-            if (!die.isMine && !this.permission.canSeeHidden()) {
+            if (!this.diceRoll.reveal(die)) {
               throw new AgentToolError(
                 'not_allowed',
                 'Only the seat that keeps a die, or the game master, may show its face.'
               );
             }
-            die.owner = '';
-            SoundEffect.play(PresetSound.unlock);
-            this.announceRevealed(die);
             return this.shown(kind, die);
           },
         },
@@ -1015,11 +913,10 @@ export class AgentCardKinds {
           input: objectInput(),
           run: (die) => {
             if (die.isMine) throw new AgentToolError('invalid_input', 'This seat already keeps it.');
-            if (die.hasOwner && !this.permission.canSeeHidden()) {
+            this.myUserId();
+            if (!this.diceRoll.keep(die)) {
               throw new AgentToolError('not_allowed', 'Another seat keeps this die; only the game master may take it.');
             }
-            die.owner = this.myUserId();
-            SoundEffect.play(PresetSound.lock);
             return this.shown(kind, die);
           },
         },

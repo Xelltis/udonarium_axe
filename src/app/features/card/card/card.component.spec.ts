@@ -4,11 +4,16 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import type { IPeerContext } from '@axe/core/network/peer-context';
+import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card, CardState } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CardComponent } from '@axe/features/card/card/card.component';
+import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
@@ -54,6 +59,139 @@ describe('CardComponent', () => {
     component.onInputStart(new MouseEvent('mousedown'));
     expect(topmost).toHaveBeenCalledTimes(1);
     card.destroy();
+  });
+
+  describe('a card another seat connected now peeks at', () => {
+    let card: Card;
+
+    /** The seat this spec plays, beside another one connected now. */
+    function seatedBesideThem(role: PeerRole): void {
+      const me = { userId: 'me', isOpen: true } as IPeerContext;
+      const them = { userId: 'them', isOpen: true } as IPeerContext;
+      setPeerContextProvider({ peerContext: me, peerContexts: [me, them], peerIds: [], peerId: 'me' });
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      PeerCursor.myCursor.role = role;
+    }
+
+    function laid(owner: string, x = 0): Card {
+      const made = Card.create('秘密', 'front', 'back');
+      made.location.name = 'table';
+      made.location.x = x;
+      made.state = CardState.BACK;
+      made.owner = owner;
+      return made;
+    }
+
+    beforeEach(() => {
+      card = laid('them');
+      fixture.componentRef.setInput('card', card);
+    });
+
+    afterEach(() => {
+      card.destroy();
+      vi.restoreAllMocks();
+      PeerCursor.myCursor = null!;
+    });
+
+    it.each([PeerRole.Player, PeerRole.GameMaster])('is not turned over by a double tap of the %s', (role) => {
+      seatedBesideThem(role);
+
+      component.onDoubleClick();
+
+      expect([card.state, card.owner]).toEqual([CardState.BACK, 'them']);
+    });
+
+    it('is turned over by a double tap once nobody else holds it', () => {
+      seatedBesideThem(PeerRole.Player);
+      card.owner = '';
+
+      component.onDoubleClick();
+
+      expect(card.isFront).toBe(true);
+    });
+
+    it('is not taken into the hand by being let go of over the hand rail, and a free card is', () => {
+      seatedBesideThem(PeerRole.Player);
+      const rail = document.createElement('div');
+      rail.className = 'hand-rail';
+      document.body.appendChild(rail);
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(rail);
+      const dropOnRail = () => {
+        (component as unknown as { positionBeforeDrag: { x: number; y: number } }).positionBeforeDrag = { x: 7, y: 9 };
+        component.onMoved();
+      };
+      try {
+        dropOnRail();
+        expect(card.location.name).toBe('table');
+
+        card.owner = '';
+        dropOnRail();
+        expect(card.isInMyHand).toBe(true);
+        expect([card.location.x, card.location.y]).toEqual([7, 9]);
+      } finally {
+        rail.remove();
+      }
+    });
+
+    it('is left out of the pile taken into the hand with it', () => {
+      seatedBesideThem(PeerRole.Player);
+      const free = laid('', 10);
+      vi.spyOn(TestBed.inject(TabletopService), 'cards', 'get').mockReturnValue([card, free]);
+      try {
+        (component as unknown as { overlappingToHand(): void }).overlappingToHand();
+
+        expect(free.isInMyHand).toBe(true);
+        expect(card.location.name).toBe('table');
+      } finally {
+        free.destroy();
+      }
+    });
+  });
+
+  describe('its sheet', () => {
+    let card: Card;
+    let openSheet: ReturnType<typeof vi.fn>;
+
+    const showDetail = () => (component as unknown as { showDetail(card: Card): void }).showDetail(card);
+
+    beforeEach(() => {
+      beMyself('me');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      card = Card.create('秘密', 'front', 'back');
+      card.location.name = 'table';
+      fixture.componentRef.setInput('card', card);
+      openSheet = vi.spyOn(TestBed.inject(ObjectPanelService), 'openSheet').mockReturnValue() as unknown as ReturnType<
+        typeof vi.fn
+      >;
+    });
+
+    afterEach(() => {
+      card.destroy();
+      vi.restoreAllMocks();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('opens for a player only while the card shows them its face', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      card.faceDown();
+      showDetail();
+      expect(openSheet).not.toHaveBeenCalled();
+
+      card.faceUp();
+      showDetail();
+      expect(openSheet).toHaveBeenCalledOnce();
+    });
+
+    it('opens for the game master on a card face down', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      card.faceDown();
+
+      showDetail();
+
+      expect(openSheet).toHaveBeenCalledOnce();
+    });
   });
 
   describe('signal-driven CD', () => {

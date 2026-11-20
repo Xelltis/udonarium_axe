@@ -326,6 +326,43 @@ describe('DiceSymbol', () => {
     });
   });
 
+  describe('who may read and turn it', () => {
+    const seat = (userId: string) =>
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId } as IPeerContext);
+
+    it('opens to anyone a die nobody keeps, and a kept one to its keeper and to a seat that sees what is kept back', () => {
+      const dice = DiceSymbol.create('d6', DiceType.D6, 1);
+      seat('me');
+      try {
+        expect(dice.isOpenTo(false)).toBe(true);
+        dice.owner = 'me';
+        expect(dice.isOpenTo(false)).toBe(true);
+        dice.owner = 'them';
+        expect(dice.isOpenTo(false)).toBe(false);
+        expect(dice.isOpenTo(true)).toBe(true);
+      } finally {
+        dice.destroy();
+      }
+    });
+
+    it('shows its name where it is open and its name is not hidden, and always to a seat that sees what is kept back', () => {
+      const dice = DiceSymbol.create('d6', DiceType.D6, 1);
+      seat('me');
+      try {
+        expect(dice.showsNameTo(false)).toBe(true);
+        dice.hideName = true;
+        expect(dice.showsNameTo(false)).toBe(false);
+        expect(dice.showsNameTo(true)).toBe(true);
+        dice.hideName = false;
+        dice.owner = 'them';
+        expect(dice.showsNameTo(false)).toBe(false);
+        expect(dice.showsNameTo(true)).toBe(true);
+      } finally {
+        dice.destroy();
+      }
+    });
+  });
+
   describe('what it inherits', () => {
     it('starts on the table', () => {
       const dice = DiceSymbol.create('d6', DiceType.D6, 1);
