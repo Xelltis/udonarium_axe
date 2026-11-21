@@ -47,6 +47,12 @@ export interface GameCharacterContextMenuCallbacks {
   onShowLightSettings: () => void;
   onInvokeRangeShape?: (value: RangeShapeFieldValue) => void;
   onInvokeEffect?: (name: string) => void;
+  /**
+   * The motions the piece's model may be asked to play as a gesture, each by the word it is asked
+   * for by and as the menu names it; left out, or empty, for a piece drawn as no model.
+   */
+  modelMotions?: readonly { readonly word: string; readonly label: string }[];
+  onPlayModelMotion?: (word: string) => void;
   onDeployDice?: () => void;
   /** Opens the battle stage's panel on the piece, to choose what it strikes with. */
   onShowBattle?: () => void;
@@ -349,6 +355,18 @@ export function buildGameCharacterContextMenuModel(
               action: () => {
                 callbacks.onInvokeEffect?.(name);
               },
+            })),
+          } as ContextMenuAction,
+        ]
+      : []),
+    ...((callbacks.modelMotions?.length ?? 0) > 0 && callbacks.onPlayModelMotion
+      ? [
+          {
+            name: t('feature.character.contextMenu.modelMotion'),
+            action: undefined,
+            subActions: callbacks.modelMotions!.map(({ word, label }) => ({
+              name: label,
+              action: () => callbacks.onPlayModelMotion?.(word),
             })),
           } as ContextMenuAction,
         ]

@@ -144,6 +144,15 @@ export interface ServerRollUnansweredEvent {
   reason: string;
 }
 
+/**
+ * A motion a piece's model is asked to play once: the piece, and the motion by the word it was asked
+ * for by, the name of one of the model's own motions or a word for a role in a fight.
+ */
+export interface ModelMotionEvent {
+  identifier: string;
+  motion: string;
+}
+
 export interface EffectCastEvent {
   cast: unknown;
 }
@@ -179,7 +188,12 @@ export const soundEffect$ = new EventChannel<string>();
  */
 export const chatFontWanted$ = new EventChannel<string>();
 
+/** How long the word a motion is asked for by may be. */
+const MAX_MOTION_WORD = 120;
+
 export const effectCast$ = new EventChannel<EffectCastEvent>();
+/** A piece's model is asked to play a motion once, on every screen. */
+export const modelMotion$ = new EventChannel<ModelMotionEvent>();
 export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
 /** Every screen darkens for a moment, as a scene changes under the dark. */
 export const sceneFade$ = new EventChannel<void>();
@@ -374,6 +388,14 @@ export function callEffectCast(cast: unknown) {
   networkSend('EFFECT_CAST', cast);
 }
 
+/**
+ * Has a piece's model play a motion once on every device, this one included. Nothing of it is kept:
+ * a room loaded later never plays it again.
+ */
+export function callModelMotion(event: ModelMotionEvent) {
+  networkSend('MODEL_MOTION', event);
+}
+
 /** Darkens every screen for a moment, this one included, while a scene is put on under the dark. */
 export function callSceneFade() {
   networkSend('SCENE_FADE', null);
@@ -456,6 +478,12 @@ networkMessage$.subscribe((msg) => {
     case 'BATTLE_CUT_IN':
       battleCutIn$.emit({ scene: msg.data });
       break;
+    case 'MODEL_MOTION': {
+      const data = msg.data as Partial<ModelMotionEvent> | null;
+      if (typeof data?.identifier !== 'string' || typeof data.motion !== 'string') break;
+      modelMotion$.emit({ identifier: data.identifier, motion: data.motion.slice(0, MAX_MOTION_WORD) });
+      break;
+    }
     case 'SCENE_FADE':
       sceneFade$.emit();
       break;

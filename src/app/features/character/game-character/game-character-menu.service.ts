@@ -18,6 +18,8 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { EngagementZoneService, ZoneMenuModel } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
+import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { hasPartLook, PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
@@ -36,12 +38,15 @@ import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel'
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { putOnBattleSide, standingBattleSide } from '@axe/domain/battle/battle-side';
 import { type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
+import { ASKED_ROLES } from '@axe/domain/tabletop/model-motions';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';
 import {
   buildGameCharacterContextMenuModel,
@@ -95,6 +100,9 @@ export function screenCentreOf(
  * Where a right-click on a character arrives: the menu it opens, and the panels about the piece
  * that the menu opens in turn.
  */
+/** How many of a model's own motions the menu of a piece offers to play. */
+const MOST_MODEL_MOTIONS = 24;
+
 @Injectable({ providedIn: 'root' })
 export class GameCharacterMenuService {
   private readonly contextMenuService = inject(ContextMenuService);
@@ -122,6 +130,9 @@ export class GameCharacterMenuService {
   private readonly effectCast = inject(EffectCastService);
   private readonly effectTargeting = inject(EffectTargetingService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly modelActs = inject(ModelActsService);
+  private readonly modelNames = inject(ModelNamesService);
+  private readonly modelStorage = inject(ModelStorage);
   private readonly ruler = inject(RulerService);
   private readonly engagementZones = inject(EngagementZoneService);
   private readonly ride = inject(RideService);
@@ -183,6 +194,8 @@ export class GameCharacterMenuService {
         onShowLightSettings: () => this.showLightSettings(char),
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
+        modelMotions: this.rolePermission.canEditTabletop() ? this.modelMotionsOf(char) : [],
+        onPlayModelMotion: (word) => this.modelActs.playForAll(char.identifier, word),
         onDeployDice: () => this.characterDice.deploy(char),
         onShowBattle: () =>
           this.roomPanels.open<BattleCutInPanelHandle>('battleCutIn', {}, (panel) => panel.focusOn(char.identifier)),
@@ -484,6 +497,22 @@ export class GameCharacterMenuService {
   private invokeEffect(char: GameCharacter, name: string): void {
     const preset = this.effectLibrary.findByName(name);
     if (preset) this.effectTargeting.castFrom(preset, char);
+  }
+
+  /**
+   * The motions a piece's model may be asked to play as a gesture: a blow, a spell and a blow taken,
+   * and after them the model's own motions by name, as many as the menu has room for. None for a
+   * piece drawn as no model held here.
+   */
+  private modelMotionsOf(char: GameCharacter): { word: string; label: string }[] {
+    const model = pieceModelOf(char);
+    if (!model || !this.modelStorage.get(model.identifier)?.isReady) return [];
+    const roles = ASKED_ROLES.map((role) => ({ word: role, label: this.translateFn(`ui.pieceModel.${role}`) }));
+    const own = this.modelNames
+      .namesOf(model.identifier)
+      .motions.slice(0, MOST_MODEL_MOTIONS)
+      .map((name) => ({ word: name, label: name }));
+    return [...roles, ...own];
   }
 
   private showDetail(gameObject: GameCharacter) {

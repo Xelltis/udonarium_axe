@@ -35,6 +35,26 @@ export function isBattleChatTokenName(name: string): boolean {
   return name.normalize('NFKC').trim().toLowerCase() === 'vs';
 }
 
+/** What opens the name of a token that asks the speaker's model for a motion, in either width and either case. */
+const MOTION_TOKEN_PREFIXES = ['動き:', 'motion:', '동작:'];
+
+/**
+ * The motion a token's name asks the speaker's model for, as in `《動き:Wave》`: the word after
+ * what opens it, or null for a name that asks for none.
+ */
+export function motionOfChatTokenName(name: string): string | null {
+  const read = name.normalize('NFKC').trim();
+  const prefix = MOTION_TOKEN_PREFIXES.find((opening) => read.toLowerCase().startsWith(opening));
+  if (prefix === undefined) return null;
+  const word = read.slice(prefix.length).trim();
+  return word.length > 0 ? word : null;
+}
+
+/** The token that asks the speaker's model for a motion, as it is added to a palette row. */
+export function buildMotionChatToken(word: string): string {
+  return `《${MOTION_TOKEN_PREFIXES[0]}${word}》`;
+}
+
 /** A `《name》` token in a line and where it stands, brackets included. */
 export interface EffectTokenSite {
   /** The name inside, without the spaces around it. */
@@ -43,6 +63,8 @@ export interface EffectTokenSite {
   to: number;
   /** Whether it is the battle stage's token rather than an effect's. */
   battle: boolean;
+  /** The motion it asks the speaker's model for, where it is such a token rather than an effect's. */
+  motion?: string;
 }
 
 /**
@@ -55,11 +77,13 @@ export function effectTokenSites(text: string): EffectTokenSite[] {
     const token = matched[3];
     if (token === undefined) continue;
     const name = token.trim();
+    const motion = motionOfChatTokenName(name);
     sites.push({
       name,
       from: matched.index,
       to: matched.index + matched[0].length,
       battle: isBattleChatTokenName(name),
+      ...(motion === null ? {} : { motion }),
     });
   }
   return sites;
@@ -85,13 +109,14 @@ export function chatNotationEnding(text: string): EndingChatNotation | null {
 }
 
 /**
- * Takes the first effect token out of a line. Null when there is none. The battle stage's token
- * names no effect, so it is passed over; a token with nothing in it ends the search.
+ * Takes the first effect token out of a line. Null when there is none. The battle stage's token and
+ * one that asks for a motion name no effect, so they are passed over; a token with nothing in it ends
+ * the search.
  */
 export function parseEffectChatToken(text: string): EffectChatToken | null {
   for (const site of effectTokenSites(text)) {
     if (site.name.length < 1) return null;
-    if (site.battle) continue;
+    if (site.battle || site.motion !== undefined) continue;
     return { name: site.name, text: stripEffectChatTokens(text) };
   }
   return null;
@@ -113,4 +138,9 @@ export function stripEffectChatTokens(text: string): string {
 /** The token added to a palette row. */
 export function buildEffectChatToken(name: string): string {
   return `《${name}》`;
+}
+
+/** The motions a line asks the speaker's model for, in the order it asks for them. */
+export function motionsAskedIn(text: string): string[] {
+  return effectTokenSites(text).flatMap((site) => (site.motion === undefined ? [] : [site.motion]));
 }

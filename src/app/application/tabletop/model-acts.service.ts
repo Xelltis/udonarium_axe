@@ -1,10 +1,11 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { callModelMotion, modelMotion$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { modelActsOf } from '@axe/domain/effect/effect-model-acts';
-import type { ModelAct } from '@axe/domain/tabletop/model-motions';
+import { askedRoleOf, type ModelAct } from '@axe/domain/tabletop/model-motions';
 
 const NO_ACTS: ReadonlyMap<string, ModelAct> = new Map();
 
@@ -16,9 +17,11 @@ const BLOW_APART_MS = 900;
 /**
  * What the model of each piece is asked to act now, by the piece's identifier: a blow, a spell, a
  * blow taken or its going down, as the effects this seat plays have it (see `modelActsOf`), and what
- * a piece is asked for outright, as a blow taken when a number of it falls with no effect played on
- * it. Every seat works it out from what it plays, so nothing more is sent. A part is drawn as its
- * body, so what a part is asked to act its body's model acts.
+ * a piece is asked for outright: a blow taken when a number of it falls with no effect played on
+ * it, and a motion somebody has its model play as a gesture. Every seat works the first out from
+ * what it plays, so nothing more is sent for them; a gesture is sent to every seat, to be played
+ * there once and kept nowhere. A part is drawn as its body, so what a part is asked to act its
+ * body's model acts.
  */
 @Injectable({ providedIn: 'root' })
 export class ModelActsService {
@@ -27,6 +30,10 @@ export class ModelActsService {
   private readonly links = inject(PieceLinksService);
   private readonly asked = signal<ReadonlyMap<string, ModelAct>>(NO_ACTS);
   private serial = 0;
+
+  constructor() {
+    modelMotion$.subscribe((event) => this.play(event.identifier, event.motion), inject(DestroyRef));
+  }
 
   readonly acts = computed<ReadonlyMap<string, ModelAct>>(
     () => {
@@ -62,9 +69,22 @@ export class ModelActsService {
     this.ask(owner, { key: `asked:${++this.serial}`, role: 'hit', atMs: now });
   }
 
-  /** Has a piece's model play one of its own motions now, by name. */
-  play(identifier: string, name: string): void {
-    this.ask(this.drawnAs(identifier), { key: `asked:${++this.serial}`, role: 'named', name, atMs: clock() });
+  /**
+   * Has a piece's model play a motion now, on this screen: the role a word for one asks for, a blow,
+   * a spell or a blow taken, or else the model's own motion of that name.
+   */
+  play(identifier: string, motion: string): void {
+    const role = askedRoleOf(motion);
+    const key = `asked:${++this.serial}`;
+    this.ask(
+      this.drawnAs(identifier),
+      role ? { key, role, atMs: clock() } : { key, role: 'named', name: motion.trim(), atMs: clock() }
+    );
+  }
+
+  /** Has a piece's model play a motion once on every screen, this one included. */
+  playForAll(identifier: string, motion: string): void {
+    callModelMotion({ identifier, motion });
   }
 
   private ask(owner: string, act: ModelAct): void {

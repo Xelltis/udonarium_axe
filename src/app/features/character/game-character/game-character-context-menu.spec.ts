@@ -183,6 +183,43 @@ describe('buildGameCharacterContextMenu()', () => {
     });
   });
 
+  describe('the motions of the piece’s model', () => {
+    function motionEntries(extra: object) {
+      const menu = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), ...extra },
+        t
+      );
+      const group = groupOf(menu, 'バフ・演出') as unknown as {
+        name: string;
+        subActions?: { name: string; action?: () => void }[];
+      }[];
+      return group.find((entry) => entry.name === 'モデルの動き')?.subActions ?? null;
+    }
+
+    it('are offered by the names handed in, each asked for by its own word', () => {
+      const onPlayModelMotion = vi.fn();
+      const entries = motionEntries({
+        modelMotions: [
+          { word: 'attack', label: '攻撃' },
+          { word: 'Wave', label: 'Wave' },
+        ],
+        onPlayModelMotion,
+      })!;
+
+      expect(entries.map((entry) => entry.name)).toEqual(['攻撃', 'Wave']);
+      entries[1].action!();
+      expect(onPlayModelMotion).toHaveBeenCalledWith('Wave');
+    });
+
+    it('are left out for a piece with none to offer, as one drawn as no model', () => {
+      expect(motionEntries({ modelMotions: [], onPlayModelMotion: vi.fn() })).toBeNull();
+      expect(motionEntries({})).toBeNull();
+    });
+  });
+
   it('puts working a move out above everything else the piece is asked', () => {
     const menu = buildGameCharacterContextMenu(
       makeChar() as unknown as GameCharacter,

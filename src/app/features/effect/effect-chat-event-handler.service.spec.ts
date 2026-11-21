@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
 import { emitResourceEditMessage } from '@axe/core/event/domain-events';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
@@ -164,5 +165,42 @@ describe('EffectChatEventHandlerService', () => {
     emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
 
     expect(castStub.fire).not.toHaveBeenCalled();
+  });
+
+  describe('a token that asks for a motion', () => {
+    it('has the model of the piece that spoke play it on every table, and fires no effect by that name', () => {
+      const played = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
+      const message = addMessage('やあ《動き:Wave》', caster.identifier);
+
+      emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+
+      expect(played.mock.calls).toEqual([[caster.identifier, 'Wave']]);
+      expect(castStub.fire).not.toHaveBeenCalled();
+    });
+
+    it('plays the first motion asked for alone, beside the effect the line fires', () => {
+      const played = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
+      const message = addMessage('《動き:攻撃》《爆炎》《動き:Bow》', caster.identifier);
+
+      emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+
+      expect(played.mock.calls).toEqual([[caster.identifier, '攻撃']]);
+      expect(castStub.fire).toHaveBeenCalledTimes(1);
+    });
+
+    it('plays nothing for a speaker who is no piece, for a guest, nor for somebody else’s line', () => {
+      const played = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
+      const mine = addMessage('《動き:Wave》', PeerCursor.myCursor.identifier);
+      const theirs = addMessage('《動き:Wave》', caster.identifier, false);
+      emitResourceEditMessage({ messageIdentifier: mine.identifier, messageTargetContext: null });
+      emitResourceEditMessage({ messageIdentifier: theirs.identifier, messageTargetContext: null });
+
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const asGuest = addMessage('《動き:Wave》', caster.identifier);
+      emitResourceEditMessage({ messageIdentifier: asGuest.identifier, messageTargetContext: null });
+      PeerCursor.myCursor.role = PeerRole.Player;
+
+      expect(played).not.toHaveBeenCalled();
+    });
   });
 });

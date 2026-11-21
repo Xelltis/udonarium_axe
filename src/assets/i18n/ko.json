@@ -2424,6 +2424,7 @@
         "moveGraveyard": "무덤으로 이동",
         "buffView": "버프 표시",
         "invokeEffect": "연출 발동",
+        "modelMotion": "모델 동작",
         "deployDice": "주사위 펼치기({{count}}개)",
         "showVisionRange": "시야 범위 표시",
         "measureFrom": "여기서 재기",

@@ -6,11 +6,15 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
+import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { resetCarriedOut$, type ResetCarriedOutEvent } from '@axe/core/event/domain-events';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -99,6 +103,51 @@ describe('GameCharacterMenuService', () => {
     (service as unknown as { invokeEffect(char: GameCharacter, name: string): void }).invokeEffect(character, '爆炎');
 
     expect(castFrom).toHaveBeenCalledWith(preset, character);
+  });
+
+  describe('the motions of the piece’s model', () => {
+    /** The entries under the model's motions in the menu opened for the piece, or null where there are none. */
+    function offered(): ContextMenuAction[] | null {
+      seeTable(false, 'radial');
+      service.open(character, host(), at);
+      const actions = open.mock.calls.at(-1)![1];
+      const group = actions.flatMap((action) => action.subActions ?? []);
+      return group.find((action) => action.name === 'モデルの動き')?.subActions ?? null;
+    }
+
+    function holdModel(motions: string[]): void {
+      character.modelIdentifier = 'knight';
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true } as never);
+      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({ motions, shapes: [], materials: [] });
+    }
+
+    it('offers a blow, a spell and a blow taken, and then the model’s own motions, each played for the whole room', () => {
+      holdModel(['Wave', 'Bow']);
+      const played = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
+
+      const entries = offered()!;
+      expect(named(entries)).toEqual(['攻撃', '魔法・射撃', '被弾', 'Wave', 'Bow']);
+      entries[0].action!();
+      entries[3].action!();
+
+      expect(played.mock.calls).toEqual([
+        [character.identifier, 'attack'],
+        [character.identifier, 'Wave'],
+      ]);
+    });
+
+    it('offers none for a piece drawn as no model, for a model not held here, nor to a guest', () => {
+      expect(offered()).toBeNull();
+
+      character.modelIdentifier = 'knight';
+      expect(offered()).toBeNull();
+
+      holdModel(['Wave']);
+      const mayEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
+      expect(offered()).toBeNull();
+      mayEdit.mockReturnValue(true);
+      expect(offered()).not.toBeNull();
+    });
   });
 
   it('opens a list on a flat table too, where the standard menu is chosen', () => {

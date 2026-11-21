@@ -2424,6 +2424,7 @@
         "moveGraveyard": "Move to graveyard",
         "buffView": "Buff display",
         "invokeEffect": "Play an effect",
+        "modelMotion": "Model motion",
         "deployDice": "Lay out {{count}} dice",
         "showVisionRange": "Show range of sight",
         "measureFrom": "Measure from here",

@@ -2424,6 +2424,7 @@
         "moveGraveyard": "墓場に移動",
         "buffView": "バフの表示",
         "invokeEffect": "演出を発動",
+        "modelMotion": "モデルの動き",
         "deployDice": "ダイスを展開する（{{count}}個）",
         "showVisionRange": "視界範囲を表示",
         "measureFrom": "ここから測る",

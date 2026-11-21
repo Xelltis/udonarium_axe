@@ -1,8 +1,11 @@
 import {
   BATTLE_CHAT_TOKEN,
   buildEffectChatToken,
+  buildMotionChatToken,
   effectTokenSites,
   hasBattleChatToken,
+  motionOfChatTokenName,
+  motionsAskedIn,
   parseEffectChatToken,
   stripEffectChatTokens,
 } from '@axe/domain/effect/effect-chat-token';
@@ -96,5 +99,41 @@ describe('effectTokenSites', () => {
       ['《 vs 》', 'vs', true],
       ['《 》', '', false],
     ]);
+  });
+});
+
+describe('a token that asks the speaker’s model for a motion', () => {
+  it('names the motion after what opens it, in either width and either case', () => {
+    expect(motionOfChatTokenName('動き:Wave')).toBe('Wave');
+    expect(motionOfChatTokenName('動き： 攻撃 ')).toBe('攻撃');
+    expect(motionOfChatTokenName('Motion:Sit Down')).toBe('Sit Down');
+    expect(motionOfChatTokenName('동작:공격')).toBe('공격');
+  });
+
+  it('asks for none without a word after what opens it, nor in the name of an effect', () => {
+    expect(motionOfChatTokenName('動き:')).toBeNull();
+    expect(motionOfChatTokenName('爆炎')).toBeNull();
+    expect(motionOfChatTokenName('vs')).toBeNull();
+  });
+
+  it('is placed with the motion it asks for, and is passed over as an effect', () => {
+    const text = 'やあ《動き:Wave》《爆炎》';
+
+    expect(effectTokenSites(text).map((site) => [site.name, site.motion])).toEqual([
+      ['動き:Wave', 'Wave'],
+      ['爆炎', undefined],
+    ]);
+    expect(parseEffectChatToken(text)).toEqual({ name: '爆炎', text: 'やあ' });
+    expect(parseEffectChatToken('《動き:Wave》')).toBeNull();
+  });
+
+  it('is found in a line in the order it is asked for, never in the reading of a ruby', () => {
+    expect(motionsAskedIn('《動き:Wave》 ok 《motion:Bow》')).toEqual(['Wave', 'Bow']);
+    expect(motionsAskedIn('|手《動き:Wave》')).toEqual([]);
+    expect(motionsAskedIn('《爆炎》')).toEqual([]);
+  });
+
+  it('is written in a form that reads back as the motion', () => {
+    expect(motionsAskedIn(buildMotionChatToken('Wave'))).toEqual(['Wave']);
   });
 });

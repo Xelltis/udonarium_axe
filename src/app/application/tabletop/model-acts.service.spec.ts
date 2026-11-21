@@ -2,6 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { type ActiveEffectCast, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
+import { Network } from '@axe/core/network/network';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
@@ -121,6 +123,31 @@ describe('ModelActsService', () => {
 
     expect(first).toMatchObject({ role: 'named', name: 'Wave' });
     expect(acts.acts().get(orc.identifier)?.key).not.toBe(first?.key);
+  });
+
+  it('plays a role a word for one asks for, rather than a motion of that name', () => {
+    const orc = piece('オーク', 0, 0);
+
+    acts.play(orc.identifier, '攻撃');
+    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'attack' });
+    expect(acts.acts().get(orc.identifier)?.name).toBeUndefined();
+
+    acts.play(orc.identifier, ' Wave ');
+    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Wave' });
+  });
+
+  it('plays a motion this seat is told of, and tells every seat of one played for all', () => {
+    const orc = piece('オーク', 0, 0);
+    const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
+
+    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Wave' });
+    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Wave' });
+
+    acts.playForAll(orc.identifier, 'Bow');
+    const told = sent.mock.calls.map(([context]) => context as { eventName: string; data: unknown });
+    expect(told.map((context) => [context.eventName, context.data])).toEqual([
+      ['MODEL_MOTION', { identifier: orc.identifier, motion: 'Bow' }],
+    ]);
   });
 
   it('lets what an effect asks of a piece come before what it was asked outright', () => {

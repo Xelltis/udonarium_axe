@@ -55,6 +55,8 @@ export const TIMER_FLAGS_MADE_ANEW: Readonly<Record<string, string>> = {
   'src/app/domain/dice/server-roll-requests.ts':
     'kept by the dice bot, which clears it as the store it is emptied from before every test lets go of it',
   'src/app/infrastructure/model-viewer/model-viewer.ts': 'kept by a viewer the component showing a model makes',
+  'src/app/infrastructure/table-3d/figure-stage.ts':
+    'kept by a stage of figures the component showing them makes, and lets go of as it goes',
 };
 
 /** The one instance a class has made for the page, or nothing where it has made none yet. */

@@ -14,6 +14,7 @@ import {
   emitStopCutInByBgm,
   finishVote$,
   messageAdded$,
+  modelMotion$,
   selectFile$,
   selectGameTable$,
   sendMessage$,
@@ -130,5 +131,22 @@ describe('domain-events emit→subscribe wiring', () => {
     localDispatch('DICE_THROW', null);
     unsub();
     expect(received).toEqual([]);
+  });
+
+  it('tells of a motion a piece’s model is asked to play, and of nothing where the piece or the motion is no text', () => {
+    const received: unknown[] = [];
+    const unsub = modelMotion$.subscribe((event) => received.push(event));
+
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'Wave' });
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1' });
+    localDispatch('MODEL_MOTION', { identifier: 7, motion: 'Wave' });
+    localDispatch('MODEL_MOTION', null);
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'x'.repeat(500) });
+    unsub();
+
+    expect(received).toEqual([
+      { identifier: 'piece-1', motion: 'Wave' },
+      { identifier: 'piece-1', motion: 'x'.repeat(120) },
+    ]);
   });
 });

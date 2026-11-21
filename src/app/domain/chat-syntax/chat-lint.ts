@@ -369,6 +369,8 @@ function lintMessage(
           effectsStopped = true;
         } else if (context.keptOffTable) {
           if (!effectsStopped) add(span, 'warning', 'edit.keptOffTable');
+        } else if (span.motion !== undefined) {
+          break;
         } else if (span.battle) {
           if (!context.speaker) add(span, 'info', 'battle.noSpeaker');
           else if (!later && !targeting && context.hasBattleDefender === false) add(span, 'warning', 'battle.noTarget');

@@ -1,6 +1,7 @@
 import {
   ACT_ROLES,
   actHolds,
+  askedRoleOf,
   MADE_MOTION_MS,
   MADE_REST,
   madePoseAt,
@@ -124,5 +125,22 @@ describe('a model moved by hand', () => {
         before = now;
       }
     }
+  });
+});
+
+describe('the role a word asks a model to play', () => {
+  it('is told in any of the room’s tongues, whatever its width and its letters’ case', () => {
+    expect(askedRoleOf('attack')).toBe('attack');
+    expect(askedRoleOf(' 攻撃 ')).toBe('attack');
+    expect(askedRoleOf('ＣＡＳＴ')).toBe('cast');
+    expect(askedRoleOf('魔法')).toBe('cast');
+    expect(askedRoleOf('被弾')).toBe('hit');
+    expect(askedRoleOf('피격')).toBe('hit');
+  });
+
+  it('is none for the name of a motion, nor for going down, which would leave the model down', () => {
+    expect(askedRoleOf('Wave')).toBeNull();
+    expect(askedRoleOf('defeat')).toBeNull();
+    expect(askedRoleOf('')).toBeNull();
   });
 });
