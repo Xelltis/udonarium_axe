@@ -273,6 +273,12 @@ export class ModelLayer {
     return meshes;
   }
 
+  /** Whether the model laid for a piece or block has been read, and so is drawn. */
+  draws(owner: string): boolean {
+    const model = this.laid.find((one) => one.owner === owner);
+    return model !== undefined && !!this.loaded.get(modelReadKeyOf(model));
+  }
+
   /** Whether any model is still being read. */
   get isLoading(): boolean {
     return this.loading.size > 0;

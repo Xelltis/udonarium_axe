@@ -1,6 +1,8 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import type { EffectLight } from '@axe/domain/effect/effect-light';
 import type { EffectFrame, EffectGround } from '@axe/domain/effect/scene/effect-scene';
+import type { ModelAct } from '@axe/domain/tabletop/model-motions';
+import type { PieceModel } from '@axe/domain/tabletop/piece-model';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
@@ -383,8 +385,62 @@ export interface EffectOverlay {
   dispose(): void;
 }
 
+/**
+ * A piece's model stood on a stage apart from the table: the model, from where its bytes are read,
+ * as its piece has it drawn and moved, fitted inside a box so wide and so tall with its foot on a
+ * point, and turned so far clockwise, seen from above, from facing the eye.
+ */
+export interface StageFigure {
+  /** What tells it from the others on the stage, as the identifier of its piece. */
+  readonly key: string;
+  /** Where the model's bytes are read from: an object URL for bytes held here. */
+  readonly url: string;
+  readonly model: PieceModel;
+  /**
+   * Where the middle of its foot stands. On a floor the page draws: x to the east, y to the south and
+   * z up, in the floor's pixels. Seen from the front: x and y a point of the canvas from its top
+   * left, in the canvas's own pixels, and z nothing.
+   */
+  readonly at: { readonly x: number; readonly y: number; readonly z: number };
+  readonly widthPx: number;
+  readonly heightPx: number;
+  readonly turnDeg: number;
+  /** Whether it walks. */
+  readonly walking?: boolean;
+  /** What it is asked to act now. */
+  readonly act?: ModelAct;
+}
+
+/**
+ * How a stage of figures is seen: as a floor the page draws in 3D is, for its figures to stand where
+ * that floor does; or from the front and a little above, each figure where it is put on the canvas
+ * and as tall there as it is asked to be, the canvas laid out so many pixels wide and high.
+ */
+export type FigureStageView =
+  { readonly floor: EffectOverlayView } | { readonly front: { readonly width: number; readonly height: number } };
+
+/**
+ * A see-through canvas the models of pieces are stood on apart from the table, drawn and moved as the
+ * table draws and moves them: for a fight played on a stage, a figure shown large, or one looked at
+ * while it is set up. It goes on drawing by itself for as long as anything on it moves.
+ */
+export interface FigureStage {
+  /** Stands these figures, seen so, in place of those before; one whose model is not read yet stands once it is. */
+  show(figures: readonly StageFigure[], view: FigureStageView): void;
+  /** Whether a figure's model has been read and stands on the stage. */
+  stands(key: string): boolean;
+  /** Calls back whenever a model has been read, or could not be, after which what {@link stands} may differ. */
+  onArrival(listener: () => void): void;
+  /** Sets whether the figures move of themselves: not for a reader who asks for less motion. */
+  setMoving(moving: boolean): void;
+  /** A picture of the stage as it stands now, or null where none can be taken. */
+  picture(): Promise<Blob | null>;
+  dispose(): void;
+}
+
 /** What the module that makes small stages gives, loaded only once something asks for one. */
 export interface EffectStageModule {
   createEffectStage(canvas: HTMLCanvasElement, options: EffectStageOptions): Promise<EffectStage | null>;
   createEffectOverlay(canvas: HTMLCanvasElement): Promise<EffectOverlay | null>;
+  createFigureStage(canvas: HTMLCanvasElement): Promise<FigureStage | null>;
 }

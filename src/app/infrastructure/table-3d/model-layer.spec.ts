@@ -628,6 +628,28 @@ describe('ModelLayer', () => {
     layer.dispose();
   });
 
+  it('says a model is drawn once it has been read, and not one it could not read or was never laid', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const scene = new Group();
+    scene.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial()));
+    const internals = layer as unknown as { reader: { read: (url: string) => Promise<unknown> } };
+    vi.spyOn(internals.reader, 'read').mockImplementation((url) =>
+      url === 'blob:knight' ? Promise.resolve({ scene, animations: [] }) : Promise.resolve(null)
+    );
+
+    layer.set([knight(), knight({ owner: 'ghost', url: 'blob:unreadable' })]);
+    expect(layer.draws('knight')).toBe(false);
+    await vi.waitFor(() => expect(layer.draws('knight')).toBe(true));
+
+    expect(layer.draws('ghost')).toBe(false);
+    expect(layer.draws('nobody')).toBe(false);
+    layer.dispose();
+  });
+
   it('keeps a model whose look reads as made with the model as made', () => {
     const asMade = knight({ model: { ...knight().model, look: modelLookOf('{"materials":{}}') } });
 
