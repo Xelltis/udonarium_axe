@@ -66,6 +66,21 @@
     @if (settingUp()) {
       <div class="mt-1.5 flex flex-col gap-1.5">
         <model-preview [target]="target()" [act]="tried().act" [walking]="tried().walking" />
+        @if (portrayed()) {
+          <div class="flex justify-end">
+            <button
+              class="border-ui-accent text-ui-accent hover:bg-ui-accent-bg inline-flex cursor-pointer items-center gap-1 rounded-xs border border-solid bg-transparent px-2 py-0.5 text-[0.78em] whitespace-nowrap disabled:cursor-wait disabled:opacity-50"
+              type="button"
+              data-testid="piece-model-portrait"
+              [disabled]="portraying()"
+              [title]="'ui.pieceModel.addPortraitHint' | transloco"
+              (click)="addPortrait()"
+            >
+              <i class="material-icons text-[14px]!">add_photo_alternate</i
+              >{{ 'ui.pieceModel.addPortrait' | transloco }}
+            </button>
+          </div>
+        }
         <div class="text-ui-accent border-ui-border-panel border-b border-solid pb-0.5 text-[0.72em] font-semibold">
           {{ 'ui.pieceModel.look' | transloco }}
         </div>

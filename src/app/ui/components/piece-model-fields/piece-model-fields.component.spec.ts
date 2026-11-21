@@ -1,10 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import { ModelPortraitService } from '@axe/application/character/model-portrait.service';
 import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { ModelPreviewComponent } from '@axe/ui/components/piece-model-fields/model-preview.component';
 import { PieceModelFieldsComponent } from '@axe/ui/components/piece-model-fields/piece-model-fields.component';
 
 describe('PieceModelFieldsComponent', () => {
@@ -109,6 +112,48 @@ describe('PieceModelFieldsComponent', () => {
       const shaped = await setUp({ motions: [], shapes: ['Blink'], materials: [] });
       await shaped.open(true);
       expect(shaped.element.querySelector('[data-testid="model-face-blink"]')).not.toBeNull();
+    });
+
+    it('adds a picture of the model as the preview shows it to the piece’s portraits, named as the model', async () => {
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([
+        { identifier: 'a'.repeat(64), name: 'knight.glb', isReady: true },
+      ] as never);
+      const picture = new Blob(['picture']);
+      vi.spyOn(ModelPreviewComponent.prototype, 'picture').mockResolvedValue(picture);
+      const added = vi.spyOn(TestBed.inject(ModelPortraitService), 'addShown').mockResolvedValue(true);
+      const { element, open, fixture } = await setUp({ motions: [], shapes: [], materials: [] });
+      await open(true);
+
+      element.querySelector<HTMLButtonElement>('[data-testid="piece-model-portrait"]')!.click();
+      await fixture.whenStable();
+
+      expect(added).toHaveBeenCalledWith(piece, picture, 'knight');
+    });
+
+    it('offers no portrait to anything but a piece', async () => {
+      const block = new Terrain();
+      block.initialize();
+      block.modelIdentifier = 'a'.repeat(64);
+      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({
+        motions: [],
+        shapes: [],
+        materials: [],
+      });
+      const fixture = TestBed.createComponent(PieceModelFieldsComponent);
+      fixture.componentRef.setInput('target', block);
+      fixture.componentRef.setInput('fights', false);
+      await fixture.whenStable();
+      const details = (fixture.nativeElement as HTMLElement).querySelector<HTMLDetailsElement>(
+        '[data-testid="piece-model-setup"]'
+      )!;
+      details.open = true;
+      details.dispatchEvent(new Event('toggle'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).querySelector('model-preview')).not.toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="piece-model-portrait"]')).toBeNull();
+      block.destroy();
     });
 
     it('gives a block no motions to walk or fight in', async () => {

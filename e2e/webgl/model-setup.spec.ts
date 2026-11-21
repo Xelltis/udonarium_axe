@@ -61,4 +61,21 @@ test.describe('setting up the model of a piece', () => {
     await expect.poll(async () => (await kept(page)).motions).toBe('{"made":false}');
     await expect(sheet.getByTestId('piece-model-try-attack')).toBeDisabled();
   });
+
+  test('adds the model as the preview shows it to the piece’s portraits, as the one the piece shows', async ({
+    page,
+  }) => {
+    const sheet = page.locator('game-character-sheet');
+    await expect(sheet.getByTestId('model-preview')).toHaveAttribute('data-state', 'shown', { timeout: 30000 });
+    await sheet.getByTestId('model-look-preset').selectOption({ label: '黄金' });
+
+    await sheet.getByTestId('piece-model-portrait').click();
+    await expect(sheet.getByTestId('piece-model-portrait')).toBeEnabled();
+    await sheet.getByRole('button', { name: 'シート' }).dispatchEvent('click');
+
+    const added = sheet.locator('[title="knight"]');
+    await expect(added).toHaveCount(1, { timeout: 10000 });
+    await expect(added.locator('img')).toHaveAttribute('src', /^blob:/);
+    await expect(added.locator('.material-icons', { hasText: 'person_pin' })).toHaveCount(1);
+  });
 });

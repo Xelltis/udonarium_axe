@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ModelPortraitService } from '@axe/application/character/model-portrait.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModelNamesService, NO_MODEL_NAMES } from '@axe/application/tabletop/model-names.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ModelStorage } from '@axe/core/storage/model-storage';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import type { ModelAct, MotionRole } from '@axe/domain/tabletop/model-motions';
 import { modelScaleOf, modelTurnOf } from '@axe/domain/tabletop/piece-model';
 import { ModelFaceFieldsComponent } from '@axe/ui/components/piece-model-fields/model-face-fields.component';
@@ -53,6 +55,8 @@ export class PieceModelFieldsComponent {
   private readonly modelStorage = inject(ModelStorage);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly modelNames = inject(ModelNamesService);
+  private readonly portraits = inject(ModelPortraitService);
+  private readonly preview = viewChild(ModelPreviewComponent);
 
   /** The piece or block whose model is chosen. */
   readonly target = input.required<ModelledPiece>();
@@ -89,6 +93,11 @@ export class PieceModelFieldsComponent {
     return identifier ? this.modelNames.namesOf(identifier) : NO_MODEL_NAMES;
   });
 
+  /** Whether the target is a piece with portraits, which a picture of its model may be added to. */
+  protected readonly portrayed = computed(() => this.target() instanceof GameCharacter);
+  /** Whether a picture of the model is being added to the piece's portraits now. */
+  protected readonly portraying = signal(false);
+
   /** Whether the model's setting up is opened, which shows its preview. */
   protected readonly settingUp = signal(false);
   protected readonly tried = signal<Tried>(NOTHING_TRIED);
@@ -114,6 +123,33 @@ export class PieceModelFieldsComponent {
     if (role === 'idle') this.tried.set(NOTHING_TRIED);
     else if (role === 'walk') this.tried.update((tried) => ({ act: null, walking: !tried.walking }));
     else this.tried.set({ act: { key: `tried:${++this.tries}`, role, atMs: performance.now() }, walking: false });
+  }
+
+  /**
+   * Adds a picture of the model as the preview shows it, as it is set up, to the piece's portraits,
+   * as the one it shows wherever its picture is shown.
+   */
+  protected async addPortrait(): Promise<void> {
+    const target = this.target();
+    const preview = this.preview();
+    if (!(target instanceof GameCharacter) || !preview || this.portraying()) return;
+    this.portraying.set(true);
+    try {
+      const picture = await preview.picture();
+      if (picture) await this.portraits.addShown(target, picture, this.modelName());
+    } finally {
+      this.portraying.set(false);
+    }
+  }
+
+  /** The name of the model the target is drawn as, as it is listed. */
+  private modelName(): string {
+    const identifier = this.fields().identifier;
+    return (
+      this.models()
+        .find((model) => model.identifier === identifier)
+        ?.name.replace(/\.glb$/i, '') ?? ''
+    );
   }
 
   /** Reads a `.glb` file chosen into the models held here, and gives it to the target. */

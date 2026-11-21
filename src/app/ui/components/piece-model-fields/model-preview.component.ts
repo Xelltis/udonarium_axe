@@ -144,6 +144,12 @@ export class ModelPreviewComponent {
     this.stage.set(stage);
   }
 
+  /** A picture of the model as it stands in the preview now, on nothing, or null where none can be taken. */
+  picture(): Promise<Blob | null> {
+    const stage = this.stage();
+    return stage && this.state() === 'shown' ? stage.picture() : Promise.resolve(null);
+  }
+
   protected press(event: PointerEvent): void {
     if (!this.turnable()) return;
     this.dragFromX = event.clientX;
