@@ -115,9 +115,9 @@ export class ModelFile {
   }
 }
 
-/** The name a model is shown by: the file name it was added with, without its `.glb`. */
+/** The name a model is shown by: the file name it was added with, without its `.glb` or `.vrm`. */
 export function modelNameOf(fileName: string): string {
-  return fileName.replace(/\.glb$/i, '');
+  return fileName.replace(/\.(glb|vrm)$/i, '');
 }
 
 /**

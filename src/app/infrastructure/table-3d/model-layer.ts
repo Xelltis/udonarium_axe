@@ -21,6 +21,7 @@ import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispos
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { cutGeometry, meshesOf, releaseCutShapes } from '@axe/infrastructure/three-kit/model-faces';
 import { releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
+import type { VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
@@ -57,6 +58,8 @@ interface LoadedModel {
   readonly made: readonly MadeOfMesh[];
   /** Whether it keeps the glow it was made with, as only one of the app's own models does. */
   readonly ownGlow: boolean;
+  /** For a VRM, the shapes it names and the parts of it that swing, made again for each copy. */
+  readonly rig?: VrmRig;
   /**
    * Whether it is made to be stretched to the box it stands in, each way on its own, as a door or a
    * stair of any size is, rather than fitted inside it keeping its shape. Its scene says so in its
@@ -661,7 +664,7 @@ export class ModelLayer {
       key: modelReadKeyOf(model),
       cut: model.cutFaces ?? '',
       root,
-      actor: new ModelActor(inner, loaded.gltf.animations, model.owner),
+      actor: new ModelActor(inner, loaded.gltf.animations, model.owner, loaded.rig ?? null),
       placed: new Matrix4(),
       foot: new Vector3(),
       toward: new Vector3(0, 0, 1),
@@ -731,7 +734,7 @@ export class ModelLayer {
     for (const picture of undrawn) picture.dispose();
     for (const material of worn) material.dispose();
     this.wear(gltf.scene, made, look, moonlit, ownGlow, detail);
-    return { ...measured(gltf), made, ownGlow };
+    return { ...measured(gltf), made, ownGlow, ...(read.rig ? { rig: read.rig } : {}) };
   }
 
   /**

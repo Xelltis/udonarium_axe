@@ -33,6 +33,7 @@ const types = {
   opus: 'audio/ogg',
   flac: 'audio/flac',
   glb: 'model/gltf-binary',
+  vrm: 'model/gltf-binary',
   mpg: 'video/mpeg',
   mpeg: 'video/mpeg',
   mp4: 'video/mp4',

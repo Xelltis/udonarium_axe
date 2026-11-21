@@ -11,6 +11,8 @@ import {
   type MotionRole,
 } from '@axe/domain/tabletop/model-motions';
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
+import { meshesOf } from '@axe/infrastructure/three-kit/model-faces';
+import type { SwingingParts, VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import {
   type AnimationAction,
   AnimationClip,
@@ -44,6 +46,31 @@ export interface ActorMoment {
   readonly standing: boolean;
 }
 
+/** How long what swings is moved on after a copy last moved, in milliseconds, for it to come to rest. */
+const SWING_SETTLE_MS = 1600;
+
+/** A morph of a copy's mesh a shape a VRM names moves, and how far it goes for the shape all the way. */
+interface ExpressionMorph {
+  readonly influences: number[];
+  readonly place: number;
+  readonly weight: number;
+}
+
+/** The shapes a VRM names, each with the morphs of a copy's own meshes it moves. */
+function expressionsOn(root: Object3D, rig: VrmRig | null): Map<string, ExpressionMorph[]> {
+  const found = new Map<string, ExpressionMorph[]>();
+  if (!rig || rig.expressions.length === 0) return found;
+  const meshes = meshesOf(root) as unknown as { morphTargetInfluences?: number[] }[];
+  for (const { name, binds } of rig.expressions) {
+    const morphs = binds.flatMap(({ mesh, morph, weight }) => {
+      const influences = meshes[mesh]?.morphTargetInfluences;
+      return influences && morph < influences.length ? [{ influences, place: morph, weight }] : [];
+    });
+    if (morphs.length > 0) found.set(name, morphs);
+  }
+  return found;
+}
+
 /** A mesh of a model that can be blended towards shapes, with where each of them stands by name. */
 interface ShapedMesh {
   readonly influences: number[];
@@ -65,6 +92,14 @@ export class ModelActor {
   private readonly mixer: AnimationMixer;
   private readonly names: readonly string[];
   private readonly shaped: readonly ShapedMesh[];
+  /** The shapes a VRM names, each with the morphs of this copy's meshes it moves and how far. */
+  private readonly expressions: ReadonlyMap<string, readonly ExpressionMorph[]>;
+  /** What of this copy swings as it moves, as a VRM's hair and cloth do, or nothing. */
+  private readonly swinging: SwingingParts | null;
+  /** Until when what swings is moved on, in milliseconds: on for a while after the copy last moved, to come to rest. */
+  private swingUntilMs = 0;
+  /** The morphs written at the moment before, by the influences they are written in. */
+  private writtenAt = new Map<number[], Set<number>>();
   /** The names of all the shapes its meshes can be blended towards. */
   readonly shapes: readonly string[];
   private readonly seed: number;
@@ -89,19 +124,21 @@ export class ModelActor {
   private mouthed = false;
   private speaking = false;
   private lastMs: number | null = null;
-  private written = new Set<string>();
   private posed: MadePose = MADE_REST;
   private restless = true;
 
   constructor(
     root: Object3D,
     private readonly clips: readonly AnimationClip[],
-    owner: string
+    owner: string,
+    rig: VrmRig | null = null
   ) {
     this.mixer = new AnimationMixer(root);
+    this.expressions = expressionsOn(root, rig);
+    this.swinging = rig?.swingingOf(root) ?? null;
     this.names = clips.map((clip) => clip.name);
     this.shaped = shapedMeshesOf(root);
-    this.shapes = [...new Set(this.shaped.flatMap((mesh) => [...mesh.places.keys()]))];
+    this.shapes = [...new Set([...this.expressions.keys(), ...this.shaped.flatMap((mesh) => [...mesh.places.keys()])])];
     this.seed = seedOf(owner);
   }
 
@@ -190,10 +227,26 @@ export class ModelActor {
       this.mixer.update(step);
     }
     this.face(moment, down);
-    this.posed = this.madePose(moment);
+    const posed = this.madePose(moment);
+    const moved = acting || (!down && this.walking) || posed !== this.posed || (stands && this.current !== null);
+    this.posed = posed;
+    const swinging = this.swing(moment, step, moved);
     if (!moment.moving) return 'still';
     if (acting || (!down && this.walking)) return 'fast';
-    return stands ? 'slow' : 'still';
+    if (stands) return 'slow';
+    return swinging ? 'fast' : 'still';
+  }
+
+  /**
+   * Moves on what of the copy swings, for as long as the copy moves and a while after, for it to come
+   * to rest; answers whether it is still swinging. Nothing swings for a reader who asks for less motion.
+   */
+  private swing(moment: ActorMoment, step: number, moved: boolean): boolean {
+    if (!this.swinging || !moment.moving) return false;
+    if (moved) this.swingUntilMs = moment.timeMs + SWING_SETTLE_MS;
+    if (moment.timeMs >= this.swingUntilMs) return false;
+    this.swinging.update(step);
+    return true;
   }
 
   /** Stops every motion and lets go of what playing them holds. */
@@ -277,7 +330,7 @@ export class ModelActor {
    * alone where nothing moves, where standing motions are not played, and once the model is down.
    */
   private face(moment: ActorMoment, down: boolean): void {
-    if (this.shaped.length === 0 || !this.asked) return;
+    if ((this.shaped.length === 0 && this.expressions.size === 0) || !this.asked) return;
     const still = !moment.moving || !moment.standing || down;
     const weights = shapeWeightsAt(this.asked.face, this.shapes, {
       timeMs: moment.timeMs,
@@ -285,17 +338,28 @@ export class ModelActor {
       still,
       speaking: this.speaking,
     });
-    for (const mesh of this.shaped) {
-      for (const name of this.written) {
+    const targets = new Map<number[], Map<number, number>>();
+    const aim = (influences: number[], place: number, weight: number) => {
+      let places = targets.get(influences);
+      if (!places) targets.set(influences, (places = new Map()));
+      places.set(place, Math.max(places.get(place) ?? 0, weight));
+    };
+    for (const [name, weight] of weights) {
+      for (const mesh of this.shaped) {
         const place = mesh.places.get(name);
-        if (place !== undefined && !weights.has(name)) mesh.influences[place] = 0;
+        if (place !== undefined) aim(mesh.influences, place, weight);
       }
-      for (const [name, weight] of weights) {
-        const place = mesh.places.get(name);
-        if (place !== undefined) mesh.influences[place] = weight;
-      }
+      for (const morph of this.expressions.get(name) ?? []) aim(morph.influences, morph.place, weight * morph.weight);
     }
-    this.written = new Set(weights.keys());
+    for (const [influences, places] of this.writtenAt) {
+      for (const place of places) if (!targets.get(influences)?.has(place)) influences[place] = 0;
+    }
+    const written = new Map<number[], Set<number>>();
+    for (const [influences, places] of targets) {
+      for (const [place, weight] of places) influences[place] = Math.min(1, weight);
+      written.set(influences, new Set(places.keys()));
+    }
+    this.writtenAt = written;
   }
 
   private clipFor(role: MotionRole): AnimationClip | null {

@@ -1,4 +1,4 @@
-import { isBinaryGltf, MODEL_TYPE, ModelFile, ModelState } from '@axe/core/storage/model-file';
+import { isBinaryGltf, MODEL_TYPE, ModelFile, modelNameOf, ModelState } from '@axe/core/storage/model-file';
 
 const GLB_HEAD = [0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0];
 
@@ -38,5 +38,13 @@ describe('ModelFile', () => {
     expect(isBinaryGltf(new Uint8Array([0x67, 0x6c, 0x54, 0x46, 1, 0, 0, 0]))).toBe(false);
     expect(isBinaryGltf(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(false);
     expect(isBinaryGltf(new Uint8Array([0x67, 0x6c]))).toBe(false);
+  });
+});
+
+describe('modelNameOf', () => {
+  it('names a model by the file it was added with, without its .glb or its .vrm', () => {
+    expect(modelNameOf('tree.glb')).toBe('tree');
+    expect(modelNameOf('Avatar.VRM')).toBe('Avatar');
+    expect(modelNameOf('notes.vrm.txt')).toBe('notes.vrm.txt');
   });
 });

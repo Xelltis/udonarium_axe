@@ -50,6 +50,19 @@ export interface MadeMaterial {
   readonly emissiveIntensity: number;
   /** Every picture it wore, those the scene never draws among them. */
   readonly pictures: readonly Texture[];
+  /**
+   * Whether it was made as a drawn figure is, in the MToon a VRM is made with, which is how it is
+   * drawn unless another finish is chosen.
+   */
+  readonly toon?: boolean;
+  /** Whether it draws the outline of a figure in MToon, drawn by no other material. */
+  readonly outline?: boolean;
+}
+
+/** Whether a material read is MToon, as a VRM is made with, as a node material or not. */
+export function isMToon(material: Material): boolean {
+  const flags = material as Partial<Record<'isMToonNodeMaterial' | 'isMToonMaterial', boolean>>;
+  return flags.isMToonNodeMaterial === true || flags.isMToonMaterial === true;
 }
 
 /** What a material read from a model's file was made of, the material standing so far among the model's. */
@@ -74,7 +87,14 @@ export function madeMaterialOf(material: Material, index: number): MadeMaterial 
     emissiveMap: was.emissiveMap ?? null,
     emissiveIntensity: was.emissiveIntensity ?? 1,
     pictures: picturesOf(material),
+    ...mtoonOf(material),
   };
+}
+
+/** What is kept of a material made in MToon: that it is drawn as a figure, and whether it draws the figure's outline. */
+function mtoonOf(material: Material): Pick<MadeMaterial, 'toon' | 'outline'> {
+  if (!isMToon(material)) return {};
+  return { toon: true, ...((material as { isOutline?: boolean }).isOutline ? { outline: true } : {}) };
 }
 
 /** Whether a material gives off a glow of its own that the scene keeps: only one of the app's own models does. */
@@ -97,6 +117,9 @@ export function drawnPicturesOf(made: MadeMaterial, detail: ModelDetail, ownGlow
  * A material of a model made as the scene's own, as its piece has it drawn. As it was made, it keeps
  * its metal, its roughness and its bumps at full detail and is lit evenly at plain; matt, it is lit
  * evenly whatever the detail; drawn as a figure, it is shaded in flat bands.
+ *
+ * A material a VRM was made with in MToon is drawn as a figure unless another finish is chosen, and
+ * the outline MToon draws is left out, as nothing else draws it.
  *
  * Its colour is its own times the tint, or the tint alone where it is drawn plain, without its
  * picture. The glow it was made with, a neon tube's or a potion's, is kept as strong as it was made,
@@ -132,12 +155,13 @@ export function sceneMaterialFor(
     alphaTest: made.alphaTest,
     side: made.side,
     vertexColors: look.plain ? false : made.vertexColors,
-    visible: !look.hidden,
+    visible: !look.hidden && !made.outline,
     ...glow,
   };
   const bumps = detail === 'full' && made.normalMap ? { normalMap: made.normalMap, normalScale: made.normalScale } : {};
-  if (finish === 'toon') return new MeshToonNodeMaterial({ ...common, ...bumps });
-  if (finish === 'matte' || detail === 'plain') return new MeshLambertNodeMaterial(common);
+  const shaded = finish || (made.toon ? 'toon' : '');
+  if (shaded === 'toon') return new MeshToonNodeMaterial({ ...common, ...bumps });
+  if (shaded === 'matte' || detail === 'plain') return new MeshLambertNodeMaterial(common);
   const material = new MeshStandardNodeMaterial({
     ...common,
     ...bumps,

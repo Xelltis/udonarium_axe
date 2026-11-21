@@ -116,6 +116,30 @@ describe('gltfNamesOf', () => {
     expect(gltfNamesOf(glb(odd))?.shapes).toEqual(['0', '1']);
   });
 
+  it('names the shapes a VRM blends its face towards first, a VRM from before version 1 as the reader of VRMs does', () => {
+    const one = {
+      extensions: { VRMC_vrm: { expressions: { preset: { blink: {}, aa: {} }, custom: { smirk: {} } } } },
+      meshes: [{ primitives: [{ targets: [{}] }], extras: { targetNames: ['Fcl_EYE_Close'] } }],
+    };
+    const zero = {
+      extensions: {
+        VRM: {
+          blendShapeMaster: {
+            blendShapeGroups: [
+              { name: 'Joy', presetName: 'joy' },
+              { name: 'A', presetName: 'a' },
+              { name: 'Wink', presetName: 'unknown' },
+              { presetName: 'nothing' },
+            ],
+          },
+        },
+      },
+    };
+
+    expect(gltfNamesOf(glb(one))?.shapes).toEqual(['blink', 'aa', 'smirk', 'Fcl_EYE_Close']);
+    expect(gltfNamesOf(glb(zero))?.shapes).toEqual(['happy', 'aa', 'Wink']);
+  });
+
   it('names the materials, one with no name by where it stands among them', () => {
     const made = { materials: [{ name: 'Blade' }, {}, { name: ' ' }, { name: 'Blade' }] };
     expect(gltfNamesOf(glb(made))?.materials).toEqual(['Blade', '#1', '#2']);

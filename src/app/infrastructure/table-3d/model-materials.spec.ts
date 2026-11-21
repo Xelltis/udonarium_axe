@@ -1,5 +1,10 @@
 import { AS_MADE } from '@axe/domain/tabletop/model-look';
-import { drawnPicturesOf, madeMaterialOf, sceneMaterialFor } from '@axe/infrastructure/table-3d/model-materials';
+import {
+  drawnPicturesOf,
+  isMToon,
+  madeMaterialOf,
+  sceneMaterialFor,
+} from '@axe/infrastructure/table-3d/model-materials';
 import {
   MeshBasicMaterial,
   MeshLambertNodeMaterial,
@@ -60,6 +65,10 @@ describe('drawnPicturesOf', () => {
 });
 
 describe('sceneMaterialFor', () => {
+  /** A material made as the scene's own, read as any of its kinds is. */
+  const drawn = (...args: Parameters<typeof sceneMaterialFor>) =>
+    sceneMaterialFor(...args) as unknown as MeshStandardNodeMaterial & MeshLambertNodeMaterial & MeshToonNodeMaterial;
+
   const picture = new Texture();
   const bumps = new Texture();
   const shine = new Texture();
@@ -78,7 +87,7 @@ describe('sceneMaterialFor', () => {
     );
 
   it('keeps the metal, the roughness and the bumps of a model drawn as it was made at full detail', () => {
-    const material = sceneMaterialFor(armour(), AS_MADE, '', 'full', false);
+    const material = drawn(armour(), AS_MADE, '', 'full', false);
 
     expect(material).toBeInstanceOf(MeshStandardNodeMaterial);
     expect(material).toMatchObject({
@@ -93,8 +102,8 @@ describe('sceneMaterialFor', () => {
 
   it('lights it evenly at plain detail and where it is drawn matt, with its colour and picture alone', () => {
     for (const material of [
-      sceneMaterialFor(armour(), AS_MADE, '', 'plain', false),
-      sceneMaterialFor(armour(), AS_MADE, 'matte', 'full', false),
+      drawn(armour(), AS_MADE, '', 'plain', false),
+      drawn(armour(), AS_MADE, 'matte', 'full', false),
     ]) {
       expect(material).toBeInstanceOf(MeshLambertNodeMaterial);
       expect(material.map).toBe(picture);
@@ -103,8 +112,8 @@ describe('sceneMaterialFor', () => {
   });
 
   it('shades a figure in flat bands, with its bumps at full detail alone', () => {
-    const full = sceneMaterialFor(armour(), AS_MADE, 'toon', 'full', false);
-    const plain = sceneMaterialFor(armour(), AS_MADE, 'toon', 'plain', false);
+    const full = drawn(armour(), AS_MADE, 'toon', 'full', false);
+    const plain = drawn(armour(), AS_MADE, 'toon', 'plain', false);
 
     expect(full).toBeInstanceOf(MeshToonNodeMaterial);
     expect((full as MeshToonNodeMaterial).normalMap).toBe(bumps);
@@ -113,9 +122,9 @@ describe('sceneMaterialFor', () => {
   });
 
   it('tints its own colour, or takes the tint alone and no picture where it is drawn plain', () => {
-    const tinted = sceneMaterialFor(armour(), { ...AS_MADE, tint: '#ff0000' }, '', 'full', false);
-    const plain = sceneMaterialFor(armour(), { ...AS_MADE, tint: '#ff0000', plain: true }, '', 'full', false);
-    const bare = sceneMaterialFor(armour(), { ...AS_MADE, plain: true }, '', 'full', false);
+    const tinted = drawn(armour(), { ...AS_MADE, tint: '#ff0000' }, '', 'full', false);
+    const plain = drawn(armour(), { ...AS_MADE, tint: '#ff0000', plain: true }, '', 'full', false);
+    const bare = drawn(armour(), { ...AS_MADE, plain: true }, '', 'full', false);
 
     expect(tinted.color.getHexString()).toBe('800000');
     expect(tinted.map).toBe(picture);
@@ -127,7 +136,7 @@ describe('sceneMaterialFor', () => {
   });
 
   it('takes the metal and the roughness its piece sets in place of the model’s own and their pictures', () => {
-    const set = sceneMaterialFor(armour(), { ...AS_MADE, metalness: 0, roughness: 1 }, '', 'full', false);
+    const set = drawn(armour(), { ...AS_MADE, metalness: 0, roughness: 1 }, '', 'full', false);
 
     expect(set).toMatchObject({ metalness: 0, roughness: 1, metalnessMap: null, roughnessMap: null });
   });
@@ -135,20 +144,20 @@ describe('sceneMaterialFor', () => {
   it('lets light through as far as its piece sets, on top of how far it was made to', () => {
     const made = madeMaterialOf(new MeshStandardMaterial({ transparent: true, opacity: 0.8 }), 0);
 
-    expect(sceneMaterialFor(made, { ...AS_MADE, opacity: 0.5 }, '', 'full', false)).toMatchObject({
+    expect(drawn(made, { ...AS_MADE, opacity: 0.5 }, '', 'full', false)).toMatchObject({
       transparent: true,
       opacity: 0.4,
     });
-    expect(sceneMaterialFor(armour(), { ...AS_MADE, opacity: 0.5 }, '', 'full', false)).toMatchObject({
+    expect(drawn(armour(), { ...AS_MADE, opacity: 0.5 }, '', 'full', false)).toMatchObject({
       transparent: true,
       opacity: 0.5,
     });
-    expect(sceneMaterialFor(armour(), AS_MADE, '', 'full', false).transparent).toBe(false);
+    expect(drawn(armour(), AS_MADE, '', 'full', false).transparent).toBe(false);
   });
 
   it('leaves a material its piece has left undrawn out, and names each by its key', () => {
-    expect(sceneMaterialFor(armour(), { ...AS_MADE, hidden: true }, '', 'full', false).visible).toBe(false);
-    expect(sceneMaterialFor(armour(), AS_MADE, '', 'full', false)).toMatchObject({ visible: true, name: '#0' });
+    expect(drawn(armour(), { ...AS_MADE, hidden: true }, '', 'full', false).visible).toBe(false);
+    expect(drawn(armour(), AS_MADE, '', 'full', false)).toMatchObject({ visible: true, name: '#0' });
   });
 
   describe('with a material made to glow', () => {
@@ -161,7 +170,7 @@ describe('sceneMaterialFor', () => {
 
     it('keeps the glow of one of the app’s own, as strong as it was made, with the picture it glows in', () => {
       for (const detail of ['full', 'plain'] as const) {
-        const material = sceneMaterialFor(neon(), AS_MADE, '', detail, true);
+        const material = drawn(neon(), AS_MADE, '', detail, true);
         expect(material.emissive.getHexString()).toBe('ff2bd6');
         expect(material.emissiveMap).toBe(glowPicture);
         expect(material.emissiveIntensity).toBe(3);
@@ -169,7 +178,7 @@ describe('sceneMaterialFor', () => {
     });
 
     it('draws a model brought in without the glow it was made with, lest it stand out of the dark', () => {
-      const material = sceneMaterialFor(neon(), AS_MADE, '', 'full', false);
+      const material = drawn(neon(), AS_MADE, '', 'full', false);
 
       expect(material.emissive.getHex()).toBe(0);
       expect(material.emissiveMap).toBeNull();
@@ -178,7 +187,7 @@ describe('sceneMaterialFor', () => {
     it('gives off the glow its piece sets, whichever the model, in that colour alone', () => {
       const look = { ...AS_MADE, glow: '#00ff00', glowStrength: 2 };
       for (const ownGlow of [true, false]) {
-        const material = sceneMaterialFor(neon(), look, '', 'full', ownGlow);
+        const material = drawn(neon(), look, '', 'full', ownGlow);
         expect(material.emissive.getHexString()).toBe('00ff00');
         expect(material.emissiveMap).toBeNull();
         expect(material.emissiveIntensity).toBe(2);
@@ -186,10 +195,45 @@ describe('sceneMaterialFor', () => {
     });
 
     it('sets how strong a glow kept is given off, where its piece sets only that', () => {
-      const material = sceneMaterialFor(neon(), { ...AS_MADE, glowStrength: 0.5 }, '', 'full', true);
+      const material = drawn(neon(), { ...AS_MADE, glowStrength: 0.5 }, '', 'full', true);
 
       expect(material.emissive.getHexString()).toBe('ff2bd6');
       expect(material.emissiveIntensity).toBe(0.5);
+    });
+  });
+
+  describe('with a material a VRM was made with in MToon', () => {
+    /** A stand-in for MToon, with a picture, and an outline of its own where asked. */
+    function mtoon(outline = false): MeshStandardMaterial {
+      const material = new MeshStandardMaterial({ color: '#ffcccc', map: new Texture() });
+      Object.defineProperty(material, 'isMToonMaterial', { value: true });
+      Object.assign(material, { isOutline: outline });
+      return material;
+    }
+
+    it('draws it as a figure, with its colour and its picture, unless another finish is chosen', () => {
+      const made = madeMaterialOf(mtoon(), 0);
+
+      expect(made).toMatchObject({ toon: true });
+      expect(sceneMaterialFor(made, AS_MADE, '', 'full', false)).toBeInstanceOf(MeshToonNodeMaterial);
+      expect(sceneMaterialFor(made, AS_MADE, '', 'plain', false)).toBeInstanceOf(MeshToonNodeMaterial);
+      expect(drawn(made, AS_MADE, '', 'full', false)).toMatchObject({ map: made.map });
+      expect(drawn(made, AS_MADE, '', 'full', false).color.getHexString()).toBe('ffcccc');
+      expect(sceneMaterialFor(made, AS_MADE, 'matte', 'full', false)).toBeInstanceOf(MeshLambertNodeMaterial);
+    });
+
+    it('leaves the outline MToon draws undrawn, as nothing else draws it', () => {
+      expect(sceneMaterialFor(madeMaterialOf(mtoon(true), 1), AS_MADE, '', 'full', false).visible).toBe(false);
+      expect(madeMaterialOf(mtoon(true), 1)).toMatchObject({ outline: true });
+    });
+
+    it('tells MToon, as a node material or not, from any other material', () => {
+      const node = new MeshStandardMaterial();
+      Object.defineProperty(node, 'isMToonNodeMaterial', { value: true });
+
+      expect(isMToon(mtoon())).toBe(true);
+      expect(isMToon(node)).toBe(true);
+      expect(isMToon(new MeshStandardMaterial())).toBe(false);
     });
   });
 });

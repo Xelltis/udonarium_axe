@@ -19,6 +19,7 @@ const PRECOMPRESSED_EXTENSIONS = [
   '.opus',
   '.flac',
   '.glb',
+  '.vrm',
   '.webm',
   '.mp4',
   '.zip',

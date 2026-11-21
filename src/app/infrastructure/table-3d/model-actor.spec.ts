@@ -345,6 +345,67 @@ describe('ModelActor', () => {
   });
 });
 
+describe('ModelActor with a VRM', () => {
+  /** A copy of a VRM with a face of two morphs, named by the shapes it names, and something that swings. */
+  function vrm() {
+    const face = new Mesh();
+    face.morphTargetInfluences = [0, 0];
+    const root = new Group();
+    root.add(face);
+    const swung: number[] = [];
+    const rig = {
+      expressions: [
+        { name: 'blink', binds: [{ mesh: 0, morph: 0, weight: 1 }] },
+        { name: 'happy', binds: [{ mesh: 0, morph: 1, weight: 0.5 }] },
+      ],
+      swingingOf: () => ({ update: (seconds: number) => void swung.push(seconds), reset: () => undefined }),
+    };
+    const actor = new ModelActor(root, [], 'avatar', rig);
+    return { actor, influences: face.morphTargetInfluences, swung };
+  }
+
+  it('names the shapes the VRM names first, and holds its face in one as far as each morph goes for it', () => {
+    const { actor, influences } = vrm();
+    actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE, weights: { happy: 1 } } });
+    actor.advance(at(0));
+
+    expect(actor.shapes).toEqual(['blink', 'happy']);
+    expect(influences).toEqual([0, 0.5]);
+  });
+
+  it('blinks with the shape the VRM names for blinking', () => {
+    const { actor, influences } = vrm();
+    actor.cast(ASKED);
+    const shut: number[] = [];
+    for (let ms = 0; ms < 12_000; ms += 20) {
+      actor.advance(at(ms));
+      shut.push(influences[0]);
+    }
+
+    expect(Math.max(...shut)).toBeGreaterThan(0.8);
+  });
+
+  it('swings while it moves and a while after, wanting every frame meanwhile, and then rests', () => {
+    const { actor, swung } = vrm();
+    actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+    expect(actor.advance(at(0))).toBe('still');
+    expect(swung).toEqual([]);
+
+    actor.walk(true, 100);
+    actor.advance(at(100));
+    actor.walk(false, 400);
+    expect(actor.advance(at(400))).toBe('fast');
+    expect(actor.advance(at(1200))).toBe('fast');
+    expect(swung.length).toBeGreaterThan(1);
+    expect(actor.advance(at(3000))).toBe('still');
+
+    const before = swung.length;
+    actor.walk(true, 4000);
+    actor.advance(at(4000, { moving: false }));
+    expect(swung).toHaveLength(before);
+  });
+});
+
 describe('posedPlacement', () => {
   const placed = new Matrix4().makeTranslation(100, 0, 200);
   const foot = new Vector3(100, 0, 200);
