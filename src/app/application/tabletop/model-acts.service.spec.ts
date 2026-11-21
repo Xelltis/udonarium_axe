@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { type ActiveEffectCast, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
@@ -15,11 +16,12 @@ describe('ModelActsService', () => {
   const casts = signal<ActiveEffectCast[]>([]);
   let acts: ModelActsService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [...TEST_PROVIDERS, { provide: EffectPlaybackService, useValue: { activeCasts: casts } }],
     });
     acts = TestBed.inject(ModelActsService);
+    await TestBed.inject(EffectSceneLooksService).load();
   });
 
   afterEach(() => {
@@ -57,6 +59,15 @@ describe('ModelActsService', () => {
   }
 
   it('asks nothing of anybody while no effect is played', () => {
+    expect(acts.acts().size).toBe(0);
+  });
+
+  it('has nobody act an effect until the looks of the effects are loaded, as nothing of an effect is drawn till then', () => {
+    vi.spyOn(TestBed.inject(EffectSceneLooksService), 'looks').mockReturnValue(null);
+    const knight = piece('騎士', 0, 0);
+    const orc = piece('オーク', 200, 0);
+    casts.set([playing('bash', knight, orc)]);
+
     expect(acts.acts().size).toBe(0);
   });
 

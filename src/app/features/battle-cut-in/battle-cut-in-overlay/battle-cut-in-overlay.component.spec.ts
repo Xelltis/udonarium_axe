@@ -479,7 +479,7 @@ describe('BattleCutInOverlayComponent', () => {
         widthPx: BATTLE_FIGURE_PX,
         heightPx: BATTLE_FIGURE_PX,
       });
-      expect(figures[0].model).toMatchObject({ identifier: 'knight-model', scale: 1, look: { finish: 'toon' } });
+      expect(figures[0].model).toMatchObject({ identifier: 'knight-model', scale: 1, look: '{"finish":"toon"}' });
       expect(figures[0].turnDeg).toBeLessThan(0);
       expect(figures[0].at.x).toBeLessThan(0);
     });

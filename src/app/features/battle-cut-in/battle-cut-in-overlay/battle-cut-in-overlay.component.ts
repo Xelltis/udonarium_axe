@@ -27,14 +27,9 @@ import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { HeldClock } from '@axe/core/util/held-clock';
 import { observeSize } from '@axe/core/util/observe-size';
+import { pieceModelOfFighter } from '@axe/domain/battle/battle-fighter-model';
 import { BattleSide, oppositeBattleSide } from '@axe/domain/battle/battle-lineup';
-import {
-  battleChangeLabel,
-  BattleFighter,
-  BattleGauge,
-  battleGaugeChanges,
-  pieceModelOfFighter,
-} from '@axe/domain/battle/battle-scene';
+import { battleChangeLabel, BattleFighter, BattleGauge, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
 import { DEFAULT_BATTLE_THEME } from '@axe/domain/battle/battle-settings';
 import {
   BATTLE_STAGE_CANVAS,

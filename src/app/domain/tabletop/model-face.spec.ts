@@ -1,16 +1,13 @@
+import { MODEL_FACE_AS_MADE, modelFaceOf, NO_SHAPE, writeModelFace } from '@axe/domain/tabletop/model-face';
 import {
   blinkAt,
   faceMoves,
-  MODEL_FACE_AS_MADE,
-  modelFaceOf,
   mouthAt,
-  NO_SHAPE,
   seedOf,
   shapesFor,
   shapeWeightsAt,
   swayAt,
-  writeModelFace,
-} from '@axe/domain/tabletop/model-face';
+} from '@axe/domain/tabletop/model-face-motion';
 
 describe('what a piece does with its model’s shapes', () => {
   it('is the model’s own where nothing was stored, or what was cannot be read', () => {

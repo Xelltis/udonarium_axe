@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { modelLookOf, presetModelLook, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { modelLookOf, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { ModelLookFieldsComponent } from '@axe/ui/components/piece-model-fields/model-look-fields.component';
 

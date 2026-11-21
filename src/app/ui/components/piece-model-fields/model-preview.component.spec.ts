@@ -4,7 +4,9 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { presetModelLook, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { writeModelLook } from '@axe/domain/tabletop/model-look';
+import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
+import { lookOf } from '@axe/domain/tabletop/piece-model-setup';
 import type { FigureStage, FigureStageView, StageFigure } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { ModelPreviewComponent } from '@axe/ui/components/piece-model-fields/model-preview.component';
@@ -98,7 +100,7 @@ describe('ModelPreviewComponent', () => {
     TestBed.inject(ObjectChangeService).notifyChanged(piece.identifier);
     await fixture.whenStable();
 
-    expect(last().figures[0].model.look).toMatchObject({ metalness: 1, tint: '#ffcf5a' });
+    expect(lookOf(last().figures[0].model)).toMatchObject({ metalness: 1, tint: '#ffcf5a' });
   });
 
   it('has the figure walk and act what it is asked to try', async () => {

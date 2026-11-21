@@ -1,4 +1,4 @@
-import { materialKeyOf } from '@axe/core/storage/gltf-facts';
+import { materialKeyOf } from '@axe/core/storage/gltf-names';
 import type { MaterialLook, ModelFinish } from '@axe/domain/tabletop/model-look';
 import { litByLampsAsMade } from '@axe/infrastructure/table-3d/lamp-lighting';
 import { picturesOf } from '@axe/infrastructure/three-kit/read-pictures';

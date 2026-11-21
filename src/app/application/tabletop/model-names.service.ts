@@ -1,5 +1,5 @@
 import { inject, Injectable, signal, type WritableSignal } from '@angular/core';
-import { type GltfNames, gltfNamesOfBlob } from '@axe/core/storage/gltf-facts';
+import type { GltfNames } from '@axe/core/storage/gltf-names';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 
 /** A model that names nothing, as one not read yet. */
@@ -8,7 +8,8 @@ export const NO_MODEL_NAMES: GltfNames = Object.freeze({ motions: [], shapes: []
 /**
  * What the models held here name of themselves, for whoever sets one up to choose among: its
  * motions, the shapes it can be blended towards and its materials. Each model is read once, from its
- * file's JSON alone, the first time it is asked after while its bytes are held in full.
+ * file's JSON alone, the first time it is asked after while its bytes are held in full; what reads it
+ * is fetched the first time any is.
  */
 @Injectable({ providedIn: 'root' })
 export class ModelNamesService {
@@ -32,10 +33,12 @@ export class ModelNamesService {
       if (blob) {
         this.asked.add(identifier);
         const known = names;
-        void gltfNamesOfBlob(blob).then(
-          (found) => known.set(found ?? NO_MODEL_NAMES),
-          () => undefined
-        );
+        void import('@axe/core/storage/gltf-names')
+          .then(({ gltfNamesOfBlob }) => gltfNamesOfBlob(blob))
+          .then(
+            (found) => known.set(found ?? NO_MODEL_NAMES),
+            () => undefined
+          );
       }
     }
     return names();

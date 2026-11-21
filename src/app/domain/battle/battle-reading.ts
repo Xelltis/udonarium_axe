@@ -1,5 +1,6 @@
+import { battleFighterModelOf } from '@axe/domain/battle/battle-fighter-model';
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
-import { type BattleFighterModel, battleFighterModelOf } from '@axe/domain/battle/battle-scene';
+import type { BattleFighterModel } from '@axe/domain/battle/battle-scene';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { gaugeFixedColorOf, isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';

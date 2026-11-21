@@ -1,13 +1,15 @@
+import { askedRoleOf } from '@axe/domain/tabletop/model-asked-roles';
 import {
-  ACT_ROLES,
   actHolds,
-  askedRoleOf,
   MADE_MOTION_MS,
   MADE_REST,
   madePoseAt,
+  motionNameFor,
+} from '@axe/domain/tabletop/model-motion-poses';
+import {
+  ACT_ROLES,
   MODEL_MOTIONS_AS_MADE,
   modelMotionsOf,
-  motionNameFor,
   writeModelMotions,
 } from '@axe/domain/tabletop/model-motions';
 

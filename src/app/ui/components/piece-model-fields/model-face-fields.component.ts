@@ -9,11 +9,11 @@ import {
   type ModelFace,
   modelFaceOf,
   NO_SHAPE,
-  shapesFor,
   type ShapeSway,
   type ShapeUse,
   writeModelFace,
 } from '@axe/domain/tabletop/model-face';
+import { shapesFor } from '@axe/domain/tabletop/model-face-motion';
 import {
   MODEL_FIELD_STYLES,
   type ModelledPiece,

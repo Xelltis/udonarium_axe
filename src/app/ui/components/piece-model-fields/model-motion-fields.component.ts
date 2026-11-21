@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { motionNameFor } from '@axe/domain/tabletop/model-motion-poses';
 import {
   ACT_ROLES,
   type ActRole,
   modelMotionsOf,
-  motionNameFor,
   type MotionRole,
   writeModelMotions,
 } from '@axe/domain/tabletop/model-motions';

@@ -7,15 +7,17 @@ import {
   MAX_MODEL_GLOW,
   MODEL_AS_MADE,
   MODEL_FINISHES,
-  MODEL_LOOK_PRESET_NAMES,
   type ModelFinish,
   type ModelLook,
   modelLookOf,
-  type ModelLookPreset,
-  presetModelLook,
   withMaterialLook,
   writeModelLook,
 } from '@axe/domain/tabletop/model-look';
+import {
+  MODEL_LOOK_PRESET_NAMES,
+  type ModelLookPreset,
+  presetModelLook,
+} from '@axe/domain/tabletop/model-look-presets';
 import {
   MODEL_FIELD_STYLES,
   type ModelledPiece,

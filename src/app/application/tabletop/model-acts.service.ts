@@ -1,11 +1,12 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { callModelMotion, modelMotion$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { modelActsOf } from '@axe/domain/effect/effect-model-acts';
-import { askedRoleOf, type ModelAct } from '@axe/domain/tabletop/model-motions';
+import { askedRoleOf } from '@axe/domain/tabletop/model-asked-roles';
+import { type ModelAct } from '@axe/domain/tabletop/model-motions';
 
 const NO_ACTS: ReadonlyMap<string, ModelAct> = new Map();
 
@@ -19,8 +20,9 @@ const BLOW_APART_MS = 900;
  * blow taken or its going down, as the effects this seat plays have it (see `modelActsOf`), and what
  * a piece is asked for outright: a blow taken when a number of it falls with no effect played on
  * it, and a motion somebody has its model play as a gesture. Every seat works the first out from
- * what it plays, so nothing more is sent for them; a gesture is sent to every seat, to be played
- * there once and kept nowhere. A part is drawn as its body, so what a part is asked to act its
+ * what it plays, so nothing more is sent for them, by the looks of the effects, which are loaded
+ * apart from the page: until they are, no effect has a model act, as nothing of an effect is drawn
+ * in the scene. A gesture is sent to every seat, to be played there once and kept nowhere. A part is drawn as its body, so what a part is asked to act its
  * body's model acts.
  */
 @Injectable({ providedIn: 'root' })
@@ -28,6 +30,7 @@ export class ModelActsService {
   private readonly playback = inject(EffectPlaybackService);
   private readonly objectStore = inject(ObjectStore);
   private readonly links = inject(PieceLinksService);
+  private readonly sceneLooks = inject(EffectSceneLooksService);
   private readonly asked = signal<ReadonlyMap<string, ModelAct>>(NO_ACTS);
   private serial = 0;
 
@@ -40,7 +43,9 @@ export class ModelActsService {
       const casts = this.playback.activeCasts();
       const asked = this.asked();
       if (casts.length < 1) return asked;
-      const played = modelActsOf(
+      const looks = this.sceneLooks.looks();
+      if (!looks) return asked;
+      const played = looks.modelActsOf(
         casts.map(({ key, cast, preset, startedAt, blows }) => ({
           key,
           cast,

@@ -576,7 +576,7 @@ describe('CutIn', () => {
       const xml = cutIn.toXml();
       expect(xml).toContain('modelIdentifier="knight"');
       expect(xml).toContain('modelAct="attack"');
-      expect(pieceModelOf(cutIn)).toMatchObject({ identifier: 'knight', look: { finish: 'toon' } });
+      expect(pieceModelOf(cutIn)).toMatchObject({ identifier: 'knight', look: '{"finish":"toon"}' });
       cutIn.destroy();
     });
   });

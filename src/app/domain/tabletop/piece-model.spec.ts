@@ -1,8 +1,10 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { writeModelFace } from '@axe/domain/tabletop/model-face';
-import { presetModelLook, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { MODEL_FACE_AS_MADE, writeModelFace } from '@axe/domain/tabletop/model-face';
+import { MODEL_AS_MADE, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
 import { MODEL_MOTIONS_AS_MADE, writeModelMotions } from '@axe/domain/tabletop/model-motions';
 import { modelScaleOf, modelTurnOf, PIECE_MODEL_AS_MADE, pieceModelOf } from '@axe/domain/tabletop/piece-model';
+import { faceOf, lookOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
 describe('the 3D model a piece is drawn as', () => {
@@ -92,9 +94,9 @@ describe('the 3D model a piece is drawn as', () => {
       })
     );
 
-    expect(model?.look).toMatchObject({ metalness: 1, roughness: 0.28, finish: '' });
-    expect(model?.motions).toMatchObject({ attack: 'Slash', made: false });
-    expect(model?.face).toMatchObject({ blink: '-', weights: { Joy: 0.5 } });
+    expect(lookOf(model!)).toMatchObject({ metalness: 1, roughness: 0.28, finish: '' });
+    expect(motionsOf(model!)).toMatchObject({ attack: 'Slash', made: false });
+    expect(faceOf(model!)).toMatchObject({ blink: '-', weights: { Joy: 0.5 } });
   });
 
   it('draws the model as it was made where the three later fields come empty, missing or unreadable', () => {
@@ -102,7 +104,11 @@ describe('the 3D model a piece is drawn as', () => {
       const model = pieceModelOf(
         fields({ modelIdentifier: 'knight', modelLook: value, modelMotions: value, modelFace: value })
       );
-      expect(model).toMatchObject(PIECE_MODEL_AS_MADE);
+      expect([lookOf(model!), motionsOf(model!), faceOf(model!)]).toEqual([
+        MODEL_AS_MADE,
+        MODEL_MOTIONS_AS_MADE,
+        MODEL_FACE_AS_MADE,
+      ]);
     }
   });
 
@@ -128,7 +134,7 @@ describe('the 3D model a piece is drawn as', () => {
     block.modelIdentifier = 'statue';
     block.modelLook = writeModelLook(presetModelLook('stone'));
 
-    expect(pieceModelOf(block)?.look).toMatchObject({ plain: true, roughness: 0.95 });
+    expect(lookOf(pieceModelOf(block)!)).toMatchObject({ plain: true, roughness: 0.95 });
     block.destroy();
   });
 });

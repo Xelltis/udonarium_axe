@@ -1,5 +1,4 @@
 import {
-  addShownPortrait,
   portraitElementAt,
   portraitNameOf,
   portraitPicturesOf,
@@ -7,6 +6,7 @@ import {
 } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { shownImageIdentifier } from '@axe/domain/character/shown-image';
+import { addShownPortrait } from '@axe/domain/character/shown-portrait';
 import { DataElement } from '@axe/domain/data/data-element';
 
 function makeCharacter(portraits: number): GameCharacter {

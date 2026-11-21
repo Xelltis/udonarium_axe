@@ -1,7 +1,8 @@
 import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
-import { materialLookIn, MODEL_AS_MADE, type ModelLook, writeModelLook } from '@axe/domain/tabletop/model-look';
-import { actHolds } from '@axe/domain/tabletop/model-motions';
+import { materialLookIn, MODEL_AS_MADE, type ModelLook } from '@axe/domain/tabletop/model-look';
+import { actHolds } from '@axe/domain/tabletop/model-motion-poses';
+import { lookKeyOf, lookOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
@@ -468,7 +469,7 @@ export class ModelLayer {
       const key = modelReadKeyOf(model);
       let loaded = this.loaded.get(key);
       if (loaded === undefined) {
-        this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model), model.model.look);
+        this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model), lookOf(model.model));
         loaded = this.loaded.get(key);
       }
       if (!loaded) continue;
@@ -494,7 +495,7 @@ export class ModelLayer {
    */
   private standsApart(model: TableWorldModel, loaded: LoadedModel): boolean {
     if (loaded.animated || loaded.shaped || model.ownCopy) return true;
-    if (!model.model.motions.made) return false;
+    if (!motionsOf(model.model).made) return false;
     if (model.act && actHolds(model.act)) return true;
     if (!this.turns) return false;
     if (model.walking || this.stood.get(model.owner)?.actor.acting) return true;
@@ -907,7 +908,7 @@ function moonlitFor(model: TableWorldModel): boolean {
  * and by how its piece has its materials drawn, where that is not as it was made.
  */
 export function modelReadKeyOf(model: TableWorldModel): string {
-  const look = model.model.look === MODEL_AS_MADE ? '' : writeModelLook(model.model.look);
+  const look = lookKeyOf(model.model);
   return `${model.url}${moonlitFor(model) ? '' : PIECE_READ}${look ? `${LOOK_READ}${look}` : ''}`;
 }
 

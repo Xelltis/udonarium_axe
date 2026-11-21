@@ -44,7 +44,7 @@ import { putOnBattleSide, standingBattleSide } from '@axe/domain/battle/battle-s
 import { type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
-import { ASKED_ROLES } from '@axe/domain/tabletop/model-motions';
+import { ASKED_ROLES } from '@axe/domain/tabletop/model-asked-roles';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { buildConditionContextMenu } from '@axe/features/character/game-character/condition-context-menu';

@@ -1,16 +1,16 @@
-import { faceMoves, seedOf, shapesFor, shapeWeightsAt } from '@axe/domain/tabletop/model-face';
+import type { ModelFace } from '@axe/domain/tabletop/model-face';
+import { faceMoves, seedOf, shapesFor, shapeWeightsAt } from '@axe/domain/tabletop/model-face-motion';
 import {
   actHolds,
   MADE_REST,
   madeActMs,
   type MadePose,
   madePoseAt,
-  type ModelAct,
-  type ModelMotions,
   motionNameFor,
-  type MotionRole,
-} from '@axe/domain/tabletop/model-motions';
+} from '@axe/domain/tabletop/model-motion-poses';
+import { type ModelAct, type ModelMotions, type MotionRole } from '@axe/domain/tabletop/model-motions';
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
+import { faceOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { meshesOf } from '@axe/infrastructure/three-kit/model-faces';
 import type { SwingingParts, VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import {
@@ -103,7 +103,7 @@ export class ModelActor {
   /** The names of all the shapes its meshes can be blended towards. */
   readonly shapes: readonly string[];
   private readonly seed: number;
-  private asked: Pick<PieceModel, 'idle' | 'walk' | 'motions' | 'face'> | null = null;
+  private asked: { idle: string; walk: string; motions: ModelMotions; face: ModelFace } | null = null;
   private current: AnimationAction | null = null;
   private walking = false;
   private walkedFromMs = 0;
@@ -167,8 +167,9 @@ export class ModelActor {
    * The motions are chosen again where it names others, so a name changed once the piece is on the
    * table takes at once.
    */
-  cast(asked: Pick<PieceModel, 'idle' | 'walk' | 'motions' | 'face'>): void {
+  cast(model: Pick<PieceModel, 'idle' | 'walk' | 'motions' | 'face'>): void {
     const before = this.asked;
+    const asked = { idle: model.idle, walk: model.walk, motions: motionsOf(model), face: faceOf(model) };
     this.asked = asked;
     this.faceLively = faceMoves(asked.face, this.shapes);
     this.mouthed = shapesFor('mouth', this.shapes, asked.face.mouth).length > 0;

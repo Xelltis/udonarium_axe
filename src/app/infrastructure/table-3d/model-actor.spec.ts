@@ -1,9 +1,10 @@
-import { MODEL_FACE_AS_MADE, NO_SHAPE } from '@axe/domain/tabletop/model-face';
-import { MADE_MOTION_MS, MADE_REST, MODEL_MOTIONS_AS_MADE, type ModelAct } from '@axe/domain/tabletop/model-motions';
+import { MODEL_FACE_AS_MADE, NO_SHAPE, writeModelFace } from '@axe/domain/tabletop/model-face';
+import { MADE_MOTION_MS, MADE_REST } from '@axe/domain/tabletop/model-motion-poses';
+import { MODEL_MOTIONS_AS_MADE, type ModelAct, writeModelMotions } from '@axe/domain/tabletop/model-motions';
 import { type ActorMoment, ModelActor, posedPlacement } from '@axe/infrastructure/table-3d/model-actor';
 import { AnimationClip, Group, Matrix4, Mesh, Vector3 } from 'three/webgpu';
 
-const ASKED = { idle: '', walk: '', motions: MODEL_MOTIONS_AS_MADE, face: MODEL_FACE_AS_MADE };
+const ASKED = { idle: '', walk: '', motions: '', face: '' };
 
 function at(timeMs: number, fields: Partial<ActorMoment> = {}): ActorMoment {
   return { timeMs, moving: true, standing: true, ...fields };
@@ -212,7 +213,10 @@ describe('ModelActor', () => {
     });
 
     it('is not moved by hand where its piece has turned that off, nor for a role it has a motion for', () => {
-      const unmoved = actorWith([], { ...ASKED, motions: { ...MODEL_MOTIONS_AS_MADE, made: false } });
+      const unmoved = actorWith([], {
+        ...ASKED,
+        motions: writeModelMotions({ ...MODEL_MOTIONS_AS_MADE, made: false }),
+      });
       unmoved.perform(act('attack', 0));
       unmoved.walk(true, 0);
       expect(unmoved.advance(at(200))).toBe('fast');
@@ -287,11 +291,11 @@ describe('ModelActor', () => {
 
     it('holds the expression its piece gives it, and lets go of a shape once it is given no more', () => {
       const { actor, influences } = faced(['Joy', 'Angry']);
-      actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, weights: { Joy: 0.7 } } });
+      actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, weights: { Joy: 0.7 } }) });
       expect(actor.advance(at(0))).toBe('still');
       expect(influences).toEqual([0.7, 0]);
 
-      actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, weights: { Angry: 1 } } });
+      actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, weights: { Angry: 1 } }) });
       actor.advance(at(10));
       expect(influences).toEqual([0, 1]);
     });
@@ -315,7 +319,7 @@ describe('ModelActor', () => {
 
     it('moves its mouth while its piece speaks, wanting a frame now and then, where it has a shape to speak with', () => {
       const { actor, influences } = faced(['aa', 'Joy']);
-      actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+      actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE }) });
       expect(actor.advance(at(0))).toBe('still');
 
       actor.speak(true);
@@ -331,14 +335,14 @@ describe('ModelActor', () => {
       expect(influences[0]).toBe(0);
 
       const mute = faced(['Joy']);
-      mute.actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+      mute.actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE }) });
       mute.actor.speak(true);
       expect(mute.actor.advance(at(0))).toBe('still');
     });
 
     it('stands still where its piece has turned its blinking off and gives it nothing to sway between', () => {
       const { actor } = faced(['Blink']);
-      actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+      actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE }) });
 
       expect(actor.advance(at(0))).toBe('still');
     });
@@ -366,7 +370,7 @@ describe('ModelActor with a VRM', () => {
 
   it('names the shapes the VRM names first, and holds its face in one as far as each morph goes for it', () => {
     const { actor, influences } = vrm();
-    actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE, weights: { happy: 1 } } });
+    actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE, weights: { happy: 1 } }) });
     actor.advance(at(0));
 
     expect(actor.shapes).toEqual(['blink', 'happy']);
@@ -387,7 +391,7 @@ describe('ModelActor with a VRM', () => {
 
   it('swings while it moves and a while after, wanting every frame meanwhile, and then rests', () => {
     const { actor, swung } = vrm();
-    actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+    actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE }) });
     expect(actor.advance(at(0))).toBe('still');
     expect(swung).toEqual([]);
 

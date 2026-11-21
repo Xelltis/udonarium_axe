@@ -1,5 +1,6 @@
-import { modelLookOf, presetModelLook } from '@axe/domain/tabletop/model-look';
-import { MADE_MOTION_MS } from '@axe/domain/tabletop/model-motions';
+import { writeModelLook } from '@axe/domain/tabletop/model-look';
+import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
+import { MADE_MOTION_MS } from '@axe/domain/tabletop/model-motion-poses';
 import { PIECE_MODEL_AS_MADE } from '@axe/domain/tabletop/piece-model';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
@@ -611,7 +612,10 @@ describe('ModelLayer', () => {
       loaded: Map<string, { gltf: { scene: Group } } | null>;
     };
     const reads = vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
-    const golden = knight({ owner: 'idol', model: { ...knight().model, look: presetModelLook('gold') } });
+    const golden = knight({
+      owner: 'idol',
+      model: { ...knight().model, look: writeModelLook(presetModelLook('gold')) },
+    });
 
     layer.set([knight(), golden]);
     await vi.waitFor(() => expect(internals.loaded.size).toBe(2));
@@ -651,7 +655,7 @@ describe('ModelLayer', () => {
   });
 
   it('keeps a model whose look reads as made with the model as made', () => {
-    const asMade = knight({ model: { ...knight().model, look: modelLookOf('{"materials":{}}') } });
+    const asMade = knight({ model: { ...knight().model, look: '{"materials":{}}' } });
 
     expect(modelReadKeyOf(asMade)).toBe(modelReadKeyOf(knight()));
   });
@@ -736,7 +740,7 @@ describe('ModelLayer', () => {
     };
     vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
     const bare = knight({
-      model: { ...knight().model, look: modelLookOf('{"materials":{"Hood":{"hidden":true}}}') },
+      model: { ...knight().model, look: '{"materials":{"Hood":{"hidden":true}}}' },
     });
 
     layer.set([bare]);
@@ -1002,7 +1006,7 @@ describe('ModelLayer', () => {
       expect([still.apart(), still.together()]).toEqual([[], 2]);
 
       const unmoved = figures();
-      const fixed = { ...knight().model, motions: { ...knight().model.motions, made: false } };
+      const fixed = { ...knight().model, motions: '{"made":false}' };
       unmoved.layer.set([
         knight({ walking: true, model: fixed, act: { key: 'down', role: 'defeat', atMs: 0 } }),
         unmoved.other,

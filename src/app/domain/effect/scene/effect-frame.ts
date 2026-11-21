@@ -56,6 +56,7 @@ import { vortex } from '@axe/domain/effect/scene/wind/vortex';
 import { projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 import { targetScaleOf } from '@axe/domain/effect/timeline/shared';
 
+export { modelActsOf } from '@axe/domain/effect/effect-model-acts';
 export { effectJoltsOf } from '@axe/domain/effect/effect-reaction';
 export {
   drawsOnlyPicturesOver,

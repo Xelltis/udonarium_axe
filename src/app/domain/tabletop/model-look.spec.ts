@@ -4,13 +4,12 @@ import {
   materialLookIn,
   MAX_MODEL_GLOW,
   MODEL_AS_MADE,
-  MODEL_LOOK_PRESET_NAMES,
   modelLookKeyOf,
   modelLookOf,
-  presetModelLook,
   withMaterialLook,
   writeModelLook,
 } from '@axe/domain/tabletop/model-look';
+import { MODEL_LOOK_PRESET_NAMES, presetModelLook } from '@axe/domain/tabletop/model-look-presets';
 
 describe('how a model is drawn', () => {
   it('is as the model was made where nothing was stored, or what was cannot be read', () => {

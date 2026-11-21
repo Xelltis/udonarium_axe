@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { addShownPortrait } from '@axe/domain/character/character-portrait';
 import type { GameCharacter } from '@axe/domain/character/game-character';
+import { addShownPortrait } from '@axe/domain/character/shown-portrait';
 
 /**
  * Makes a picture of a piece's model, as it is set up, one of the piece's portraits: the picture is

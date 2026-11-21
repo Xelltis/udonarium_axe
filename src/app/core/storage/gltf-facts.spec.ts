@@ -1,10 +1,5 @@
-import {
-  gltfFactsOf,
-  gltfFactsOfBlob,
-  gltfNamesOf,
-  gltfNamesOfBlob,
-  materialKeyOf,
-} from '@axe/core/storage/gltf-facts';
+import { gltfFactsOf, gltfFactsOfBlob } from '@axe/core/storage/gltf-facts';
+import { gltfNamesOf, gltfNamesOfBlob, materialKeyOf } from '@axe/core/storage/gltf-names';
 import { binaryGltf } from '@axe/testing/binary-gltf';
 
 /** A binary glTF file of a JSON chunk alone, which is all the facts are read from. */

@@ -1,7 +1,4 @@
 import { clamp } from '@axe/core/util/clamp';
-import { MODEL_FACE_AS_MADE, type ModelFace, modelFaceOf } from '@axe/domain/tabletop/model-face';
-import { MODEL_AS_MADE, type ModelLook, modelLookOf } from '@axe/domain/tabletop/model-look';
-import { MODEL_MOTIONS_AS_MADE, type ModelMotions, modelMotionsOf } from '@axe/domain/tabletop/model-motions';
 
 /**
  * The 3D model a piece or a block can be drawn as, in place of its picture, on a table drawn on a
@@ -36,19 +33,21 @@ export interface PieceModel {
   readonly idle: string;
   /** The motion played walking, or empty to take the model's own. */
   readonly walk: string;
-  /** How its materials are drawn. */
-  readonly look: ModelLook;
-  /** The motions it plays in a fight, and whether it is moved by hand where it has none. */
-  readonly motions: ModelMotions;
-  /** What it does with the shapes it can be blended towards. */
-  readonly face: ModelFace;
+  /**
+   * How its materials are drawn, the motions it plays in a fight and what it does with the shapes it
+   * can be blended towards, each as the piece stores it: read by what draws the model (see
+   * `piece-model-setup`), which is all that needs them, and empty for the model as it was made.
+   */
+  readonly look: string;
+  readonly motions: string;
+  readonly face: string;
 }
 
 /** What a model is drawn with where nothing was stored of its materials, its motions in a fight and its shapes. */
 export const PIECE_MODEL_AS_MADE: Pick<PieceModel, 'look' | 'motions' | 'face'> = Object.freeze({
-  look: MODEL_AS_MADE,
-  motions: MODEL_MOTIONS_AS_MADE,
-  face: MODEL_FACE_AS_MADE,
+  look: '',
+  motions: '',
+  face: '',
 });
 
 /** How much smaller and larger than its footprint a model may be drawn. */
@@ -81,8 +80,13 @@ export function pieceModelOf(fields: PieceModelFields): PieceModel | null {
     turnDeg: modelTurnOf(fields.modelTurn),
     idle: `${fields.modelIdle ?? ''}`.trim(),
     walk: `${fields.modelWalk ?? ''}`.trim(),
-    look: modelLookOf(fields.modelLook),
-    motions: modelMotionsOf(fields.modelMotions),
-    face: modelFaceOf(fields.modelFace),
+    look: storedText(fields.modelLook),
+    motions: storedText(fields.modelMotions),
+    face: storedText(fields.modelFace),
   };
+}
+
+/** What a field stores, as text, empty for nothing stored. */
+function storedText(value: unknown): string {
+  return value === null || value === undefined ? '' : `${value}`.trim();
 }

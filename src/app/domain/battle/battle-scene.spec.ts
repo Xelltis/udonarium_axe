@@ -1,11 +1,10 @@
+import { battleFighterModelOf, pieceModelOfFighter } from '@axe/domain/battle/battle-fighter-model';
 import {
   battleChangeLabel,
   BattleFighter,
-  battleFighterModelOf,
   battleGaugeChanges,
   isBattleDefeat,
   normalizeBattleScene,
-  pieceModelOfFighter,
 } from '@axe/domain/battle/battle-scene';
 
 function fighter(identifier: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -215,7 +214,7 @@ describe('the model a fighter is drawn as', () => {
   it('is read on the stage as its piece’s is on the table', () => {
     const written = battleFighterModelOf({ modelIdentifier: 'knight', modelScale: '1.5', modelLook: '{"plain":true}' });
 
-    expect(pieceModelOfFighter(written)).toMatchObject({ identifier: 'knight', scale: 1.5, look: { plain: true } });
+    expect(pieceModelOfFighter(written)).toMatchObject({ identifier: 'knight', scale: 1.5, look: '{"plain":true}' });
     expect(pieceModelOfFighter(null)).toBeNull();
     expect(pieceModelOfFighter(undefined)).toBeNull();
   });
