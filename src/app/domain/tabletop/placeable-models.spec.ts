@@ -25,7 +25,7 @@ describe('placeable-models', () => {
   });
 
   it('knows each model it offers by the SHA-256 the room holds it under', () => {
-    for (const model of PLACEABLE_MODELS) expect(bundledMapModels()[model.id], model.id).toMatch(/^[0-9a-f]{64}$/);
+    for (const model of PLACEABLE_MODELS) expect(bundledMapModels()[model.id], model.id).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('shows each model by pictures of it from above and aside, bundled beside it', () => {

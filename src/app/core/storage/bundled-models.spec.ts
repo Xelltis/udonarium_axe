@@ -50,7 +50,7 @@ describe('bundled map models', () => {
           .split('/')
           .pop()!
           .replace(/\.glb$/, ''),
-        createHash('sha256').update(readFileSync(file)).digest('hex'),
+        createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16),
       ])
     );
 
@@ -64,8 +64,18 @@ describe('bundled map models', () => {
     expect(isAppModel('0'.repeat(64))).toBe(false);
   });
 
+  it('tell a map model by the first sixteen digits of its whole identifier, and nothing that is no whole hash', () => {
+    const oak = bundledMapModels()['tree_oak'];
+
+    expect(oak).toMatch(/^[0-9a-f]{16}$/);
+    expect(isBundledMapModel(`${oak}${'f'.repeat(48)}`)).toBe(true);
+    expect(isBundledMapModel(oak)).toBe(false);
+    expect(isBundledMapModel(`${oak}${'0'.repeat(47)}`)).toBe(false);
+    expect(isAppModel(oak)).toBe(false);
+  });
+
   it('tell a map model by its identifier alone, whatever name it was added under', () => {
-    expect(isBundledMapModel(bundledMapModels()['tree_oak'])).toBe(true);
+    expect(isBundledMapModel(`${bundledMapModels()['tree_oak']}${'0'.repeat(48)}`)).toBe(true);
     expect(isBundledMapModel(BUNDLED_PIECE_MODELS.goblin)).toBe(false);
     expect(isBundledMapModel('0'.repeat(64))).toBe(false);
   });

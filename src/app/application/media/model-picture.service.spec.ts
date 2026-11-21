@@ -32,7 +32,7 @@ describe('ModelPictureService', () => {
 
   it('shows a model the map editor offers by the picture bundled with it, by its bytes and not its name', async () => {
     const pictures = TestBed.inject(ModelPictureService);
-    const oak = { ...model('statue'), identifier: bundledMapModels()['tree_oak'] } as ModelFile;
+    const oak = { ...model('statue'), identifier: `${bundledMapModels()['tree_oak']}${'0'.repeat(48)}` } as ModelFile;
 
     expect(pictures.pictureOf(oak)).toBe('assets/images/model-pictures/tree_oak.icon.webp');
     expect(paint).not.toHaveBeenCalled();
