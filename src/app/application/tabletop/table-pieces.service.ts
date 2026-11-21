@@ -4,6 +4,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
 import {
   type CardLook,
   drawCard,
@@ -161,19 +162,24 @@ export class TablePiecesService {
   private readonly roomRules = inject(RoomRulesService);
   private readonly motions = inject(PieceMotionsService);
   private readonly reactions = inject(EffectReactionService);
+  private readonly modelActs = inject(ModelActsService);
   private readonly modelStorage = inject(ModelStorage);
 
   /**
    * The characters this seat may see that are drawn as 3D models, held here in full, standing on the
-   * floor: each stood at the middle of its footprint, walking while the seat moves it.
+   * floor: each stood at the middle of its footprint, walking while the seat moves it, thrown as the
+   * effects being played throw it, and acting what they ask its model to act.
    */
   readonly models = computed<readonly TableWorldModel[]>(() => {
     const drawn = this.drawnNow(this.standingModels());
     const jolts = this.reactions.jolts();
-    if (!jolts.size) return drawn;
+    const acts = this.modelActs.acts();
+    if (!jolts.size && !acts.size) return drawn;
     return drawn.map((model) => {
       const jolt = jolts.get(model.owner);
-      return jolt ? { ...model, foot: jolted(model.foot, jolt) } : model;
+      const act = acts.get(model.owner);
+      if (!jolt && !act) return model;
+      return { ...model, ...(jolt ? { foot: jolted(model.foot, jolt) } : {}), ...(act ? { act } : {}) };
     });
   });
 

@@ -26,6 +26,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -189,6 +190,7 @@ export class GameCharacterComponent {
   });
 
   private readonly motions = inject(PieceMotionsService);
+  private readonly modelActs = inject(ModelActsService);
   private readonly pieces = inject(TablePiecesService);
   private readonly tableCamera = inject(TableCameraService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
@@ -393,7 +395,9 @@ export class GameCharacterComponent {
       if (this.hitFlash() !== 'damage' || this.defeatReaction()) return;
       const char = this.gameCharacter();
       untracked(() => {
-        if (char && this.drawnOnCanvas()) this.motions.play(char.identifier, 'hit-shake');
+        if (!char || !this.drawnOnCanvas()) return;
+        this.motions.play(char.identifier, 'hit-shake');
+        this.modelActs.strike(char.identifier);
       });
     });
 
