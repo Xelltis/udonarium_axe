@@ -1,3 +1,4 @@
+import type { ModelAct } from '@axe/domain/tabletop/model-motions';
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
@@ -47,6 +48,11 @@ export interface TableWorldModel {
   readonly cutFaces?: string;
   /** Whether the piece is being moved now, which plays its walk. */
   readonly walking: boolean;
+  /**
+   * What the piece's model is asked to act now, as a blow in a fight or its going down; left out
+   * where it only stands or walks.
+   */
+  readonly act?: ModelAct;
   /**
    * For a door: whether it stands open, and where its opening has taken it from where it stands shut,
    * on the board, as its faces are taken. A model whose leaves swing on hinges of their own opens by

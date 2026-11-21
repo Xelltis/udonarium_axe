@@ -321,7 +321,7 @@ class ThreeTableEngine implements Table3dEngine {
   /** How hard lightning lights the scene now, from 0 to 1. */
   private flash = 0;
   private readonly models = new ModelLayer(
-    (material, moonlit) => this.veil.cover(material, 'lit', moonlit),
+    (material, moonlit) => this.veil.cover(material, 'lit', moonlit, true),
     () => {
       this.piecesMoved();
       this.needsFrame();
@@ -410,6 +410,8 @@ class ThreeTableEngine implements Table3dEngine {
   setQuality(plan: Table3dQualityPlan): void {
     if (plan !== this.plan) this.changed = true;
     this.plan = plan;
+    this.models.setDetail(plan.modelDetail);
+    this.models.setStanding(plan.standingMotion);
     const slots = Math.min(SHADOW_LIGHTS, plan.shadowedLights);
     if (slots === this.lampSlots && this.sun.castShadow === plan.skyShadows) return;
     this.lampSlots = slots;
@@ -583,6 +585,7 @@ class ThreeTableEngine implements Table3dEngine {
     const struck = 1 + this.flash * FLASH_BOOST;
     this.sun.intensity = this.lastSky.strength * LIGHT_SCALE * ambient * struck;
     this.sky.intensity = (this.lastSky.skyStrength * ambient * struck + this.flash * FLASH_SKY) * LIGHT_SCALE;
+    this.veil.setSkyMirror(this.sky.color, struck + this.flash * FLASH_SKY, GROUND_BOUNCE);
   }
 
   onNeedsFrame(listener: () => void): void {

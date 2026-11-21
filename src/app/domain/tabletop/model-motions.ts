@@ -98,8 +98,8 @@ function sameName(one: string, other: string): boolean {
 
 /**
  * Where a model moved by hand is at one moment of a motion, from how it stands: lifted off the floor
- * and carried the way it acts, both in cells, tipped that way (or back from it, below nought) in
- * degrees about its foot, and stretched upright, 1 as it was made.
+ * and carried the way it acts, both in widths of its piece, tipped that way (or back from it, below
+ * nought) in degrees about its foot, and stretched upright, 1 as it was made.
  */
 export interface MadePose {
   readonly lift: number;
@@ -202,14 +202,25 @@ export interface ModelAct {
   /** For a motion asked for by name, the name. */
   readonly name?: string;
   /**
-   * Which way across the table the act is made, in degrees clockwise from the north as a piece's
-   * turn is: towards the one struck for a blow, from the one striking for a blow taken. Left out
-   * where there is none, which acts the way the piece faces.
+   * When this screen came to know of the act, in the milliseconds its frames are timed in: the act
+   * is played from there, so one known of long since, as the going down of a piece found already
+   * down, is drawn as it ended.
    */
-  readonly towardDeg?: number;
+  readonly atMs: number;
+  /**
+   * Which way across the table the other in the act stands from the piece, of unit length, x to the
+   * east and y to the south: the one struck for a blow, the one striking for a blow taken or for
+   * going down. Left out where there is none, which acts the way the piece faces.
+   */
+  readonly toward?: { readonly x: number; readonly y: number };
 }
 
 /** Whether a model stays as an act leaves it, rather than stands again: one brought down stays down. */
 export function actHolds(act: Pick<ModelAct, 'role'>): boolean {
   return act.role === 'defeat';
+}
+
+/** How long a motion made by hand plays for an act, in milliseconds; nothing for a motion asked for by name, which no hand makes. */
+export function madeActMs(act: Pick<ModelAct, 'role'>): number {
+  return act.role === 'named' ? 0 : MADE_MOTION_MS[act.role];
 }

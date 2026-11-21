@@ -1,3 +1,5 @@
+import { modelLookOf, presetModelLook } from '@axe/domain/tabletop/model-look';
+import { MADE_MOTION_MS } from '@axe/domain/tabletop/model-motions';
 import { PIECE_MODEL_AS_MADE } from '@axe/domain/tabletop/piece-model';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
@@ -7,7 +9,6 @@ import {
   partPlacementsOf,
   placedPartsOf,
   placementOf,
-  sceneMaterialOf,
   senseInCurrent,
   spinOf,
   spinPlacedAt,
@@ -25,8 +26,9 @@ import {
   type InstancedMesh,
   Matrix4,
   Mesh,
+  MeshLambertNodeMaterial,
   MeshStandardMaterial,
-  Texture,
+  MeshStandardNodeMaterial,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
@@ -594,6 +596,135 @@ describe('ModelLayer', () => {
     layer.dispose();
   });
 
+  it('keeps a model drawn another way apart, making its materials afresh from what the model was made of', async () => {
+    const dressed: unknown[] = [];
+    const layer = new ModelLayer(
+      (material) => dressed.push(material),
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const geometry = new BoxGeometry();
+    const scene = new Group();
+    scene.add(new Mesh(geometry, new MeshStandardMaterial({ color: '#ffffff', metalness: 0.1, roughness: 0.6 })));
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, { gltf: { scene: Group } } | null>;
+    };
+    const reads = vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
+    const golden = knight({ owner: 'idol', model: { ...knight().model, look: presetModelLook('gold') } });
+
+    layer.set([knight(), golden]);
+    await vi.waitFor(() => expect(internals.loaded.size).toBe(2));
+
+    expect(reads).toHaveBeenCalledTimes(1);
+    expect(modelReadKeyOf(golden)).not.toBe(modelReadKeyOf(knight()));
+    const meshOf = (model: TableWorldModel) => internals.loaded.get(modelReadKeyOf(model))!.gltf.scene.children[0];
+    const [plain, gold] = [meshOf(knight()), meshOf(golden)] as Mesh[];
+    expect(gold.geometry).toBe(plain.geometry);
+    expect((plain.material as MeshStandardNodeMaterial).metalness).toBeCloseTo(0.1);
+    expect((gold.material as MeshStandardNodeMaterial).metalness).toBe(1);
+    expect((gold.material as MeshStandardNodeMaterial).color.getHexString()).toBe('ffcf5a');
+    expect(dressed).toEqual([plain.material, gold.material]);
+    layer.dispose();
+  });
+
+  it('keeps a model whose look reads as made with the model as made', () => {
+    const asMade = knight({ model: { ...knight().model, look: modelLookOf('{"materials":{}}') } });
+
+    expect(modelReadKeyOf(asMade)).toBe(modelReadKeyOf(knight()));
+  });
+
+  it('draws a model lit evenly at plain detail, reading afresh what it had read at full', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, { gltf: { scene: Group } } | null>;
+    };
+    const made = () => {
+      const scene = new Group();
+      scene.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial({ metalness: 1 })));
+      return { scene, animations: [] };
+    };
+    const reads = vi.spyOn(internals.reader, 'read').mockImplementation(() => Promise.resolve(made()));
+    const materialOf = () => (internals.loaded.get(modelReadKeyOf(knight()))!.gltf.scene.children[0] as Mesh).material;
+
+    layer.set([knight()]);
+    await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeTruthy());
+    expect(materialOf()).toBeInstanceOf(MeshStandardNodeMaterial);
+
+    layer.setDetail('plain');
+    expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeUndefined();
+    await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeTruthy());
+
+    expect(reads).toHaveBeenCalledTimes(2);
+    expect(materialOf()).toBeInstanceOf(MeshLambertNodeMaterial);
+    layer.dispose();
+  });
+
+  it('lets go of a model that comes after the detail changed, and stands the one read afresh', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, { gltf: { scene: Group } } | null>;
+    };
+    const coming: ((read: unknown) => void)[] = [];
+    vi.spyOn(internals.reader, 'read').mockImplementation(() => new Promise((resolve) => coming.push(resolve)));
+    const made = () => {
+      const scene = new Group();
+      const geometry = new BoxGeometry();
+      scene.add(new Mesh(geometry, new MeshStandardMaterial()));
+      return { read: { scene, animations: [] }, letGo: vi.spyOn(geometry, 'dispose') };
+    };
+    const [first, second] = [made(), made()];
+
+    layer.set([knight()]);
+    layer.setDetail('plain');
+    await vi.waitFor(() => expect(coming).toHaveLength(2));
+    coming[0](first.read);
+    coming[1](second.read);
+    await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeTruthy());
+
+    expect(first.letGo).toHaveBeenCalledTimes(1);
+    expect(second.letGo).not.toHaveBeenCalled();
+    expect(internals.loaded.get(modelReadKeyOf(knight()))!.gltf.scene).toBe(second.read.scene);
+    layer.dispose();
+  });
+
+  it('leaves a mesh undrawn whose one material its piece has left undrawn', async () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const scene = new Group();
+    const hood = new MeshStandardMaterial();
+    hood.name = 'Hood';
+    scene.add(new Mesh(new BoxGeometry(), hood), new Mesh(new BoxGeometry(), new MeshStandardMaterial()));
+    const internals = layer as unknown as {
+      reader: { read: (url: string) => Promise<unknown> };
+      loaded: Map<string, { gltf: { scene: Group } } | null>;
+    };
+    vi.spyOn(internals.reader, 'read').mockResolvedValue({ scene, animations: [] });
+    const bare = knight({
+      model: { ...knight().model, look: modelLookOf('{"materials":{"Hood":{"hidden":true}}}') },
+    });
+
+    layer.set([bare]);
+    await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(bare))).toBeTruthy());
+
+    const meshes = internals.loaded.get(modelReadKeyOf(bare))!.gltf.scene.children;
+    expect(meshes.map((mesh) => mesh.visible)).toEqual([false, true]);
+    layer.dispose();
+  });
+
   /** A model of one mesh that plays the motions named, read at once in place of a file. */
   function layerOf(motions: readonly string[]): ModelLayer {
     const layer = new ModelLayer(
@@ -608,6 +739,8 @@ describe('ModelLayer', () => {
       size: new Vector3(1, 2, 1),
       foot: new Vector3(0, 0, 0),
       animated: true,
+      made: [],
+      ownGlow: false,
     };
     (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), loaded);
     return layer;
@@ -691,6 +824,8 @@ describe('ModelLayer', () => {
       size: MADE.size,
       foot: new Vector3(),
       animated: true,
+      made: [],
+      ownGlow: false,
     });
     await Promise.resolve();
 
@@ -715,6 +850,8 @@ describe('ModelLayer', () => {
       size: new Vector3(1, 2, 1),
       foot: new Vector3(0, 0, 0),
       animated: false,
+      made: [],
+      ownGlow: false,
     });
     const stood = () => (layer as unknown as { stood: Map<string, { root: Group }> }).stood.get('knight')?.root;
     const triangles = () => meshesOf(stood()!).map((mesh) => triangleCountOf(mesh.geometry));
@@ -729,6 +866,127 @@ describe('ModelLayer', () => {
 
     layer.set([knight({ ownCopy: true })]);
     expect(triangles()).toEqual([4]);
+  });
+
+  describe('with a piece’s model that has no motion of its own', () => {
+    /** Two figures of one model, read already, which move of themselves as a reader who lets them does. */
+    function figures() {
+      const layer = new ModelLayer(
+        () => undefined,
+        () => undefined,
+        () => ({}) as WebGPURenderer
+      );
+      const scene = new Group();
+      const body = new Mesh(new BufferGeometry());
+      scene.add(body);
+      (layer as unknown as { loaded: Map<string, unknown> }).loaded.set(modelReadKeyOf(knight()), {
+        gltf: { scene, animations: [] },
+        size: MADE.size,
+        foot: new Vector3(),
+        animated: false,
+        made: [],
+        ownGlow: false,
+        parts: [{ mesh: body, within: new Matrix4() }],
+      });
+      layer.setTurning(true);
+      const internals = layer as unknown as {
+        stood: Map<string, { root: Group }>;
+        herds: Map<string, { copies: number }>;
+      };
+      const other = knight({ owner: 'second', foot: { x: 300, y: 200, z: 0 } });
+      return {
+        layer,
+        other,
+        apart: () => [...internals.stood.keys()],
+        together: () => [...internals.herds.values()].reduce((sum, herd) => sum + herd.copies, 0),
+        footOf: (owner: string) => {
+          const point = new Vector3(0, 0, 0).applyMatrix4(internals.stood.get(owner)!.root.matrixWorld);
+          return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
+        },
+      };
+    }
+
+    it('is drawn with the other copies while it stands, and apart while a hand walks it, hopping', () => {
+      const { layer, other, apart, together, footOf } = figures();
+      layer.set([knight(), other]);
+      expect([apart(), together()]).toEqual([[], 2]);
+      expect(layer.advance(0)).toBe(false);
+
+      layer.set([knight({ walking: true }), other]);
+      expect([apart(), together()]).toEqual([['knight'], 1]);
+      expect(layer.advance(MADE_MOTION_MS.walk / 2)).toBe(true);
+      expect(footOf('knight')[1]).toBeGreaterThan(5);
+
+      layer.set([knight(), other]);
+      expect([apart(), together()]).toEqual([[], 2]);
+    });
+
+    it('is stood apart for an act, carried towards the other in it, and drawn with the others again once it is through', () => {
+      const { layer, other, apart, together, footOf } = figures();
+      const blow = { key: 'blow', role: 'attack', atMs: 0, toward: { x: 1, y: 0 } } as const;
+      layer.advance(0);
+
+      layer.set([knight({ act: blow }), other]);
+      expect([apart(), together()]).toEqual([['knight'], 1]);
+      expect(layer.advance(MADE_MOTION_MS.attack * 0.46)).toBe(true);
+      expect(footOf('knight')[0]).toBeGreaterThan(120);
+      expect(footOf('knight')[2]).toBe(200);
+
+      expect(layer.advance(MADE_MOTION_MS.attack + 1)).toBe(false);
+      expect([apart(), together()]).toEqual([[], 2]);
+      expect(layer.takeChanged()).toBe(true);
+
+      layer.set([knight({ act: blow, rotateDeg: 90 }), other]);
+      expect([apart(), together()]).toEqual([[], 2]);
+
+      layer.set([knight({ act: { ...blow, key: 'another', atMs: 2000 } }), other]);
+      expect(apart()).toEqual(['knight']);
+    });
+
+    it('keeps it apart until an act is through, though the act is asked for no more', () => {
+      const { layer, other, apart, together } = figures();
+      layer.advance(0);
+      layer.set([knight({ act: { key: 'blow', role: 'attack', atMs: 0 } }), other]);
+      layer.advance(100);
+
+      layer.set([knight(), other]);
+      expect([apart(), together()]).toEqual([['knight'], 1]);
+      expect(layer.advance(200)).toBe(true);
+
+      expect(layer.advance(MADE_MOTION_MS.attack + 1)).toBe(false);
+      expect([apart(), together()]).toEqual([[], 2]);
+    });
+
+    it('keeps one down apart, as its going down left it, even for a reader who asks for less motion', () => {
+      const { layer, other, apart, together } = figures();
+      const down = { key: 'down', role: 'defeat', atMs: 0 } as const;
+
+      layer.set([knight({ act: down }), other]);
+      layer.advance(MADE_MOTION_MS.defeat * 3);
+      expect([apart(), together()]).toEqual([['knight'], 1]);
+      expect(layer.advance(MADE_MOTION_MS.defeat * 4)).toBe(false);
+
+      layer.setTurning(false);
+      expect([apart(), together()]).toEqual([['knight'], 1]);
+
+      layer.set([knight(), other]);
+      expect([apart(), together()]).toEqual([[], 2]);
+    });
+
+    it('is drawn with the others throughout for a reader who asks for less motion, and where its piece has turned being moved by hand off', () => {
+      const still = figures();
+      still.layer.setTurning(false);
+      still.layer.set([knight({ walking: true }), still.other]);
+      expect([still.apart(), still.together()]).toEqual([[], 2]);
+
+      const unmoved = figures();
+      const fixed = { ...knight().model, motions: { ...knight().model.motions, made: false } };
+      unmoved.layer.set([
+        knight({ walking: true, model: fixed, act: { key: 'down', role: 'defeat', atMs: 0 } }),
+        unmoved.other,
+      ]);
+      expect([unmoved.apart(), unmoved.together()]).toEqual([[], 2]);
+    });
   });
 
   describe('with a model a part of which turns', () => {
@@ -746,6 +1004,8 @@ describe('ModelLayer', () => {
         size: MADE.size,
         foot: new Vector3(),
         animated: false,
+        made: [],
+        ownGlow: false,
         parts: [
           { mesh: body, within: new Matrix4() },
           {
@@ -820,56 +1080,5 @@ describe('ModelLayer', () => {
       expect(wheelAt()).toEqual([100, 75, 200]);
       layer.dispose();
     });
-  });
-});
-
-describe('sceneMaterialOf', () => {
-  it('keeps the glow a part gives off, as strong as it was made, with the picture it glows in, and notes that picture as drawn', () => {
-    const picture = new Texture();
-    const shine = new Texture();
-    const neon = new MeshStandardMaterial({
-      map: picture,
-      emissive: '#ff2bd6',
-      emissiveMap: picture,
-      emissiveIntensity: 3,
-      roughnessMap: shine,
-    });
-    const drawn = new Set<Texture>();
-    const undrawn = new Set<Texture>();
-
-    const made = sceneMaterialOf(neon, drawn, undrawn, true);
-
-    expect(made.emissive.getHexString()).toBe('ff2bd6');
-    expect(made.emissiveMap).toBe(picture);
-    expect(made.emissiveIntensity).toBe(3);
-    expect([...drawn]).toEqual([picture]);
-    expect([...undrawn]).toEqual([shine]);
-  });
-
-  it('draws a model brought in without the glow it was made with, as it always was, lest it stand out of the dark', () => {
-    const picture = new Texture();
-    const unlit = new MeshStandardMaterial({ map: picture, emissive: '#808080', emissiveMap: picture });
-    const drawn = new Set<Texture>();
-    const undrawn = new Set<Texture>();
-
-    const made = sceneMaterialOf(unlit, drawn, undrawn);
-
-    expect(made.emissive.getHex()).toBe(0);
-    expect(made.emissiveMap).toBeNull();
-    expect([...drawn]).toEqual([picture]);
-  });
-
-  it('gives a part that gives off no glow none, and draws no picture of a glow it does not give off', () => {
-    const picture = new Texture();
-    const glowless = new MeshStandardMaterial({ map: picture, emissiveMap: new Texture() });
-    const drawn = new Set<Texture>();
-    const undrawn = new Set<Texture>();
-
-    const made = sceneMaterialOf(glowless, drawn, undrawn);
-
-    expect(made.emissive.getHex()).toBe(0);
-    expect(made.emissiveMap).toBeNull();
-    expect([...drawn]).toEqual([picture]);
-    expect(undrawn.size).toBe(1);
   });
 });

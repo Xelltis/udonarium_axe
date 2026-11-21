@@ -19,12 +19,40 @@ export interface Table3dQualityPlan {
    */
   readonly ambientOcclusion: boolean;
   readonly bloom: boolean;
+  /**
+   * How much of what a model's materials were made of is drawn: their metal, their roughness and their
+   * bumps, or their colour and picture alone, lit evenly.
+   */
+  readonly modelDetail: 'full' | 'plain';
+  /** Whether a model plays the motion it stands in, rather than holds its first pose. */
+  readonly standingMotion: boolean;
 }
 
 export const TABLE_3D_QUALITY: Readonly<Record<Table3dQuality, Table3dQualityPlan>> = {
-  high: { shadowedLights: 4, skyShadows: true, ambientOcclusion: false, bloom: true },
-  standard: { shadowedLights: 2, skyShadows: true, ambientOcclusion: false, bloom: true },
-  light: { shadowedLights: 0, skyShadows: false, ambientOcclusion: false, bloom: false },
+  high: {
+    shadowedLights: 4,
+    skyShadows: true,
+    ambientOcclusion: false,
+    bloom: true,
+    modelDetail: 'full',
+    standingMotion: true,
+  },
+  standard: {
+    shadowedLights: 2,
+    skyShadows: true,
+    ambientOcclusion: false,
+    bloom: true,
+    modelDetail: 'full',
+    standingMotion: true,
+  },
+  light: {
+    shadowedLights: 0,
+    skyShadows: false,
+    ambientOcclusion: false,
+    bloom: false,
+    modelDetail: 'plain',
+    standingMotion: false,
+  },
 };
 
 /**

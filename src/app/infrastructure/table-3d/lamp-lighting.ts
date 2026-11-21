@@ -1,12 +1,14 @@
-import { BRDF_Lambert, diffuseColor, normalView, smoothstep } from 'three/tsl';
+import { BRDF_Lambert, diffuseColor, normalView, smoothstep, vec3 } from 'three/tsl';
 import {
   DirectionalLight,
   type Light,
   type LightingModel,
   MeshLambertNodeMaterial,
+  MeshStandardNodeMaterial,
   type Node,
   type NodeBuilder,
   PhongLightingModel,
+  PhysicalLightingModel,
 } from 'three/webgpu';
 
 /** How far round from facing a lamp a face still takes its light whole, in the cosine of the angle. */
@@ -32,13 +34,46 @@ class LampLightingModel extends PhongLightingModel {
       super.direct(input, builder);
       return;
     }
-    const direction = input.lightDirection as Node<'vec3'>;
-    const colour = input.lightColor as Node<'vec3'>;
-    const diffuse = input.reflectedLight.directDiffuse as Node<'vec3'>;
-    const facing = smoothstep(0, LAMP_EDGE, normalView.dot(direction));
-    const lambert = BRDF_Lambert({ diffuseColor: diffuseColor.rgb }) as unknown as Node<'vec3'>;
-    diffuse.addAssign(colour.mul(facing).mul(lambert));
+    (input.reflectedLight.directDiffuse as Node<'vec3'>).addAssign(evenLampLight(input));
   }
+}
+
+/** A lamp's light all alike over the side of a face that faces it, in the face's own colour. */
+function evenLampLight(input: DirectInput): Node<'vec3'> {
+  const direction = input.lightDirection as Node<'vec3'>;
+  const colour = input.lightColor as Node<'vec3'>;
+  const facing = smoothstep(0, LAMP_EDGE, normalView.dot(direction));
+  const lambert = BRDF_Lambert({ diffuseColor: diffuseColor.rgb }) as unknown as Node<'vec3'>;
+  return colour.mul(facing).mul(lambert);
+}
+
+/**
+ * How the scene lights a model drawn as it was made, with its metal and its roughness: the sun and
+ * the moon as such a surface takes any light; a lamp all alike over the side that faces it, as
+ * {@link LampLightingModel} has it, in the surface's own colour whatever metal it is, with the gleam
+ * the lamp throws on it added as the surface would throw it. Metal mirrors rather than takes light,
+ * and by a lamp alone, with nothing round it to mirror, would stand black.
+ */
+class LampPhysicalLightingModel extends PhysicalLightingModel {
+  override direct(input: DirectInput, builder: NodeBuilder): void {
+    const light = (input.lightNode as unknown as { light?: Light }).light;
+    if (light instanceof DirectionalLight) {
+      super.direct(input, builder);
+      return;
+    }
+    const lit = input.reflectedLight;
+    (lit.directDiffuse as Node<'vec3'>).addAssign(evenLampLight(input));
+    super.direct({ ...input, reflectedLight: { ...lit, directDiffuse: vec3(0).toVar() } } as DirectInput, builder);
+  }
+}
+
+/**
+ * Has a model's material that keeps its metal and its roughness take the scene's lamps as
+ * {@link LampPhysicalLightingModel} lights it; any other material is left as it is.
+ */
+export function litByLampsAsMade(material: unknown): void {
+  if (!(material instanceof MeshStandardNodeMaterial)) return;
+  material.setupLightingModel = () => new LampPhysicalLightingModel();
 }
 
 /** Has a face drawn with the scene's own light take the scene's lamps as the page lifts its darkness round a light. */

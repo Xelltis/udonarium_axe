@@ -18,7 +18,10 @@ import {
   mix,
   output,
   positionWorld,
+  reflectVector,
+  roughness,
   smoothstep,
+  specularColorBlended,
   sRGBTransferEOTF,
   sRGBTransferOETF,
   texture,
@@ -33,6 +36,7 @@ import {
   type Material,
   MeshLambertNodeMaterial,
   MeshStandardNodeMaterial,
+  MeshToonNodeMaterial,
   NoColorSpace,
   type Node,
   type NodeMaterial,
@@ -51,6 +55,9 @@ const MOONLIT_TINT = vec3(0.82, 0.92, 1.22);
  */
 const MOONLIT_FROM = 0.18;
 const MOONLIT_TO = 0.55;
+
+/** How much brighter the sky is mirrored towards the horizon than overhead. */
+const HORIZON_MIRROR = 1.15;
 
 /** How a material takes the darkness: in the light it is lit by, or on the colour it is drawn in. */
 export type DarknessTaking = 'lit' | 'unlit';
@@ -73,10 +80,14 @@ export class SceneVeil {
   private readonly darkness = uniform(0);
   /** How far what the moon lights is drawn as by moonlight, from 0 by day to 1. */
   private readonly moonlit = uniform(0);
+  /** The light of the sky overhead and of the ground under it, as what mirrors them shows them. */
+  private readonly mirroredSky = uniform(new Vector3());
+  private readonly mirroredGround = uniform(new Vector3());
   private readonly lamps: readonly ShadowLamp[];
   private readonly fogged = this.foggedOutput();
   private readonly lifted = this.liftedOut();
   private readonly glowing = this.glowLight();
+  private readonly mirrored = this.skyMirror();
 
   /**
    * As many lamps as the scene has slots for lights of its own, and then as many as effects may throw
@@ -166,15 +177,24 @@ export class SceneVeil {
    * by its colour, a piece's picture or model, a die or a coin, is covered with `moonlit` false, and
    * keeps its colour, only darkened. Every layer says which it draws, as no default would say it for
    * a layer added later.
+   *
+   * A lit material that keeps its metal and its roughness mirrors the sky where `mirrors` says so
+   * (see {@link setSkyMirror}), as a model drawn as it was made does: metal takes little light of its
+   * own, and with nothing to mirror would stand dark.
    */
-  cover(material: Material, taking: DarknessTaking, moonlit: boolean): void {
+  cover(material: Material, taking: DarknessTaking, moonlit: boolean, mirrors = false): void {
     const node = material as NodeMaterial;
     const night = (colour: Node<'vec3'>) => (moonlit ? this.byMoonlight(colour) : colour);
     if (taking === 'lit') {
       litByLamps(material);
-      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial) {
+      if (
+        material instanceof MeshLambertNodeMaterial ||
+        material instanceof MeshStandardNodeMaterial ||
+        material instanceof MeshToonNodeMaterial
+      ) {
         const lifted = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
-        material.emissiveNode = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
+        const own = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
+        material.emissiveNode = mirrors && material instanceof MeshStandardNodeMaterial ? own.add(this.mirrored) : own;
       }
       node.outputNode = this.fogged(vec4(night(output.rgb).add(this.glowing), output.a));
     } else {
@@ -193,6 +213,35 @@ export class SceneVeil {
     if (next === this.moonlit.value) return false;
     this.moonlit.value = next;
     return true;
+  }
+
+  /**
+   * Sets the sky that what mirrors it shows: the light of the sky in its colour and as strong as it
+   * falls on a level surface, and the ground under it as much dimmer as `ground` says; answers
+   * whether anything changed.
+   */
+  setSkyMirror(colour: { r: number; g: number; b: number }, strength: number, ground: number): boolean {
+    const sky = this.mirroredSky.value;
+    const under = this.mirroredGround.value;
+    const [r, g, b] = [colour.r * strength, colour.g * strength, colour.b * strength];
+    if (sky.x === r && sky.y === g && sky.z === b && under.x === r * ground) return false;
+    sky.set(r, g, b);
+    under.set(r * ground, g * ground, b * ground);
+    return true;
+  }
+
+  /**
+   * The sky as a surface mirrors it at a point: the sky overhead, brighter towards the horizon, and
+   * the ground under it, by the way the eye's line is thrown back, in the colour the surface mirrors
+   * in and as dark as the table is there. A rough surface mirrors as much as a smooth one, only
+   * blurred, so the rougher it is the more the sky and the ground run into each other on it.
+   */
+  private skyMirror() {
+    const up = reflectVector.y;
+    const overhead = mix(this.mirroredSky.mul(HORIZON_MIRROR), this.mirroredSky, smoothstep(0, 0.7, up));
+    const edge = roughness.mul(roughness).add(0.08);
+    const sky = mix(this.mirroredGround, overhead, smoothstep(edge.negate(), edge, up.add(edge.mul(0.25))));
+    return colourNode(sky.mul(specularColorBlended).mul(this.lifted));
   }
 
   /** A lit colour as moonlight leaves it: towards the bluish grey of its brightness, the more the dimmer it is. */
