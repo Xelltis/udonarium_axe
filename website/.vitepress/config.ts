@@ -255,6 +255,7 @@ export default defineConfig({
             { text: '射程範囲', link: '/manual/range' },
             { text: '物差し', link: '/manual/ruler' },
             { text: '地形', link: '/manual/terrain' },
+            { text: '3Dモデル', link: '/manual/models' },
             { text: 'マップマスク', link: '/manual/map-mask' },
             { text: 'ホワイトボード', link: '/manual/white-board' },
           ],
