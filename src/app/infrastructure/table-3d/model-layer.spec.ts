@@ -1,3 +1,4 @@
+import { PIECE_MODEL_AS_MADE } from '@axe/domain/tabletop/piece-model';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
   ModelLayer,
@@ -38,7 +39,7 @@ function knight(fields: Partial<TableWorldModel> = {}): TableWorldModel {
     owner: 'knight',
     kind: 'character',
     url: 'blob:knight',
-    model: { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: '', walk: '' },
+    model: { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: '', walk: '', ...PIECE_MODEL_AS_MADE },
     foot: { x: 100, y: 200, z: 0 },
     footprintPx: 50,
     heightPx: 100,
@@ -417,7 +418,7 @@ describe('placementOf', () => {
     const down = knight({
       heightPx: 125,
       pivotPx: 0,
-      model: { identifier: 'wall', scale: 1, turnDeg: 90, idle: '', walk: '' },
+      model: { identifier: 'wall', scale: 1, turnDeg: 90, idle: '', walk: '', ...PIECE_MODEL_AS_MADE },
       boxPx: { widthPx: 50, depthPx: 150, cellPx: 50 },
     });
     const [turned] = partPlacementsOf(down, tile);
@@ -472,7 +473,7 @@ describe('placementOf', () => {
     const square = knight({
       heightPx: 100,
       pivotPx: 0,
-      model: { identifier: 'wall', scale: 1, turnDeg: 90, idle: '', walk: '' },
+      model: { identifier: 'wall', scale: 1, turnDeg: 90, idle: '', walk: '', ...PIECE_MODEL_AS_MADE },
       boxPx: { widthPx: 50, depthPx: 50, cellPx: 50 },
     });
     expect(partPlacementsOf(square, wall)[0].map((matrix) => where(matrix, 0.5, 0, 0))).toEqual([
@@ -618,10 +619,21 @@ describe('ModelLayer', () => {
     layer.set([knight()]);
     expect(layer.motionOf('knight')).toBe('Idle');
 
-    layer.set([knight({ model: { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: 'Guard', walk: '' } })]);
+    layer.set([
+      knight({
+        model: { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: 'Guard', walk: '', ...PIECE_MODEL_AS_MADE },
+      }),
+    ]);
     expect(layer.motionOf('knight')).toBe('Guard');
 
-    const running = { identifier: 'knight-model', scale: 1, turnDeg: 0, idle: 'Guard', walk: 'Run' };
+    const running = {
+      identifier: 'knight-model',
+      scale: 1,
+      turnDeg: 0,
+      idle: 'Guard',
+      walk: 'Run',
+      ...PIECE_MODEL_AS_MADE,
+    };
     layer.set([knight({ model: running, walking: true })]);
     expect(layer.motionOf('knight')).toBe('Run');
 

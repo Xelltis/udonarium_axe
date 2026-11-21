@@ -1,11 +1,18 @@
 import { clamp } from '@axe/core/util/clamp';
+import { MODEL_FACE_AS_MADE, type ModelFace, modelFaceOf } from '@axe/domain/tabletop/model-face';
+import { MODEL_AS_MADE, type ModelLook, modelLookOf } from '@axe/domain/tabletop/model-look';
+import { MODEL_MOTIONS_AS_MADE, type ModelMotions, modelMotionsOf } from '@axe/domain/tabletop/model-motions';
+
 /**
  * The 3D model a piece or a block can be drawn as, in place of its picture, on a table drawn on a
  * canvas: which model, how much larger or smaller than its footprint it is drawn, how far it is
- * turned from the way the piece faces, and the motions it plays standing still and walking.
+ * turned from the way the piece faces, the motions it plays standing still and walking, how its
+ * materials are drawn, the motions it plays in a fight, and what it does with its shapes.
  *
  * Every field is kept as text, empty for one never set: a peer that has never heard of models sends
- * none of them, and an empty size or turn is read as the model's own, never as nought.
+ * none of them, and an empty size or turn is read as the model's own, never as nought. The last
+ * three are each the text of a record, of what differs from the model as it was made alone; a peer
+ * that has heard of models but not of them sends the first five alone.
  */
 export interface PieceModelFields {
   modelIdentifier: unknown;
@@ -13,6 +20,9 @@ export interface PieceModelFields {
   modelTurn: unknown;
   modelIdle: unknown;
   modelWalk: unknown;
+  modelLook?: unknown;
+  modelMotions?: unknown;
+  modelFace?: unknown;
 }
 
 /** A piece's model as it is drawn. */
@@ -26,7 +36,20 @@ export interface PieceModel {
   readonly idle: string;
   /** The motion played walking, or empty to take the model's own. */
   readonly walk: string;
+  /** How its materials are drawn. */
+  readonly look: ModelLook;
+  /** The motions it plays in a fight, and whether it is moved by hand where it has none. */
+  readonly motions: ModelMotions;
+  /** What it does with the shapes it can be blended towards. */
+  readonly face: ModelFace;
 }
+
+/** What a model is drawn with where nothing was stored of its materials, its motions in a fight and its shapes. */
+export const PIECE_MODEL_AS_MADE: Pick<PieceModel, 'look' | 'motions' | 'face'> = Object.freeze({
+  look: MODEL_AS_MADE,
+  motions: MODEL_MOTIONS_AS_MADE,
+  face: MODEL_FACE_AS_MADE,
+});
 
 /** How much smaller and larger than its footprint a model may be drawn. */
 export const MIN_MODEL_SCALE = 0.1;
@@ -58,5 +81,8 @@ export function pieceModelOf(fields: PieceModelFields): PieceModel | null {
     turnDeg: modelTurnOf(fields.modelTurn),
     idle: `${fields.modelIdle ?? ''}`.trim(),
     walk: `${fields.modelWalk ?? ''}`.trim(),
+    look: modelLookOf(fields.modelLook),
+    motions: modelMotionsOf(fields.modelMotions),
+    face: modelFaceOf(fields.modelFace),
   };
 }
