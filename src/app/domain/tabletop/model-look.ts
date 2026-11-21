@@ -16,7 +16,7 @@ export const MAX_MODEL_GLOW = 8;
 /** How many of a model's materials may be given a look of their own. */
 export const MAX_MODEL_LOOK_MATERIALS = 64;
 
-/** How long the name of a material may be to be given a look of its own. */
+/** How long the key of a material may be to be given a look of its own. */
 const MAX_MATERIAL_NAME = 80;
 
 /**
@@ -44,7 +44,8 @@ export interface MaterialLook {
 
 /**
  * How a model is drawn for one piece or block: its finish and what is changed of all its materials,
- * and what is changed of single ones over that, by the key `materialKeyOf` gives each.
+ * and what is changed of single ones over that, by the key `materialKeyOf` gives each
+ * (`core/storage/gltf-facts`).
  */
 export interface ModelLook extends MaterialLook {
   readonly finish: ModelFinish;
@@ -65,15 +66,6 @@ export const AS_MADE: MaterialLook = Object.freeze({
 
 /** A model drawn as it was made. */
 export const MODEL_AS_MADE: ModelLook = Object.freeze({ ...AS_MADE, finish: '', materials: Object.freeze({}) });
-
-/**
- * What a material of a model is told apart by, wherever the model is read: its name, or for one with
- * no name, where it stands among the model's materials, as `#3`.
- */
-export function materialKeyOf(name: unknown, index: number): string {
-  const named = typeof name === 'string' ? name.trim().slice(0, MAX_MATERIAL_NAME) : '';
-  return named && !named.startsWith('#') ? named : `#${index}`;
-}
 
 /** The look a model was stored with: as it was made where nothing was stored, or what was cannot be read. */
 export function modelLookOf(value: unknown): ModelLook {

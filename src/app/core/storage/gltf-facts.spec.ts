@@ -1,4 +1,10 @@
-import { gltfFactsOf, gltfFactsOfBlob } from '@axe/core/storage/gltf-facts';
+import {
+  gltfFactsOf,
+  gltfFactsOfBlob,
+  gltfNamesOf,
+  gltfNamesOfBlob,
+  materialKeyOf,
+} from '@axe/core/storage/gltf-facts';
 import { binaryGltf } from '@axe/testing/binary-gltf';
 
 /** A binary glTF file of a JSON chunk alone, which is all the facts are read from. */
@@ -84,5 +90,54 @@ describe('gltfFactsOf', () => {
     const binFirst = whole.slice();
     new DataView(binFirst.buffer).setUint32(16, 0x004e4942, true);
     expect(gltfFactsOf(binFirst.buffer)).toBeNull();
+  });
+});
+
+describe('gltfNamesOf', () => {
+  it('names the motions, a motion with no name as a loader names it, each once', () => {
+    const named = { animations: [{ name: 'Idle' }, {}, { name: 'Idle' }, { name: '' }] };
+    expect(gltfNamesOf(glb(named))?.motions).toEqual(['Idle', 'animation_1', 'animation_3']);
+  });
+
+  it('names the shapes a mesh can be blended towards, by the mesh or else by its first primitive', () => {
+    const shaped = {
+      meshes: [
+        { primitives: [{ targets: [{}, {}] }], extras: { targetNames: ['Blink', 'Joy'] } },
+        { primitives: [{ targets: [{}, {}], extras: { targetNames: ['Joy', 'Aa'] } }] },
+        { primitives: [{ targets: [{}] }] },
+        { primitives: [{}] },
+      ],
+    };
+    expect(gltfNamesOf(glb(shaped))?.shapes).toEqual(['Blink', 'Joy', 'Aa', '0']);
+  });
+
+  it('names shapes by where they stand where the names given do not answer them one for one', () => {
+    const odd = { meshes: [{ primitives: [{ targets: [{}, {}] }], extras: { targetNames: ['Only'] } }] };
+    expect(gltfNamesOf(glb(odd))?.shapes).toEqual(['0', '1']);
+  });
+
+  it('names the materials, one with no name by where it stands among them', () => {
+    const made = { materials: [{ name: 'Blade' }, {}, { name: ' ' }, { name: 'Blade' }] };
+    expect(gltfNamesOf(glb(made))?.materials).toEqual(['Blade', '#1', '#2']);
+  });
+
+  it('names nothing of a file that holds none of them, and is null for bytes that are no model', () => {
+    expect(gltfNamesOf(glb({ asset: { version: '2.0' } }))).toEqual({ motions: [], shapes: [], materials: [] });
+    expect(gltfNamesOf(new ArrayBuffer(4))).toBeNull();
+  });
+
+  it('reads a blob as it reads its bytes', async () => {
+    const bytes = glb({ animations: [{ name: 'Walk' }] });
+    expect(await gltfNamesOfBlob(new Blob([bytes]))).toEqual(gltfNamesOf(bytes));
+    expect(await gltfNamesOfBlob(new Blob([new Uint8Array(3)]))).toBeNull();
+  });
+});
+
+describe('materialKeyOf', () => {
+  it('tells a material by its name, or by where it stands among the model’s where it has none', () => {
+    expect(materialKeyOf('Blade', 2)).toBe('Blade');
+    expect(materialKeyOf(' ', 2)).toBe('#2');
+    expect(materialKeyOf(undefined, 0)).toBe('#0');
+    expect(materialKeyOf('#1', 4)).toBe('#4');
   });
 });

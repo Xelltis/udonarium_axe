@@ -1,7 +1,6 @@
 import {
   AS_MADE,
   isAsMade,
-  materialKeyOf,
   materialLookIn,
   MAX_MODEL_GLOW,
   MODEL_AS_MADE,
@@ -95,13 +94,6 @@ describe('how a model is drawn', () => {
     expect(withMaterialLook(changed, 'Blade', AS_MADE).materials).toEqual({});
     expect(isAsMade(AS_MADE)).toBe(true);
     expect(isAsMade({ ...AS_MADE, metalness: 0 })).toBe(false);
-  });
-
-  it('tells a material by its name, or by where it stands among the model’s where it has none', () => {
-    expect(materialKeyOf('Blade', 2)).toBe('Blade');
-    expect(materialKeyOf(' ', 2)).toBe('#2');
-    expect(materialKeyOf(undefined, 0)).toBe('#0');
-    expect(materialKeyOf('#1', 4)).toBe('#4');
   });
 
   it('offers ready-made looks that each come back as stored', () => {
