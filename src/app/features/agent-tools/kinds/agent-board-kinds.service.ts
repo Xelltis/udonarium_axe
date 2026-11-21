@@ -77,6 +77,7 @@ import {
   objectInput,
   textField,
 } from '@axe/features/agent-tools/kinds/agent-kind';
+import { type ModelSetup, modelSetupFields } from '@axe/features/agent-tools/kinds/agent-model-setup-fields';
 import { AgentSquares, SQUARE_SCHEMA } from '@axe/features/agent-tools/kinds/agent-squares.service';
 
 /** The square a new thing is laid in, as the options of making one take it. */
@@ -149,12 +150,10 @@ interface Lit {
 }
 
 /** The 3D model settings a block holds. */
-interface Modelled {
+interface Modelled extends ModelSetup {
   modelIdentifier: string;
   modelScale: string;
   modelTurn: string;
-  modelIdle: string;
-  modelWalk: string;
 }
 
 /**
@@ -514,26 +513,7 @@ export class AgentBoardKinds {
           object.modelTurn = `${modelTurnOf(value)}`;
         }
       ),
-      textField<T>(
-        'model_idle',
-        "The motion its model plays standing still, by name; empty for the model's own.",
-        'write',
-        (object) => object.modelIdle,
-        (object, value) => {
-          object.modelIdle = value.trim();
-        },
-        200
-      ),
-      textField<T>(
-        'model_walk',
-        "The motion its model plays walking, by name; empty for the model's own.",
-        'write',
-        (object) => object.modelWalk,
-        (object, value) => {
-          object.modelWalk = value.trim();
-        },
-        200
-      ),
+      ...modelSetupFields<T>(),
     ];
   }
 

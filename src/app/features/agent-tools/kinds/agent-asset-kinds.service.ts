@@ -67,6 +67,7 @@ import {
   objectInput,
   textField,
 } from '@axe/features/agent-tools/kinds/agent-kind';
+import { modelSetupFields } from '@axe/features/agent-tools/kinds/agent-model-setup-fields';
 import { AgentSquares, SQUARE_SCHEMA } from '@axe/features/agent-tools/kinds/agent-squares.service';
 
 /** The label the list of pictures goes by for every tag, which no tag may take. */
@@ -764,6 +765,7 @@ export class AgentAssetKinds {
           this.objectChange.notifyChanged(piece.identifier);
         }
       ),
+      ...modelSetupFields<GameCharacter>((piece) => this.objectChange.notifyChanged(piece.identifier)),
       {
         name: 'chat_colours',
         description: 'The three colours its chat lines may be written in, as #rrggbb, the first the usual one.',
