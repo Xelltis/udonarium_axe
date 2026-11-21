@@ -71,6 +71,16 @@ describe('reading a fighter', () => {
     expect(readFighter(piece()).facing).toBeNull();
   });
 
+  it('carries the model the piece is drawn as onto the stage, and none for a piece drawn as its picture', () => {
+    const hero = piece();
+    Object.assign(hero, { modelIdentifier: 'knight', modelLook: '{"finish":"toon"}' });
+    const reading = readFighter(hero);
+
+    expect(reading.model).toMatchObject({ identifier: 'knight', look: '{"finish":"toon"}' });
+    expect(fighterBetween(reading, reading, { enabled: false, resource: '' }).model).toEqual(reading.model);
+    expect(readFighter(piece()).model).toBeNull();
+  });
+
   it('carries the bars, then whatever else moved, and brings down one that fell to nothing', () => {
     const hp = resource('HP', 12, 20, true);
     const mp = resource('MP', 5, 10, true);

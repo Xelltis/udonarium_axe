@@ -1,9 +1,11 @@
 import {
   battleChangeLabel,
   BattleFighter,
+  battleFighterModelOf,
   battleGaugeChanges,
   isBattleDefeat,
   normalizeBattleScene,
+  pieceModelOfFighter,
 } from '@axe/domain/battle/battle-scene';
 
 function fighter(identifier: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -35,8 +37,11 @@ describe('normalizeBattleScene()', () => {
         gauges: [{ name: 'MP', before: 10, after: 7, max: 20, inverted: false, color: '' }],
         defeated: false,
         facing: null,
+        model: null,
       },
-      defenders: [{ identifier: 'goblin', name: 'goblin', image: '', gauges: [], defeated: true, facing: null }],
+      defenders: [
+        { identifier: 'goblin', name: 'goblin', image: '', gauges: [], defeated: true, facing: null, model: null },
+      ],
       effect: 'EffectPreset_slash_1',
       defeatEffect: 'EffectPreset_defeat_dissolve',
       background: 'image-1',
@@ -44,6 +49,31 @@ describe('normalizeBattleScene()', () => {
       secret: true,
       seed: 42,
     });
+  });
+
+  it('reads the model a fighter is drawn as, each field as text, and none where an older version sent none or it names none', () => {
+    const modelOf = (model: unknown) =>
+      normalizeBattleScene({
+        key: 'k1',
+        attackerSide: 'left',
+        attacker: fighter('hero', model === undefined ? {} : { model }),
+        defenders: [fighter('goblin')],
+      })!.attacker.model;
+
+    expect(modelOf({ identifier: 'knight', scale: '2', look: '{"finish":"toon"}', idle: 7 })).toEqual({
+      identifier: 'knight',
+      scale: '2',
+      turn: '',
+      idle: '',
+      walk: '',
+      look: '{"finish":"toon"}',
+      motions: '',
+      face: '',
+    });
+    expect(modelOf(undefined)).toBeNull();
+    expect(modelOf({ identifier: ' ' })).toBeNull();
+    expect(modelOf('knight')).toBeNull();
+    expect(modelOf({ identifier: 'knight', look: 'x'.repeat(9000) })?.look).toHaveLength(6000);
   });
 
   it('reads the colour set for a bar, and none where an older version sent none or something not a colour', () => {
@@ -161,5 +191,32 @@ describe('the way a fighter faces, carried in a scene', () => {
   it('stands a fighter as drawn where an older version sends no way, or one it does not know', () => {
     expect(scene()?.attacker.facing).toBeNull();
     expect(scene('up')?.attacker.facing).toBeNull();
+  });
+});
+
+describe('the model a fighter is drawn as', () => {
+  it('is written down from what its piece keeps, and none for a piece that names no model', () => {
+    expect(battleFighterModelOf({ modelIdentifier: 'knight', modelScale: '1.5', modelLook: '{"plain":true}' })).toEqual(
+      {
+        identifier: 'knight',
+        scale: '1.5',
+        turn: '',
+        idle: '',
+        walk: '',
+        look: '{"plain":true}',
+        motions: '',
+        face: '',
+      }
+    );
+    expect(battleFighterModelOf({ modelIdentifier: '' })).toBeNull();
+    expect(battleFighterModelOf({})).toBeNull();
+  });
+
+  it('is read on the stage as its piece’s is on the table', () => {
+    const written = battleFighterModelOf({ modelIdentifier: 'knight', modelScale: '1.5', modelLook: '{"plain":true}' });
+
+    expect(pieceModelOfFighter(written)).toMatchObject({ identifier: 'knight', scale: 1.5, look: { plain: true } });
+    expect(pieceModelOfFighter(null)).toBeNull();
+    expect(pieceModelOfFighter(undefined)).toBeNull();
   });
 });

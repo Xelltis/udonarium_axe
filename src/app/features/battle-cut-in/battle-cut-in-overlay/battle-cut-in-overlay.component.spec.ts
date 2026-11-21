@@ -7,6 +7,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BattleScene } from '@axe/domain/battle/battle-scene';
 import { BATTLE_STILL_MS } from '@axe/domain/battle/battle-timeline';
@@ -21,7 +22,12 @@ import {
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import { BATTLE_FIGURE_PX } from '@axe/features/battle-cut-in/battle-stage-layout';
 import { MirroredPictureService } from '@axe/features/battle-cut-in/mirrored-picture.service';
-import type { EffectOverlay } from '@axe/infrastructure/table-3d/table-3d-port';
+import type {
+  EffectOverlay,
+  FigureStage,
+  FigureStageView,
+  StageFigure,
+} from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BattleCutInOverlayComponent', () => {
@@ -38,6 +44,26 @@ describe('BattleCutInOverlayComponent', () => {
     shown.set(canvas.dataset['testid'] ?? '', frames);
     return { show: (frame) => frames.push(frame), dispose: () => undefined };
   };
+
+  /** The stage the fighters drawn as their models stand on, or null where the browser cannot make one. */
+  let figureStage: (FigureStage & { arrive(): void }) | null = null;
+  /** What that stage was handed to stand, the keys of the figures whose models it has read, and whether it lets them move. */
+  let stood: { figures: readonly StageFigure[]; view: FigureStageView }[] = [];
+  let standing = new Set<string>();
+  let figuresMove: boolean | null = null;
+
+  function makeFigureStage(): FigureStage & { arrive(): void } {
+    let arrived = () => undefined as void;
+    return {
+      show: (figures, view) => void stood.push({ figures, view }),
+      stands: (key) => standing.has(key),
+      onArrival: (listener) => (arrived = listener),
+      setMoving: (moving) => void (figuresMove = moving),
+      picture: () => Promise.resolve(null),
+      dispose: () => undefined,
+      arrive: () => arrived(),
+    };
+  }
 
   function scene(overrides: Partial<BattleScene> = {}): BattleScene {
     return {
@@ -93,6 +119,7 @@ describe('BattleCutInOverlayComponent', () => {
             Promise.resolve({
               createEffectStage: () => Promise.resolve(null),
               createEffectOverlay: (canvas: HTMLCanvasElement) => Promise.resolve(overPageOn(canvas)),
+              createFigureStage: () => Promise.resolve(figureStage),
             }),
         },
       ],
@@ -105,6 +132,10 @@ describe('BattleCutInOverlayComponent', () => {
     fixture?.destroy();
     state.clear();
     drawsOverPage = false;
+    figureStage = null;
+    stood = [];
+    standing = new Set();
+    figuresMove = null;
     vi.useRealTimers();
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
@@ -403,6 +434,109 @@ describe('BattleCutInOverlayComponent', () => {
       expect(preference.stageWindow().y).toBeGreaterThan(0);
     });
   });
+  describe('with a fighter whose piece is drawn as a 3D model', () => {
+    const MODEL = {
+      identifier: 'knight-model',
+      scale: '3',
+      turn: '',
+      idle: '',
+      walk: '',
+      look: '{"finish":"toon"}',
+      motions: '',
+      face: '',
+    };
+
+    beforeEach(() => {
+      vi.useRealTimers();
+      figureStage = makeFigureStage();
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
+        (identifier) => (identifier === 'knight-model' ? { isReady: true, url: 'blob:knight' } : null) as never
+      );
+    });
+
+    /** Plays a scene whose striker is drawn as a model, and waits for the stage of models to be made. */
+    async function playModelled(overrides: Partial<BattleScene> = {}): Promise<HTMLElement> {
+      const played = scene(overrides);
+      const root = play({ ...played, attacker: { ...played.attacker, image: 'hero-picture', model: MODEL } });
+      for (let turn = 0; turn < 5; turn++) {
+        await fixture.whenStable();
+        fixture.detectChanges();
+      }
+      return root;
+    }
+
+    const body = (root: HTMLElement) => root.querySelector<HTMLElement>('[data-testid="battle-figure-a-hero"] > div')!;
+
+    it('stands the model where the fighter stands, as tall as a fighter, as its piece has it drawn, turned to the one across', async () => {
+      await playModelled();
+
+      const { figures, view } = stood.at(-1)!;
+      expect('floor' in view).toBe(true);
+      expect(figures).toHaveLength(1);
+      expect(figures[0]).toMatchObject({
+        key: 'a-hero',
+        url: 'blob:knight',
+        widthPx: BATTLE_FIGURE_PX,
+        heightPx: BATTLE_FIGURE_PX,
+      });
+      expect(figures[0].model).toMatchObject({ identifier: 'knight-model', scale: 1, look: { finish: 'toon' } });
+      expect(figures[0].turnDeg).toBeLessThan(0);
+      expect(figures[0].at.x).toBeLessThan(0);
+    });
+
+    it('leaves the fighter’s picture drawn until its model stands, and undrawn from then', async () => {
+      const root = await playModelled();
+      expect(body(root).classList.contains('invisible')).toBe(false);
+
+      standing.add('a-hero');
+      figureStage!.arrive();
+      fixture.detectChanges();
+
+      expect(body(root).classList.contains('invisible')).toBe(true);
+      expect(root.querySelector('[data-testid="battle-figure-d-goblin"] > div')!.classList.contains('invisible')).toBe(
+        false
+      );
+    });
+
+    it('stands the model as its going down ends, and still, while motion is off', async () => {
+      const played = scene();
+      play({ ...played, defenders: [{ ...played.defenders[0], model: MODEL }] });
+      for (let turn = 0; turn < 5; turn++) {
+        await fixture.whenStable();
+        fixture.detectChanges();
+      }
+
+      expect(figuresMove).toBe(false);
+      expect(stood.at(-1)!.figures[0]).toMatchObject({ key: 'd-goblin', walking: false, act: { role: 'defeat' } });
+    });
+
+    it('stands the picture throughout on a screen that does not hold the model, or cannot stand models', async () => {
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue(null as never);
+      const unheld = await playModelled();
+      expect(stood).toEqual([]);
+      expect(body(unheld).classList.contains('invisible')).toBe(false);
+      fixture.destroy();
+      state.clear();
+
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:knight' } as never);
+      figureStage = null;
+      const undrawn = await playModelled();
+      expect(body(undrawn).classList.contains('invisible')).toBe(false);
+    });
+
+    it('makes no stage of models for a scene none of whose fighters is drawn as one', async () => {
+      const made = vi.fn();
+      figureStage = { ...makeFigureStage(), show: made };
+      play(scene());
+      for (let turn = 0; turn < 5; turn++) {
+        await fixture.whenStable();
+        fixture.detectChanges();
+      }
+
+      expect(made).not.toHaveBeenCalled();
+    });
+  });
+
   describe('while motion is on', () => {
     let frames: FrameRequestCallback[];
 

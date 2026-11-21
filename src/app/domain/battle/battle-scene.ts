@@ -1,6 +1,7 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
 import { asBattleTheme, BattleTheme } from '@axe/domain/battle/battle-settings';
 import { fixedGaugeColor } from '@axe/domain/character/piece-gauge';
+import { type PieceModel, type PieceModelFields, pieceModelOf } from '@axe/domain/tabletop/piece-model';
 
 /**
  * A resource of one fighter as it stood before the exchange and after it.
@@ -19,6 +20,22 @@ export interface BattleGauge {
   color?: string;
 }
 
+/**
+ * The 3D model a fighter is drawn as, as its piece keeps it: each field the text the piece stores,
+ * read as the piece's own are (see `pieceModelOf`). A screen that holds the model stands the fighter
+ * as it; one that does not stands its picture.
+ */
+export interface BattleFighterModel {
+  identifier: string;
+  scale: string;
+  turn: string;
+  idle: string;
+  walk: string;
+  look: string;
+  motions: string;
+  face: string;
+}
+
 /** One piece on the stage, written down as it was when the exchange was played. */
 export interface BattleFighter {
   identifier: string;
@@ -33,6 +50,8 @@ export interface BattleFighter {
    * drawn, as an older version sends it.
    */
   facing?: BattleSide | null;
+  /** The model it is drawn as on the table, or absent or none for a piece drawn as its picture, as an older version sends it. */
+  model?: BattleFighterModel | null;
 }
 
 /**
@@ -64,6 +83,8 @@ export const MAX_BATTLE_DEFENDERS = 4;
 /** As many resources as one fighter carries onto the stage. */
 export const MAX_BATTLE_GAUGES = 8;
 const MAX_TEXT_LENGTH = 200;
+/** As long as what a fighter's model keeps of its look, its motions or its shapes may be. */
+const MAX_MODEL_FIELD_LENGTH = 6000;
 
 /** How a resource of a fighter moved in the exchange. */
 export interface BattleGaugeChange {
@@ -157,7 +178,61 @@ function normalizeFighter(raw: unknown): BattleFighter | null {
     gauges,
     defeated: source['defeated'] === true,
     facing: asBattleSide(source['facing']),
+    model: normalizeFighterModel(source['model']),
   };
+}
+
+/** The model a fighter is drawn as, read from what came in; none where it names no model. */
+function normalizeFighterModel(raw: unknown): BattleFighterModel | null {
+  const source = asRecord(raw);
+  const identifier = text(source?.['identifier']).trim();
+  if (!source || identifier.length < 1) return null;
+  const field = (name: keyof BattleFighterModel) => {
+    const value = source[name];
+    return typeof value === 'string' ? value.slice(0, MAX_MODEL_FIELD_LENGTH) : '';
+  };
+  return {
+    identifier,
+    scale: field('scale'),
+    turn: field('turn'),
+    idle: field('idle'),
+    walk: field('walk'),
+    look: field('look'),
+    motions: field('motions'),
+    face: field('face'),
+  };
+}
+
+/** The model a piece is drawn as, written down for the stage; none for a piece that names no model. */
+export function battleFighterModelOf(piece: Partial<PieceModelFields>): BattleFighterModel | null {
+  const written = (value: unknown) => (value === null || value === undefined ? '' : `${value}`);
+  const identifier = written(piece.modelIdentifier).trim();
+  if (identifier.length < 1) return null;
+  return {
+    identifier,
+    scale: written(piece.modelScale),
+    turn: written(piece.modelTurn),
+    idle: written(piece.modelIdle),
+    walk: written(piece.modelWalk),
+    look: written(piece.modelLook),
+    motions: written(piece.modelMotions),
+    face: written(piece.modelFace),
+  };
+}
+
+/** A fighter's model as a piece's is read: its size, its turn, its motions, its look and its shapes. */
+export function pieceModelOfFighter(model: BattleFighterModel | null | undefined): PieceModel | null {
+  if (!model) return null;
+  return pieceModelOf({
+    modelIdentifier: model.identifier,
+    modelScale: model.scale,
+    modelTurn: model.turn,
+    modelIdle: model.idle,
+    modelWalk: model.walk,
+    modelLook: model.look,
+    modelMotions: model.motions,
+    modelFace: model.face,
+  });
 }
 
 function normalizeGauge(raw: unknown): BattleGauge | null {

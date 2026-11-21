@@ -20,6 +20,14 @@ export interface ActedCast {
 const STRUCK_BY_HAND: ReadonlySet<EffectKind> = new Set<EffectKind>(['slash', 'bash', 'bisect', 'gore']);
 
 /**
+ * What the model of the one who casts an effect of a look acts as it begins: a blow, for a look
+ * struck by hand, or a spell.
+ */
+export function castRoleOf(kind: EffectKind): 'attack' | 'cast' {
+  return STRUCK_BY_HAND.has(kind) ? 'attack' : 'cast';
+}
+
+/**
  * What the models of the pieces in the effects being played act, by piece: the one who cast an effect
  * strikes a blow or works a spell as it begins, by whether its look is struck by hand; each piece an
  * effect lands a blow on takes it as the first blow lands; and each piece an effect brings down goes
@@ -49,7 +57,7 @@ export function modelActsOf(
     if (caster) {
       lay(caster, {
         key: `${key}:blow`,
-        role: STRUCK_BY_HAND.has(kind) ? 'attack' : 'cast',
+        role: castRoleOf(kind),
         atMs: startedAt,
         ...towards(from, first && drawnAs(first.identifier) !== drawnAs(caster) ? first : null),
       });
