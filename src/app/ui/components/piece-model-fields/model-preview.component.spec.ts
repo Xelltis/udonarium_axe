@@ -122,6 +122,20 @@ describe('ModelPreviewComponent', () => {
     expect(last().figures[0].turnDeg).toBe(before + 40);
   });
 
+  it('shown bare, fills what holds it with no frame, says nothing while the model comes, and is not turned by a drag', async () => {
+    const { fixture, box, last } = await render({ bare: true, turnable: false });
+    const canvas = box.querySelector('canvas')!;
+    const before = last().figures[0].turnDeg;
+
+    canvas.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100 }));
+    canvas.dispatchEvent(new MouseEvent('pointermove', { clientX: 150 }));
+    await fixture.whenStable();
+
+    expect(last().figures[0].turnDeg).toBe(before);
+    expect(box.classList.contains('size-full')).toBe(true);
+    expect(box.textContent?.trim()).toBe('');
+  });
+
   it('says the model is coming until it stands, and shows it from then', async () => {
     const { fixture, box } = await render();
     expect(box.dataset['state']).toBe('loading');

@@ -5,6 +5,7 @@ import { CUT_IN_TITLE_BAR_HEIGHT, CutIn, cutInPanelBox, cutInPanelChrome } from 
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 
 describe('CutIn', () => {
   let store: ObjectStore;
@@ -552,6 +553,31 @@ describe('CutIn', () => {
       store.delete(cutIn);
 
       expect(store.get(scene.identifier)).toBeNull();
+    });
+  });
+
+  describe('the 3D model it shows', () => {
+    it('shows none, and does nothing, in a cut-in saved before there were model cut-ins', () => {
+      const cutIn = new CutIn();
+      cutIn.initialize();
+
+      expect([cutIn.modelIdentifier, cutIn.modelLook, cutIn.modelAct]).toEqual(['', '', '']);
+      expect(pieceModelOf(cutIn)).toBeNull();
+      cutIn.destroy();
+    });
+
+    it('goes into the room data with how it is set up and what it does when shown, and is read as a piece’s is', () => {
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      cutIn.modelIdentifier = 'knight';
+      cutIn.modelLook = '{"finish":"toon"}';
+      cutIn.modelAct = 'attack';
+
+      const xml = cutIn.toXml();
+      expect(xml).toContain('modelIdentifier="knight"');
+      expect(xml).toContain('modelAct="attack"');
+      expect(pieceModelOf(cutIn)).toMatchObject({ identifier: 'knight', look: { finish: 'toon' } });
+      cutIn.destroy();
     });
   });
 });

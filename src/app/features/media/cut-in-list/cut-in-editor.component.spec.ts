@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { startCutIn$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -25,7 +28,7 @@ describe('CutInEditorComponent', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [CutInEditorComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     }).compileComponents();
 
     const objectStore = TestBed.inject(ObjectStore);
@@ -43,6 +46,70 @@ describe('CutInEditorComponent', () => {
 
   it('should be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('the 3D model a cut-in shows', () => {
+    const find = <E extends HTMLElement>(testId: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<E>(`[data-testid="${testId}"]`);
+
+    function giveModel(motions: string[] = ['Victory']): void {
+      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({ motions, shapes: [], materials: [] });
+      cutIn.modelIdentifier = 'knight';
+      TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
+      fixture.detectChanges();
+    }
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is chosen as a piece’s is, and what it does when shown is offered only once one is chosen', () => {
+      expect(find('cut-in-model')!.querySelector('piece-model-fields')).not.toBeNull();
+      expect(find('cut-in-model-act')).toBeNull();
+
+      giveModel();
+
+      const acts = find<HTMLSelectElement>('cut-in-model-act')!;
+      expect([...acts.options].map((option) => option.textContent?.trim())).toEqual([
+        '立ったまま',
+        '歩き続ける',
+        '攻撃',
+        '魔法・射撃',
+        '被弾',
+        '撃破',
+        'Victory',
+      ]);
+    });
+
+    it('keeps what the model does when shown as it is chosen, and a motion kept that the model lacks on offer', async () => {
+      giveModel();
+      const acts = find<HTMLSelectElement>('cut-in-model-act')!;
+      acts.selectedIndex = 6;
+      acts.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(cutIn.modelAct).toBe('Victory');
+
+      cutIn.modelAct = 'Bow';
+      TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const offered = find<HTMLSelectElement>('cut-in-model-act')!;
+      expect(offered.options[offered.selectedIndex].textContent?.trim()).toBe('Bow');
+    });
+
+    it('is not offered for a video cut-in, and is not changed by somebody who may not edit', async () => {
+      giveModel();
+      fixture.componentRef.setInput('isEditable', false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(find('cut-in-model')!.querySelector('piece-model-fields')).toBeNull();
+      expect(find<HTMLSelectElement>('cut-in-model-act')!.disabled).toBe(true);
+
+      fixture.componentRef.setInput('isEditable', true);
+      cutIn.isVideoCutIn = true;
+      cutIn.videoUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+      TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
+      fixture.detectChanges();
+      expect(find('cut-in-model')).toBeNull();
+    });
   });
 
   describe('trying a cut-in out as somebody', () => {

@@ -24,6 +24,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { observeSize } from '@axe/core/util/observe-size';
 import { CutIn, cutInPanelBox } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
+import { CUT_IN_MODEL_STANDS, cutInModelDoing } from '@axe/domain/media/cut-in-model';
 import { cutInPlaybackMs } from '@axe/domain/media/cut-in-playback-window';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
@@ -31,6 +32,7 @@ import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { Config } from '@axe/domain/peer/config';
 import { type CutInSoundHandle, CutInSoundService } from '@axe/features/media/cut-in-sound.service';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
+import { ModelPreviewComponent } from '@axe/ui/components/piece-model-fields/model-preview.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 interface CutInVideoTarget {
@@ -57,7 +59,7 @@ export const CUT_IN_VIDEO_START_LIMIT_MS = 30_000;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'cut-in-window',
   templateUrl: './cut-in-window.component.html',
-  imports: [YouTubePlayer, SafePipe, CutInStageComponent],
+  imports: [YouTubePlayer, SafePipe, CutInStageComponent, ModelPreviewComponent],
 })
 export class CutInWindowComponent {
   private readonly panelService = inject(PanelService);
@@ -143,6 +145,25 @@ export class CutInWindowComponent {
     const scene = this.cutIn.scene;
     return scene && scene.layers.length > 0 ? scene : null;
   });
+
+  /** Whether the cut-in shows a 3D model, which a video cut-in does not. */
+  protected readonly modelShown = computed(() => {
+    this.playbackStarted();
+    const cutIn = this.cutIn;
+    if (!cutIn) return false;
+    this.objectChange.versionOf(cutIn.identifier)();
+    return `${cutIn.modelIdentifier ?? ''}`.trim() !== '' && !cutIn.videoId;
+  });
+
+  /** What the cut-in's model does from the moment the cut-in is shown: walk, act once, or only stand. */
+  protected readonly modelDoing = computed(() => {
+    const cutIn = this.cutIn;
+    if (!this.playbackStarted() || !cutIn) return CUT_IN_MODEL_STANDS;
+    this.objectChange.versionOf(cutIn.identifier)();
+    return cutInModelDoing(`${cutIn.modelAct ?? ''}`, cutIn.identifier, this.modelShownAtMs);
+  });
+  /** When the cut-in began to be shown, on the clock frames are timed by, which its model's act is timed on. */
+  private modelShownAtMs = 0;
 
   readonly cutInImageUrl = computed(() => {
     this.objectChange.fileVersion();
@@ -282,6 +303,7 @@ export class CutInWindowComponent {
       this.sceneSound = this.cutInSound.play(scene, sceneSoundOffsetMs ?? this.playbackOffsetMs, scene.sceneLoop);
     }
 
+    this.modelShownAtMs = performance.now();
     this.playbackStarted.set(true);
     if (this.readyVideoTarget && this.isVideoCued) this.startVideo(this.readyVideoTarget);
 

@@ -37,6 +37,16 @@
     @if (!videoId && cutInImageUrl()) {
       <img class="size-full" [src]="cutInImageUrl() | safe: 'resourceUrl'" draggable="false" />
     }
+    @if (modelShown()) {
+      <model-preview
+        class="pointer-events-none absolute inset-0"
+        [bare]="true"
+        [turnable]="false"
+        [target]="$any(cutIn)"
+        [act]="modelDoing().act"
+        [walking]="modelDoing().walking"
+      />
+    }
     @if (scene(); as scene) {
       <cut-in-stage
         class="pointer-events-none absolute inset-0"

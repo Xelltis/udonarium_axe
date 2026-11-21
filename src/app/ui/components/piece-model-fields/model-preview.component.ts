@@ -33,8 +33,9 @@ const ROOM_PX = 10;
 /**
  * The model of a piece or a block as it is set up, on a small canvas of its own: drawn and moved as
  * the table draws and moves it, so what is changed of its look, its motions and its shapes shows at
- * once, turned by hand as it is dragged, and walking or acting what it is asked to try. What draws it
- * is loaded the first time one is shown.
+ * once, turned by hand as it is dragged, and walking or acting what it is asked to try. A cut-in that
+ * shows a model shows it by the same canvas, bare. What draws it is loaded the first time one is
+ * shown.
  */
 @Component({
   selector: 'model-preview',
@@ -55,6 +56,13 @@ export class ModelPreviewComponent {
   readonly act = input<ModelAct | null>(null);
   /** Whether the model walks, to be tried. */
   readonly walking = input(false);
+  /**
+   * Whether it is shown bare, filling what holds it with no frame of its own and nothing said while
+   * the model is coming, as a cut-in shows a model, rather than as the boxed preview of a setting up.
+   */
+  readonly bare = input(false);
+  /** Whether a drag across turns the figure. */
+  readonly turnable = input(true);
 
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly stage = signal<FigureStage | null>(null);
@@ -131,6 +139,7 @@ export class ModelPreviewComponent {
   }
 
   protected press(event: PointerEvent): void {
+    if (!this.turnable()) return;
     this.dragFromX = event.clientX;
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
   }

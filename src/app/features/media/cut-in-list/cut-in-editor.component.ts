@@ -6,6 +6,7 @@ import { CutInService } from '@axe/application/media/cut-in.service';
 import { CutInSizingService } from '@axe/application/media/cut-in-sizing.service';
 import { PictureSizeService } from '@axe/application/media/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { emitStartCutIn } from '@axe/core/event/domain-events';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
@@ -19,12 +20,14 @@ import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
+import { CUT_IN_MODEL_ACTS } from '@axe/domain/media/cut-in-model';
 import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
 import { type CutInSpeaker, SPEAKER_NAME_TOKEN } from '@axe/domain/media/cut-in-speaker';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CutInBgmComponent } from '@axe/features/media/cut-in-bgm/cut-in-bgm.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { OpenUrlComponent } from '@axe/ui/components/open-url/open-url.component';
+import { PieceModelFieldsComponent } from '@axe/ui/components/piece-model-fields/piece-model-fields.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -36,7 +39,7 @@ const STAND_IN_MAX_SIZE = 1200;
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'cut-in-editor',
   templateUrl: './cut-in-editor.component.html',
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [FormsModule, SafePipe, TranslocoModule, PieceModelFieldsComponent],
 })
 export class CutInEditorComponent {
   private readonly modalService = inject(ModalService);
@@ -47,10 +50,36 @@ export class CutInEditorComponent {
   private readonly names = inject(PieceNameService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly cutIns = inject(CutInService);
+  private readonly modelNames = inject(ModelNamesService);
   private readonly pictureSizes = inject(PictureSizeService);
   private readonly sizing = inject(CutInSizingService);
 
   readonly cutIn = input<CutIn | null>(null);
+
+  /** What the cut-in's model may be set to do as the cut-in is shown, beside its own motions by name. */
+  protected readonly modelActs = CUT_IN_MODEL_ACTS;
+
+  /** What the cut-in keeps of its model: whether it shows one, what the model does as it is shown, and the model's own motions. */
+  protected readonly model = computed(() => {
+    const cutIn = this.cutIn();
+    if (!cutIn) return { shown: false, act: '', motions: [] as readonly string[] };
+    this.objectChange.versionOf(cutIn.identifier)();
+    this.objectChange.fileVersion();
+    const identifier = `${cutIn.modelIdentifier ?? ''}`.trim();
+    return {
+      shown: identifier !== '',
+      act: `${cutIn.modelAct ?? ''}`,
+      motions: identifier ? this.modelNames.namesOf(identifier).motions : [],
+    };
+  });
+
+  /** Sets what the cut-in's model does as the cut-in is shown. */
+  protected setModelAct(act: string): void {
+    const cutIn = this.cutIn();
+    if (!cutIn || !this.isEditable()) return;
+    cutIn.modelAct = act;
+    this.objectChange.notifyChanged(cutIn.identifier);
+  }
   readonly isEditable = input(false);
 
   /** Whether the cut-in under edit plays a YouTube video, read from the cut-in itself as it changes. */

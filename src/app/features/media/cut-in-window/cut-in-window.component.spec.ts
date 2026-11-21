@@ -1,6 +1,8 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
@@ -33,7 +35,7 @@ describe('CutInWindowComponent', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [CutInWindowComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     }).compileComponents();
   });
 
@@ -398,6 +400,56 @@ describe('CutInWindowComponent', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(priv.cutInTimeOut).toBeNull();
+    });
+  });
+
+  describe('a cut-in that shows a 3D model', () => {
+    function makeCutIn(fields: Partial<CutIn> = {}): CutIn {
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      Object.assign(cutIn, fields);
+      component.cutIn = cutIn;
+      return cutIn;
+    }
+
+    type Shown = {
+      modelShown: () => boolean;
+      modelDoing: () => { act: { role: string; name?: string } | null; walking: boolean };
+    };
+    const shown = () => component as unknown as Shown;
+
+    it('shows the model over the picture, standing until the cut-in is shown and acting what it keeps from then', () => {
+      makeCutIn({ modelIdentifier: 'knight', modelAct: 'attack' });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('model-preview')).not.toBeNull();
+      expect(shown().modelDoing()).toEqual({ act: null, walking: false });
+
+      component.startCutIn();
+      fixture.detectChanges();
+
+      expect(shown().modelDoing()).toMatchObject({ act: { role: 'attack' }, walking: false });
+    });
+
+    it('walks for as long as it is shown, or plays one of the model’s own motions, as the cut-in keeps', () => {
+      const cutIn = makeCutIn({ modelIdentifier: 'knight', modelAct: 'walk' });
+      component.startCutIn();
+      expect(shown().modelDoing()).toEqual({ act: null, walking: true });
+
+      cutIn.modelAct = 'Victory';
+      TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
+      expect(shown().modelDoing().act).toMatchObject({ role: 'named', name: 'Victory' });
+    });
+
+    it('shows no model for a cut-in that names none, nor for a video', () => {
+      makeCutIn();
+      fixture.detectChanges();
+      expect(shown().modelShown()).toBe(false);
+      expect(fixture.nativeElement.querySelector('model-preview')).toBeNull();
+
+      const video = makeCutIn({ modelIdentifier: 'knight', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+      video.isVideoCutIn = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(video.identifier);
+      expect(shown().modelShown()).toBe(false);
     });
   });
 
