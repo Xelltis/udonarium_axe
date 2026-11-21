@@ -63,12 +63,17 @@ export class ModelPreviewComponent {
   readonly bare = input(false);
   /** Whether a drag across turns the figure. */
   readonly turnable = input(true);
+  /** How far the figure is turned from facing the reader, in degrees clockwise seen from above, before any drag. */
+  readonly turned = input(FIRST_TURN_DEG);
+  /** Whether the piece is speaking, which moves the mouth of a model that has a shape for one. */
+  readonly speaking = input(false);
 
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly stage = signal<FigureStage | null>(null);
   private readonly cannotDraw = signal(false);
   private readonly size = signal({ width: 0, height: 0 });
-  private readonly turnDeg = signal(FIRST_TURN_DEG);
+  /** How far a drag has turned the figure on from where it was first shown. */
+  private readonly draggedDeg = signal(0);
   /** One more each time a model has been read, or could not be, so that what is shown of it is asked after again. */
   private readonly arrivals = signal(0);
   private dragFromX: number | null = null;
@@ -90,9 +95,10 @@ export class ModelPreviewComponent {
       at: { x: width / 2, y: height - ROOM_PX, z: 0 },
       widthPx: width - ROOM_PX * 2,
       heightPx: height - ROOM_PX * 2,
-      turnDeg: this.turnDeg(),
+      turnDeg: this.turned() + this.draggedDeg(),
       walking: this.walking(),
       ...(act ? { act } : {}),
+      ...(this.speaking() ? { speaking: true } : {}),
     };
   });
 
@@ -146,7 +152,7 @@ export class ModelPreviewComponent {
 
   protected move(event: PointerEvent): void {
     if (this.dragFromX === null) return;
-    this.turnDeg.update((turn) => turn + (event.clientX - this.dragFromX!) * DRAG_TURN_DEG);
+    this.draggedDeg.update((turn) => turn + (event.clientX - this.dragFromX!) * DRAG_TURN_DEG);
     this.dragFromX = event.clientX;
   }
 

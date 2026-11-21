@@ -193,6 +193,7 @@ export function standing(figure: StageFigure, front: boolean, canvasHeight: numb
     altitudePx: 0,
     walking: figure.walking === true,
     ...(figure.act ? { act: figure.act } : {}),
+    ...(figure.speaking ? { speaking: true } : {}),
   };
 }
 

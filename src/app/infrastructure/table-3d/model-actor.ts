@@ -1,4 +1,4 @@
-import { faceMoves, seedOf, shapeWeightsAt } from '@axe/domain/tabletop/model-face';
+import { faceMoves, seedOf, shapesFor, shapeWeightsAt } from '@axe/domain/tabletop/model-face';
 import {
   actHolds,
   MADE_REST,
@@ -85,6 +85,9 @@ export class ModelActor {
   private walkPlays = false;
   /** Whether its face moves as it stands: it blinks, breathes or sways between shapes. */
   private faceLively = false;
+  /** Whether it has a shape to speak with, and whether its piece is speaking now. */
+  private mouthed = false;
+  private speaking = false;
   private lastMs: number | null = null;
   private written = new Set<string>();
   private posed: MadePose = MADE_REST;
@@ -131,6 +134,7 @@ export class ModelActor {
     const before = this.asked;
     this.asked = asked;
     this.faceLively = faceMoves(asked.face, this.shapes);
+    this.mouthed = shapesFor('mouth', this.shapes, asked.face.mouth).length > 0;
     if (
       before &&
       before.idle === asked.idle &&
@@ -148,6 +152,11 @@ export class ModelActor {
     this.walking = walking;
     this.walkedFromMs = timeMs;
     this.restless = true;
+  }
+
+  /** Has the model move its mouth while its piece speaks, where it has a shape to speak with. */
+  speak(speaking: boolean): void {
+    this.speaking = speaking;
   }
 
   /**
@@ -175,7 +184,8 @@ export class ModelActor {
     this.restless = false;
     const acting = this.playAct(moment);
     const down = this.act !== null && actHolds(this.act);
-    const stands = !down && moment.standing && (this.current !== null || this.faceLively);
+    const lively = this.faceLively || (this.speaking && this.mouthed);
+    const stands = !down && moment.standing && (this.current !== null || lively);
     if (moment.moving && (acting || (!down && this.walking) || (stands && this.current !== null))) {
       this.mixer.update(step);
     }
@@ -269,7 +279,12 @@ export class ModelActor {
   private face(moment: ActorMoment, down: boolean): void {
     if (this.shaped.length === 0 || !this.asked) return;
     const still = !moment.moving || !moment.standing || down;
-    const weights = shapeWeightsAt(this.asked.face, this.shapes, { timeMs: moment.timeMs, seed: this.seed, still });
+    const weights = shapeWeightsAt(this.asked.face, this.shapes, {
+      timeMs: moment.timeMs,
+      seed: this.seed,
+      still,
+      speaking: this.speaking,
+    });
     for (const mesh of this.shaped) {
       for (const name of this.written) {
         const place = mesh.places.get(name);

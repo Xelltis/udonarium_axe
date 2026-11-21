@@ -409,6 +409,8 @@ export interface StageFigure {
   readonly walking?: boolean;
   /** What it is asked to act now. */
   readonly act?: ModelAct;
+  /** Whether it is speaking now, which moves its mouth where its model has a shape for one. */
+  readonly speaking?: boolean;
 }
 
 /**

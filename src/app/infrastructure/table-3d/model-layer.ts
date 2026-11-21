@@ -578,6 +578,7 @@ export class ModelLayer {
     stood.actor.cast(model.model);
     stood.actor.walk(model.walking, moment.timeMs);
     stood.actor.perform(model.act ?? null);
+    stood.actor.speak(model.speaking === true);
     stood.pace = stood.actor.advance(moment);
     this.place(stood);
   }

@@ -108,6 +108,12 @@ describe('ModelPreviewComponent', () => {
     expect(last().figures[0]).toMatchObject({ act, walking: true });
   });
 
+  it('turns the figure as far as asked from the start, and has it speak while its piece does', async () => {
+    const { last } = await render({ turned: 18, speaking: true });
+
+    expect(last().figures[0]).toMatchObject({ turnDeg: 18, speaking: true });
+  });
+
   it('turns the figure as it is dragged across', async () => {
     const { fixture, box, last } = await render();
     const canvas = box.querySelector('canvas')!;

@@ -313,6 +313,29 @@ describe('ModelActor', () => {
       }
     });
 
+    it('moves its mouth while its piece speaks, wanting a frame now and then, where it has a shape to speak with', () => {
+      const { actor, influences } = faced(['aa', 'Joy']);
+      actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+      expect(actor.advance(at(0))).toBe('still');
+
+      actor.speak(true);
+      const open: number[] = [];
+      for (let ms = 0; ms < 2000; ms += 20) {
+        expect(actor.advance(at(ms))).toBe('slow');
+        open.push(influences[0]);
+      }
+      expect(Math.max(...open)).toBeGreaterThan(0.4);
+
+      actor.speak(false);
+      expect(actor.advance(at(2020))).toBe('still');
+      expect(influences[0]).toBe(0);
+
+      const mute = faced(['Joy']);
+      mute.actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });
+      mute.actor.speak(true);
+      expect(mute.actor.advance(at(0))).toBe('still');
+    });
+
     it('stands still where its piece has turned its blinking off and gives it nothing to sway between', () => {
       const { actor } = faced(['Blink']);
       actor.cast({ ...ASKED, face: { ...MODEL_FACE_AS_MADE, blink: NO_SHAPE } });

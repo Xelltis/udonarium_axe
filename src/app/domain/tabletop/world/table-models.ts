@@ -53,6 +53,8 @@ export interface TableWorldModel {
    * where it only stands or walks.
    */
   readonly act?: ModelAct;
+  /** Whether the piece is speaking now, which moves the mouth of a model that has a shape for one. */
+  readonly speaking?: boolean;
   /**
    * For a door: whether it stands open, and where its opening has taken it from where it stands shut,
    * on the board, as its faces are taken. A model whose leaves swing on hinges of their own opens by

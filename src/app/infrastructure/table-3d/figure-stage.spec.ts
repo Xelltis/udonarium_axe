@@ -44,8 +44,13 @@ describe('a figure of a stage as the table’s models are stood', () => {
   it('walks and acts what it is asked to, and nothing otherwise', () => {
     const act = { key: 'blow', role: 'attack', atMs: 0 } as const;
 
-    expect(standing(figure({ walking: true, act }), false, 0)).toMatchObject({ walking: true, act });
+    expect(standing(figure({ walking: true, act, speaking: true }), false, 0)).toMatchObject({
+      walking: true,
+      act,
+      speaking: true,
+    });
     expect('act' in standing(figure(), false, 0)).toBe(false);
+    expect('speaking' in standing(figure(), false, 0)).toBe(false);
   });
 
   it('keeps a figure asked to be no width at all wide enough to be fitted', () => {
