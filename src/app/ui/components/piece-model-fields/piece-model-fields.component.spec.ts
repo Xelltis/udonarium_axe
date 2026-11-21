@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -11,7 +13,7 @@ describe('PieceModelFieldsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PieceModelFieldsComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     }).compileComponents();
     piece = GameCharacter.create('騎士', 1, '');
     vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([
@@ -64,5 +66,87 @@ describe('PieceModelFieldsComponent', () => {
     turn.dispatchEvent(new Event('change'));
     expect(piece.modelScale).toBe('10');
     expect(piece.modelTurn).toBe('270');
+  });
+
+  describe('opened further', () => {
+    async function setUp(names: { motions: string[]; shapes: string[]; materials: string[] }, fights = true) {
+      piece.modelIdentifier = 'a'.repeat(64);
+      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue(names);
+      const fixture = TestBed.createComponent(PieceModelFieldsComponent);
+      fixture.componentRef.setInput('target', piece);
+      fixture.componentRef.setInput('fights', fights);
+      await fixture.whenStable();
+      const element = fixture.nativeElement as HTMLElement;
+      const details = element.querySelector<HTMLDetailsElement>('[data-testid="piece-model-setup"]')!;
+      const open = async (opened: boolean) => {
+        details.open = opened;
+        details.dispatchEvent(new Event('toggle'));
+        await fixture.whenStable();
+        fixture.detectChanges();
+      };
+      return { element, open, fixture };
+    }
+
+    it('shows nothing of the setting up, nor its preview, until it is opened', async () => {
+      const { element, open } = await setUp({ motions: ['Idle'], shapes: [], materials: ['Armour'] });
+      expect(element.querySelector('model-preview')).toBeNull();
+      expect(element.querySelector('model-look-fields')).toBeNull();
+
+      await open(true);
+      expect(element.querySelector('model-preview')).not.toBeNull();
+      expect(element.querySelector('[data-testid="model-look-scope"]')).not.toBeNull();
+      expect(element.querySelector('[data-testid="piece-model-attack"]')).not.toBeNull();
+
+      await open(false);
+      expect(element.querySelector('model-preview')).toBeNull();
+    });
+
+    it('sets up the shapes only of a model that has any', async () => {
+      const without = await setUp({ motions: [], shapes: [], materials: [] });
+      await without.open(true);
+      expect(without.element.querySelector('model-face-fields')).toBeNull();
+
+      const shaped = await setUp({ motions: [], shapes: ['Blink'], materials: [] });
+      await shaped.open(true);
+      expect(shaped.element.querySelector('[data-testid="model-face-blink"]')).not.toBeNull();
+    });
+
+    it('gives a block no motions to walk or fight in', async () => {
+      const { element, open } = await setUp({ motions: ['Idle', 'Slash'], shapes: [], materials: [] }, false);
+      await open(true);
+
+      expect(element.querySelector('[data-testid="piece-model-idle"]')).not.toBeNull();
+      expect(element.querySelector('[data-testid="piece-model-attack"]')).toBeNull();
+    });
+
+    it('has the preview try an act each time a role is tried, walk until it is tried again, and stand for standing', async () => {
+      const { element, open, fixture } = await setUp({ motions: ['Idle', 'Run', 'Slash'], shapes: [], materials: [] });
+      await open(true);
+      const tried = () =>
+        (
+          fixture.componentInstance as unknown as {
+            tried: () => { act: { key: string; role: string } | null; walking: boolean };
+          }
+        ).tried();
+      const press = async (role: string) => {
+        element.querySelector<HTMLButtonElement>(`[data-testid="piece-model-try-${role}"]`)!.click();
+        await fixture.whenStable();
+      };
+
+      await press('attack');
+      const first = tried().act;
+      expect(first?.role).toBe('attack');
+      await press('attack');
+      expect(tried().act?.key).not.toBe(first?.key);
+
+      await press('walk');
+      expect(tried()).toEqual({ act: null, walking: true });
+      await press('walk');
+      expect(tried().walking).toBe(false);
+
+      await press('attack');
+      await press('idle');
+      expect(tried()).toEqual({ act: null, walking: false });
+    });
   });
 });

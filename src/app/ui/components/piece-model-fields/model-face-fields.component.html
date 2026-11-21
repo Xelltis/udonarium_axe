@@ -1,0 +1,123 @@
+@let now = face();
+@for (use of uses; track use) {
+  <div [class]="styles.row">
+    <span [class]="styles.label">{{ 'ui.pieceModel.' + use | transloco }}</span>
+    <select
+      [class]="styles.input"
+      [attr.data-testid]="'model-face-' + use"
+      [ngModel]="now[use]"
+      (ngModelChange)="setUse(use, $event)"
+    >
+      <option [ngValue]="''">
+        {{
+          own()[use]
+            ? ('ui.pieceModel.autoPlays' | transloco: { name: own()[use] })
+            : ('ui.pieceModel.shapeAutoNone' | transloco)
+        }}
+      </option>
+      <option [ngValue]="none">{{ 'ui.pieceModel.shapeNone' | transloco }}</option>
+      @for (name of shapes(); track name) {
+        <option [ngValue]="name">{{ name }}</option>
+      }
+    </select>
+  </div>
+}
+
+<div class="text-ui-muted mt-1 text-[0.72em]">{{ 'ui.pieceModel.expression' | transloco }}</div>
+@for (shape of held(); track shape.name) {
+  <div [class]="styles.row">
+    <span class="text-ui-text min-w-0 flex-1 truncate text-[0.85em]" [title]="shape.name">{{ shape.name }}</span>
+    <input
+      class="w-[45%] shrink-0"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [attr.data-testid]="'model-face-weight-' + shape.name"
+      [attr.aria-label]="shape.name"
+      [ngModel]="shape.weight"
+      (ngModelChange)="hold(shape.name, $event)"
+    />
+    <span [class]="styles.value">{{ shape.weight.toFixed(2) }}</span>
+    <button
+      [class]="styles.button"
+      type="button"
+      [attr.aria-label]="'ui.pieceModel.remove' | transloco"
+      [title]="'ui.pieceModel.remove' | transloco"
+      (click)="hold(shape.name, 0)"
+    >
+      <i class="material-icons text-[14px]!">close</i>
+    </button>
+  </div>
+}
+@if (toHold().length > 0) {
+  <select
+    [class]="styles.input"
+    data-testid="model-face-add-weight"
+    #heldChoice
+    [ngModel]="''"
+    (ngModelChange)="addHeld($event)"
+    (change)="heldChoice.selectedIndex = 0"
+  >
+    <option [ngValue]="''">{{ 'ui.pieceModel.addShape' | transloco }}</option>
+    @for (name of toHold(); track name) {
+      <option [ngValue]="name">{{ name }}</option>
+    }
+  </select>
+}
+
+<div class="text-ui-muted mt-1 text-[0.72em]">{{ 'ui.pieceModel.sways' | transloco }}</div>
+@for (sway of now.sways; track $index) {
+  <div [class]="styles.row">
+    <span class="text-ui-text min-w-0 flex-1 truncate text-[0.85em]" [title]="sway.name">{{ sway.name }}</span>
+    <input
+      [class]="styles.number"
+      class="w-[4.2em]!"
+      type="number"
+      step="0.1"
+      [min]="swaySeconds.least"
+      [max]="swaySeconds.most"
+      [attr.data-testid]="'model-face-sway-seconds-' + $index"
+      [attr.aria-label]="'ui.pieceModel.period' | transloco"
+      [title]="'ui.pieceModel.period' | transloco"
+      [ngModel]="sway.periodMs / 1000"
+      (change)="setSwaySeconds($index, $any($event.target).value)"
+    />
+    <input
+      class="w-[30%] shrink-0"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      [attr.data-testid]="'model-face-sway-amount-' + $index"
+      [attr.aria-label]="'ui.pieceModel.amount' | transloco"
+      [title]="'ui.pieceModel.amount' | transloco"
+      [ngModel]="sway.amount"
+      (ngModelChange)="changeSway($index, { amount: +$event })"
+    />
+    <button
+      [class]="styles.button"
+      type="button"
+      [attr.aria-label]="'ui.pieceModel.remove' | transloco"
+      [title]="'ui.pieceModel.remove' | transloco"
+      (click)="removeSway($index)"
+    >
+      <i class="material-icons text-[14px]!">close</i>
+    </button>
+  </div>
+}
+@if (toSway().length > 0) {
+  <select
+    [class]="styles.input"
+    data-testid="model-face-add-sway"
+    #swayChoice
+    [ngModel]="''"
+    (ngModelChange)="addSway($event)"
+    (change)="swayChoice.selectedIndex = 0"
+  >
+    <option [ngValue]="''">{{ 'ui.pieceModel.addSway' | transloco }}</option>
+    @for (name of toSway(); track name) {
+      <option [ngValue]="name">{{ name }}</option>
+    }
+  </select>
+}

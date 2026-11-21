@@ -1,0 +1,193 @@
+@let now = set();
+@let whole = scope() === '';
+@if (materials().length > 0) {
+  <div [class]="styles.row">
+    <span [class]="styles.label">{{ 'ui.pieceModel.lookScope' | transloco }}</span>
+    <select
+      [class]="styles.input"
+      data-testid="model-look-scope"
+      [ngModel]="scope()"
+      (ngModelChange)="scope.set($event)"
+    >
+      <option [ngValue]="''">{{ 'ui.pieceModel.wholeModel' | transloco }}</option>
+      @for (material of materials(); track material) {
+        <option [ngValue]="material">{{ changed().has(material) ? '● ' : '' }}{{ material }}</option>
+      }
+    </select>
+  </div>
+}
+@if (whole) {
+  <div [class]="styles.row">
+    <span [class]="styles.label">{{ 'ui.pieceModel.preset' | transloco }}</span>
+    <select
+      [class]="styles.input"
+      data-testid="model-look-preset"
+      [ngModel]="preset()"
+      (ngModelChange)="choosePreset($event)"
+    >
+      @if (preset() === '') {
+        <option [ngValue]="''">{{ 'ui.pieceModel.presetCustom' | transloco }}</option>
+      }
+      @for (name of presets; track name) {
+        <option [ngValue]="name">{{ 'ui.pieceModel.presets.' + name | transloco }}</option>
+      }
+    </select>
+  </div>
+  <div [class]="styles.row">
+    <span [class]="styles.label">{{ 'ui.pieceModel.finish' | transloco }}</span>
+    <select
+      [class]="styles.input"
+      data-testid="model-look-finish"
+      [ngModel]="look().finish"
+      (ngModelChange)="setFinish($event)"
+    >
+      @for (finish of finishes; track finish) {
+        <option [ngValue]="finish">{{ 'ui.pieceModel.finishes.' + (finish || 'made') | transloco }}</option>
+      }
+    </select>
+  </div>
+} @else {
+  <div [class]="styles.row">
+    <label [class]="styles.check">
+      <input
+        type="checkbox"
+        data-testid="model-look-hidden"
+        [ngModel]="now.hidden"
+        (ngModelChange)="change({ hidden: $event })"
+      />
+      {{ 'ui.pieceModel.hidden' | transloco }}
+    </label>
+  </div>
+}
+<div [class]="styles.row">
+  <label [class]="styles.check" class="w-[5em] shrink-0">
+    <input
+      type="checkbox"
+      data-testid="model-look-tint-on"
+      [ngModel]="now.tint !== ''"
+      (ngModelChange)="tint($event)"
+    />
+    {{ 'ui.pieceModel.tint' | transloco }}
+  </label>
+  @if (now.tint) {
+    <input
+      class="h-6 w-10 shrink-0 cursor-pointer border-0 bg-transparent p-0"
+      type="color"
+      data-testid="model-look-tint"
+      [ngModel]="now.tint"
+      (ngModelChange)="change({ tint: $event })"
+    />
+  }
+  <label [class]="styles.check">
+    <input
+      type="checkbox"
+      data-testid="model-look-plain"
+      [ngModel]="now.plain"
+      (ngModelChange)="change({ plain: $event })"
+    />
+    {{ 'ui.pieceModel.plain' | transloco }}
+  </label>
+</div>
+<div [class]="styles.row">
+  <label [class]="styles.check" class="w-[5em] shrink-0">
+    <input
+      type="checkbox"
+      data-testid="model-look-metalness-on"
+      [ngModel]="now.metalness !== null"
+      (ngModelChange)="number('metalness', 0.5, $event)"
+    />
+    {{ 'ui.pieceModel.metalness' | transloco }}
+  </label>
+  @if (now.metalness !== null) {
+    <input
+      class="min-w-0 flex-1"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      data-testid="model-look-metalness"
+      [ngModel]="now.metalness"
+      (ngModelChange)="number('metalness', $event)"
+    />
+    <span [class]="styles.value">{{ now.metalness.toFixed(2) }}</span>
+  } @else {
+    <span class="text-ui-dim text-[0.78em]">{{ 'ui.pieceModel.asMade' | transloco }}</span>
+  }
+</div>
+<div [class]="styles.row">
+  <label [class]="styles.check" class="w-[5em] shrink-0">
+    <input
+      type="checkbox"
+      data-testid="model-look-roughness-on"
+      [ngModel]="now.roughness !== null"
+      (ngModelChange)="number('roughness', 0.5, $event)"
+    />
+    {{ 'ui.pieceModel.roughness' | transloco }}
+  </label>
+  @if (now.roughness !== null) {
+    <input
+      class="min-w-0 flex-1"
+      type="range"
+      min="0"
+      max="1"
+      step="0.01"
+      data-testid="model-look-roughness"
+      [ngModel]="now.roughness"
+      (ngModelChange)="number('roughness', $event)"
+    />
+    <span [class]="styles.value">{{ now.roughness.toFixed(2) }}</span>
+  } @else {
+    <span class="text-ui-dim text-[0.78em]">{{ 'ui.pieceModel.asMade' | transloco }}</span>
+  }
+</div>
+<div [class]="styles.row">
+  <label [class]="styles.check" class="w-[5em] shrink-0">
+    <input
+      type="checkbox"
+      data-testid="model-look-glow-on"
+      [ngModel]="now.glow !== ''"
+      (ngModelChange)="glow($event)"
+    />
+    {{ 'ui.pieceModel.glow' | transloco }}
+  </label>
+  @if (now.glow) {
+    <input
+      class="h-6 w-10 shrink-0 cursor-pointer border-0 bg-transparent p-0"
+      type="color"
+      data-testid="model-look-glow"
+      [ngModel]="now.glow"
+      (ngModelChange)="change({ glow: $event })"
+    />
+    <input
+      class="min-w-0 flex-1"
+      type="range"
+      min="0"
+      [max]="mostGlow"
+      step="0.1"
+      data-testid="model-look-glow-strength"
+      [attr.aria-label]="'ui.pieceModel.glowStrength' | transloco"
+      [ngModel]="now.glowStrength ?? 1"
+      (ngModelChange)="number('glowStrength', $event)"
+    />
+    <span [class]="styles.value">{{ (now.glowStrength ?? 1).toFixed(1) }}</span>
+  }
+</div>
+<div [class]="styles.row">
+  <span [class]="styles.label">{{ 'ui.pieceModel.opacity' | transloco }}</span>
+  <input
+    class="min-w-0 flex-1"
+    type="range"
+    min="0.05"
+    max="1"
+    step="0.01"
+    data-testid="model-look-opacity"
+    [ngModel]="now.opacity ?? 1"
+    (ngModelChange)="opacity($event)"
+  />
+  <span [class]="styles.value">{{ (now.opacity ?? 1).toFixed(2) }}</span>
+</div>
+<div class="flex justify-end">
+  <button [class]="styles.button" type="button" data-testid="model-look-reset" (click)="reset()">
+    {{ 'ui.pieceModel.resetLook' | transloco }}
+  </button>
+</div>

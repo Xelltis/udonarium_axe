@@ -1,0 +1,20 @@
+<div
+  class="bg-ui-input border-ui-border-input relative h-44 w-full overflow-hidden rounded-sm border border-solid"
+  data-testid="model-preview"
+  [attr.data-state]="state()"
+>
+  <canvas
+    #canvas
+    class="block size-full cursor-grab touch-none active:cursor-grabbing"
+    [attr.aria-label]="'ui.pieceModel.preview' | transloco"
+    (pointerdown)="press($event)"
+    (pointermove)="move($event)"
+    (pointerup)="letGo()"
+    (pointercancel)="letGo()"
+  ></canvas>
+  @if (state() !== 'shown') {
+    <span class="text-ui-dim pointer-events-none absolute inset-0 flex items-center justify-center text-[0.78em]">{{
+      (state() === 'failed' ? 'ui.pieceModel.previewFailed' : 'ui.pieceModel.previewLoading') | transloco
+    }}</span>
+  }
+</div>
