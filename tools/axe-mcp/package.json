@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.9.0",
+    "@anthropic-ai/sdk": "1.11.0",
     "@modelcontextprotocol/sdk": "1.32.2",
     "ws": "8.23.0",
     "zod": "^4.6.7"
