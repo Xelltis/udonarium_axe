@@ -346,8 +346,6 @@ export class BattleCutInOverlayComponent {
 
   /** How long the stage has been playing, in milliseconds, from nothing again for each scene. */
   private readonly clock = linkedSignal({ source: () => this.serial(), computation: () => 0 });
-  /** When this playing of the stage began, on the clock frames are timed by, which the models' acts are timed on. */
-  private readonly playedFromMs = linkedSignal({ source: () => this.serial(), computation: () => frameClock() });
 
   /** The moment drawn: the clock, or the moment everything has happened while motion is off. */
   readonly elapsed = computed(() => {
@@ -481,7 +479,8 @@ export class BattleCutInOverlayComponent {
     const step = attackerStep(elapsed, timeline);
     const blow = this.blow();
     const role = blow ? castRoleOf(blow.effectKind) : 'attack';
-    const playedFromMs = this.playedFromMs();
+    // Worked out again at each frame of the stage, as the elapsed time it reads changes with each.
+    const nowMs = frameClock();
     const playing = this.serial();
     return this.views().flatMap((view) => {
       if (!view.model || !view.modelUrl) return [];
@@ -501,7 +500,7 @@ export class BattleCutInOverlayComponent {
           widthPx: BATTLE_FIGURE_PX,
           heightPx: BATTLE_FIGURE_PX,
           turnDeg: figureTurnDeg(view.side),
-          ...figureActing(fighter, timeline, elapsed, playedFromMs, playing, role),
+          ...figureActing(fighter, timeline, elapsed, nowMs, playing, role),
         },
       ];
     });

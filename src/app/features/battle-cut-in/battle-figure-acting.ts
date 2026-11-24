@@ -33,36 +33,44 @@ export function figureTurnDeg(side: BattleSide): number {
 
 /**
  * What a fighter's model does at a moment of the stage, `elapsed` milliseconds since it began to
- * open: it walks while the sides step in and, for the one striking, while it steps forward; the one
- * striking strikes its blow, or works its spell, as the effect of the blow begins; one the exchange
- * hurts takes the blow as it lands; and one brought down goes down once the bars have fallen.
+ * open on the stage's own clock: it walks while the sides step in and, for the one striking, while it
+ * steps forward; the one striking strikes its blow, or works its spell, as the effect of the blow
+ * begins; one the exchange hurts takes the blow as it lands; and one brought down goes down once the
+ * bars have fallen.
  *
- * Each act is told with the moment it is due, on the clock frames are timed by, so a model asked
- * before then waits for it: `playedFromMs` is when the stage began to open on that clock, and
- * `playing` tells this playing of the stage from the others.
+ * An act is told only once the stage's clock has come to it, with the moment it began on the clock
+ * frames are timed by: `nowMs`, less how far the stage has gone past it. The stage's clock stands
+ * still while the page stalls and comes up late where the stage was slow to begin, so an act told
+ * ahead, on the wall's clock, would be out of step with the blow; told as it comes, under one key for
+ * the playing (`playing`), it is played from where it began.
  */
 export function figureActing(
   fighter: ActingFighter,
   timeline: BattleTimeline,
   elapsed: number,
-  playedFromMs: number,
+  nowMs: number,
   playing: number,
   blow: 'attack' | 'cast'
 ): FigureActing {
   const towardEast = fighter.side === 'left' ? 1 : -1;
-  const act = (role: ModelAct['role'], at: number): ModelAct => ({
-    key: `battle:${playing}:${role}`,
-    role,
-    atMs: playedFromMs + at,
-    toward: { x: towardEast, y: 0 },
-  });
+  const act = (role: ModelAct['role'], at: number): { act?: ModelAct } =>
+    elapsed < at
+      ? {}
+      : {
+          act: {
+            key: `battle:${playing}:${role}`,
+            role,
+            atMs: nowMs - (elapsed - at),
+            toward: { x: towardEast, y: 0 },
+          },
+        };
   const steppingIn = elapsed < BATTLE_INTRO_MS;
   if (fighter.striking) {
     const steppingUp = elapsed >= timeline.stepStart && elapsed < timeline.effectStart;
-    return { walking: steppingIn || steppingUp, act: act(blow, timeline.effectStart) };
+    return { walking: steppingIn || steppingUp, ...act(blow, timeline.effectStart) };
   }
   if (fighter.defeated && timeline.defeatStart >= 0 && elapsed >= timeline.defeatStart) {
-    return { walking: false, act: act('defeat', timeline.defeatStart) };
+    return { walking: false, ...act('defeat', timeline.defeatStart) };
   }
-  return { walking: steppingIn, ...(fighter.hurt ? { act: act('hit', timeline.impact) } : {}) };
+  return { walking: steppingIn, ...(fighter.hurt ? act('hit', timeline.impact) : {}) };
 }
