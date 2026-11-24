@@ -7,6 +7,7 @@ import { MADE_MOTION_MS } from '@axe/domain/tabletop/model-motion-poses';
 import { PIECE_MODEL_AS_MADE } from '@axe/domain/tabletop/piece-model';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import {
+  materialIndexIn,
   ModelLayer,
   modelPartsOf,
   modelReadKeyOf,
@@ -517,6 +518,25 @@ describe('placementOf', () => {
 
   it('tips a floating piece’s model over at the height it floats', () => {
     expect(drawnAt(knight({ rollDeg: 90, altitudePx: 30 }), 0, 0, 0)).toEqual([75, 55, 200]);
+  });
+});
+
+describe('materialIndexIn', () => {
+  it('numbers a material as the file does, and one the reader made of its own past every material of the file', () => {
+    const [first, second, outline, other] = [0, 1, 2, 3].map(() => new MeshStandardMaterial());
+    const indexOf = materialIndexIn({
+      parser: {
+        associations: new Map([
+          [first, { materials: 0 }],
+          [second, { materials: 2 }],
+        ]),
+        json: { materials: [{}, {}, {}] },
+      },
+    } as never);
+
+    expect([indexOf(first), indexOf(second), indexOf(outline), indexOf(other), indexOf(outline)]).toEqual([
+      0, 2, 3, 4, 3,
+    ]);
   });
 });
 

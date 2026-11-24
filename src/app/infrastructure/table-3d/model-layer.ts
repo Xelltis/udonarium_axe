@@ -838,15 +838,12 @@ function isSeveral(of: MadeOfMesh): of is readonly MadeMaterial[] {
  * is told by where the file says it stands among the model's (`indexOf`), or where the file does not
  * say, by where it was first met walking the model.
  */
-function madeOf(
-  scene: Object3D,
-  indexOf: (material: Material) => number | undefined
-): { made: MadeOfMesh[]; worn: Material[] } {
+function madeOf(scene: Object3D, indexOf: (material: Material) => number): { made: MadeOfMesh[]; worn: Material[] } {
   const known = new Map<Material, MadeMaterial>();
   const one = (material: Material) => {
     let made = known.get(material);
     if (!made) {
-      made = madeMaterialOf(material, indexOf(material) ?? known.size);
+      made = madeMaterialOf(material, indexOf(material));
       known.set(material, made);
     }
     return made;
@@ -858,10 +855,22 @@ function madeOf(
   return { made, worn: [...known.keys()] };
 }
 
-/** Where each material of a model read stands among the model's, as the file it was read from says. */
-function materialIndexIn(read: Partial<Pick<GLTF, 'parser'>>): (material: Material) => number | undefined {
+/**
+ * Where each material of a model read stands among the model's, as the file it was read from says,
+ * which its key is made of. One the reader made of its own, as for an outline, is numbered past every
+ * material of the file, so it never goes by the key of one of them.
+ */
+export function materialIndexIn(read: Partial<Pick<GLTF, 'parser'>>): (material: Material) => number {
   const told = read.parser?.associations as ReadonlyMap<unknown, { materials?: number } | undefined> | undefined;
-  return (material) => told?.get(material)?.materials;
+  const inFile = (read.parser?.json as { materials?: unknown[] } | undefined)?.materials?.length ?? 0;
+  const ownMade = new Map<Material, number>();
+  return (material) => {
+    const index = told?.get(material)?.materials ?? ownMade.get(material);
+    if (index !== undefined) return index;
+    const made = inFile + ownMade.size;
+    ownMade.set(material, made);
+    return made;
+  };
 }
 
 /**
