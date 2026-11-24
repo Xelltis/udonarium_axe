@@ -430,6 +430,17 @@ describe('CutInWindowComponent', () => {
       expect(shown().modelDoing()).toMatchObject({ act: { role: 'attack' }, walking: false });
     });
 
+    it('is as far into its act as the shared start was taken, for a window that joins it late', () => {
+      makeCutIn({ modelIdentifier: 'knight', modelAct: 'attack' });
+      vi.spyOn(performance, 'now').mockReturnValue(50_000);
+
+      component.startCutIn(Date.now() - 3_000);
+
+      const act = shown().modelDoing().act as { atMs: number };
+      expect(50_000 - act.atMs).toBeGreaterThanOrEqual(3_000);
+      expect(50_000 - act.atMs).toBeLessThan(3_500);
+    });
+
     it('walks for as long as it is shown, or plays one of the model’s own motions, as the cut-in keeps', () => {
       const cutIn = makeCutIn({ modelIdentifier: 'knight', modelAct: 'walk' });
       component.startCutIn();
