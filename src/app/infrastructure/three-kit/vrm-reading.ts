@@ -91,20 +91,18 @@ function expressionsOf(vrm: VRM, scene: Object3D): VrmExpression[] {
 
 /**
  * How a node of a model is found again on a copy of it: by its name, where no other node of the model
- * goes by it, as the bones of a VRM are named, or else by where it stands in a walk of the model. A
- * name holds however the copy has come to differ since, as by what swings being hung on it.
+ * goes by it, as the bones of a VRM are named, or else by where it stands in a walk of the model's own
+ * nodes, which passes over the colliders hung on a copy for what swings, as on the model before they
+ * were taken out of it.
  */
 type NodeKey = string;
 
 /** The key each node of a model is found again on a copy by, as the model stands now. */
 function nodeKeysOf(scene: Object3D): (object: Object3D | null | undefined) => NodeKey | null {
+  const nodes = ownNodesOf(scene);
   const named = new Map<string, number>();
-  scene.traverse((object) => {
-    if (object.name) named.set(object.name, (named.get(object.name) ?? 0) + 1);
-  });
-  const order = new Map<Object3D, number>();
-  let at = 0;
-  scene.traverse((object) => order.set(object, at++));
+  for (const object of nodes) if (object.name) named.set(object.name, (named.get(object.name) ?? 0) + 1);
+  const order = new Map(nodes.map((object, at) => [object, at]));
   return (object) => {
     if (!object) return null;
     if (object.name && named.get(object.name) === 1) return `name:${object.name}`;
@@ -113,14 +111,23 @@ function nodeKeysOf(scene: Object3D): (object: Object3D | null | undefined) => N
   };
 }
 
+/** The nodes of a model in the order of a walk of it, but for the colliders hung on it for what swings. */
+function ownNodesOf(root: Object3D): Object3D[] {
+  const nodes: Object3D[] = [];
+  const walk = (object: Object3D) => {
+    if (object instanceof Collider) return;
+    nodes.push(object);
+    for (const child of object.children) walk(child);
+  };
+  walk(root);
+  return nodes;
+}
+
 /** The node of a copy of a model a key finds. */
 function nodeFinderOf(copy: Object3D): (key: NodeKey | null) => Object3D | null {
+  const nodes = ownNodesOf(copy);
   const byName = new Map<string, Object3D>();
-  const nodes: Object3D[] = [];
-  copy.traverse((object) => {
-    if (object.name && !byName.has(object.name)) byName.set(object.name, object);
-    nodes.push(object);
-  });
+  for (const object of nodes) if (object.name && !byName.has(object.name)) byName.set(object.name, object);
   return (key) => {
     if (key === null) return null;
     if (key.startsWith('name:')) return byName.get(key.slice(5)) ?? null;

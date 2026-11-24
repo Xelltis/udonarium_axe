@@ -143,6 +143,37 @@ describe('readiedVrm', () => {
     expect(along(scene.getObjectByName('sleeve')!).x).toBeCloseTo(1);
   });
 
+  it('ties bones that go by no name of their own to the same bones on a copy, though what swings hangs on it', () => {
+    const { gltf, scene } = readVrm();
+    const arm = new Object3D();
+    arm.position.set(1, 1, 0);
+    const elbow = new Object3D();
+    elbow.position.set(1, 0, 0);
+    const sleeve = new Object3D();
+    sleeve.position.copy(arm.position);
+    scene.add(arm);
+    arm.add(elbow);
+    scene.add(sleeve);
+    const aim = new VRMAimConstraint(sleeve, elbow);
+    aim.aimAxis = 'PositiveX';
+    const manager = new VRMNodeConstraintManager();
+    manager.addConstraint(aim);
+    (gltf.userData['vrm'] as { nodeConstraintManager?: unknown }).nodeConstraintManager = manager;
+    const rig = readiedVrm(gltf)!;
+    const copy = cloneSkinned(scene);
+    rig.swingingOf(copy);
+    const ties = rig.tiesOf(copy)!;
+    const at = scene.children.indexOf(arm);
+
+    copy.children[at]!.rotation.set(0, 0, -Math.PI / 2);
+    ties.update();
+
+    const pointing = new Vector3(1, 0, 0).applyQuaternion(
+      copy.children[scene.children.indexOf(sleeve)]!.getWorldQuaternion(new Quaternion())
+    );
+    expect([pointing.x, pointing.y].map((value) => Number(value.toFixed(3)))).toEqual([0, -1]);
+  });
+
   it('ties nothing on a VRM that ties no bones', () => {
     const { gltf } = readVrm();
 
