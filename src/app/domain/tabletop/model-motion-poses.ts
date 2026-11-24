@@ -44,10 +44,8 @@ function wordsOf(name: string): string[] {
  * over where it stands. Null where it has none.
  */
 export function motionNameFor(role: MotionRole, names: readonly string[], asked: string): string | null {
-  if (asked) {
-    const exact = names.find((name) => name === asked) ?? names.find((name) => sameName(name, asked));
-    if (exact !== undefined) return exact;
-  }
+  const exact = motionNamed(names, asked);
+  if (exact !== null) return exact;
   const own = (wanted: MotionRole) =>
     names.find((name) => namedFor(wanted, name) && !(wanted === 'hit' && isBlow(name))) ?? null;
   if (role === 'idle') {
@@ -68,6 +66,15 @@ const ACT_OR_WALK: readonly MotionRole[] = ['walk', 'attack', 'cast', 'hit', 'de
 
 function isBlow(name: string): boolean {
   return namedFor('attack', name) || namedFor('cast', name);
+}
+
+/**
+ * The motion of a model asked for by its name: the one of that name, or else one named alike but for
+ * its letters' case and the spaces about it. Null where the model has none, or none is asked for.
+ */
+export function motionNamed(names: readonly string[], asked: string): string | null {
+  if (!asked.trim()) return null;
+  return names.find((name) => name === asked) ?? names.find((name) => sameName(name, asked)) ?? null;
 }
 
 function sameName(one: string, other: string): boolean {

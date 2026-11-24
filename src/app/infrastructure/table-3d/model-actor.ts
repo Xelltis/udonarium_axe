@@ -6,6 +6,7 @@ import {
   madeActMs,
   type MadePose,
   madePoseAt,
+  motionNamed,
   motionNameFor,
 } from '@axe/domain/tabletop/model-motion-poses';
 import { type ModelAct, type ModelMotions, type MotionRole } from '@axe/domain/tabletop/model-motions';
@@ -433,7 +434,8 @@ export class ModelActor {
 
   private clipForAct(act: ModelAct): AnimationClip | null {
     if (act.role !== 'named') return this.clipFor(act.role);
-    return act.name ? AnimationClip.findByName(this.clips as AnimationClip[], act.name) : null;
+    const name = motionNamed(this.names, act.name ?? '');
+    return name === null ? null : AnimationClip.findByName(this.clips as AnimationClip[], name);
   }
 
   /**

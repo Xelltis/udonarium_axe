@@ -152,6 +152,17 @@ describe('ModelActor', () => {
     expect(actor.pose).toBe(MADE_REST);
   });
 
+  it('plays a motion asked for by a name alike but for its letters’ case and the spaces about it', () => {
+    const actor = actorWith(['Idle', 'Wave ', 'bow']);
+    actor.perform(act('named', 0, { name: 'Wave' }));
+    actor.advance(at(0));
+    expect(actor.motion).toBe('Wave ');
+
+    actor.perform(act('named', 2000, { name: 'Bow' }));
+    actor.advance(at(2000));
+    expect(actor.motion).toBe('bow');
+  });
+
   it('stays down once its going down is through, and stands again once it is asked to no more', () => {
     const actor = actorWith(['Idle', 'Death']);
     actor.perform(act('defeat', 0));
