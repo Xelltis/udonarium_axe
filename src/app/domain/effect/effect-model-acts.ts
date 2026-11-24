@@ -32,7 +32,8 @@ export function castRoleOf(kind: EffectKind): 'attack' | 'cast' {
  * strikes a blow or works a spell as it begins, by whether its look is struck by hand; each piece an
  * effect lands a blow on takes it as the first blow lands; and each piece an effect brings down goes
  * down as it begins. A piece in more than one of these acts the gravest: going down before taking a
- * blow, and that before striking one; of two alike, the later.
+ * blow, and that before striking one; of two alike, that of the effect begun later, as the effects
+ * are given in the order they began.
  *
  * Each act is made towards the other in it: the first one struck for the one striking, and where the
  * effect is cast from for those struck or brought down. `standsAt` says where a piece stands on the
