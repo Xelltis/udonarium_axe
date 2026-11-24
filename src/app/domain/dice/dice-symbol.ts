@@ -52,10 +52,13 @@ export class DiceSymbol extends OwnedTabletopObject {
    * The face the die shows. For the keeper of a sealed die it is the face its browser keeps; for any
    * other seat it is the face the room was told, which for a sealed die is none. A face given to a
    * sealed die by its keeper is kept in the keeper's browser and drawn there anew, the room told only
-   * that the die changed.
+   * that the die changed. A die left sealed with nobody keeping it, as by a version that knows nothing
+   * of sealing taking its keeper away, has a face nobody holds, and stands on its first, as one whose
+   * seal is let go of does.
    */
   get face(): string {
     if (this.isSealedHere) return sealedFaceOf(this.identifier) ?? this.sentFace;
+    if (this.sealed && !this.hasOwner) return this.sentFace || (this.faces[0] ?? '');
     return this.sentFace;
   }
   set face(face: string) {
