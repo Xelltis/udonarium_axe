@@ -6,6 +6,9 @@ import { motionFileIdsOf, writeMotionFileIds } from '@axe/domain/media/model-mot
 /** The kind the tags of models go by, as the object store names it. */
 export const MODEL_TAG_ALIAS = 'model-tag';
 
+/** The mark a tag written for an object saved on its own carries, as adding to a room's tag alone. */
+export const ADDING_TAG = 'adding';
+
 /**
  * The words a 3D model of the room is sorted by in the list of models, as the pictures are, shared
  * with the room. A model nobody has tagged has none.
@@ -51,16 +54,21 @@ export class ModelTag extends ObjectNode {
   }
 
   /**
-   * Adds a tag read from a file to the model's own tag, then destroys the copy that was read: the
-   * file's shelf where the model is on none, and the motions the file names after those the model is
-   * given already. A file takes nothing away, as a piece saved before its model was moved to another
-   * shelf or given more motions, read back, would otherwise take the room's back to what it was. The
-   * tag is made first when the model has none, and the change is shared with the room.
+   * Puts a tag read from a file on the model's own tag, then destroys the copy that was read. One from
+   * a saved room puts the room's tag back as it was saved. One written for an object saved on its own
+   * (marked {@link ADDING_TAG}) adds to the room's alone, taking nothing away: its shelf where the
+   * model is on none, and its motions after those the model is given already, as a piece saved before
+   * its model was moved or given more, read back, would otherwise take the room's back to what it was.
+   * The tag is made first when the model has none, and the change is shared with the room.
    */
-  override parseInnerXml(_element: Element) {
+  override parseInnerXml(element: Element) {
     const held = ModelTag.get(this.modelIdentifier) ?? ModelTag.create(this.modelIdentifier);
-    const motions = writeMotionFileIds([...motionFileIdsOf(held.motions), ...motionFileIdsOf(this.motions)]);
-    if (held.tag === '' && this.tag !== '') held.tag = this.tag;
+    const adding = element.getAttribute(ADDING_TAG) === 'true';
+    const motions = adding
+      ? writeMotionFileIds([...motionFileIdsOf(held.motions), ...motionFileIdsOf(this.motions)])
+      : this.motions;
+    const tag = adding && held.tag !== '' ? held.tag : this.tag;
+    if (held.tag !== tag) held.tag = tag;
     if (held.motions !== motions) held.motions = motions;
     this.destroy();
   }

@@ -200,9 +200,22 @@ describe('SaveDataService', () => {
         'avatar.glb',
         'Wave.vrma',
       ]);
-      expect(await files.find((file) => file.name === 'modeltag.xml')?.text()).toContain(wave.identifier);
+      const tags = (await files.find((file) => file.name === 'modeltag.xml')?.text()) ?? '';
+      expect(tags).toContain(wave.identifier);
+      expect(tags).toContain('adding="true"');
       cutIn.destroy();
       ModelTag.get(avatar.identifier)?.destroy();
+    });
+
+    it('writes no tags of models for an object saved on its own that names none', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saving = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+      const piece = GameCharacter.create('一人', 1, '');
+
+      await privateApi._saveGameObjectAsync(piece, 'one');
+
+      expect((saving.mock.calls[0][0] as File[]).map((file) => file.name)).not.toContain('modeltag.xml');
+      piece.destroy();
     });
 
     it('writes the tags of the models it carries and who added them, for the room to read back', async () => {

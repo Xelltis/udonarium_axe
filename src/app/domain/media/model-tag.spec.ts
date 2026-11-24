@@ -72,10 +72,10 @@ describe('ModelTag', () => {
     expect(ModelTag.get('oak')?.motions).toBe('');
   });
 
-  it('keeps the shelf the room has put a model on over the one a file names, and takes the file’s where it has none', () => {
+  it('keeps the shelf the room has put a model on over the one an object saved on its own names, and takes the file’s where it has none', () => {
     const knight = held('knight');
     ModelTag.tagWith('knight', '英雄');
-    const saved = ModelTagList.create([knight]).toXml();
+    const saved = ModelTagList.create([knight], { adding: true }).toXml();
     ModelTag.tagWith('knight', '保管');
 
     ObjectSerializer.instance.parseXml(saved);
@@ -86,17 +86,30 @@ describe('ModelTag', () => {
     expect(ModelTag.get('knight')?.tag).toBe('英雄');
   });
 
-  it('adds the motions a file names after those the model is given already, taking none away', () => {
+  it('adds the motions an object saved on its own names after those the model is given already, taking none away', () => {
     const avatar = held('avatar');
     ModelTag.giveMotions('avatar', '["wave"]');
-    const saved = ModelTagList.create([avatar]).toXml();
+    const saved = ModelTagList.create([avatar], { adding: true }).toXml();
     ModelTag.giveMotions('avatar', '["bow","jump"]');
 
     ObjectSerializer.instance.parseXml(saved);
     expect(ModelTag.get('avatar')?.motions).toBe('["bow","jump","wave"]');
 
-    ObjectSerializer.instance.parseXml('<model-tag modelIdentifier="avatar" tag="人"></model-tag>');
+    ObjectSerializer.instance.parseXml('<model-tag adding="true" modelIdentifier="avatar" tag="人"></model-tag>');
     expect(ModelTag.get('avatar')?.motions).toBe('["bow","jump","wave"]');
+  });
+
+  it('puts the shelf and the motions a saved room names back as they were saved', () => {
+    const avatar = held('avatar');
+    ModelTag.tagWith('avatar', '人');
+    ModelTag.giveMotions('avatar', '["wave"]');
+    const saved = ModelTagList.create([avatar]).toXml();
+    ModelTag.tagWith('avatar', '保管');
+    ModelTag.giveMotions('avatar', '["bow"]');
+
+    ObjectSerializer.instance.parseXml(saved);
+
+    expect([ModelTag.get('avatar')?.tag, ModelTag.get('avatar')?.motions]).toEqual(['人', '["wave"]']);
   });
 
   it('gives a model motions, making its tag where it has none, and keeps its tag as it was', () => {

@@ -279,14 +279,22 @@ export class SaveDataService {
 
   /**
    * Adds to the files of a save the 3D models it names, and the tags of them, as the motions a VRM
-   * is given: every one but those bundled with the app, which every seat has beside its own page.
-   * Answers the models whose files were added.
+   * is given: every one but those bundled with the app, which every seat has beside its own page, and
+   * no tags where it names none. The tags of an object saved on its own are written as `adding` to a
+   * room's (see `ModelTag.parseInnerXml`). Answers the models whose files were added.
    */
-  private carryModels(named: readonly ModelFile[], files: File[], pretty: boolean): ModelFile[] {
+  private carryModels(
+    named: readonly ModelFile[],
+    files: File[],
+    pretty: boolean,
+    { adding = false }: { readonly adding?: boolean } = {}
+  ): ModelFile[] {
     const models = named.filter((model) => !isBundledModel(model.identifier));
     files.push(...modelArchiveFiles(models, files));
-    const modelTagXml = this.convertToXml(ModelTagList.create(named), pretty);
-    files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
+    if (named.length > 0) {
+      const modelTagXml = this.convertToXml(ModelTagList.create(named, { adding }), pretty);
+      files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
+    }
     return models;
   }
 
@@ -337,7 +345,7 @@ export class SaveDataService {
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
     const imageLinkXml = this.convertToXml(ImageLinkList.create(images));
     files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
-    this.carryModels(this.searchModelFiles(xml + partsXml), files, true);
+    this.carryModels(this.searchModelFiles(xml + partsXml), files, true, { adding: true });
 
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }
