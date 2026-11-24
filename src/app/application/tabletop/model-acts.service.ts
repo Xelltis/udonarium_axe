@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -34,6 +34,13 @@ export class ModelActsService {
   private readonly sceneLooks = inject(EffectSceneLooksService);
   private readonly asked = signal<ReadonlyMap<string, ModelAct>>(NO_ACTS);
   private serial = 0;
+  private forgetting: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      if (this.forgetting !== null) clearTimeout(this.forgetting);
+    });
+  }
 
   readonly acts = computed<ReadonlyMap<string, ModelAct>>(
     () => {
@@ -91,12 +98,42 @@ export class ModelActsService {
   }
 
   private ask(owner: string, act: ModelAct): void {
-    const kept = new Map<string, ModelAct>();
-    for (const [identifier, before] of this.asked()) {
-      if (act.atMs - before.atMs < ASKED_ACT_KEPT_MS) kept.set(identifier, before);
-    }
+    const kept = this.keptAt(act.atMs);
     kept.set(owner, act);
     this.asked.set(kept);
+    this.forgetLater();
+  }
+
+  /** What was asked outright that is kept still at a moment: whatever was asked no longer ago than it is kept. */
+  private keptAt(nowMs: number): Map<string, ModelAct> {
+    const kept = new Map<string, ModelAct>();
+    for (const [identifier, before] of this.asked()) {
+      if (nowMs - before.atMs < ASKED_ACT_KEPT_MS) kept.set(identifier, before);
+    }
+    return kept;
+  }
+
+  /**
+   * Forgets what was asked outright once it has been kept as long as it is, though nothing else is
+   * asked meanwhile, so that no piece is held to have something asked of it for ever.
+   */
+  private forgetLater(): void {
+    if (this.forgetting !== null) clearTimeout(this.forgetting);
+    const asked = [...this.asked().values()];
+    if (asked.length < 1) {
+      this.forgetting = null;
+      return;
+    }
+    const firstGoneMs = Math.min(...asked.map((act) => act.atMs)) + ASKED_ACT_KEPT_MS;
+    this.forgetting = setTimeout(
+      () => {
+        this.forgetting = null;
+        const kept = this.keptAt(clock());
+        this.asked.set(kept.size > 0 ? kept : NO_ACTS);
+        this.forgetLater();
+      },
+      Math.max(0, firstGoneMs - clock())
+    );
   }
 
   /** The piece a piece is drawn as: its body, for a part; itself otherwise. */

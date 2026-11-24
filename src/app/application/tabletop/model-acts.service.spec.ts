@@ -189,4 +189,25 @@ describe('ModelActsService', () => {
 
     expect([...acts.acts().keys()]).toEqual([goblin.identifier]);
   });
+
+  it('forgets what was asked outright long ago though nothing else is asked', () => {
+    vi.useFakeTimers();
+    try {
+      const [orc, goblin] = [piece('オーク', 0, 0), piece('ゴブリン', 50, 0)];
+      const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+      acts.play(orc.identifier, 'Wave');
+      now.mockReturnValue(10_000);
+      acts.play(goblin.identifier, 'Wave');
+
+      now.mockReturnValue(30_000);
+      vi.advanceTimersByTime(30_000);
+      expect([...acts.acts().keys()]).toEqual([goblin.identifier]);
+
+      now.mockReturnValue(40_000);
+      vi.advanceTimersByTime(10_000);
+      expect(acts.acts().size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
