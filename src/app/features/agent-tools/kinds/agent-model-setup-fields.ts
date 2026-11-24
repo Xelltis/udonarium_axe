@@ -1,6 +1,7 @@
 import { modelFaceOf, writeModelFace } from '@axe/domain/tabletop/model-face';
 import { modelLookOf, writeModelLook } from '@axe/domain/tabletop/model-look';
 import { modelMotionsOf, writeModelMotions } from '@axe/domain/tabletop/model-motions';
+import { MAX_MODEL_SETUP_TEXT } from '@axe/domain/tabletop/piece-model';
 import { type AgentKindField, textField } from '@axe/features/agent-tools/kinds/agent-kind';
 
 /** What a piece or a block keeps of how its model is moved, drawn and blended. */
@@ -11,9 +12,6 @@ export interface ModelSetup {
   modelMotions: string;
   modelFace: string;
 }
-
-/** How long what a model keeps of its look, its motions or its face may be written. */
-const MAX_SETUP_TEXT = 6000;
 
 /**
  * The fields of how a piece's or a block's model is moved, drawn and blended, as its sheet sets them
@@ -53,7 +51,7 @@ export function modelSetupFields<T extends ModelSetup>(
       'write',
       (object) => object.modelLook,
       put((object, value) => (object.modelLook = writeModelLook(modelLookOf(value)))),
-      MAX_SETUP_TEXT
+      MAX_MODEL_SETUP_TEXT
     ),
     textField<T>(
       'model_motions',
@@ -61,7 +59,7 @@ export function modelSetupFields<T extends ModelSetup>(
       'write',
       (object) => object.modelMotions,
       put((object, value) => (object.modelMotions = writeModelMotions(modelMotionsOf(value)))),
-      MAX_SETUP_TEXT
+      MAX_MODEL_SETUP_TEXT
     ),
     textField<T>(
       'model_face',
@@ -69,7 +67,7 @@ export function modelSetupFields<T extends ModelSetup>(
       'write',
       (object) => object.modelFace,
       put((object, value) => (object.modelFace = writeModelFace(modelFaceOf(value)))),
-      MAX_SETUP_TEXT
+      MAX_MODEL_SETUP_TEXT
     ),
   ];
 }

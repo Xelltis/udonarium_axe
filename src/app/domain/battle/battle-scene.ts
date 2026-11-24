@@ -1,6 +1,7 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
 import { asBattleTheme, BattleTheme } from '@axe/domain/battle/battle-settings';
 import { fixedGaugeColor } from '@axe/domain/character/piece-gauge';
+import { carriedSetupText } from '@axe/domain/tabletop/piece-model';
 
 /**
  * A resource of one fighter as it stood before the exchange and after it.
@@ -82,8 +83,6 @@ export const MAX_BATTLE_DEFENDERS = 4;
 /** As many resources as one fighter carries onto the stage. */
 export const MAX_BATTLE_GAUGES = 8;
 const MAX_TEXT_LENGTH = 200;
-/** As long as what a fighter's model keeps of its look, its motions or its shapes may be. */
-const MAX_MODEL_FIELD_LENGTH = 6000;
 
 /** How a resource of a fighter moved in the exchange. */
 export interface BattleGaugeChange {
@@ -186,10 +185,7 @@ function normalizeFighterModel(raw: unknown): BattleFighterModel | null {
   const source = asRecord(raw);
   const identifier = text(source?.['identifier']).trim();
   if (!source || identifier.length < 1) return null;
-  const field = (name: keyof BattleFighterModel) => {
-    const value = source[name];
-    return typeof value === 'string' ? value.slice(0, MAX_MODEL_FIELD_LENGTH) : '';
-  };
+  const field = (name: keyof BattleFighterModel) => carriedSetupText(source[name]);
   return {
     identifier,
     scale: field('scale'),

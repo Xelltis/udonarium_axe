@@ -86,6 +86,21 @@ export function pieceModelOf(fields: PieceModelFields): PieceModel | null {
   };
 }
 
+/**
+ * As long as what a piece keeps of its model's look, its motions in a fight or its face may be carried
+ * to another screen or taken from an AI: room for everything its sheet can write, as every material a
+ * look may name set up in full.
+ */
+export const MAX_MODEL_SETUP_TEXT = 32_768;
+
+/**
+ * What a piece keeps of its model's setup as it is carried, whole, or nothing where it is longer than
+ * may be: cut short, the record it is written as could not be read.
+ */
+export function carriedSetupText(value: unknown): string {
+  return typeof value === 'string' && value.length <= MAX_MODEL_SETUP_TEXT ? value : '';
+}
+
 /** What a field stores, as text, empty for nothing stored. */
 function storedText(value: unknown): string {
   return value === null || value === undefined ? '' : `${value}`.trim();

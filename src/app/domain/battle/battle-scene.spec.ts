@@ -6,6 +6,8 @@ import {
   isBattleDefeat,
   normalizeBattleScene,
 } from '@axe/domain/battle/battle-scene';
+import { AS_MADE, MODEL_AS_MADE, modelLookOf, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { MAX_MODEL_SETUP_TEXT } from '@axe/domain/tabletop/piece-model';
 
 function fighter(identifier: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
   return { identifier, name: identifier, image: '', gauges: [], defeated: false, ...extra };
@@ -72,7 +74,28 @@ describe('normalizeBattleScene()', () => {
     expect(modelOf(undefined)).toBeNull();
     expect(modelOf({ identifier: ' ' })).toBeNull();
     expect(modelOf('knight')).toBeNull();
-    expect(modelOf({ identifier: 'knight', look: 'x'.repeat(9000) })?.look).toHaveLength(6000);
+    // A look as long as a sheet can write it is carried whole; one longer than may be, not at all, as cut short it could not be read.
+    const long = writeModelLook({
+      ...MODEL_AS_MADE,
+      materials: Object.fromEntries(
+        Array.from({ length: 64 }, (_, index) => [
+          `material_${'m'.repeat(60)}_${index}`,
+          {
+            ...AS_MADE,
+            tint: '#ff0000',
+            metalness: 0.5,
+            roughness: 0.25,
+            glow: '#00ff00',
+            glowStrength: 3,
+            opacity: 0.5,
+          },
+        ])
+      ),
+    });
+    expect(long.length).toBeGreaterThan(6000);
+    expect(modelOf({ identifier: 'knight', look: long })?.look).toBe(long);
+    expect(modelLookOf(modelOf({ identifier: 'knight', look: long })?.look).materials).not.toEqual({});
+    expect(modelOf({ identifier: 'knight', look: 'x'.repeat(MAX_MODEL_SETUP_TEXT + 1) })?.look).toBe('');
   });
 
   it('reads the colour set for a bar, and none where an older version sent none or something not a colour', () => {
