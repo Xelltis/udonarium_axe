@@ -25,14 +25,15 @@ describe('lineAudienceOf', () => {
     return made_;
   }
 
-  it('says a line in a tab every seat reads to everyone, and a whisper to those addressed', () => {
+  it('says a line in a tab the players read to everyone, though guests may not, and a whisper to those addressed', () => {
     expect(lineAudienceOf(lineIn(tab()))).toBe('everyone');
+    expect(lineAudienceOf(lineIn(tab({ guestCanView: false })))).toBe('everyone');
     expect(lineAudienceOf(lineIn(tab(), 'gm-user'))).toBe('addressed');
   });
 
-  it('says a line in a tab players or guests may not read to its sender alone, a whisper there to those addressed', () => {
+  it('says a line in a tab players may not read to its sender alone, a whisper there to those addressed', () => {
     expect(lineAudienceOf(lineIn(tab({ plCanView: false })))).toBe('sender');
-    expect(lineAudienceOf(lineIn(tab({ guestCanView: false })))).toBe('sender');
+    expect(lineAudienceOf(lineIn(tab({ plCanView: false, guestCanView: false })))).toBe('sender');
     expect(lineAudienceOf(lineIn(tab({ plCanView: false }), 'gm-user'))).toBe('addressed');
   });
 });
