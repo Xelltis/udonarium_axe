@@ -72,6 +72,20 @@ describe('ModelTag', () => {
     expect(ModelTag.get('oak')?.motions).toBe('');
   });
 
+  it('keeps the shelf the room has put a model on over the one a file names, and takes the file’s where it has none', () => {
+    const knight = held('knight');
+    ModelTag.tagWith('knight', '英雄');
+    const saved = ModelTagList.create([knight]).toXml();
+    ModelTag.tagWith('knight', '保管');
+
+    ObjectSerializer.instance.parseXml(saved);
+    expect(ModelTag.get('knight')?.tag).toBe('保管');
+
+    ModelTag.tagWith('knight', '');
+    ObjectSerializer.instance.parseXml(saved);
+    expect(ModelTag.get('knight')?.tag).toBe('英雄');
+  });
+
   it('adds the motions a file names after those the model is given already, taking none away', () => {
     const avatar = held('avatar');
     ModelTag.giveMotions('avatar', '["wave"]');
@@ -83,7 +97,6 @@ describe('ModelTag', () => {
 
     ObjectSerializer.instance.parseXml('<model-tag modelIdentifier="avatar" tag="人"></model-tag>');
     expect(ModelTag.get('avatar')?.motions).toBe('["bow","jump","wave"]');
-    expect(ModelTag.get('avatar')?.tag).toBe('人');
   });
 
   it('gives a model motions, making its tag where it has none, and keeps its tag as it was', () => {

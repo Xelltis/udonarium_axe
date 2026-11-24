@@ -51,19 +51,17 @@ export class ModelTag extends ObjectNode {
   }
 
   /**
-   * Copies a tag read from a file onto the model's own tag, then destroys the copy that was read. The
-   * tag is made first when the model has none, and the change is shared with the room. The motions the
-   * file names are added after those the model is given already, none of which a file takes away, as
-   * a piece saved before its model was given more brings in no fewer.
+   * Adds a tag read from a file to the model's own tag, then destroys the copy that was read: the
+   * file's shelf where the model is on none, and the motions the file names after those the model is
+   * given already. A file takes nothing away, as a piece saved before its model was moved to another
+   * shelf or given more motions, read back, would otherwise take the room's back to what it was. The
+   * tag is made first when the model has none, and the change is shared with the room.
    */
   override parseInnerXml(_element: Element) {
     const held = ModelTag.get(this.modelIdentifier) ?? ModelTag.create(this.modelIdentifier);
     const motions = writeMotionFileIds([...motionFileIdsOf(held.motions), ...motionFileIdsOf(this.motions)]);
-    const context = held.toContext();
-    context.syncData = this.toContext().syncData;
-    held.apply(context);
-    held.motions = motions;
-    held.update();
+    if (held.tag === '' && this.tag !== '') held.tag = this.tag;
+    if (held.motions !== motions) held.motions = motions;
     this.destroy();
   }
 }
