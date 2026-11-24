@@ -164,6 +164,24 @@ describe('SaveDataService', () => {
       expect(saved).not.toContain('tree.glb');
     });
 
+    it('carries a motion for VRM models as a .vrma, and the motions a model the room names is given along with it', () => {
+      const avatar = { identifier: 'a'.repeat(64), name: 'avatar.vrm', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      const wave = { identifier: 'b'.repeat(64), name: 'Wave.vrma', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, avatar, wave] as never);
+      ModelTag.giveMotions(avatar.identifier, JSON.stringify([wave.identifier]));
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+        searchModelFiles: (xml: string) => { identifier: string }[];
+      };
+
+      const whole = privateApi.buildRoomFiles(false, true).filter((file) => file.type === MODEL_TYPE);
+      const named = privateApi.searchModelFiles(`<character modelIdentifier="${avatar.identifier}"></character>`);
+
+      expect(whole.map((file) => file.name)).toEqual(['tree.glb', 'avatar.glb', 'Wave.vrma']);
+      expect(named.map((model) => model.identifier)).toEqual([avatar.identifier, wave.identifier]);
+      ModelTag.get(avatar.identifier)?.destroy();
+    });
+
     it('writes the tags of the models it carries and who added them, for the room to read back', async () => {
       const privateApi = TestBed.inject(SaveDataService) as unknown as {
         buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];

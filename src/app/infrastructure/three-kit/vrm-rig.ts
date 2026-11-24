@@ -1,4 +1,4 @@
-import type { Object3D } from 'three';
+import type { AnimationClip, Object3D } from 'three';
 
 /**
  * A shape a VRM model is blended towards by the name it gives it, as `happy`, `blink` or `aa`: the
@@ -27,4 +27,9 @@ export interface VrmRig {
   readonly expressions: readonly VrmExpression[];
   /** Makes the swinging parts of a copy of the model, or nothing for a model with none. */
   swingingOf(copy: Object3D): SwingingParts | null;
+  /**
+   * A motion for VRM models (`.vrma`), as `readVrmMotion` read it, made into a motion of this model's
+   * own bones under a name, or null where it moves none of them.
+   */
+  motionOf(motion: unknown, name: string): AnimationClip | null;
 }

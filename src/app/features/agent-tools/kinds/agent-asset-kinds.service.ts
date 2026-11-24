@@ -880,7 +880,7 @@ export class AgentAssetKinds {
   /** A model held here in full, by id or name, as the model fields offer them. */
   private readyModel(reference: string): ModelFile {
     return findOne(
-      this.modelStorage.models.filter((model) => model.isReady),
+      this.modelStorage.drawableModels,
       reference,
       (model) => model.identifier,
       (model) => modelNameOf(model.name),

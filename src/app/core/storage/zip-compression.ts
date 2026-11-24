@@ -20,6 +20,7 @@ const PRECOMPRESSED_EXTENSIONS = [
   '.flac',
   '.glb',
   '.vrm',
+  '.vrma',
   '.webm',
   '.mp4',
   '.zip',

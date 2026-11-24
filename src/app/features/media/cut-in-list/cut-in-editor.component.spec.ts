@@ -53,7 +53,12 @@ describe('CutInEditorComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelector<E>(`[data-testid="${testId}"]`);
 
     function giveModel(motions: string[] = ['Victory']): void {
-      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({ motions, shapes: [], materials: [] });
+      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({
+        motions,
+        shapes: [],
+        materials: [],
+        vrm: false,
+      });
       cutIn.modelIdentifier = 'knight';
       TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
       fixture.detectChanges();

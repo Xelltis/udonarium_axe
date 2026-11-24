@@ -9,6 +9,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import type { ModelAct, MotionRole } from '@axe/domain/tabletop/model-motions';
 import { modelScaleOf, modelTurnOf } from '@axe/domain/tabletop/piece-model';
 import { ModelFaceFieldsComponent } from '@axe/ui/components/piece-model-fields/model-face-fields.component';
+import { ModelGivenMotionsComponent } from '@axe/ui/components/piece-model-fields/model-given-motions.component';
 import { ModelLookFieldsComponent } from '@axe/ui/components/piece-model-fields/model-look-fields.component';
 import { ModelMotionFieldsComponent } from '@axe/ui/components/piece-model-fields/model-motion-fields.component';
 import { ModelPreviewComponent } from '@axe/ui/components/piece-model-fields/model-preview.component';
@@ -45,6 +46,7 @@ const NOTHING_TRIED: Tried = { act: null, walking: false };
     TranslocoModule,
     ModelPreviewComponent,
     ModelLookFieldsComponent,
+    ModelGivenMotionsComponent,
     ModelMotionFieldsComponent,
     ModelFaceFieldsComponent,
   ],
@@ -69,8 +71,7 @@ export class PieceModelFieldsComponent {
   /** The models held here in full, by name, which may be chosen. */
   protected readonly models = computed(() => {
     this.objectChange.fileVersion();
-    return this.modelStorage.models
-      .filter((model) => model.isReady)
+    return this.modelStorage.drawableModels
       .map((model) => ({ identifier: model.identifier, name: model.name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   });

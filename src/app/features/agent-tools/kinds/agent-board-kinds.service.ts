@@ -282,7 +282,7 @@ export class AgentBoardKinds {
     const wanted = reference.trim();
     if (!wanted) return '';
     return findOne(
-      this.modelStorage.models.filter((model) => model.isReady),
+      this.modelStorage.drawableModels,
       wanted,
       (model) => model.identifier,
       (model) => model.name,

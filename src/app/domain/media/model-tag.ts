@@ -16,6 +16,11 @@ export const MODEL_TAG_ALIAS = 'model-tag';
 export class ModelTag extends ObjectNode {
   @SyncVar() modelIdentifier: string = '';
   @SyncVar() tag: string = '';
+  /**
+   * The motions for VRM models (`.vrma`) given to the model, as the identifiers they are held under,
+   * written as a JSON array; empty for none. Read through `modelMotionFilesOf` (`model-motion-files`).
+   */
+  @SyncVar() motions: string = '';
 
   /** The tag of a model, or null when the model has never been tagged. */
   static get(modelIdentifier: string): ModelTag | null {
@@ -28,6 +33,13 @@ export class ModelTag extends ObjectNode {
     object.modelIdentifier = modelIdentifier;
     object.initialize();
     return object;
+  }
+
+  /** Gives a model the motions it is to have, as they are written down, making its tag where it has none. */
+  static giveMotions(modelIdentifier: string, motions: string): ModelTag {
+    const held = ModelTag.get(modelIdentifier) ?? ModelTag.create(modelIdentifier);
+    if (held.motions !== motions) held.motions = motions;
+    return held;
   }
 
   /** Sets the tag of a model, making its tag where it has none. */

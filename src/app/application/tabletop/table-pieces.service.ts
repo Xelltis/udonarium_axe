@@ -5,6 +5,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
+import { ModelMotionFilesService } from '@axe/application/tabletop/model-motion-files.service';
 import {
   type CardLook,
   drawCard,
@@ -163,6 +164,7 @@ export class TablePiecesService {
   private readonly motions = inject(PieceMotionsService);
   private readonly reactions = inject(EffectReactionService);
   private readonly modelActs = inject(ModelActsService);
+  private readonly motionFiles = inject(ModelMotionFilesService);
   private readonly modelStorage = inject(ModelStorage);
 
   /**
@@ -196,7 +198,9 @@ export class TablePiecesService {
     },
     shown: (character) => {
       const model = pieceModelOf(character);
-      return !!model && this.modelUrlOf(model.identifier) !== '' && this.characterShown(character);
+      if (!model) return false;
+      this.motionFiles.follow(model.identifier);
+      return this.modelUrlOf(model.identifier) !== '' && this.characterShown(character);
     },
     draw: (character, place, moving, { gridSize }) => drawModel(character, place, moving, gridSize, this.modelSources),
   });

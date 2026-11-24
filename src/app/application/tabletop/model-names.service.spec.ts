@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ModelMotionFilesService } from '@axe/application/tabletop/model-motion-files.service';
 import { ModelNamesService, NO_MODEL_NAMES } from '@axe/application/tabletop/model-names.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { binaryGltf } from '@axe/testing/binary-gltf';
@@ -34,7 +35,12 @@ describe('ModelNamesService', () => {
     expect(names.namesOf('knight')).toBe(NO_MODEL_NAMES);
     await vi.waitFor(() => expect(names.namesOf('knight').motions).toEqual(['Idle', 'Slash']));
 
-    expect(names.namesOf('knight')).toEqual({ motions: ['Idle', 'Slash'], shapes: ['Blink'], materials: ['Armour'] });
+    expect(names.namesOf('knight')).toEqual({
+      motions: ['Idle', 'Slash'],
+      shapes: ['Blink'],
+      materials: ['Armour'],
+      vrm: false,
+    });
   });
 
   it('reads a model once, however often it is asked after', async () => {
@@ -67,5 +73,23 @@ describe('ModelNamesService', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(names.namesOf('junk')).toBe(NO_MODEL_NAMES);
+  });
+
+  it('names after a VRM’s own motions those it is given, and none given to a model that is no VRM', async () => {
+    const given = vi
+      .spyOn(TestBed.inject(ModelMotionFilesService), 'givenTo')
+      .mockReturnValue([{ identifier: 'wave', name: 'Wave', url: '' }]);
+    held['avatar'] = { blob: new Blob([binaryGltf({ extensionsUsed: ['VRMC_vrm'], animations: [{ name: 'Idle' }] })]) };
+    held['knight'] = { blob: knight() };
+
+    names.namesOf('avatar');
+    names.namesOf('knight');
+    await vi.waitFor(() => expect(names.namesOf('avatar').vrm).toBe(true));
+    await vi.waitFor(() => expect(names.namesOf('knight').motions).toHaveLength(2));
+
+    expect(names.namesOf('avatar').motions).toEqual(['Idle', 'Wave']);
+    expect(names.namesOf('knight').motions).toEqual(['Idle', 'Slash']);
+    expect(given).toHaveBeenCalledWith('avatar');
+    expect(given).not.toHaveBeenCalledWith('knight');
   });
 });

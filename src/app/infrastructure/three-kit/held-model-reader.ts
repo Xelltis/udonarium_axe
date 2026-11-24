@@ -16,6 +16,8 @@ const DRACO_DECODER = {
 const BASIS_TRANSCODER = `${DECODERS}basis/`;
 /** The extensions a VRM file says it uses: `VRMC_vrm` from version 1, `VRM` before it. */
 const VRM_READ: ReadonlySet<string> = new Set(['VRMC_vrm', 'VRM']);
+/** The extension a motion for VRM models (`.vrma`) says it uses. */
+const VRM_MOTION = 'VRMC_vrm_animation';
 
 /** A model read: its scene and motions, and for a VRM what it is rigged with beyond them. */
 export type ReadModel = GLTF & { readonly rig?: VrmRig };
@@ -56,6 +58,19 @@ export class HeldModelReader {
     const gltf = await this.loader.parseAsync(bytes, '');
     const rig = vrm?.readiedVrm(gltf) ?? null;
     return rig ? Object.assign(gltf, { rig }) : gltf;
+  }
+
+  /**
+   * The motion for VRM models (`.vrma`) held at a URL of bytes held here, as what reads VRMs reads
+   * it, for a VRM's rig to make over into a motion of its own bones (`VrmRig.motionOf`); null for one
+   * that is not held here or holds no such motion.
+   */
+  async readMotion(url: string): Promise<unknown> {
+    if (!isHeldModelUrl(url)) return null;
+    const bytes = await (await fetch(url)).arrayBuffer();
+    if (!gltfFactsOf(bytes)?.extensions.includes(VRM_MOTION)) return null;
+    const reading = await this.vrmReading();
+    return reading.vrmMotionIn(await this.loader.parseAsync(bytes, ''));
   }
 
   /** Lets go of the decoders it fetched. */

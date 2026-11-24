@@ -135,13 +135,25 @@ describe('gltfNamesOf', () => {
     expect(gltfNamesOf(glb(zero))?.shapes).toEqual(['happy', 'aa', 'Wink']);
   });
 
+  it('says whether the file is a VRM, of either version', () => {
+    expect(gltfNamesOf(glb({ extensionsUsed: ['VRMC_vrm'] }))?.vrm).toBe(true);
+    expect(gltfNamesOf(glb({ extensionsUsed: ['VRM'] }))?.vrm).toBe(true);
+    expect(gltfNamesOf(glb({ extensionsUsed: ['VRMC_vrm_animation'] }))?.vrm).toBe(false);
+    expect(gltfNamesOf(glb({}))?.vrm).toBe(false);
+  });
+
   it('names the materials, one with no name by where it stands among them', () => {
     const made = { materials: [{ name: 'Blade' }, {}, { name: ' ' }, { name: 'Blade' }] };
     expect(gltfNamesOf(glb(made))?.materials).toEqual(['Blade', '#1', '#2']);
   });
 
   it('names nothing of a file that holds none of them, and is null for bytes that are no model', () => {
-    expect(gltfNamesOf(glb({ asset: { version: '2.0' } }))).toEqual({ motions: [], shapes: [], materials: [] });
+    expect(gltfNamesOf(glb({ asset: { version: '2.0' } }))).toEqual({
+      motions: [],
+      shapes: [],
+      materials: [],
+      vrm: false,
+    });
     expect(gltfNamesOf(new ArrayBuffer(4))).toBeNull();
   });
 

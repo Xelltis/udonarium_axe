@@ -1,5 +1,6 @@
 import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
+import { type ModelMotionFile, modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
 import { materialLookIn, MODEL_AS_MADE, type ModelLook } from '@axe/domain/tabletop/model-look';
 import { actHolds } from '@axe/domain/tabletop/model-motion-poses';
 import { lookKeyOf, lookOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
@@ -26,6 +27,7 @@ import type { VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
+  type AnimationClip,
   Box3,
   Group,
   InstancedMesh,
@@ -469,7 +471,13 @@ export class ModelLayer {
       const key = modelReadKeyOf(model);
       let loaded = this.loaded.get(key);
       if (loaded === undefined) {
-        this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model), lookOf(model.model));
+        this.read(
+          key,
+          { url: model.url, motions: modelMotionFilesOf(model.model.identifier) },
+          isAppModel(model.model.identifier),
+          moonlitFor(model),
+          lookOf(model.model)
+        );
         loaded = this.loaded.get(key);
       }
       if (!loaded) continue;
@@ -683,9 +691,9 @@ export class ModelLayer {
    * {@link variantOf}), and one waits for the other being read. A model that comes after all read were
    * let go of is let go of as it comes.
    */
-  private read(key: string, url: string, ownGlow: boolean, moonlit: boolean, look: ModelLook): void {
+  private read(key: string, source: ModelSource, ownGlow: boolean, moonlit: boolean, look: ModelLook): void {
     if (this.loading.has(key)) return;
-    this.readUrls.set(key, url);
+    this.readUrls.set(key, `${source.url}${motionsReadOf(source.motions)}`);
     const twin = this.twinOf(key, 'loaded');
     if (twin) {
       this.loaded.set(key, this.variantOf(this.loaded.get(twin)!, moonlit, look));
@@ -695,7 +703,7 @@ export class ModelLayer {
     this.loading.add(key);
     const reading = this.reading;
     const stale = () => this.disposed || reading !== this.reading;
-    this.parse(url, ownGlow, moonlit, look, this.detail).then(
+    this.parse(source, ownGlow, moonlit, look, this.detail).then(
       (loaded) => {
         if (stale()) {
           if (loaded) letGoOfWhole(loaded);
@@ -714,15 +722,18 @@ export class ModelLayer {
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
   private async parse(
-    url: string,
+    source: ModelSource,
     ownGlow: boolean,
     moonlit: boolean,
     look: ModelLook,
     detail: ModelDetail
   ): Promise<LoadedModel | null> {
-    const read = await this.reader.read(url);
+    const read = await this.reader.read(source.url);
     if (!read) return null;
-    const gltf = { scene: read.scene, animations: read.animations };
+    const gltf = {
+      scene: read.scene,
+      animations: [...read.animations, ...(await this.givenMotions(read.rig, source))],
+    };
     const { made, worn } = madeOf(gltf.scene, materialIndexIn(read));
     const drawn = new Set<Texture>();
     const undrawn = new Set<Texture>();
@@ -736,6 +747,23 @@ export class ModelLayer {
     for (const material of worn) material.dispose();
     this.wear(gltf.scene, made, look, moonlit, ownGlow, detail);
     return { ...measured(gltf), made, ownGlow, ...(read.rig ? { rig: read.rig } : {}) };
+  }
+
+  /**
+   * The motions for VRM models given to a model, made into motions of its own bones, each under the
+   * name it is given by; none for a model that is no VRM, and none of those not held here yet, nor of
+   * those that cannot be read, which the model goes without.
+   */
+  private async givenMotions(rig: VrmRig | undefined, source: ModelSource): Promise<AnimationClip[]> {
+    if (!rig) return [];
+    const made: AnimationClip[] = [];
+    for (const motion of source.motions) {
+      if (!motion.url) continue;
+      const read = await this.reader.readMotion(motion.url).catch(() => null);
+      const clip = read ? rig.motionOf(read, motion.name) : null;
+      if (clip) made.push(clip);
+    }
+    return made;
   }
 
   /**
@@ -909,11 +937,30 @@ function moonlitFor(model: TableWorldModel): boolean {
  */
 export function modelReadKeyOf(model: TableWorldModel): string {
   const look = lookKeyOf(model.model);
-  return `${model.url}${moonlitFor(model) ? '' : PIECE_READ}${look ? `${LOOK_READ}${look}` : ''}`;
+  const motions = motionsReadOf(modelMotionFilesOf(model.model.identifier));
+  return `${model.url}${moonlitFor(model) ? '' : PIECE_READ}${look ? `${LOOK_READ}${look}` : ''}${motions}`;
+}
+
+/** Where a model's bytes are read from, and the motions for VRM models it is given. */
+interface ModelSource {
+  readonly url: string;
+  readonly motions: readonly ModelMotionFile[];
+}
+
+/**
+ * What is added to the key a model is kept by for the motions it is given, each by its identifier, its
+ * name and whether its bytes are held here, so the model is read again as they change or come in.
+ */
+function motionsReadOf(motions: readonly ModelMotionFile[]): string {
+  if (motions.length === 0) return '';
+  return `${MOTIONS_READ}${motions.map((motion) => `${motion.identifier}:${motion.name}:${motion.url ? 1 : 0}`).join(',')}`;
 }
 
 /** What is added to the key a model drawn for a piece is kept by. */
 const PIECE_READ = '#piece';
+
+/** What is added to the key a model is kept by before the motions it is given. */
+const MOTIONS_READ = '#motions=';
 /** What is added, before the look itself, to the key a model drawn another way than it was made is kept by. */
 const LOOK_READ = '#look=';
 

@@ -118,7 +118,12 @@ describe('GameCharacterMenuService', () => {
     function holdModel(motions: string[]): void {
       character.modelIdentifier = 'knight';
       vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true } as never);
-      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({ motions, shapes: [], materials: [] });
+      vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue({
+        motions,
+        shapes: [],
+        materials: [],
+        vrm: false,
+      });
     }
 
     it('offers a blow, a spell and a blow taken, and then the model’s own motions, each played for the whole room', () => {

@@ -435,12 +435,12 @@ export class FileArchiver {
   }
 
   /**
-   * Takes in a binary glTF file as a 3D model: one named `.glb` or `.vrm`, or sent as one, whose JSON can be
+   * Takes in a binary glTF file as a 3D model: one named `.glb`, `.vrm` or `.vrma` (a motion for VRM models), or sent as one, whose JSON can be
    * read. Anything else under the name is left alone, and a model that draws more triangles than a
    * model may is left out as one too large.
    */
   private async handleModel(file: File, run: LoadRun) {
-    if (file.type !== MODEL_TYPE && !/\.(glb|vrm)$/i.test(file.name)) return;
+    if (file.type !== MODEL_TYPE && !/\.(glb|vrm|vrma)$/i.test(file.name)) return;
     if (file.size > MAX_LOADED_MODEL_BYTES) {
       Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
       run.tooLarge.push({ name: file.name, kind: 'model', limitBytes: MAX_LOADED_MODEL_BYTES });

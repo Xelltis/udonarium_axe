@@ -3,6 +3,7 @@ import { ModelPortraitService } from '@axe/application/character/model-portrait.
 import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { ModelNamesService } from '@axe/application/tabletop/model-names.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import type { GltfNames } from '@axe/core/storage/gltf-names';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -72,7 +73,7 @@ describe('PieceModelFieldsComponent', () => {
   });
 
   describe('opened further', () => {
-    async function setUp(names: { motions: string[]; shapes: string[]; materials: string[] }, fights = true) {
+    async function setUp(names: GltfNames, fights = true) {
       piece.modelIdentifier = 'a'.repeat(64);
       vi.spyOn(TestBed.inject(ModelNamesService), 'namesOf').mockReturnValue(names);
       const fixture = TestBed.createComponent(PieceModelFieldsComponent);
@@ -91,7 +92,7 @@ describe('PieceModelFieldsComponent', () => {
     }
 
     it('shows nothing of the setting up, nor its preview, until it is opened', async () => {
-      const { element, open } = await setUp({ motions: ['Idle'], shapes: [], materials: ['Armour'] });
+      const { element, open } = await setUp({ motions: ['Idle'], shapes: [], materials: ['Armour'], vrm: false });
       expect(element.querySelector('model-preview')).toBeNull();
       expect(element.querySelector('model-look-fields')).toBeNull();
 
@@ -104,12 +105,22 @@ describe('PieceModelFieldsComponent', () => {
       expect(element.querySelector('model-preview')).toBeNull();
     });
 
+    it('offers the motions for VRM models to give only a VRM', async () => {
+      const plain = await setUp({ motions: [], shapes: [], materials: [], vrm: false });
+      await plain.open(true);
+      expect(plain.element.querySelector('model-given-motions')).toBeNull();
+
+      const vrm = await setUp({ motions: [], shapes: [], materials: [], vrm: true });
+      await vrm.open(true);
+      expect(vrm.element.querySelector('model-given-motions')).not.toBeNull();
+    });
+
     it('sets up the shapes only of a model that has any', async () => {
-      const without = await setUp({ motions: [], shapes: [], materials: [] });
+      const without = await setUp({ motions: [], shapes: [], materials: [], vrm: false });
       await without.open(true);
       expect(without.element.querySelector('model-face-fields')).toBeNull();
 
-      const shaped = await setUp({ motions: [], shapes: ['Blink'], materials: [] });
+      const shaped = await setUp({ motions: [], shapes: ['Blink'], materials: [], vrm: false });
       await shaped.open(true);
       expect(shaped.element.querySelector('[data-testid="model-face-blink"]')).not.toBeNull();
     });
@@ -121,7 +132,7 @@ describe('PieceModelFieldsComponent', () => {
       const picture = new Blob(['picture']);
       vi.spyOn(ModelPreviewComponent.prototype, 'picture').mockResolvedValue(picture);
       const added = vi.spyOn(TestBed.inject(ModelPortraitService), 'addShown').mockResolvedValue(true);
-      const { element, open, fixture } = await setUp({ motions: [], shapes: [], materials: [] });
+      const { element, open, fixture } = await setUp({ motions: [], shapes: [], materials: [], vrm: false });
       await open(true);
 
       element.querySelector<HTMLButtonElement>('[data-testid="piece-model-portrait"]')!.click();
@@ -138,6 +149,7 @@ describe('PieceModelFieldsComponent', () => {
         motions: [],
         shapes: [],
         materials: [],
+        vrm: false,
       });
       const fixture = TestBed.createComponent(PieceModelFieldsComponent);
       fixture.componentRef.setInput('target', block);
@@ -157,7 +169,10 @@ describe('PieceModelFieldsComponent', () => {
     });
 
     it('gives a block no motions to walk or fight in', async () => {
-      const { element, open } = await setUp({ motions: ['Idle', 'Slash'], shapes: [], materials: [] }, false);
+      const { element, open } = await setUp(
+        { motions: ['Idle', 'Slash'], shapes: [], materials: [], vrm: false },
+        false
+      );
       await open(true);
 
       expect(element.querySelector('[data-testid="piece-model-idle"]')).not.toBeNull();
@@ -165,7 +180,12 @@ describe('PieceModelFieldsComponent', () => {
     });
 
     it('has the preview try an act each time a role is tried, walk until it is tried again, and stand for standing', async () => {
-      const { element, open, fixture } = await setUp({ motions: ['Idle', 'Run', 'Slash'], shapes: [], materials: [] });
+      const { element, open, fixture } = await setUp({
+        motions: ['Idle', 'Run', 'Slash'],
+        shapes: [],
+        materials: [],
+        vrm: false,
+      });
       await open(true);
       const tried = () =>
         (

@@ -9,6 +9,8 @@ export interface GltfNames {
   readonly motions: readonly string[];
   readonly shapes: readonly string[];
   readonly materials: readonly string[];
+  /** Whether it is a VRM, which motions for VRM models (`.vrma`) can be given to. */
+  readonly vrm: boolean;
 }
 
 /**
@@ -47,7 +49,9 @@ export function gltfNamesOf(bytes: ArrayBuffer): GltfNames | null {
     const materials = (Array.isArray(json.materials) ? json.materials : []).map((material, index) =>
       materialKeyOf(material?.name, index)
     );
-    return { motions: [...new Set(motions)], shapes: [...shapes], materials: [...new Set(materials)] };
+    const used = Array.isArray(json.extensionsUsed) ? json.extensionsUsed : [];
+    const vrm = used.includes('VRMC_vrm') || used.includes('VRM');
+    return { motions: [...new Set(motions)], shapes: [...shapes], materials: [...new Set(materials)], vrm };
   } catch {
     return null;
   }

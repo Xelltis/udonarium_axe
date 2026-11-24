@@ -67,8 +67,7 @@ export class MapEditorObjectPaintComponent {
   /** The models held in the room in full, by name, which may be painted as well. */
   protected readonly roomModels = computed(() => {
     this.objectChange.fileVersion();
-    return this.modelStorage.models
-      .filter((model) => model.isReady)
+    return this.modelStorage.drawableModels
       .map((model) => ({ identifier: model.identifier, name: modelNameOf(model.name) }))
       .sort((a, b) => a.name.localeCompare(b.name));
   });

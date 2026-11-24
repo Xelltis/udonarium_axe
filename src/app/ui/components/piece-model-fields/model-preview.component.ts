@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModelMotionFilesService } from '@axe/application/tabletop/model-motion-files.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { observeSize } from '@axe/core/util/observe-size';
@@ -47,6 +48,7 @@ const ROOM_PX = 10;
 export class ModelPreviewComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly modelStorage = inject(ModelStorage);
+  private readonly motionFiles = inject(ModelMotionFilesService);
   private readonly motion = inject(MotionService);
   private readonly loadStage = inject(EFFECT_STAGE_LOADER);
 
@@ -84,6 +86,7 @@ export class ModelPreviewComponent {
     this.objectChange.versionOf(target.identifier)();
     this.objectChange.fileVersion();
     const model = pieceModelOf(target);
+    if (model) this.motionFiles.follow(model.identifier);
     const held = model ? this.modelStorage.get(model.identifier) : null;
     const { width, height } = this.size();
     if (!model || !held?.isReady || width <= ROOM_PX * 2 || height <= ROOM_PX * 2) return null;

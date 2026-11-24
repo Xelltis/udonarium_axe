@@ -1,4 +1,5 @@
 import { meshesOf } from '@axe/infrastructure/three-kit/model-faces';
+import { VrmMotionMaker } from '@axe/infrastructure/three-kit/vrm-motion';
 import type { SwingingParts, VrmExpression, VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import {
   MToonMaterialLoaderPlugin,
@@ -7,6 +8,7 @@ import {
   VRMLoaderPlugin,
   VRMUtils,
 } from '@pixiv/three-vrm';
+import { type VRMAnimation, VRMAnimationLoaderPlugin } from '@pixiv/three-vrm-animation';
 import {
   VRMSpringBoneCollider as Collider,
   type VRMSpringBoneCollider,
@@ -31,13 +33,21 @@ export function readVrmWith(loader: GLTFLoader): void {
         mtoonMaterialPlugin: new MToonMaterialLoaderPlugin(parser),
       })
   );
+  loader.register((parser: GLTFParser) => new VRMAnimationLoaderPlugin(parser));
+}
+
+/** The motion for VRM models a `.vrma` read by a loader {@link readVrmWith} readied holds, or null for one holding none. */
+export function vrmMotionIn(gltf: GLTF): VRMAnimation | null {
+  const motions = gltf.userData['vrmAnimations'] as VRMAnimation[] | undefined;
+  return motions?.[0] ?? null;
 }
 
 /**
  * Readies a VRM read for what draws it: turned to face the way every other model does, which a VRM
  * from before version 1 faces away from, its meshes and their skeletons cut down to what they use,
- * and its swinging parts taken out of the model to be made again for each copy of it. Answers what it
- * is rigged with, or nothing for a model that is no VRM.
+ * and its swinging parts taken out of the model to be made again for each copy of it; the bones are
+ * measured as they stand at rest, for motions for VRM models to be made over into motions of them.
+ * Answers what it is rigged with, or nothing for a model that is no VRM.
  */
 export function readiedVrm(gltf: GLTF): VrmRig | null {
   const vrm = gltf.userData['vrm'] as VRM | undefined;
@@ -47,9 +57,11 @@ export function readiedVrm(gltf: GLTF): VrmRig | null {
   VRMUtils.combineSkeletons(gltf.scene);
   const springs = vrm.springBoneManager ? swingingPlanOf(vrm.springBoneManager, gltf.scene) : null;
   const expressions = expressionsOf(vrm, gltf.scene);
+  const motions = new VrmMotionMaker(vrm, gltf.scene);
   return {
     expressions,
     swingingOf: (copy) => (springs ? makeSwinging(springs, copy) : null),
+    motionOf: (motion, name) => motions.motionOf(motion as VRMAnimation, name),
   };
 }
 

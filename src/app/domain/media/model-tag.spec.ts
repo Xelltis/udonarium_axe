@@ -58,4 +58,27 @@ describe('ModelTag', () => {
     expect(xml.match(/<model-tag /g)).toHaveLength(1);
     expect(xml).toContain('自然');
   });
+
+  it('comes back from a saved room with the motions the model was given, and reads one saved before motions as given none', () => {
+    const avatar = held('avatar');
+    ModelTag.giveMotions('avatar', '["wave"]');
+    const xml = ModelTagList.create([avatar]).toXml();
+    ModelTag.get('avatar')!.motions = '';
+
+    ObjectSerializer.instance.parseXml(xml);
+    expect(ModelTag.get('avatar')?.motions).toBe('["wave"]');
+
+    ObjectSerializer.instance.parseXml('<model-tag modelIdentifier="oak" tag="自然"></model-tag>');
+    expect(ModelTag.get('oak')?.motions).toBe('');
+  });
+
+  it('gives a model motions, making its tag where it has none, and keeps its tag as it was', () => {
+    ModelTag.tagWith('avatar', 'people');
+
+    const given = ModelTag.giveMotions('avatar', '["wave"]');
+
+    expect(given).toBe(ModelTag.get('avatar'));
+    expect([given.tag, given.motions]).toEqual(['people', '["wave"]']);
+    expect(ModelTag.giveMotions('statue', '["bow"]').motions).toBe('["bow"]');
+  });
 });

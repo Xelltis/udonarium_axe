@@ -1,0 +1,41 @@
+<p class="text-ui-dim m-0 text-[0.72em]">{{ 'ui.pieceModel.givenMotionsHint' | transloco }}</p>
+@for (motion of given(); track motion.identifier) {
+  <div [class]="styles.row" data-testid="model-given-motion">
+    <i class="material-icons text-ui-muted text-[14px]!" aria-hidden="true">directions_run</i>
+    <span class="text-ui-text min-w-0 flex-1 truncate text-[0.85em]" [title]="motion.name">{{ motion.name }}</span>
+    @if (!motion.url) {
+      <span class="text-ui-dim text-[0.72em]">{{ 'ui.pieceModel.givenMotionComing' | transloco }}</span>
+    }
+    @if (canGive()) {
+      <button
+        [class]="styles.button"
+        type="button"
+        data-testid="model-given-motion-take-back"
+        [attr.aria-label]="'ui.pieceModel.takeBackMotion' | transloco: { name: motion.name }"
+        [title]="'ui.pieceModel.takeBackMotion' | transloco: { name: motion.name }"
+        (click)="takeBack(motion.identifier)"
+      >
+        <i class="material-icons text-[14px]!">close</i>
+      </button>
+    }
+  </div>
+}
+@if (canGive()) {
+  @if (givable().length > 0) {
+    <select
+      [class]="styles.input"
+      data-testid="model-give-motion"
+      #giveChoice
+      [ngModel]="''"
+      (ngModelChange)="give($event)"
+      (change)="giveChoice.selectedIndex = 0"
+    >
+      <option [ngValue]="''">{{ 'ui.pieceModel.giveMotion' | transloco }}</option>
+      @for (motion of givable(); track motion.identifier) {
+        <option [ngValue]="motion.identifier">{{ motion.name }}</option>
+      }
+    </select>
+  } @else if (given().length === 0) {
+    <p class="text-ui-dim m-0 text-[0.72em]">{{ 'ui.pieceModel.noMotionFiles' | transloco }}</p>
+  }
+}

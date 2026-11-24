@@ -30,30 +30,43 @@
   </div>
 
   @if (chosenModel(); as model) {
-    <section class="flex flex-col gap-1.5" data-testid="model-library-chosen">
-      <model-stage [url]="model.url" />
-      <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-ui-text min-w-0 flex-1 truncate text-[13px] font-semibold" [appTextTooltip]="nameOf(model)">{{
+    @if (isMotion(model)) {
+      <section class="flex flex-col gap-1" data-testid="model-library-chosen-motion">
+        <span class="text-ui-text min-w-0 truncate text-[13px] font-semibold" [appTextTooltip]="nameOf(model)">{{
           nameOf(model)
         }}</span>
-        @if (canEdit()) {
-          <button
-            type="button"
-            class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
-            data-testid="model-library-put-on"
-            [disabled]="targets().length === 0"
-            [appTextTooltip]="
-              (targets().length === 0 ? 'feature.media.modelLibrary.putOnNone' : 'feature.media.modelLibrary.putOnHint')
-                | transloco
-            "
-            (click)="putOnChosen()"
+        <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.media.modelLibrary.motionHint' | transloco }}</p>
+      </section>
+    } @else {
+      <section class="flex flex-col gap-1.5" data-testid="model-library-chosen">
+        <model-stage [url]="model.url" />
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span
+            class="text-ui-text min-w-0 flex-1 truncate text-[13px] font-semibold"
+            [appTextTooltip]="nameOf(model)"
+            >{{ nameOf(model) }}</span
           >
-            <i class="material-icons">input</i>
-            {{ 'feature.media.modelLibrary.putOn' | transloco: { count: targets().length } }}
-          </button>
-        }
-      </div>
-    </section>
+          @if (canEdit()) {
+            <button
+              type="button"
+              class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
+              data-testid="model-library-put-on"
+              [disabled]="targets().length === 0"
+              [appTextTooltip]="
+                (targets().length === 0
+                  ? 'feature.media.modelLibrary.putOnNone'
+                  : 'feature.media.modelLibrary.putOnHint'
+                ) | transloco
+              "
+              (click)="putOnChosen()"
+            >
+              <i class="material-icons">input</i>
+              {{ 'feature.media.modelLibrary.putOn' | transloco: { count: targets().length } }}
+            </button>
+          }
+        </div>
+      </section>
+    }
   }
 
   @if (canEdit()) {
@@ -67,7 +80,7 @@
         type="file"
         class="hidden"
         multiple
-        accept=".glb,.vrm,model/gltf-binary"
+        accept=".glb,.vrm,.vrma,model/gltf-binary"
         data-testid="model-library-file"
         (change)="read($event)"
       />
@@ -126,12 +139,16 @@
           [class.bg-ui-accent-bg!]="checked().has(entry.model.identifier)"
           [attr.aria-pressed]="chosen() === entry.model.identifier"
           [attr.aria-label]="'feature.media.modelLibrary.show' | transloco: { name: nameOf(entry.model) }"
-          [draggable]="canEdit() && entry.model.isReady"
+          [draggable]="canEdit() && entry.model.isReady && !isMotion(entry.model)"
           data-testid="model-library-show"
           (dragstart)="startDrag($event, entry.model)"
           (click)="choose(entry.model.identifier)"
         >
-          @if (pictureOf(entry.model); as picture) {
+          @if (isMotion(entry.model)) {
+            <span class="flex size-22 items-center justify-center opacity-45" aria-hidden="true">
+              <i class="material-icons text-[30px]!">directions_run</i>
+            </span>
+          } @else if (pictureOf(entry.model); as picture) {
             <img class="block size-22 rounded-xs object-contain" [src]="picture" alt="" draggable="false" />
           } @else {
             <span class="flex size-22 items-center justify-center opacity-45" aria-hidden="true">
@@ -143,6 +160,11 @@
             [appTextTooltip]="nameOf(entry.model)"
             >{{ nameOf(entry.model) }}</span
           >
+          @if (isMotion(entry.model)) {
+            <span class="text-ui-accent text-[10px]" data-testid="model-library-motion-mark">{{
+              'feature.media.modelLibrary.motionMark' | transloco
+            }}</span>
+          }
           @if (entry.tag) {
             <span class="text-ui-dim max-w-full truncate text-[10px]">{{ entry.tag }}</span>
           }

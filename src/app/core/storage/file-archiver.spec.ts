@@ -264,18 +264,19 @@ describe('FileArchiver', () => {
       }
     });
 
-    it('takes in a binary glTF file, as a .glb or a VRM, as a 3D model, and leaves bytes under the name that are not one', async () => {
+    it('takes in a binary glTF file, as a .glb, a VRM or a motion for VRMs, as a 3D model, and leaves bytes under the name that are not one', async () => {
       const added = vi.spyOn(ModelStorage.instance, 'addAsync').mockResolvedValue(null);
 
       await FileArchiver.instance.load([
         new File([glbOf({ asset: { version: '2.0' } })], 'tree.glb'),
         new File([glbOf({ asset: { version: '2.0' }, extensionsUsed: ['VRMC_vrm'] })], 'avatar.VRM'),
+        new File([glbOf({ asset: { version: '2.0' }, extensionsUsed: ['VRMC_vrm_animation'] })], 'wave.vrma'),
         new File([new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 1, 2, 3, 4])], 'cut-short.glb'),
         new File([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])], 'fake.glb'),
         new File([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])], 'fake.vrm'),
       ]);
 
-      expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['tree.glb', 'avatar.VRM']);
+      expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['tree.glb', 'avatar.VRM', 'wave.vrma']);
     });
 
     it('leaves out a 3D model that draws more triangles than a model may, and says so', async () => {

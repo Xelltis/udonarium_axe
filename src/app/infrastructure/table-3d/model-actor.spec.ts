@@ -363,6 +363,7 @@ describe('ModelActor with a VRM', () => {
         { name: 'happy', binds: [{ mesh: 0, morph: 1, weight: 0.5 }] },
       ],
       swingingOf: () => ({ update: (seconds: number) => void swung.push(seconds), reset: () => undefined }),
+      motionOf: () => null,
     };
     const actor = new ModelActor(root, [], 'avatar', rig);
     return { actor, influences: face.morphTargetInfluences, swung };

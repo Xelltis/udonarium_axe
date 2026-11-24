@@ -88,6 +88,9 @@
         <div class="text-ui-accent border-ui-border-panel border-b border-solid pb-0.5 text-[0.72em] font-semibold">
           {{ 'ui.pieceModel.motions' | transloco }}
         </div>
+        @if (names().vrm) {
+          <model-given-motions [modelIdentifier]="fields().identifier" />
+        }
         <model-motion-fields
           [target]="target()"
           [motions]="names().motions"

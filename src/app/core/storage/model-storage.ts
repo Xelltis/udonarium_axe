@@ -1,5 +1,5 @@
 import { isBundledModel } from '@axe/core/storage/bundled-models';
-import { ModelFile, ModelFileContext, ModelState } from '@axe/core/storage/model-file';
+import { isModelMotion, ModelFile, ModelFileContext, ModelState } from '@axe/core/storage/model-file';
 import { SharedAssetStorage } from '@axe/core/storage/shared-asset-storage';
 
 /**
@@ -30,5 +30,15 @@ export class ModelStorage extends SharedAssetStorage<ModelFile, ModelFileContext
   /** Every model this seat knows of, including placeholders whose bytes have not arrived. */
   get models(): ModelFile[] {
     return this.files;
+  }
+
+  /** The models held here in full that may be drawn, as a piece or a block is: every one but the motions for VRM models. */
+  get drawableModels(): ModelFile[] {
+    return this.models.filter((model) => model.isReady && !isModelMotion(model));
+  }
+
+  /** The motions for VRM models (`.vrma`) held here in full, which a VRM may be given. */
+  get motionFiles(): ModelFile[] {
+    return this.models.filter((model) => model.isReady && isModelMotion(model));
   }
 }

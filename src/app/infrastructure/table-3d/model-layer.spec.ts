@@ -1,3 +1,6 @@
+import { ModelStorage } from '@axe/core/storage/model-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { writeModelLook } from '@axe/domain/tabletop/model-look';
 import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
 import { MADE_MOTION_MS } from '@axe/domain/tabletop/model-motion-poses';
@@ -590,11 +593,59 @@ describe('ModelLayer', () => {
 
     layer.set([knight(), knight({ owner: 'tower', kind: 'terrain' })]);
 
-    expect(read.mock.calls.map(([key, url, , moonlit]) => [key, url, moonlit])).toEqual([
+    expect(read.mock.calls.map(([key, source, , moonlit]) => [key, (source as { url: string }).url, moonlit])).toEqual([
       ['blob:knight#piece', 'blob:knight', false],
       ['blob:knight', 'blob:knight', true],
     ]);
     layer.dispose();
+  });
+
+  describe('a VRM given motions for VRM models', () => {
+    afterEach(() => {
+      for (const object of ObjectStore.instance.getObjects(ModelTag)) ObjectStore.instance.remove(object);
+      for (const model of ModelStorage.instance.models) ModelStorage.instance.delete(model.identifier);
+    });
+
+    it('plays them as motions of its own, made over for its bones, and is read again as they change', async () => {
+      const layer = new ModelLayer(
+        () => undefined,
+        () => undefined,
+        () => ({}) as WebGPURenderer
+      );
+      ModelStorage.instance.add({
+        identifier: 'wave',
+        name: 'Wave.vrma',
+        type: 'model/gltf-binary',
+        blob: new Blob([new Uint8Array([1])]),
+        url: '',
+      });
+      const before = modelReadKeyOf(knight());
+      ModelTag.giveMotions('knight-model', '["wave"]');
+      const made = new AnimationClip('Wave', 1, []);
+      const motionOf = vi.fn(() => made);
+      const internals = layer as unknown as {
+        reader: { read: (url: string) => Promise<unknown>; readMotion: (url: string) => Promise<unknown> };
+        loaded: Map<string, { gltf: { animations: AnimationClip[] } } | null>;
+      };
+      vi.spyOn(internals.reader, 'read').mockResolvedValue({
+        scene: new Group(),
+        animations: [new AnimationClip('Idle', 1, [])],
+        rig: { expressions: [], swingingOf: () => null, motionOf },
+      });
+      const readMotion = vi.spyOn(internals.reader, 'readMotion').mockResolvedValue({ motion: 'wave' });
+
+      layer.set([knight()]);
+      await vi.waitFor(() => expect(internals.loaded.get(modelReadKeyOf(knight()))).toBeTruthy());
+
+      expect(modelReadKeyOf(knight())).not.toBe(before);
+      expect(readMotion).toHaveBeenCalledWith(ModelStorage.instance.get('wave')!.url);
+      expect(motionOf).toHaveBeenCalledWith({ motion: 'wave' }, 'Wave');
+      expect(internals.loaded.get(modelReadKeyOf(knight()))!.gltf.animations.map((clip) => clip.name)).toEqual([
+        'Idle',
+        'Wave',
+      ]);
+      layer.dispose();
+    });
   });
 
   it('keeps a model drawn another way apart, making its materials afresh from what the model was made of', async () => {

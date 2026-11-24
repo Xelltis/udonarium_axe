@@ -34,6 +34,7 @@ const types = {
   flac: 'audio/flac',
   glb: 'model/gltf-binary',
   vrm: 'model/gltf-binary',
+  vrma: 'model/gltf-binary',
   mpg: 'video/mpeg',
   mpeg: 'video/mpeg',
   mp4: 'video/mp4',

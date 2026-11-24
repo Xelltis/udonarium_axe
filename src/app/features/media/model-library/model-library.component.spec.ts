@@ -16,6 +16,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 describe('ModelLibraryComponent', () => {
   const oakId = 'a'.repeat(64);
   const chairId = 'b'.repeat(64);
+  const waveId = 'c'.repeat(64);
   let fixture: ComponentFixture<ModelLibraryComponent>;
   let shown: string[];
 
@@ -59,7 +60,7 @@ describe('ModelLibraryComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    for (const identifier of [oakId, chairId]) TestBed.inject(ModelStorage).delete(identifier);
+    for (const identifier of [oakId, chairId, waveId]) TestBed.inject(ModelStorage).delete(identifier);
     for (const object of ObjectStore.instance.getObjects(ModelTag)) ObjectStore.instance.remove(object);
     for (const object of ObjectStore.instance.getObjects(GameCharacter)) ObjectStore.instance.remove(object);
   });
@@ -71,6 +72,26 @@ describe('ModelLibraryComponent', () => {
     press(host, 'model-library-tag');
 
     expect(names(host)).toEqual(['oak']);
+  });
+
+  it('marks a motion for VRM models as a motion, to be given to a VRM rather than dragged onto a piece or put on one', () => {
+    hold(waveId, 'Wave.vrma');
+    const host = open();
+    const wave = host.querySelector(`[data-model-id="${waveId}"]`)!;
+
+    expect(names(host)).toEqual(['chair', 'oak', 'Wave']);
+    expect(wave.querySelector('[data-testid="model-library-motion-mark"]')).not.toBeNull();
+    expect((wave.querySelector('[data-testid="model-library-show"]') as HTMLElement).draggable).toBe(false);
+    expect(
+      (host.querySelector(`[data-model-id="${oakId}"] [data-testid="model-library-show"]`) as HTMLElement).draggable
+    ).toBe(true);
+    expect(host.querySelector(`[data-model-id="${oakId}"] [data-testid="model-library-motion-mark"]`)).toBeNull();
+
+    (wave.querySelector('[data-testid="model-library-show"]') as HTMLElement).click();
+    fixture.detectChanges();
+
+    expect(host.querySelector('[data-testid="model-library-chosen-motion"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="model-library-put-on"]')).toBeNull();
   });
 
   it('offers no pill for a tag left empty, as one cleared or one whose tag never came', () => {

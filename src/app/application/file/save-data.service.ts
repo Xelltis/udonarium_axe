@@ -20,7 +20,7 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { MODEL_TYPE, type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
+import { isModelMotion, MODEL_TYPE, type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { createZipBlob, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -50,6 +50,7 @@ import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageLinkList } from '@axe/domain/media/image-link-list';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
+import { modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
 import { ModelTagList } from '@axe/domain/media/model-tag-list';
 import { PlaylistList } from '@axe/domain/media/playlist-list';
 import { Config } from '@axe/domain/peer/config';
@@ -386,9 +387,15 @@ export class SaveDataService {
     return [...kept.values()];
   }
 
-  /** The 3D models the pieces and blocks in some room data wear, held here in full. */
+  /**
+   * The 3D models the pieces and blocks in some room data wear, held here in full, and the motions for
+   * VRM models they are given, which go with them.
+   */
   private searchModelFiles(xml: string): ModelFile[] {
     const named = new Set([...xml.matchAll(/\bmodelIdentifier="([^"]+)"/g)].map((match) => match[1]));
+    for (const model of [...named]) {
+      for (const motion of modelMotionFilesOf(model)) named.add(motion.identifier);
+    }
     return this.modelStorage.models.filter((model) => named.has(model.identifier));
   }
 
@@ -660,7 +667,8 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
 
 /**
  * Archive files for the 3D models held here in full, each a `.glb` under the name it was added with,
- * numbered where the name is taken by another model or a file alongside.
+ * or a `.vrma` for a motion for VRM models, which is told by it as it is read back, numbered where the
+ * name is taken by another model or a file alongside.
  */
 function modelArchiveFiles(models: readonly ModelFile[], alongside: readonly File[]): File[] {
   const taken = new Set(alongside.map((file) => file.name.toLowerCase()));
@@ -668,8 +676,9 @@ function modelArchiveFiles(models: readonly ModelFile[], alongside: readonly Fil
   for (const model of models) {
     if (!model.blob) continue;
     const stem = modelNameOf(model.name).trim() || model.identifier;
-    let name = `${stem}.glb`;
-    for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).glb`;
+    const extension = isModelMotion(model) ? 'vrma' : 'glb';
+    let name = `${stem}.${extension}`;
+    for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).${extension}`;
     taken.add(name.toLowerCase());
     files.push(new File([model.blob], name, { type: MODEL_TYPE }));
   }

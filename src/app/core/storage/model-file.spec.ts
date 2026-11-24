@@ -1,4 +1,11 @@
-import { isBinaryGltf, MODEL_TYPE, ModelFile, modelNameOf, ModelState } from '@axe/core/storage/model-file';
+import {
+  isBinaryGltf,
+  isModelMotion,
+  MODEL_TYPE,
+  ModelFile,
+  modelNameOf,
+  ModelState,
+} from '@axe/core/storage/model-file';
 
 const GLB_HEAD = [0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0];
 
@@ -42,9 +49,20 @@ describe('ModelFile', () => {
 });
 
 describe('modelNameOf', () => {
-  it('names a model by the file it was added with, without its .glb or its .vrm', () => {
+  it('names a model by the file it was added with, without its .glb, its .vrm or its .vrma', () => {
     expect(modelNameOf('tree.glb')).toBe('tree');
     expect(modelNameOf('Avatar.VRM')).toBe('Avatar');
+    expect(modelNameOf('Wave.vrma')).toBe('Wave');
     expect(modelNameOf('notes.vrm.txt')).toBe('notes.vrm.txt');
+  });
+});
+
+describe('isModelMotion', () => {
+  it('tells a motion for VRM models by the .vrma it was added as, and nothing else', () => {
+    expect(isModelMotion({ name: 'Wave.vrma' })).toBe(true);
+    expect(isModelMotion({ name: 'WAVE.VRMA' })).toBe(true);
+    expect(isModelMotion({ name: 'Avatar.vrm' })).toBe(false);
+    expect(isModelMotion({ name: 'tree.glb' })).toBe(false);
+    expect(isModelMotion({ name: 'abc123' })).toBe(false);
   });
 });
