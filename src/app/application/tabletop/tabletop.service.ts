@@ -309,7 +309,8 @@ export class TabletopService {
 
   /**
    * Puts down the parts a piece was saved with as parts of it, standing where they stood against it
-   * when it was saved, wherever it was brought to. Each is brought in as the piece was, and is a part
+   * when it was saved, wherever it was brought to: each is set where the body stands already before
+   * it is put down, so it is put there as it stood rather than middle on middle. Each is brought in as the piece was, and is a part
    * of this piece alone, however many times the same file is brought in. Anything among them that is
    * no piece is left out.
    */
@@ -326,7 +327,6 @@ export class TabletopService {
       part.location.x = body.location.x + (part.location.x - saved.x);
       part.location.y = body.location.y + (part.location.y - saved.y);
       part.posZ = body.posZ + (part.posZ - saved.z);
-      // Where the body stands already, so it is put there as it stood rather than middle on middle.
       part.location.name = body.location.name;
       claimBroughtInPiece(part, userId);
       part.partyIdentifier = '';

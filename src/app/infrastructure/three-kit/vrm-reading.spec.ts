@@ -130,7 +130,6 @@ describe('readiedVrm', () => {
     (gltf.userData['vrm'] as { nodeConstraintManager?: unknown }).nodeConstraintManager = manager;
     const rig = readiedVrm(gltf)!;
     const copy = cloneSkinned(scene);
-    // What swings is made first, as a copy stood on the table has it, hanging colliders on the copy's bones.
     rig.swingingOf(copy);
     const ties = rig.tiesOf(copy)!;
     const along = (object: Object3D) =>

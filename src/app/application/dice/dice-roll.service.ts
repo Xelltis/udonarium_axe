@@ -117,11 +117,11 @@ export class DiceRollService {
   /**
    * Shows a kept die's face to everyone and plays the sound of it. Its latest throw kept back is
    * opened in the chat; where there is none to open, as for a face set by hand or a throw already
-   * opened, a notice says the face it shows. False, with nothing done, where this seat may not show it.
+   * opened, a notice says the face it shows. A sealed die's throws were told as throws alone, so its
+   * face is said whatever lines it opens. False, with nothing done, where this seat may not show it.
    */
   reveal(die: DiceSymbol): boolean {
     if (!this.canReveal(die)) return false;
-    // A sealed die's throws were told as throws alone, so its face is said whatever lines it opens.
     const sealed = die.isSealed;
     if (sealed) die.unseal();
     die.owner = '';

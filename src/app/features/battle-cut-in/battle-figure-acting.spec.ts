@@ -63,7 +63,6 @@ describe('what a fighter’s model does on the battle stage', () => {
 
     expect(acting(striking, timeline.effectStart - 1).act).toBeUndefined();
     expect(acting(fighter(), timeline.impact - 1).act).toBeUndefined();
-    // The stage held still a while: its clock comes to the blow late on the wall's, and the blow begins then.
     expect(figureActing(striking, timeline, timeline.effectStart + 16, 25_000, 3, 'attack').act?.atMs).toBe(
       25_000 - 16
     );

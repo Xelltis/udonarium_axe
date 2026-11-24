@@ -73,7 +73,6 @@ describe('sealed faces', () => {
 
   it('keeps what another tab kept when it keeps one of its own, and reads it as the other tab writes it', () => {
     keepSealedFace('die-a', '3');
-    // Another tab keeps a face of its own in the same place.
     localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-a': '3', 'die-b': '6' }));
     window.dispatchEvent(new StorageEvent('storage', { key: 'axe-sealed-dice-faces' }));
     expect(sealedFaceOf('die-b')).toBe('6');

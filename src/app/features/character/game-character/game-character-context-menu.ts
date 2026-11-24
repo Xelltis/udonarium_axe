@@ -366,8 +366,6 @@ export function buildGameCharacterContextMenuModel(
           {
             name: t('feature.character.contextMenu.modelMotion'),
             action: undefined,
-            // Made when the row is opened rather than with the menu, as the model's own motions come
-            // in once it has been read, which may be after the menu came up.
             get subActions(): ContextMenuAction[] {
               return callbacks.modelMotions!().map(({ word, label }) => ({
                 name: label,

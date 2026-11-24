@@ -170,9 +170,9 @@ describe('TooltipDirective', () => {
   });
 
   describe('a pointer moving on before the detail opens', () => {
+    /** Moves the pointer onto a target, giving the event the place on the page happy-dom leaves out of a made one. */
     function moveTo(target: Element, clientX: number, clientY: number): void {
       const move = new MouseEvent('mousemove', { clientX, clientY, bubbles: true });
-      // happy-dom gives a made event no place on the page, which is where the pointer is read from.
       Object.defineProperties(move, { pageX: { value: clientX }, pageY: { value: clientY } });
       target.dispatchEvent(move);
     }

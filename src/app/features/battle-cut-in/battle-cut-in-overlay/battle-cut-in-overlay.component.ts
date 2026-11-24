@@ -469,7 +469,8 @@ export class BattleCutInOverlayComponent {
   /**
    * The fighters drawn as their models at this moment: each where it stands, stepped in and forward
    * as its picture would be, as tall as a fighter stands, turned towards the one across, and walking
-   * and acting as the moment has it.
+   * and acting as the moment has it, its acts timed from the frame clock now, as each frame of the
+   * stage works them out again.
    */
   readonly stageFigures = computed<StageFigure[]>(() => {
     const timeline = this.timeline();
@@ -479,7 +480,6 @@ export class BattleCutInOverlayComponent {
     const step = attackerStep(elapsed, timeline);
     const blow = this.blow();
     const role = blow ? castRoleOf(blow.effectKind) : 'attack';
-    // Worked out again at each frame of the stage, as the elapsed time it reads changes with each.
     const nowMs = frameClock();
     const playing = this.serial();
     return this.views().flatMap((view) => {

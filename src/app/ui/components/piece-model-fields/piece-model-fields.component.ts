@@ -151,14 +151,17 @@ export class PieceModelFieldsComponent {
     return name ? modelNameOf(name) : '';
   }
 
-  /** Reads a model file chosen into the models held here, and gives it to the target. */
+  /**
+   * Reads a model file chosen into the models held here, and gives it to the target: the first model
+   * read to draw, as a motion for VRM models read along is held for a VRM to be given, never drawn as
+   * the piece.
+   */
   protected async read(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
     if (files.length < 1) return;
     const { models } = await this.fileArchiver.load(files);
-    // A motion for VRM models read along is held for a VRM to be given, never drawn as the piece.
     const drawn = models.find((identifier) => {
       const held = this.modelStorage.get(identifier);
       return !held || !isModelMotion(held);

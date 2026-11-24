@@ -20,7 +20,8 @@ const BLOW_APART_MS = 900;
  * What the model of each piece is asked to act now, by the piece's identifier: a blow, a spell, a
  * blow taken or its going down, as the effects this seat plays have it (see `modelActsOf`), and what
  * a piece is asked for outright: a blow taken when a number of it falls with no effect played on
- * it, and a motion somebody has its model play as a gesture. Every seat works the first out from
+ * it, and a motion somebody has its model play as a gesture, played only as asked by a seat that may
+ * change the table, as one asking from elsewhere may not. Every seat works the first out from
  * what it plays, so nothing more is sent for them, by the looks of the effects, which are loaded
  * apart from the page: until they are, no effect has a model act, as nothing of an effect is drawn
  * in the scene. A gesture is sent to every seat, to be played there once and kept nowhere. A part is drawn as its body, so what a part is asked to act its
@@ -37,7 +38,6 @@ export class ModelActsService {
   private serial = 0;
 
   constructor() {
-    // A gesture is played as asked by a seat that may change the table, as one asking from elsewhere may not.
     modelMotion$.subscribe((event) => {
       if (this.permission.canPeerEditTabletop(event.from)) this.play(event.identifier, event.motion);
     }, inject(DestroyRef));

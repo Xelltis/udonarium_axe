@@ -17,6 +17,7 @@ let held: Map<string, string> | null = null;
 let durable = true;
 let followingOtherTabs = false;
 
+/** The faces kept, as last read; what cannot be read is as if nothing were kept. */
 function faces(): Map<string, string> {
   followOtherTabs();
   if (held) return held;
@@ -29,7 +30,7 @@ function faces(): Map<string, string> {
       }
     }
   } catch {
-    // What cannot be read is as if nothing were kept.
+    held.clear();
   }
   return held;
 }

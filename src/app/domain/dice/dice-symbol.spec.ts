@@ -530,7 +530,6 @@ describe('DiceSymbol', () => {
 
     it('copies its face for a copy its keeper makes, still telling the room none', () => {
       const dice = sealedBy('me', '4');
-      // happy-dom takes no attribute with a dot in its name, so the copy is made as the XML would make it.
       vi.spyOn(GameObject.prototype, 'clone').mockImplementation(() => {
         const made = DiceSymbol.create('plot', DiceType.D6, 1);
         made.owner = 'me';

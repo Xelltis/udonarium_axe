@@ -52,7 +52,7 @@ describe('normalizeBattleScene()', () => {
     });
   });
 
-  it('reads the model a fighter is drawn as, each field as text, and none where an older version sent none or it names none', () => {
+  it('reads the model a fighter is drawn as, each field as text carried whole or not at all, and none where an older version sent none or it names none', () => {
     const modelOf = (model: unknown) =>
       normalizeBattleScene({
         key: 'k1',
@@ -74,7 +74,6 @@ describe('normalizeBattleScene()', () => {
     expect(modelOf(undefined)).toBeNull();
     expect(modelOf({ identifier: ' ' })).toBeNull();
     expect(modelOf('knight')).toBeNull();
-    // A look as long as a sheet can write it is carried whole; one longer than may be, not at all, as cut short it could not be read.
     const long = writeModelLook({
       ...MODEL_AS_MADE,
       materials: Object.fromEntries(

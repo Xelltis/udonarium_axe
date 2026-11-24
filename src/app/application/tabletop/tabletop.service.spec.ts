@@ -45,7 +45,7 @@ describe('TabletopService', () => {
     });
 
     describe('with the parts it was saved with', () => {
-      // happy-dom takes no attribute with a dot in its name, so where they stood is told by their height.
+      /** A body and its parts, where they stood told by their height alone, as happy-dom takes no attribute with a dot in its name. */
       const body = '<character posZ="5"></character>';
       const parts = () =>
         xml2element(

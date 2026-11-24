@@ -311,7 +311,6 @@ export class SaveDataService {
     const xml: string = this.convertToXml(gameObject);
 
     files.push(new File([xml], 'data.xml', { type: 'text/plain' }));
-    // A piece of many parts is saved whole, its parts beside it in a file only this version reads.
     const parts = gameObject instanceof GameCharacter ? gameObject.partsAlong() : [];
     const partsXml = parts.length > 0 ? this.partsToXml(parts) : '';
     if (partsXml) files.push(new File([partsXml], ALONG_DATA_FILE, { type: 'text/plain' }));
