@@ -72,6 +72,55 @@ test.describe('the parts of a piece', () => {
     expect(Math.abs(partAt.x - moved.x)).toBeLessThan(cell / 2);
   });
 
+  test('saves a piece with its parts from its sheet, and brings the file back in as a piece with its own parts', async ({
+    page,
+  }) => {
+    await waitAppReady(page);
+    await becomeGm(page);
+    await closePanels(page);
+
+    const part = piece(page, 'キャラクターA');
+    const body = piece(page, 'キャラクターB');
+    await settle(body);
+    await dragAndLeave(page, await spotOnPiece(body), await openGroundAt(page));
+    await settle(part);
+    await settle(body);
+    await dragAndLeave(page, await spotOnPiece(part), await centreOf(pedestal(body)));
+    await settle(part);
+    await chooseFrom(page, () => rightClickPiece(part), 'キャラクターB の部位にする');
+    await expect(body.locator('[data-body-part]')).toContainText('キャラクターA', { timeout: 5000 });
+
+    await chooseFrom(page, () => rightClickPiece(body), '詳細を表示');
+    const sheet = page.locator('game-character-sheet');
+    await expect(sheet).toBeVisible({ timeout: 10000 });
+    const downloading = page.waitForEvent('download', { timeout: 30000 });
+    await sheet.getByRole('button', { name: '保存' }).first().click();
+    const saved = await (await downloading).createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of saved) chunks.push(chunk as Buffer);
+    const zip = Buffer.concat(chunks).toString('base64');
+    await closePanels(page);
+
+    const at = await page.evaluate(() => window.__axeTable.project(18 * 50, 6 * 50, 0)!);
+    await page.evaluate(
+      ({ zip, x, y }) => {
+        const bytes = Uint8Array.from(atob(zip), (char) => char.charCodeAt(0));
+        const carried = new DataTransfer();
+        carried.items.add(new File([bytes], 'piece.zip', { type: 'application/zip' }));
+        const drop = { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer: carried };
+        document.body.dispatchEvent(new DragEvent('drop', drop));
+      },
+      { zip, ...at }
+    );
+
+    await expect(body).toHaveCount(2, { timeout: 10000 });
+    await expect(part).toHaveCount(0);
+    for (const one of await body.all()) {
+      await expect(one.locator('[data-body-part]')).toHaveCount(1, { timeout: 10000 });
+      await expect(one.locator('[data-body-part]')).toContainText('キャラクターA');
+    }
+  });
+
   test('reads the detail of a part from its row under the body, and has the row draw its buffs as the body is set to', async ({
     page,
   }) => {
