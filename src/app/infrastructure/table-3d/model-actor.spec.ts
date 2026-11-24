@@ -440,6 +440,15 @@ describe('ModelActor with a VRM', () => {
     expect(influences).toEqual([0, 0.5]);
   });
 
+  it('wants no frame once it lies where it went down by hand, its swinging come to rest', () => {
+    const { actor } = vrm();
+    actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE }) });
+    actor.perform(act('defeat', 0));
+    for (let ms = 0; ms <= 6000; ms += 100) actor.advance(at(ms, { standing: false }));
+
+    expect(actor.advance(at(6100, { standing: false }))).toBe('still');
+  });
+
   it('blinks with the shape the VRM names for blinking', () => {
     const { actor, influences } = vrm();
     actor.cast(ASKED);

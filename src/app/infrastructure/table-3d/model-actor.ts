@@ -8,6 +8,7 @@ import {
   madePoseAt,
   motionNamed,
   motionNameFor,
+  samePose,
 } from '@axe/domain/tabletop/model-motion-poses';
 import { type ModelAct, type ModelMotions, type MotionRole } from '@axe/domain/tabletop/model-motions';
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
@@ -253,7 +254,8 @@ export class ModelActor {
     }
     this.face(moment, down);
     const posed = this.madePose(moment);
-    const moved = acting || (!down && this.walking) || posed !== this.posed || (stands && this.current !== null);
+    const moved =
+      acting || (!down && this.walking) || !samePose(posed, this.posed) || (stands && this.current !== null);
     this.posed = posed;
     const swinging = this.swing(moment, step, moved);
     if (!moment.moving) return 'still';

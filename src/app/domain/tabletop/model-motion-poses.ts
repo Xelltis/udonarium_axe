@@ -96,6 +96,16 @@ export interface MadePose {
 /** A model as it stands. */
 export const MADE_REST: MadePose = Object.freeze({ lift: 0, forward: 0, pitchDeg: 0, stretch: 1 });
 
+/** Whether a model moved by hand stands alike at two moments, as one lying where it went down does. */
+export function samePose(one: MadePose, other: MadePose): boolean {
+  return (
+    one.lift === other.lift &&
+    one.forward === other.forward &&
+    one.pitchDeg === other.pitchDeg &&
+    one.stretch === other.stretch
+  );
+}
+
 /** How long each motion made by hand plays, in milliseconds: a walk for each hop, the rest once through. */
 export const MADE_MOTION_MS: Readonly<Record<Exclude<MotionRole, 'idle'>, number>> = {
   walk: 340,

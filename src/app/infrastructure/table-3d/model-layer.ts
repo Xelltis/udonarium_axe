@@ -2,7 +2,7 @@ import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
 import { type ModelMotionFile, modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
 import { materialLookIn, MODEL_AS_MADE, type ModelLook } from '@axe/domain/tabletop/model-look';
-import { actHolds } from '@axe/domain/tabletop/model-motion-poses';
+import { actHolds, samePose } from '@axe/domain/tabletop/model-motion-poses';
 import { lookKeyOf, lookOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
@@ -329,7 +329,7 @@ export class ModelLayer {
       const before = stood.pace;
       const posed = stood.actor.pose;
       stood.pace = stood.actor.advance(moment);
-      if (stood.actor.pose !== posed) this.place(stood);
+      if (!samePose(stood.actor.pose, posed)) this.place(stood);
       if (stood.pace !== 'still' || before !== 'still') this.changed = true;
       if (stood.pace === 'fast' || (stood.pace === 'slow' && fastest === 'still')) fastest = stood.pace;
       const over = stood.actor.finishedAct;

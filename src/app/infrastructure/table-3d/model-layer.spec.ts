@@ -1086,7 +1086,9 @@ describe('ModelLayer', () => {
       layer.set([knight({ act: down }), other]);
       layer.advance(MADE_MOTION_MS.defeat * 3);
       expect([apart(), together()]).toEqual([['knight'], 1]);
+      const placed = vi.spyOn(layer as unknown as { place: () => void }, 'place');
       expect(layer.advance(MADE_MOTION_MS.defeat * 4)).toBe(false);
+      expect(placed).not.toHaveBeenCalled();
 
       layer.setTurning(false);
       expect([apart(), together()]).toEqual([['knight'], 1]);
