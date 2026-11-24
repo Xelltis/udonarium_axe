@@ -16,7 +16,11 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectChatEventHandlerService', () => {
-  let castStub: { fire: ReturnType<typeof vi.fn>; candidateTargets: ReturnType<typeof vi.fn> };
+  let castStub: {
+    fire: ReturnType<typeof vi.fn>;
+    playHere: ReturnType<typeof vi.fn>;
+    candidateTargets: ReturnType<typeof vi.fn>;
+  };
   let preset: EffectPreset;
   let target: GameCharacter;
   let caster: GameCharacter;
@@ -42,9 +46,10 @@ describe('EffectChatEventHandlerService', () => {
     setPeerContextProvider({ peerContext: self, peerContexts: [self], peerIds: [self.peerId], peerId: self.peerId });
   }
 
-  function addMessage(text: string, sendFrom: string, fromSelf = true): ChatMessage {
+  function addMessage(text: string, sendFrom: string, fromSelf = true, to = ''): ChatMessage {
     const message = new ChatMessage();
     message.text = text;
+    message.to = to;
     message.sendFrom = sendFrom;
     message.from = fromSelf ? SELF_USER_ID : 'someone-else';
     message.originFrom = message.from;
@@ -55,7 +60,7 @@ describe('EffectChatEventHandlerService', () => {
   beforeEach(() => {
     fixPeerContext();
     PeerCursor.createMyCursor();
-    castStub = { fire: vi.fn(), candidateTargets: vi.fn().mockReturnValue([]) };
+    castStub = { fire: vi.fn(), playHere: vi.fn(), candidateTargets: vi.fn().mockReturnValue([]) };
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     TestBed.overrideProvider(EffectCastService, { useValue: castStub });
     TestBed.inject(EffectChatEventHandlerService);
@@ -91,6 +96,19 @@ describe('EffectChatEventHandlerService', () => {
     expect(targets).toEqual([target]);
     // It is cast by whoever spoke the line, not by whatever is selected.
     expect(firedCaster).toBe(caster);
+  });
+
+  it('plays the effect and the motion of a whispered line on this screen alone', () => {
+    const toAll = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
+    const here = vi.spyOn(TestBed.inject(ModelActsService), 'play').mockImplementation(() => undefined);
+    const message = addMessage('《動き:Attack》《爆炎》', caster.identifier, true, 'gm-user');
+
+    emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+
+    expect(castStub.fire).not.toHaveBeenCalled();
+    expect(castStub.playHere).toHaveBeenCalledWith(preset, [target], caster);
+    expect(toAll).not.toHaveBeenCalled();
+    expect(here.mock.calls).toEqual([[caster.identifier, 'Attack']]);
   });
 
   it('fires nothing from the line of a guest, who shows nothing on anybody’s table', () => {

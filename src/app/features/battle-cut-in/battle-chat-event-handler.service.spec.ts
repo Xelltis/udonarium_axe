@@ -41,9 +41,10 @@ describe('BattleChatEventHandlerService', () => {
     setPeerContextProvider({ peerContext: self, peerContexts: [self], peerIds: [self.peerId], peerId: self.peerId });
   }
 
-  function say(text: string, sendFrom: string, fromSelf = true): ChatMessage {
+  function say(text: string, sendFrom: string, fromSelf = true, to = ''): ChatMessage {
     const message = new ChatMessage();
     message.text = text;
+    message.to = to;
     message.sendFrom = sendFrom;
     message.from = fromSelf ? SELF_USER_ID : 'someone-else';
     message.originFrom = message.from;
@@ -112,6 +113,15 @@ describe('BattleChatEventHandlerService', () => {
     expect([...before.keys()]).toEqual([hero.identifier, goblin.identifier]);
     expect(launch.finishAfterChange).toHaveBeenCalledTimes(1);
     expect(launch.finish).not.toHaveBeenCalled();
+  });
+
+  it('plays for the whole room a line said to everyone, and on this screen alone one whispered', async () => {
+    say('斬りかかる《vs》', hero.identifier);
+    await played();
+    say('斬りかかる《vs》', hero.identifier, true, 'gm-user');
+    await vi.waitFor(() => expect(launch.finish).toHaveBeenCalledTimes(2));
+
+    expect(launch.finish.mock.calls.map((call) => call[1])).toEqual(['everywhere', 'here']);
   });
 
   it('plays at once a line that moves no numbers', async () => {

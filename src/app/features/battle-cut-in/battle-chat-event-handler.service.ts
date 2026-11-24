@@ -16,7 +16,8 @@ import { parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
  * named in the same line is the blow. A line that moves numbers waits for them to move, so the
  * stage shows the bars falling by what the dice said. Only the sender plays it, as the stage is
  * sent to everybody; a guest, who may not play it for everybody from the panel or a piece's menu
- * either, plays none by speaking.
+ * either, plays none by speaking. A line said to some alone, as a whisper, is played on the sender's
+ * screen alone, so that the stage shows nobody else what they were not told.
  */
 @Injectable({ providedIn: 'root' })
 export class BattleChatEventHandlerService {
@@ -47,9 +48,10 @@ export class BattleChatEventHandlerService {
         secret: lineIsSecret(message.text),
       });
       const waits = lineChangesResources(message.text, bout);
+      const audience = message.isDirect ? 'here' : 'everywhere';
       void this.launcher.load().then((launch) => {
-        if (waits) void launch?.finishAfterChange(take);
-        else launch?.finish(take);
+        if (waits) void launch?.finishAfterChange(take, audience);
+        else launch?.finish(take, audience);
       });
     }, this.destroyRef);
   }

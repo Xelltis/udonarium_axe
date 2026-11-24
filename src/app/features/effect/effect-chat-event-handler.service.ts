@@ -23,6 +23,9 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
  *
  * A token that asks for a motion, as `《動き:Wave》`, has the model of the piece that spoke play it
  * on every table, whatever else the line does; a line asks for one motion, its first.
+ *
+ * A line said to some alone, as a whisper, plays its effect and its motion on the sender's screen
+ * alone, so that the table shows nobody else what they were not told.
  */
 @Injectable({ providedIn: 'root' })
 export class EffectChatEventHandlerService {
@@ -44,7 +47,11 @@ export class EffectChatEventHandlerService {
       const aimed = (event.messageTargetContext ?? []).map((entry) => (entry as ChatMessageTargetContext).object);
       const sender = this.objectStore.get(message.sendFrom);
       const [motion] = motionsAskedIn(message.text);
-      if (motion !== undefined && sender instanceof GameCharacter) this.modelActs.playForAll(sender.identifier, motion);
+      const here = message.isDirect;
+      if (motion !== undefined && sender instanceof GameCharacter) {
+        if (here) this.modelActs.play(sender.identifier, motion);
+        else this.modelActs.playForAll(sender.identifier, motion);
+      }
       if (chatLineBout(message.text, sender, aimed, () => this.castService.candidateTargets())) return;
       const token = parseEffectChatToken(message.text);
       if (!token) return;
@@ -55,7 +62,8 @@ export class EffectChatEventHandlerService {
       const targets = this.resolveTargets(preset, event.messageTargetContext);
       if (targets.length < 1) return;
 
-      this.castService.fire(preset, targets, this.casterOf(message));
+      if (here) this.castService.playHere(preset, targets, this.casterOf(message));
+      else this.castService.fire(preset, targets, this.casterOf(message));
     }, this.destroyRef);
   }
 
