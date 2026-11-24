@@ -138,26 +138,26 @@ describe('domain-events emit→subscribe wiring', () => {
     const received: unknown[] = [];
     const unsub = modelMotion$.subscribe((event) => received.push(event));
 
-    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'Wave' });
-    localDispatch('MODEL_MOTION', { identifier: 'piece-1' });
-    localDispatch('MODEL_MOTION', { identifier: 7, motion: 'Wave' });
-    localDispatch('MODEL_MOTION', null);
-    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'x'.repeat(500) });
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'Wave' }, 'peer-a');
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1' }, 'peer-a');
+    localDispatch('MODEL_MOTION', { identifier: 7, motion: 'Wave' }, 'peer-a');
+    localDispatch('MODEL_MOTION', null, 'peer-a');
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'x'.repeat(500) }, 'peer-b');
     unsub();
 
     expect(received).toEqual([
-      { identifier: 'piece-1', motion: 'Wave' },
-      { identifier: 'piece-1', motion: 'x'.repeat(120) },
+      { identifier: 'piece-1', motion: 'Wave', from: 'peer-a' },
+      { identifier: 'piece-1', motion: 'x'.repeat(120), from: 'peer-b' },
     ]);
   });
 
-  it('tells every seat it is asked to show the dice it sealed', () => {
-    let asked = 0;
-    const unsub = revealSealedDice$.subscribe(() => asked++);
+  it('tells every seat it is asked to show the dice it sealed, and by which peer', () => {
+    const asked: unknown[] = [];
+    const unsub = revealSealedDice$.subscribe((event) => asked.push(event));
 
-    localDispatch('REVEAL_SEALED_DICE', null);
+    localDispatch('REVEAL_SEALED_DICE', null, 'peer-gm');
     unsub();
 
-    expect(asked).toBe(1);
+    expect(asked).toEqual([{ from: 'peer-gm' }]);
   });
 });

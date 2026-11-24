@@ -9,6 +9,8 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -147,11 +149,18 @@ describe('ModelActsService', () => {
     expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Wave' });
   });
 
-  it('plays a motion this seat is told of, and tells every seat of one played for all', () => {
+  it('plays a motion this seat is told of by a seat that may change the table, and tells every seat of one played for all', () => {
     const orc = piece('オーク', 0, 0);
     const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
+    const roles: Record<string, PeerRole> = { 'player-peer': PeerRole.Player, 'guest-peer': PeerRole.Guest };
+    vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId) =>
+      roles[peerId] ? ({ role: roles[peerId] } as PeerCursor) : null
+    );
 
-    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Wave' });
+    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Bow' }, 'guest-peer');
+    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Bow' }, 'nobody-peer');
+    expect(acts.acts().get(orc.identifier)).toBeUndefined();
+    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Wave' }, 'player-peer');
     expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Wave' });
 
     acts.playForAll(orc.identifier, 'Bow');

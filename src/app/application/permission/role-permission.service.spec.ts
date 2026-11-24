@@ -2,6 +2,7 @@ import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -74,5 +75,41 @@ describe('RolePermissionService', () => {
     objectChanged$.emit({ identifier: CURSOR_ID, aliasName: PeerCursor.aliasName, isSendFromSelf: true });
 
     expect(mayEdit()).toBe(false);
+  });
+
+  describe('the seat a peer sits in', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('answers for a peer by its seat’s role, and nothing for a peer with no seat here', () => {
+      const roles: Record<string, PeerRole> = {
+        gm: PeerRole.GameMaster,
+        player: PeerRole.Player,
+        guest: PeerRole.Guest,
+      };
+      vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId) =>
+        roles[peerId] ? ({ role: roles[peerId] } as PeerCursor) : null
+      );
+
+      expect(['gm', 'player', 'guest', 'nobody'].map((peer) => service.canPeerEditTabletop(peer))).toEqual([
+        true,
+        true,
+        false,
+        false,
+      ]);
+      expect(['gm', 'player', 'guest', 'nobody'].map((peer) => service.canPeerSeeHidden(peer))).toEqual([
+        true,
+        false,
+        false,
+        false,
+      ]);
+    });
+
+    it('answers for what this device sent itself by this seat’s own role, though its cursor is not found by it', () => {
+      vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue(null);
+      setMyRole(PeerRole.GameMaster);
+
+      expect(service.canPeerSeeHidden(getMyPeerId())).toBe(true);
+      expect(service.canPeerEditTabletop(getMyPeerId())).toBe(true);
+    });
   });
 });

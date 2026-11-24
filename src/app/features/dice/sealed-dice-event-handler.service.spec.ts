@@ -8,6 +8,7 @@ import { rereadSealedFaces } from '@axe/core/storage/sealed-faces';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { SealedDiceEventHandlerService } from '@axe/features/dice/sealed-dice-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -49,12 +50,20 @@ describe('SealedDiceEventHandlerService', () => {
     rereadSealedFaces();
   });
 
-  it('shows the dice this seat sealed when every seat is asked to, and leaves the rest as they are', () => {
+  it('shows the dice this seat sealed when the game master asks every seat to, and leaves the rest as they are', () => {
     const mine = die('me', true);
     const theirs = die('somebody-else', true);
     const kept = die('me', false);
+    const roles: Record<string, PeerRole> = { 'gm-peer': PeerRole.GameMaster, 'player-peer': PeerRole.Player };
+    vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId) =>
+      roles[peerId] ? ({ role: roles[peerId] } as PeerCursor) : null
+    );
 
-    localDispatch('REVEAL_SEALED_DICE', null);
+    localDispatch('REVEAL_SEALED_DICE', null, 'player-peer');
+    localDispatch('REVEAL_SEALED_DICE', null, 'nobody-peer');
+    expect(mine.isSealed).toBe(true);
+
+    localDispatch('REVEAL_SEALED_DICE', null, 'gm-peer');
 
     expect([mine.isSealed, mine.owner, mine.sentFace]).toEqual([false, '', '2']);
     expect([theirs.isSealed, theirs.owner]).toEqual([true, 'somebody-else']);

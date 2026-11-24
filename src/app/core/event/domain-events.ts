@@ -155,6 +155,13 @@ export interface ModelMotionEvent {
   motion: string;
 }
 
+/**
+ * An event as it came in, with the peer that sent it: what may only be asked by a seat of some role
+ * is acted on only once the seat that asked is found to hold it, as one asking from elsewhere may
+ * not.
+ */
+export type SentEvent<T> = T & { readonly from: string };
+
 export interface EffectCastEvent {
   cast: unknown;
 }
@@ -195,12 +202,12 @@ const MAX_MOTION_WORD = 120;
 
 export const effectCast$ = new EventChannel<EffectCastEvent>();
 /** A piece's model is asked to play a motion once, on every screen. */
-export const modelMotion$ = new EventChannel<ModelMotionEvent>();
+export const modelMotion$ = new EventChannel<SentEvent<ModelMotionEvent>>();
 export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
 /** Every screen darkens for a moment, as a scene changes under the dark. */
 export const sceneFade$ = new EventChannel<void>();
 /** Every seat is asked to show the dice it keeps sealed, whose faces only that seat's browser has. */
-export const revealSealedDice$ = new EventChannel<void>();
+export const revealSealedDice$ = new EventChannel<SentEvent<object>>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
@@ -490,14 +497,18 @@ networkMessage$.subscribe((msg) => {
     case 'MODEL_MOTION': {
       const data = msg.data as Partial<ModelMotionEvent> | null;
       if (typeof data?.identifier !== 'string' || typeof data.motion !== 'string') break;
-      modelMotion$.emit({ identifier: data.identifier, motion: data.motion.slice(0, MAX_MOTION_WORD) });
+      modelMotion$.emit({
+        identifier: data.identifier,
+        motion: data.motion.slice(0, MAX_MOTION_WORD),
+        from: msg.sendFrom,
+      });
       break;
     }
     case 'SCENE_FADE':
       sceneFade$.emit();
       break;
     case 'REVEAL_SEALED_DICE':
-      revealSealedDice$.emit();
+      revealSealedDice$.emit({ from: msg.sendFrom });
       break;
     case 'RESOURCE_CHANGE':
       resourceChange$.emit(msg.data as ResourceChangeEvent);

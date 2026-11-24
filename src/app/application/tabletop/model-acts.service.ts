@@ -1,6 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { callModelMotion, modelMotion$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -31,11 +32,15 @@ export class ModelActsService {
   private readonly objectStore = inject(ObjectStore);
   private readonly links = inject(PieceLinksService);
   private readonly sceneLooks = inject(EffectSceneLooksService);
+  private readonly permission = inject(RolePermissionService);
   private readonly asked = signal<ReadonlyMap<string, ModelAct>>(NO_ACTS);
   private serial = 0;
 
   constructor() {
-    modelMotion$.subscribe((event) => this.play(event.identifier, event.motion), inject(DestroyRef));
+    // A gesture is played as asked by a seat that may change the table, as one asking from elsewhere may not.
+    modelMotion$.subscribe((event) => {
+      if (this.permission.canPeerEditTabletop(event.from)) this.play(event.identifier, event.motion);
+    }, inject(DestroyRef));
   }
 
   readonly acts = computed<ReadonlyMap<string, ModelAct>>(
