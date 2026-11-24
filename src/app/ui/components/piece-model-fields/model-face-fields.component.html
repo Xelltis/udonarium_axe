@@ -36,7 +36,7 @@
       [attr.data-testid]="'model-face-weight-' + shape.name"
       [attr.aria-label]="shape.name"
       [ngModel]="shape.weight"
-      (ngModelChange)="hold(shape.name, $event)"
+      (change)="hold(shape.name, +$any($event.target).value)"
     />
     <span [class]="styles.value">{{ shape.weight.toFixed(2) }}</span>
     <button
@@ -93,7 +93,7 @@
       [attr.aria-label]="'ui.pieceModel.amount' | transloco"
       [title]="'ui.pieceModel.amount' | transloco"
       [ngModel]="sway.amount"
-      (ngModelChange)="changeSway($index, { amount: +$event })"
+      (change)="changeSway($index, { amount: +$any($event.target).value })"
     />
     <button
       [class]="styles.button"

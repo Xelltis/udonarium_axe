@@ -37,10 +37,12 @@ describe('ModelFaceFieldsComponent', () => {
       select.dispatchEvent(new Event('change'));
       await settle();
     };
-    const slide = async (testId: string, value: string, event = 'input') => {
+    /** Drags a slider, or types in a box, to a value, letting it go there unless told it is still held. */
+    const slide = async (testId: string, value: string, letGo = true) => {
       const input = find<HTMLInputElement>(testId)!;
       input.value = value;
-      input.dispatchEvent(new Event(event));
+      input.dispatchEvent(new Event('input'));
+      if (letGo) input.dispatchEvent(new Event('change'));
       await settle();
     };
     return { find, choose, slide, settle };
@@ -72,6 +74,8 @@ describe('ModelFaceFieldsComponent', () => {
       'Joy'
     );
 
+    await slide('model-face-weight-Joy', '0.4', false);
+    expect(modelFaceOf(piece.modelFace).weights).toEqual({ Joy: 1 });
     await slide('model-face-weight-Joy', '0.4');
     expect(modelFaceOf(piece.modelFace).weights).toEqual({ Joy: 0.4 });
 
@@ -85,7 +89,7 @@ describe('ModelFaceFieldsComponent', () => {
     await choose('model-face-add-sway', 3);
     expect(modelFaceOf(piece.modelFace).sways).toEqual([{ name: 'Angry', periodMs: 3000, amount: 1 }]);
 
-    await slide('model-face-sway-seconds-0', '1.5', 'change');
+    await slide('model-face-sway-seconds-0', '1.5');
     await slide('model-face-sway-amount-0', '0.5');
     expect(modelFaceOf(piece.modelFace).sways).toEqual([{ name: 'Angry', periodMs: 1500, amount: 0.5 }]);
 

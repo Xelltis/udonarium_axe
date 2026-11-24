@@ -27,7 +27,8 @@ const FIRST_SWAY_MS = 3000;
 /**
  * Where a piece is given what its model does with the shapes it can be blended towards: which it
  * blinks, speaks and breathes with, the expression it is held in, and the shapes it sways between
- * as it stands, which make a model with no motion of its own stand alive.
+ * as it stands, which make a model with no motion of its own stand alive. A slider is written once
+ * it is let go, not at each step of a drag, which would send the room every step.
  */
 @Component({
   selector: 'model-face-fields',

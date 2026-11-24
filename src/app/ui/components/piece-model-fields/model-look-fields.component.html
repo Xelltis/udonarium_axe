@@ -75,7 +75,7 @@
       type="color"
       data-testid="model-look-tint"
       [ngModel]="now.tint"
-      (ngModelChange)="change({ tint: $event })"
+      (change)="change({ tint: $any($event.target).value })"
     />
   }
   <label [class]="styles.check">
@@ -107,7 +107,7 @@
       step="0.01"
       data-testid="model-look-metalness"
       [ngModel]="now.metalness"
-      (ngModelChange)="number('metalness', $event)"
+      (change)="number('metalness', +$any($event.target).value)"
     />
     <span [class]="styles.value">{{ now.metalness.toFixed(2) }}</span>
   } @else {
@@ -133,7 +133,7 @@
       step="0.01"
       data-testid="model-look-roughness"
       [ngModel]="now.roughness"
-      (ngModelChange)="number('roughness', $event)"
+      (change)="number('roughness', +$any($event.target).value)"
     />
     <span [class]="styles.value">{{ now.roughness.toFixed(2) }}</span>
   } @else {
@@ -156,7 +156,7 @@
       type="color"
       data-testid="model-look-glow"
       [ngModel]="now.glow"
-      (ngModelChange)="change({ glow: $event })"
+      (change)="change({ glow: $any($event.target).value })"
     />
     <input
       class="min-w-0 flex-1"
@@ -167,7 +167,7 @@
       data-testid="model-look-glow-strength"
       [attr.aria-label]="'ui.pieceModel.glowStrength' | transloco"
       [ngModel]="now.glowStrength ?? 1"
-      (ngModelChange)="number('glowStrength', $event)"
+      (change)="number('glowStrength', +$any($event.target).value)"
     />
     <span [class]="styles.value">{{ (now.glowStrength ?? 1).toFixed(1) }}</span>
   }
@@ -182,7 +182,7 @@
     step="0.01"
     data-testid="model-look-opacity"
     [ngModel]="now.opacity ?? 1"
-    (ngModelChange)="opacity($event)"
+    (change)="opacity(+$any($event.target).value)"
   />
   <span [class]="styles.value">{{ (now.opacity ?? 1).toFixed(2) }}</span>
 </div>

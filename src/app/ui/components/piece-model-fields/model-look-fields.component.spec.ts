@@ -43,14 +43,28 @@ describe('ModelLookFieldsComponent', () => {
       box.dispatchEvent(new Event('change'));
       await settle();
     };
-    const slide = async (testId: string, value: string) => {
+    /** Drags a slider to a value, letting it go there unless told it is still held. */
+    const slide = async (testId: string, value: string, letGo = true) => {
       const input = find(testId)!;
       input.value = value;
       input.dispatchEvent(new Event('input'));
+      if (letGo) input.dispatchEvent(new Event('change'));
       await settle();
     };
     return { find, choose, tick, slide, settle };
   }
+
+  it('writes a slider only once it is let go, not at each step of the drag', async () => {
+    const { tick, slide } = await render();
+    await tick('model-look-roughness-on', true);
+    const before = piece.modelLook;
+
+    await slide('model-look-roughness', '0.9', false);
+    expect(piece.modelLook).toBe(before);
+
+    await slide('model-look-roughness', '0.9');
+    expect(piece.modelLook).toContain('"roughness":0.9');
+  });
 
   it('draws the whole model in a ready-made look chosen, and shows which it is drawn in', async () => {
     const { find, choose } = await render();

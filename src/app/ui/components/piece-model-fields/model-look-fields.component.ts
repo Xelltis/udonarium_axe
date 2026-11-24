@@ -32,7 +32,9 @@ const FIRST_GLOW = '#ffd27a';
 /**
  * Where a piece or a block is given how its model's materials are drawn: a ready-made look, the
  * finish, and what is changed of all its materials or of one of them alone, by name. Every change is
- * written to the piece at once, so the model on the table and in the preview follows it.
+ * written to the piece at once, so the model on the table and in the preview follows it; a slider or
+ * a colour once it is let go, not at each step of a drag, as each look is a copy of the model made
+ * over on every screen of the room.
  */
 @Component({
   selector: 'model-look-fields',
