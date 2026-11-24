@@ -147,16 +147,6 @@ export class DiceSymbol extends OwnedTabletopObject {
   }
 
   /**
-   * Deletes the die from the room, letting go of the face this browser kept of it, if any: deleted
-   * from another seat, or taken off this one's board alone, it is kept until it falls off the end of
-   * what the browser keeps.
-   */
-  override destroy(): void {
-    forgetSealedFace(this.identifier);
-    super.destroy();
-  }
-
-  /**
    * Lets go of the seal of a die whose face is lost to the room, as one handed to another seat or a
    * copy made where its face is not held: it stands unsealed on the face the room was told, or on its
    * first, as a die made anew does, and the face this browser kept of it, if any, is let go of. No
