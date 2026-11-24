@@ -9,6 +9,7 @@ import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -109,6 +110,24 @@ describe('EffectChatEventHandlerService', () => {
     expect(castStub.playHere).toHaveBeenCalledWith(preset, [target], caster);
     expect(toAll).not.toHaveBeenCalled();
     expect(here.mock.calls).toEqual([[caster.identifier, 'Attack']]);
+  });
+
+  it('plays the effect and the motion of a line in a tab players may not read on this screen alone', () => {
+    const toAll = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
+    const here = vi.spyOn(TestBed.inject(ModelActsService), 'play').mockImplementation(() => undefined);
+    const hidden = new ChatTab();
+    hidden.initialize();
+    hidden.plCanView = false;
+    const message = addMessage('《動き:Attack》《爆炎》', caster.identifier);
+    hidden.appendChild(message);
+
+    emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+
+    expect(castStub.fire).not.toHaveBeenCalled();
+    expect(castStub.playHere).toHaveBeenCalledOnce();
+    expect(toAll).not.toHaveBeenCalled();
+    expect(here).toHaveBeenCalledOnce();
+    hidden.destroy();
   });
 
   it('fires nothing from the line of a guest, who shows nothing on anybody’s table', () => {

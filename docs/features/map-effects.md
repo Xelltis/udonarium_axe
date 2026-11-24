@@ -20,7 +20,7 @@
 入口は次のとおり。
 
 - エフェクト集パネル（`features/effect/effect-library-panel`）。タイルを選ぶと構えに入り、確定の操作で発動する（[構えと対象の選び方](#構えと対象の選び方)）
-- チャット記法`《…》`（`domain/effect/effect-chat-token`で解析し、`features/effect/effect-chat-event-handler`が`resourceEditMessage$`で受けて発火。送信者だけが撃つのは、全員が撃つと人数ぶん重なるため。対象は`t:`と同じ、撃ち手はその行の発言者。秘話の行（`isDirect`）は`playHere`で送った人の画面だけに出す）。`《動き:名前》`はエフェクトではなく、発言者のモデルに動きを流させる（[3Dモデルの動き](models.md#動き)）
+- チャット記法`《…》`（`domain/effect/effect-chat-token`で解析し、`features/effect/effect-chat-event-handler`が`resourceEditMessage$`で受けて発火。送信者だけが撃つのは、全員が撃つと人数ぶん重なるため。対象は`t:`と同じ、撃ち手はその行の発言者。秘話の行と、プレイヤーか見学者が読めないタブの行（`lineAudienceOf`）は`playHere`で送った人の画面だけに出す）。`《動き:名前》`はエフェクトではなく、発言者のモデルに動きを流させる（[3Dモデルの動き](models.md#動き)）
 - キャラクターシートの`DataElementFieldType.EFFECT`欄（値は演出名。コマ右クリックの「演出を発動」にも並ぶ）。シートの行（`features/data-element/game-data-element`）もコマのメニュー（`features/character/game-character/game-character-menu.service`）も、名前でプリセットを引いて`EffectTargetingService.castFrom`を呼ぶ
 - ホットバーのエフェクト枠（`features/hotbar/hotbar-runner.service`。[ホットバー](pl-tools.md#ホットバー)）。動作が「発動」の枠は`castFrom`を呼ぶ。「ターゲットを無視して自分に」を入れた枠は`EffectCastService.fire`で押したコマ自身に撃ち、「設置」と「自分だけ」の枠は`castFrom`を通らない
 - スイッチの動作「エフェクト」と、踏んだら起きることの`TableTrigger.effect`（[スイッチ](map-editor.md#スイッチ)、[機能塗り](map-editor.md#機能塗りマップエディター)）。どちらもエフェクトを名前で引き（`application/media/named-cue.service`）、スイッチは押した人の発言者のコマに、罠は踏んだコマに撃つ

@@ -7,6 +7,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { chatLineBout, lineChangesResources, lineIsSecret } from '@axe/domain/battle/battle-chat-line';
 import { takeBattle } from '@axe/domain/battle/battle-take';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
+import { lineAudienceOf } from '@axe/domain/chat/line-audience';
 import { parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 
 /**
@@ -16,8 +17,9 @@ import { parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
  * named in the same line is the blow. A line that moves numbers waits for them to move, so the
  * stage shows the bars falling by what the dice said. Only the sender plays it, as the stage is
  * sent to everybody; a guest, who may not play it for everybody from the panel or a piece's menu
- * either, plays none by speaking. A line said to some alone, as a whisper, is played on the sender's
- * screen alone, so that the stage shows nobody else what they were not told.
+ * either, plays none by speaking. A line not every seat may read, as a whisper or a line in a tab for
+ * the game master alone, is played on the sender's screen alone, so that the stage shows nobody else
+ * what they were not told (see `lineAudienceOf`).
  */
 @Injectable({ providedIn: 'root' })
 export class BattleChatEventHandlerService {
@@ -48,7 +50,7 @@ export class BattleChatEventHandlerService {
         secret: lineIsSecret(message.text),
       });
       const waits = lineChangesResources(message.text, bout);
-      const audience = message.isDirect ? 'here' : 'everywhere';
+      const audience = lineAudienceOf(message) === 'everyone' ? 'everywhere' : 'here';
       void this.launcher.load().then((launch) => {
         if (waits) void launch?.finishAfterChange(take, audience);
         else launch?.finish(take, audience);

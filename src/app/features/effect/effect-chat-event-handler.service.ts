@@ -8,6 +8,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { chatLineBout } from '@axe/domain/battle/battle-chat-line';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
+import { lineAudienceOf } from '@axe/domain/chat/line-audience';
 import { motionsAskedIn, parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 
@@ -24,8 +25,9 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
  * A token that asks for a motion, as `《動き:Wave》`, has the model of the piece that spoke play it
  * on every table, whatever else the line does; a line asks for one motion, its first.
  *
- * A line said to some alone, as a whisper, plays its effect and its motion on the sender's screen
- * alone, so that the table shows nobody else what they were not told.
+ * A line not every seat may read, as a whisper or a line in a tab for the game master alone, plays
+ * its effect and its motion on the sender's screen alone, so that the table shows nobody else what
+ * they were not told (see `lineAudienceOf`).
  */
 @Injectable({ providedIn: 'root' })
 export class EffectChatEventHandlerService {
@@ -47,7 +49,7 @@ export class EffectChatEventHandlerService {
       const aimed = (event.messageTargetContext ?? []).map((entry) => (entry as ChatMessageTargetContext).object);
       const sender = this.objectStore.get(message.sendFrom);
       const [motion] = motionsAskedIn(message.text);
-      const here = message.isDirect;
+      const here = lineAudienceOf(message) !== 'everyone';
       if (motion !== undefined && sender instanceof GameCharacter) {
         if (here) this.modelActs.play(sender.identifier, motion);
         else this.modelActs.playForAll(sender.identifier, motion);

@@ -8,6 +8,7 @@ import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BattleChatEventHandlerService } from '@axe/features/battle-cut-in/battle-chat-event-handler.service';
@@ -122,6 +123,28 @@ describe('BattleChatEventHandlerService', () => {
     await vi.waitFor(() => expect(launch.finish).toHaveBeenCalledTimes(2));
 
     expect(launch.finish.mock.calls.map((call) => call[1])).toEqual(['everywhere', 'here']);
+  });
+
+  it('plays on this screen alone a line in a tab players may not read', async () => {
+    const hidden = new ChatTab();
+    hidden.initialize();
+    hidden.plCanView = false;
+    const message = new ChatMessage();
+    message.text = '斬りかかる《vs》';
+    message.sendFrom = hero.identifier;
+    message.from = SELF_USER_ID;
+    message.originFrom = message.from;
+    message.initialize();
+    hidden.appendChild(message);
+
+    emitResourceEditMessage({
+      messageIdentifier: message.identifier,
+      messageTargetContext: [{ text: '', object: goblin }],
+    });
+    await vi.waitFor(() => expect(launch.finish).toHaveBeenCalledOnce());
+
+    expect(launch.finish.mock.calls[0][1]).toBe('here');
+    hidden.destroy();
   });
 
   it('plays at once a line that moves no numbers', async () => {
