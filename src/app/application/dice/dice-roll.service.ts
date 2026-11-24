@@ -65,11 +65,12 @@ export class DiceRollService {
 
   /**
    * Whether this seat may show a kept die's face to everyone: the seat that keeps it, or the game
-   * master, though not for a sealed die, whose face only its keeper's browser has.
+   * master. A sealed die only its keeper's browser that holds its face may show, as no other has it.
    */
   canReveal(die: DiceSymbol): boolean {
     if (!die.hasOwner || !this.permission.canEditTabletop()) return false;
-    return die.isMine || (this.permission.canSeeHidden() && !die.isSealed);
+    if (die.isSealed) return die.holdsSealedFace;
+    return die.isMine || this.permission.canSeeHidden();
   }
 
   /**

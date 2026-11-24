@@ -570,6 +570,14 @@ describe('DiceRollService', () => {
       expect(notice.mock.calls[0][1] as string).toContain('6');
     });
 
+    it('lets its keeper show it only from the browser that holds its face', () => {
+      const elsewhere = sealedBy('me');
+
+      expect(service.canReveal(elsewhere)).toBe(false);
+      expect(service.reveal(elsewhere)).toBe(false);
+      expect(elsewhere.isSealed).toBe(true);
+    });
+
     it('lets the game master ask every seat to show its sealed dice, only while one is sealed', () => {
       const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
       const open = makeDice('みんなの');

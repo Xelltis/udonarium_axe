@@ -69,15 +69,24 @@ export class DiceSymbol extends OwnedTabletopObject {
   }
 
   /**
-   * Who keeps the die's face. A die handed to another seat, or to none, is unsealed, its face lost to
-   * the room: it was kept in the browser of the seat that had it alone.
+   * Who keeps the die's face. A die handed to another seat, or to none, as one brought in from a file
+   * is, is unsealed, its face lost to the room: it was kept in the browser of the seat that had it
+   * alone. It then stands on its first face, as a die made anew does.
    */
   get owner(): string {
     return this.keeper;
   }
   set owner(owner: string) {
-    if (owner !== this.keeper && this.sealed) this.sealed = false;
+    if (owner !== this.keeper && this.sealed) {
+      this.sealed = false;
+      if (!this.sentFace) this.sentFace = this.faces[0] ?? '';
+    }
     this.keeper = owner;
+  }
+
+  /** Whether this browser holds the face of a die this seat sealed: only one that does can show it. */
+  get holdsSealedFace(): boolean {
+    return this.isSealedHere && sealedFaceOf(this.identifier) !== null;
   }
 
   /** Whether the die is sealed by a seat that keeps it: what is sealed and kept by nobody tells nothing. */

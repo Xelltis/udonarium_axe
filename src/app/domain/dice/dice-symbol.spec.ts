@@ -8,6 +8,7 @@ import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { claimBroughtInPiece } from '@axe/domain/tabletop/ownership';
 
 describe('DiceSymbol', () => {
   let store: ObjectStore;
@@ -493,15 +494,38 @@ describe('DiceSymbol', () => {
       expect(sealedFaceOf(dice.identifier)).toBeNull();
     });
 
-    it('is unsealed when handed to another seat or to none, its face lost to the room', () => {
+    it('is unsealed when handed to another seat or to none, its face lost to the room, standing on its first face', () => {
       const handed = sealedBy('me', '6');
       const dropped = sealedBy('me', '6');
 
       handed.owner = 'them';
       dropped.owner = '';
 
-      expect([handed.sealed, handed.isSealed, handed.sentFace]).toEqual([false, false, '']);
-      expect([dropped.sealed, dropped.isSealed, dropped.sentFace]).toEqual([false, false, '']);
+      expect([handed.sealed, handed.isSealed, handed.sentFace]).toEqual([false, false, '1']);
+      expect([dropped.sealed, dropped.isSealed, dropped.sentFace, dropped.face]).toEqual([false, false, '1', '1']);
+    });
+
+    it('comes back from a file unsealed, on its first face, the face it was sealed with never written', () => {
+      const dice = sealedBy('me', '5');
+      const saved = ObjectSerializer.instance.toXml(dice);
+      expect(saved).not.toContain('face="5"');
+
+      claimBroughtInPiece(dice, 'me');
+
+      expect([dice.isSealed, dice.owner, dice.face]).toEqual([false, '', '1']);
+    });
+
+    it('holds its face only in the browser of the seat that sealed it', () => {
+      const dice = sealedBy('me', '5');
+      expect(dice.holdsSealedFace).toBe(true);
+
+      rereadSealedFaces();
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+
+      expect(dice.holdsSealedFace).toBe(false);
+      seat('them');
+      expect(dice.holdsSealedFace).toBe(false);
     });
 
     it('copies its face for a copy its keeper makes, still telling the room none', () => {
