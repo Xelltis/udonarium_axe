@@ -414,7 +414,7 @@ describe('CutInWindowComponent', () => {
 
     type Shown = {
       modelShown: () => boolean;
-      modelDoing: () => { act: { role: string; name?: string } | null; walking: boolean };
+      modelDoing: () => { act: { role: string; name?: string; atMs: number } | null; walking: boolean };
     };
     const shown = () => component as unknown as Shown;
 
@@ -436,7 +436,7 @@ describe('CutInWindowComponent', () => {
 
       component.startCutIn(Date.now() - 3_000);
 
-      const act = shown().modelDoing().act as { atMs: number };
+      const act = shown().modelDoing().act!;
       expect(50_000 - act.atMs).toBeGreaterThanOrEqual(3_000);
       expect(50_000 - act.atMs).toBeLessThan(3_500);
     });
