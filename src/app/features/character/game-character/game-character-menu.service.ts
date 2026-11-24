@@ -194,7 +194,7 @@ export class GameCharacterMenuService {
         onShowLightSettings: () => this.showLightSettings(char),
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
-        modelMotions: this.rolePermission.canEditTabletop() ? this.modelMotionsOf(char) : [],
+        modelMotions: this.rolePermission.canEditTabletop() ? () => this.modelMotionsOf(char) : undefined,
         onPlayModelMotion: (word) => this.modelActs.playForAll(char.identifier, word),
         onDeployDice: () => this.characterDice.deploy(char),
         onShowBattle: () =>

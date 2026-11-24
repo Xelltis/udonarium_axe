@@ -202,7 +202,7 @@ describe('buildGameCharacterContextMenu()', () => {
     it('are offered by the names handed in, each asked for by its own word', () => {
       const onPlayModelMotion = vi.fn();
       const entries = motionEntries({
-        modelMotions: [
+        modelMotions: () => [
           { word: 'attack', label: '攻撃' },
           { word: 'Wave', label: 'Wave' },
         ],
@@ -214,8 +214,24 @@ describe('buildGameCharacterContextMenu()', () => {
       expect(onPlayModelMotion).toHaveBeenCalledWith('Wave');
     });
 
+    it('take in the model’s own motions read after the menu came up, once they are opened', () => {
+      const known: { word: string; label: string }[] = [{ word: 'attack', label: '攻撃' }];
+      const menu = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), modelMotions: () => known, onPlayModelMotion: vi.fn() },
+        t
+      );
+      known.push({ word: 'Wave', label: 'Wave' });
+
+      const group = groupOf(menu, 'バフ・演出') as unknown as { name: string; subActions?: { name: string }[] }[];
+      const opened = group.find((entry) => entry.name === 'モデルの動き')!.subActions!;
+      expect(opened.map((entry) => entry.name)).toEqual(['攻撃', 'Wave']);
+    });
+
     it('are left out for a piece with none to offer, as one drawn as no model', () => {
-      expect(motionEntries({ modelMotions: [], onPlayModelMotion: vi.fn() })).toBeNull();
+      expect(motionEntries({ modelMotions: () => [], onPlayModelMotion: vi.fn() })).toBeNull();
       expect(motionEntries({})).toBeNull();
     });
   });

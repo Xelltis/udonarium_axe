@@ -49,9 +49,11 @@ export interface GameCharacterContextMenuCallbacks {
   onInvokeEffect?: (name: string) => void;
   /**
    * The motions the piece's model may be asked to play as a gesture, each by the word it is asked
-   * for by and as the menu names it; left out, or empty, for a piece drawn as no model.
+   * for by and as the menu names it, as they are known when asked; left out, or answering none, for a
+   * piece drawn as no model. Asked again when the motions are opened, as the model's own come only
+   * once it has been read.
    */
-  modelMotions?: readonly { readonly word: string; readonly label: string }[];
+  modelMotions?: () => readonly { readonly word: string; readonly label: string }[];
   onPlayModelMotion?: (word: string) => void;
   onDeployDice?: () => void;
   /** Opens the battle stage's panel on the piece, to choose what it strikes with. */
@@ -359,15 +361,19 @@ export function buildGameCharacterContextMenuModel(
           } as ContextMenuAction,
         ]
       : []),
-    ...((callbacks.modelMotions?.length ?? 0) > 0 && callbacks.onPlayModelMotion
+    ...((callbacks.modelMotions?.().length ?? 0) > 0 && callbacks.onPlayModelMotion
       ? [
           {
             name: t('feature.character.contextMenu.modelMotion'),
             action: undefined,
-            subActions: callbacks.modelMotions!.map(({ word, label }) => ({
-              name: label,
-              action: () => callbacks.onPlayModelMotion?.(word),
-            })),
+            // Made when the row is opened rather than with the menu, as the model's own motions come
+            // in once it has been read, which may be after the menu came up.
+            get subActions(): ContextMenuAction[] {
+              return callbacks.modelMotions!().map(({ word, label }) => ({
+                name: label,
+                action: () => callbacks.onPlayModelMotion?.(word),
+              }));
+            },
           } as ContextMenuAction,
         ]
       : []),
