@@ -182,6 +182,29 @@ describe('SaveDataService', () => {
       ModelTag.get(avatar.identifier)?.destroy();
     });
 
+    it('carries the model a cut-in saved on its own shows, with the motions it is given, and no model it does not name', async () => {
+      const avatar = { identifier: 'a'.repeat(64), name: 'avatar.vrm', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      const wave = { identifier: 'b'.repeat(64), name: 'Wave.vrma', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, avatar, wave] as never);
+      ModelTag.giveMotions(avatar.identifier, JSON.stringify([wave.identifier]));
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      cutIn.modelIdentifier = avatar.identifier;
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saving = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveGameObjectAsync(cutIn, 'cut');
+
+      const files = saving.mock.calls[0][0] as File[];
+      expect(files.filter((file) => file.type === MODEL_TYPE).map((file) => file.name)).toEqual([
+        'avatar.glb',
+        'Wave.vrma',
+      ]);
+      expect(await files.find((file) => file.name === 'modeltag.xml')?.text()).toContain(wave.identifier);
+      cutIn.destroy();
+      ModelTag.get(avatar.identifier)?.destroy();
+    });
+
     it('writes the tags of the models it carries and who added them, for the room to read back', async () => {
       const privateApi = TestBed.inject(SaveDataService) as unknown as {
         buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];

@@ -263,11 +263,11 @@ export class SaveDataService {
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     if (everything) files.push(...audioArchiveFiles(audios, files));
-    const namedModels = everything ? this.modelStorage.models : this.searchModelFiles(roomXml);
-    const models = namedModels.filter((model) => !isBundledModel(model.identifier));
-    files.push(...modelArchiveFiles(models, files));
-    const modelTagXml = this.convertToXml(ModelTagList.create(namedModels), pretty);
-    files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
+    const models = this.carryModels(
+      everything ? this.modelStorage.models : this.searchModelFiles(roomXml),
+      files,
+      pretty
+    );
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     const playlistXml = this.convertToXml(new PlaylistList(), pretty);
@@ -275,6 +275,19 @@ export class SaveDataService {
     files.push(...this.roomRightsFiles([...images, ...audios, ...models], pretty));
 
     return files;
+  }
+
+  /**
+   * Adds to the files of a save the 3D models it names, and the tags of them, as the motions a VRM
+   * is given: every one but those bundled with the app, which every seat has beside its own page.
+   * Answers the models whose files were added.
+   */
+  private carryModels(named: readonly ModelFile[], files: File[], pretty: boolean): ModelFile[] {
+    const models = named.filter((model) => !isBundledModel(model.identifier));
+    files.push(...modelArchiveFiles(models, files));
+    const modelTagXml = this.convertToXml(ModelTagList.create(named), pretty);
+    files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
+    return models;
   }
 
   /** The pictures named, with every other picture this browser holds in full. */
@@ -288,7 +301,7 @@ export class SaveDataService {
 
   /**
    * Saves one object, such as a character, table or chat tab, as a zip download with the pictures
-   * it refers to. A character is saved with the parts that stand with it, beside it in `parts.xml`,
+   * and the 3D models it refers to. A character is saved with the parts that stand with it, beside it in `parts.xml`,
    * which a version that knows nothing of parts leaves unread.
    *
    * The file is named with a timestamp and progress is reported as a percentage. Queued with the
@@ -324,6 +337,7 @@ export class SaveDataService {
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
     const imageLinkXml = this.convertToXml(ImageLinkList.create(images));
     files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
+    this.carryModels(this.searchModelFiles(xml + partsXml), files, true);
 
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }

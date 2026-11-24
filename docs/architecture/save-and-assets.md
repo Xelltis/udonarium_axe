@@ -24,12 +24,12 @@
 
 入れる物は保存の種類で変わる。
 
-| 保存                                                                | 入れる物                                                               |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| 部屋の保存（`saveRoomAsync`）と自動保存（`createRoomArchiveAsync`） | 上の表の全部。画像とモデルは部屋が指す物だけで、音声はバイトを入れない |
-| 開始時の部屋（`createWholeRoomArchiveAsync`）                       | 上に加えて、手元にバイトのある画像・音声・モデルの全部                 |
-| 1つの物の保存（`saveGameObjectAsync`）                              | `data.xml`とその物が指す画像、`imagetag.xml`・`imagelink.xml`          |
-| リプレイの素材（`buildAssetFiles`）                                 | 画像と音声、`imagetag.xml`・`audiotag.xml`                             |
+| 保存                                                                | 入れる物                                                                                                |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 部屋の保存（`saveRoomAsync`）と自動保存（`createRoomArchiveAsync`） | 上の表の全部。画像とモデルは部屋が指す物だけで、音声はバイトを入れない                                  |
+| 開始時の部屋（`createWholeRoomArchiveAsync`）                       | 上に加えて、手元にバイトのある画像・音声・モデルの全部                                                  |
+| 1つの物の保存（`saveGameObjectAsync`）                              | `data.xml`とその物が指す画像・3Dモデル（足した動きも）、`imagetag.xml`・`imagelink.xml`・`modeltag.xml` |
+| リプレイの素材（`buildAssetFiles`）                                 | 画像と音声、`imagetag.xml`・`audiotag.xml`                                                              |
 
 `assetowner.xml`と`imagelock.xml`を部屋の保存にだけ入れるのは、1つの物の保存が別の部屋へ持ち込まれ、その部屋の持ち主と鍵を上書きするためである。
 
