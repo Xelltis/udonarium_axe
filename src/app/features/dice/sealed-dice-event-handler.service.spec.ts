@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { localDispatch } from '@axe/core/network/network-messaging';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
-import { localDispatch } from '@axe/core/network/network-messaging';
 import { rereadSealedFaces } from '@axe/core/storage/sealed-faces';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
