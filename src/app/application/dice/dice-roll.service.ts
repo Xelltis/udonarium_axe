@@ -60,6 +60,14 @@ export class DiceRollService {
   }
 
   /**
+   * Whether a die may be turned to a face told to others, as a roll in chat says it: one this seat may
+   * turn, but no sealed die, whose face is to be one nobody else knows.
+   */
+  takesToldFace(die: DiceSymbol): boolean {
+    return this.canTurn(die) && !die.isSealed;
+  }
+
+  /**
    * Whether this seat may change a die short of turning it, hiding or showing its name and changing it
    * on its sheet: a seat that may change the table, for a die whose face it may read, the game master's
    * reading of another seat's kept die included.
