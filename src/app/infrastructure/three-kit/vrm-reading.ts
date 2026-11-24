@@ -4,8 +4,8 @@ import type { SwingingParts, TiedParts, VrmExpression, VrmRig } from '@axe/infra
 import {
   MToonMaterialLoaderPlugin,
   type VRM,
-  VRMExpressionMorphTargetBind,
   VRMAimConstraint,
+  VRMExpressionMorphTargetBind,
   VRMLoaderPlugin,
   type VRMNodeConstraint,
   VRMNodeConstraintManager,
