@@ -277,6 +277,12 @@ describe('chat-rich-text', () => {
       ]);
     });
 
+    it('leaves a token asking a model for a motion as the text it was written with, not an effect', () => {
+      const [line] = parseChatRichText('《動き:Wave》手を振る 《爆炎》').lines;
+      expect(line.segments.map((segment) => segment.kind)).toEqual(['text', 'effect']);
+      expect(line.segments[0]).toMatchObject({ kind: 'text', text: '《動き:Wave》手を振る ' });
+    });
+
     it('reads a stamp put inside the line as a chip, with its identifier and name', () => {
       const [line] = parseChatRichText('了解［了解:seal:ok］です').lines;
       expect(line.segments).toEqual([
