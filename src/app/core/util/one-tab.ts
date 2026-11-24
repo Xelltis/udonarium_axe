@@ -1,9 +1,11 @@
+import { Logger } from '@axe/core/logging/logger';
+
 /**
  * Runs what every tab of the page in this browser is asked to do at once in one of them alone: the
  * first to come takes the browser's lock of that name and keeps it a while after, as the others are
  * told of the same asking a moment apart, and any that comes while it is kept does nothing. It is
- * kept so long whether the task ran through or not. Where the browser has no locks, or refuses to
- * lend this page one, every tab runs it.
+ * kept so long whether the task ran through or not, and what it threw is logged. Where the browser
+ * has no locks, or refuses to lend this page one, every tab runs it.
  */
 export function inOneTab(
   name: string,
@@ -26,8 +28,9 @@ export function inOneTab(
         await new Promise<void>((resolve) => setTimeout(resolve, keptMs));
       }
     })
-    .catch(() => {
-      if (!ran) task();
+    .catch((reason: unknown) => {
+      if (ran) Logger.error(`[inOneTab] ${name}`, reason);
+      else task();
     });
 }
 

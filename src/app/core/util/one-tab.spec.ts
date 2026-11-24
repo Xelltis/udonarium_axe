@@ -1,3 +1,4 @@
+import { Logger } from '@axe/core/logging/logger';
 import { inOneTab } from '@axe/core/util/one-tab';
 
 /** A browser's locks shared by its tabs, as far as a lock asked for if it is free goes. */
@@ -18,7 +19,10 @@ function sharedLocks(): LockManager {
 }
 
 describe('inOneTab', () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('runs in the first tab to come alone, while it keeps the lock, and in a tab coming after it lets go', async () => {
     vi.useFakeTimers();
@@ -40,6 +44,7 @@ describe('inOneTab', () => {
     vi.useFakeTimers();
     const locks = sharedLocks();
     const ran: string[] = [];
+    const logged = vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
 
     inOneTab(
       'reveal',
@@ -61,6 +66,7 @@ describe('inOneTab', () => {
     await vi.advanceTimersByTimeAsync(2000);
 
     expect(ran).toEqual(['a', 'c']);
+    expect(logged).toHaveBeenCalledWith('[inOneTab] reveal', expect.objectContaining({ message: 'part-way' }));
   });
 
   it('runs in every tab where the browser has no locks', () => {
