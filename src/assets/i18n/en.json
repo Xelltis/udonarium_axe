@@ -1448,6 +1448,7 @@
         "showDice": "Reveal dice",
         "showSelfOnly": "Show to self only",
         "sealSelfOnly": "Only I can see (hide from the GM too)",
+        "giveUpSeal": "Unseal (the face is not on this device and is lost)",
         "revealSealed": "Reveal all sealed dice",
         "setFace": "Set face",
         "owner": "Give to a piece",

@@ -1448,6 +1448,7 @@
         "showDice": "ダイスを公開",
         "showSelfOnly": "自分だけ見る",
         "sealSelfOnly": "自分だけ見る（GMにも隠す）",
+        "giveUpSeal": "伏せを解く（目はこの端末になく、失われます）",
         "revealSealed": "伏せたダイスを一斉に公開",
         "setFace": "ダイス目を設定",
         "owner": "コマに持たせる",

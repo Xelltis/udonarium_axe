@@ -570,12 +570,23 @@ describe('DiceRollService', () => {
       expect(notice.mock.calls[0][1] as string).toContain('6');
     });
 
-    it('lets its keeper show it only from the browser that holds its face', () => {
+    it('lets its keeper show it only from the browser that holds its face, and give the seal up from any other', () => {
       const elsewhere = sealedBy('me');
+      const here = makeDice('みんなの');
+      service.seal(here);
+      const theirs = sealedBy('somebody-else');
 
       expect(service.canReveal(elsewhere)).toBe(false);
       expect(service.reveal(elsewhere)).toBe(false);
-      expect(elsewhere.isSealed).toBe(true);
+      expect([service.canGiveUpSeal(elsewhere), service.canGiveUpSeal(here), service.canGiveUpSeal(theirs)]).toEqual([
+        true,
+        false,
+        false,
+      ]);
+
+      expect(service.giveUpSeal(elsewhere)).toBe(true);
+      expect([elsewhere.isSealed, elsewhere.owner, elsewhere.sentFace]).toEqual([false, '', '1']);
+      expect(service.giveUpSeal(theirs)).toBe(false);
     });
 
     it('lets the game master ask every seat to show its sealed dice, only while one is sealed', () => {

@@ -24,12 +24,14 @@ export type DiceFaceRules = Pick<
   | 'canKeep'
   | 'canSeal'
   | 'canAskToRevealSealed'
+  | 'canGiveUpSeal'
   | 'setFace'
   | 'setNameHidden'
   | 'reveal'
   | 'keep'
   | 'seal'
   | 'askToRevealSealed'
+  | 'giveUpSeal'
 >;
 
 /**
@@ -81,6 +83,13 @@ export function buildDiceSymbolContextMenu(
     actions.push({
       name: t('feature.dice.contextMenu.showSelfOnly'),
       action: () => dice.keep(diceSymbol),
+    });
+  }
+
+  if (dice.canGiveUpSeal(diceSymbol)) {
+    actions.push({
+      name: t('feature.dice.contextMenu.giveUpSeal'),
+      action: () => dice.giveUpSeal(diceSymbol),
     });
   }
 

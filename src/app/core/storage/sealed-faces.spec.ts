@@ -61,12 +61,31 @@ describe('sealed faces', () => {
     expect(sealedFaceOf('die-b')).toBeNull();
   });
 
-  it('holds the face while the page is open where the browser refuses to keep it', () => {
+  it('holds the faces while the page is open where the browser refuses to keep them', () => {
     refuseLocalStorage();
     rereadSealedFaces();
 
     keepSealedFace('die-a', '3');
+    keepSealedFace('die-b', '5');
 
-    expect(sealedFaceOf('die-a')).toBe('3');
+    expect([sealedFaceOf('die-a'), sealedFaceOf('die-b')]).toEqual(['3', '5']);
+  });
+
+  it('keeps what another tab kept when it keeps one of its own, and reads it as the other tab writes it', () => {
+    keepSealedFace('die-a', '3');
+    // Another tab keeps a face of its own in the same place.
+    localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-a': '3', 'die-b': '6' }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'axe-sealed-dice-faces' }));
+    expect(sealedFaceOf('die-b')).toBe('6');
+
+    localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-a': '3', 'die-b': '6', 'die-c': '1' }));
+    keepSealedFace('die-d', '2');
+
+    expect(JSON.parse(localStorage.getItem('axe-sealed-dice-faces')!)).toEqual({
+      'die-a': '3',
+      'die-b': '6',
+      'die-c': '1',
+      'die-d': '2',
+    });
   });
 });

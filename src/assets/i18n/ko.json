@@ -1448,6 +1448,7 @@
         "showDice": "주사위 공개",
         "showSelfOnly": "나만 보기",
         "sealSelfOnly": "나만 보기 (GM에게도 숨기기)",
+        "giveUpSeal": "숨김 풀기 (눈이 이 기기에 없어 사라집니다)",
         "revealSealed": "숨긴 주사위를 한꺼번에 공개",
         "setFace": "주사위 눈 설정",
         "owner": "말에게 맡기기",

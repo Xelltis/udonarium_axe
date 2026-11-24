@@ -151,6 +151,27 @@ export class DiceRollService {
     return true;
   }
 
+  /**
+   * Whether this seat may give up the seal of a die it keeps from a browser that does not hold its
+   * face, as another device or a browser whose site data was cleared: the face is lost, as nobody has
+   * it here to show.
+   */
+  canGiveUpSeal(die: DiceSymbol): boolean {
+    return this.permission.canEditTabletop() && die.isSealed && die.isMine && !die.holdsSealedFace;
+  }
+
+  /**
+   * Gives up the seal of a die this seat keeps whose face this browser does not hold, as
+   * {@link canGiveUpSeal} allows: it is let go of to nobody, standing on its first face, as the seal
+   * is let go of whenever a die changes hands. False, with nothing done, where this seat may not.
+   */
+  giveUpSeal(die: DiceSymbol): boolean {
+    if (!this.canGiveUpSeal(die)) return false;
+    die.owner = '';
+    SoundEffect.play(PresetSound.unlock);
+    return true;
+  }
+
   /** Asks every seat, this one included, to show the dice it has sealed. False, with nothing asked, where this seat may not. */
   askToRevealSealed(dice: readonly DiceSymbol[]): boolean {
     if (!this.canAskToRevealSealed(dice)) return false;

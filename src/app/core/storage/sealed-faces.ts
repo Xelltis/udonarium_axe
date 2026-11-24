@@ -8,11 +8,17 @@ export const MOST_SEALED_FACES = 500;
 /**
  * The faces of the dice this browser's seat keeps from everyone, the game master included, by the
  * identifier of each die. They are kept nowhere but here, written down in this browser so they last
- * a reload, and held in memory where the browser refuses to write them.
+ * a reload, and held in memory where the browser refuses to write them. Another tab of the page
+ * keeps its own in the same place: what it writes is read again here as it comes, and what is
+ * written here is written over what is there now, so neither tab's faces are lost to the other's.
  */
 let held: Map<string, string> | null = null;
+/** Whether the browser keeps what is written, as one blocking site data does not: only then is it read again. */
+let durable = true;
+let followingOtherTabs = false;
 
 function faces(): Map<string, string> {
+  followOtherTabs();
   if (held) return held;
   held = new Map();
   try {
@@ -28,10 +34,25 @@ function faces(): Map<string, string> {
   return held;
 }
 
+/** The faces as they are kept now, read again where the browser keeps them, for a change to be written over. */
+function current(): Map<string, string> {
+  if (durable) held = null;
+  return faces();
+}
+
 function written(): void {
   const kept = [...faces()].slice(-MOST_SEALED_FACES);
   held = new Map(kept);
-  writeLocal(SEALED_FACES_KEY, kept.length > 0 ? JSON.stringify(Object.fromEntries(kept)) : null);
+  durable = writeLocal(SEALED_FACES_KEY, kept.length > 0 ? JSON.stringify(Object.fromEntries(kept)) : null);
+}
+
+/** Reads the faces again once another tab has written them. */
+function followOtherTabs(): void {
+  if (followingOtherTabs || typeof window === 'undefined') return;
+  followingOtherTabs = true;
+  window.addEventListener('storage', (event) => {
+    if (event.key === SEALED_FACES_KEY || event.key === null) held = null;
+  });
 }
 
 /** The face this browser keeps for a die, or null where it keeps none. */
@@ -41,7 +62,7 @@ export function sealedFaceOf(identifier: string): string | null {
 
 /** Keeps the face of a die in this browser alone, as the latest kept. */
 export function keepSealedFace(identifier: string, face: string): void {
-  const kept = faces();
+  const kept = current();
   kept.delete(identifier);
   kept.set(identifier, face);
   written();
@@ -49,11 +70,12 @@ export function keepSealedFace(identifier: string, face: string): void {
 
 /** Lets go of the face this browser kept for a die. */
 export function forgetSealedFace(identifier: string): void {
-  if (!faces().delete(identifier)) return;
+  if (!current().delete(identifier)) return;
   written();
 }
 
 /** Forgets what was read from the browser, so the next question reads it afresh, as a page loaded anew does. */
 export function rereadSealedFaces(): void {
   held = null;
+  durable = true;
 }
