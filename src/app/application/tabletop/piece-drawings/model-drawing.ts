@@ -1,6 +1,7 @@
 import type { DrawnPlace } from '@axe/application/tabletop/piece-drawings/piece-drawing';
 import type { GameCharacter } from '@axe/domain/character/game-character';
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
+import type { ModelMotionFile } from '@axe/domain/media/model-motion-files';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { characterModelBox, type TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 
@@ -8,6 +9,8 @@ import { characterModelBox, type TableWorldModel } from '@axe/domain/tabletop/wo
 export interface ModelSources {
   /** Where the bytes of a model held here in full are read from, or nothing for one not held. */
   modelUrlOf(identifier: string): string;
+  /** The motions for VRM models a model is given, which are part of how it is read. */
+  motionsOf(identifier: string): readonly ModelMotionFile[];
   /** What the parts of a piece stand for of its model, put on what it is drawn with only where any is painted. */
   partFacesOf(character: GameCharacter): Pick<TableWorldModel, 'ownCopy' | 'cutFaces'>;
 }
@@ -38,6 +41,7 @@ export function drawModel(
       kind: character.aliasName,
       url,
       model,
+      motions: from.motionsOf(model.identifier),
       foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
       footprintPx: box.widthPx,
       heightPx: box.heightPx,

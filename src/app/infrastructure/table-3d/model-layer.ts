@@ -479,7 +479,7 @@ export class ModelLayer {
       if (loaded === undefined) {
         this.read(
           key,
-          { url: model.url, motions: modelMotionFilesOf(model.model.identifier) },
+          { url: model.url, motions: motionsOfModel(model) },
           isAppModel(model.model.identifier),
           moonlitFor(model),
           lookOf(model.model)
@@ -948,13 +948,21 @@ function moonlitFor(model: TableWorldModel): boolean {
 }
 
 /**
+ * The motions for VRM models a model laid is given: as the list of models carries them, or, for one
+ * that carries none, as a figure on a stage, as they are now.
+ */
+function motionsOfModel(model: TableWorldModel): readonly ModelMotionFile[] {
+  return model.motions ?? modelMotionFilesOf(model.model.identifier);
+}
+
+/**
  * What a read model is kept by: where its bytes are, for a piece apart from a block, since the two
  * are made over differently for the moonlight (see `moonlitFor`) and one model may be drawn as both,
  * and by how its piece has its materials drawn, where that is not as it was made.
  */
 export function modelReadKeyOf(model: TableWorldModel): string {
   const look = lookKeyOf(model.model);
-  const motions = motionsReadOf(modelMotionFilesOf(model.model.identifier));
+  const motions = motionsReadOf(motionsOfModel(model));
   return `${model.url}${moonlitFor(model) ? '' : PIECE_READ}${look ? `${LOOK_READ}${look}` : ''}${motions}`;
 }
 

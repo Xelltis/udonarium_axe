@@ -1,3 +1,4 @@
+import type { ModelMotionFile } from '@axe/domain/media/model-motion-files';
 import type { ModelAct } from '@axe/domain/tabletop/model-motions';
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
@@ -17,6 +18,12 @@ export interface TableWorldModel {
   /** Where the model's bytes are read from: an object URL for bytes held here. */
   readonly url: string;
   readonly model: PieceModel;
+  /**
+   * The motions for VRM models its model is given, as the list of models was made, which are part of
+   * how it is read: a change of them is a change of the list. Left out, as for a figure on a stage,
+   * they are read where the list is taken in.
+   */
+  readonly motions?: readonly ModelMotionFile[];
   readonly foot: { readonly x: number; readonly y: number; readonly z: number };
   readonly footprintPx: number;
   /** How tall the box is that the model is fitted inside, in table pixels. */

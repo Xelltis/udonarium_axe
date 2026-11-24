@@ -42,7 +42,7 @@
 - **制約** — VRoidのVRMは、袖や手足のひねりを、腕と脚に制約（VRMC_node_constraint）で結んだ骨で動かす。制約は読み込むときに作り方を控え、揺れ物と同じくコマの複製ごとに作り直し、動きが骨を動かしたフレームごとに、揺れ物より先に計算する。揺れ物の当たりを複製に足すと物の並びが変わるので、どちらも複製の骨を名前で探す（名前が一意でなければ並びの番号で）
 - **MToon** — VRMのMToonの素材はアニメ調の仕上げで描き、輪郭線は描かない。ライブラリのWebGPU向けのMToonは、使っているthree.jsの版では組めないため
 - **ファイルの大きさ** — VRoidで書き出したVRMは10MBを超えることが多い。書き出すときに絵の解像度を下げる
-- **VRMアニメーション（.vrma）** — VRMはTポーズで作る規格で、立ち姿や動きを持たない。動きは.vrmaを読み込み、VRMに足して与える。.vrmaは名前の拡張子で見分け（`isModelMotion`）、モデルの選択肢から外す（`ModelStorage.drawableModels`）。足した動きはモデルのタグのSyncVar`ModelTag.motions`（識別子のJSON配列、24個まで）に置き、そのVRMを使う全部のコマに効く。解決は`domain/media/model-motion-files`の1か所で、名前は`ModelNamesService`がモデル自身の動きの後ろに並べる。読み込むとき、`@pixiv/three-vrm-animation`が出す正規化の骨の回転を、VRMの生の骨の回転へ一度だけ焼き直す（raw = P⁻¹·q·P·B、腰の位置は親の行列の逆で。`infrastructure/three-kit/vrm-motion`）。生の骨の名前を指すクリップになるので、コマごとの複製と`ModelActor`がそのまま使える。足した動きは読み込みの鍵に入り、足し外しやファイルの到着で読み直す。.vrmaの表情と視線のトラックは当てない。部屋の保存は、名指しされたモデルに足した動きのファイルも`.vrma`で入れる。古い部屋には`motions`が無く、今と同じに読む
+- **VRMアニメーション（.vrma）** — VRMはTポーズで作る規格で、立ち姿や動きを持たない。動きは.vrmaを読み込み、VRMに足して与える。.vrmaは名前の拡張子で見分け（`isModelMotion`）、モデルの選択肢から外す（`ModelStorage.drawableModels`）。足した動きはモデルのタグのSyncVar`ModelTag.motions`（識別子のJSON配列、24個まで）に置き、そのVRMを使う全部のコマに効く。解決は`domain/media/model-motion-files`の1か所で、名前は`ModelNamesService`がモデル自身の動きの後ろに並べる。読み込むとき、`@pixiv/three-vrm-animation`が出す正規化の骨の回転を、VRMの生の骨の回転へ一度だけ焼き直す（raw = P⁻¹·q·P·B、腰の位置は親の行列の逆で。`infrastructure/three-kit/vrm-motion`）。生の骨の名前を指すクリップになるので、コマごとの複製と`ModelActor`がそのまま使える。足した動きは読み込みの鍵に入り、足し外しやファイルの到着で読み直す。卓のコマとブロックは、描くモデルの一覧の項目に足した動き（`TableWorldModel.motions`、`TablePiecesService.motionsOf`）を載せて運ぶので、一覧の値の比べ方で変化が伝わり、層は毎フレーム引き直さない。舞台の像は載せず、層が受け取るときに読む。.vrmaの表情と視線のトラックは当てない。部屋の保存は、名指しされたモデルに足した動きのファイルも`.vrma`で入れる。古い部屋には`motions`が無く、今と同じに読む
 
 ## モデルを出す場所
 

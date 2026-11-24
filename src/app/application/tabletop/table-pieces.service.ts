@@ -51,6 +51,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
+import type { ModelMotionFile } from '@axe/domain/media/model-motion-files';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -199,7 +200,6 @@ export class TablePiecesService {
     shown: (character) => {
       const model = pieceModelOf(character);
       if (!model) return false;
-      this.motionFiles.follow(model.identifier);
       return this.modelUrlOf(model.identifier) !== '' && this.characterShown(character);
     },
     draw: (character, place, moving, { gridSize }) => drawModel(character, place, moving, gridSize, this.modelSources),
@@ -208,6 +208,7 @@ export class TablePiecesService {
   /** What this seat holds of the models the characters are drawn as. */
   private readonly modelSources: ModelSources = {
     modelUrlOf: (identifier) => this.modelUrlOf(identifier),
+    motionsOf: (identifier) => this.motionFiles.givenTo(identifier),
     partFacesOf: (character) => {
       const faces = this.partPictures.modelFacesOf(character);
       if (!faces.painted) return {};
@@ -428,6 +429,15 @@ export class TablePiecesService {
   /** Whether this seat is shown a light standing on the table, which is not on ground the fog keeps from it. */
   private lightShown(light: LightSource): boolean {
     return !this.vision.isPieceHiddenByFog(light, 1);
+  }
+
+  /**
+   * The motions for VRM models a model is given, which are part of how it is read: asked in a signal's
+   * reckoning, as whatever lists the models to draw asks, for pieces and blocks alike, it follows them
+   * as they change.
+   */
+  motionsOf(identifier: string): readonly ModelMotionFile[] {
+    return this.motionFiles.givenTo(identifier);
   }
 
   /** Where the bytes of a model held here in full are read from, or nothing for one not held. */

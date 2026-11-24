@@ -28,6 +28,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -1160,6 +1161,30 @@ describe('Table3dService', () => {
       }),
     ]);
     expect([...world.walls, ...world.caps].filter((face) => face.id.startsWith(block.identifier))).toEqual([]);
+    table.destroy();
+  });
+
+  it('draws a block given a model anew once the model is given motions, which are part of how it is read', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
+      (identifier: string) =>
+        (identifier === 'tree' ? { isReady: true, url: 'blob:tree', name: 'tree.glb' } : null) as never
+    );
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    const block = Terrain.create('木', 1, 1, 2, '', '');
+    block.location = { name: 'table', x: 100, y: 150 };
+    block.modelIdentifier = 'tree';
+    table.appendChild(block);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const before = scene.world().models;
+
+    ModelTag.giveMotions('tree', '["wave"]');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(scene.world().models).not.toBe(before);
+    ModelTag.get('tree')?.destroy();
     table.destroy();
   });
 

@@ -351,6 +351,7 @@ export class Table3dService {
         kind: Terrain.aliasName,
         url,
         model,
+        motions: this.pieces.motionsOf(model.identifier),
         foot: {
           x: (box.minX + box.maxX) / 2,
           y: (box.minY + box.maxY) / 2,

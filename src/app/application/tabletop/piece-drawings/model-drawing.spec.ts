@@ -8,6 +8,7 @@ describe('drawModel', () => {
   const held: ModelSources = {
     modelUrlOf: (identifier) => (identifier === 'knight-model' ? 'blob:knight' : ''),
     partFacesOf: () => ({}),
+    motionsOf: () => [],
   };
 
   function knight(model = 'knight-model'): GameCharacter {
@@ -39,6 +40,14 @@ describe('drawModel', () => {
         walking: true,
       }),
     ]);
+  });
+
+  it('carries the motions its model is given, which are part of how it is read', () => {
+    const wave = { identifier: 'wave', name: 'Wave', url: 'blob:wave' };
+
+    const drawn = drawModel(knight(), floorPlace(100, 200), false, 50, { ...held, motionsOf: () => [wave] });
+
+    expect(drawn[0].motions).toEqual([wave]);
   });
 
   it('fits the model inside the size asked for its picture, tipped over and lifted as the picture is', () => {
