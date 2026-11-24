@@ -3,6 +3,7 @@ import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -165,6 +166,16 @@ describe('ownership', () => {
       expect(orphaned).toContain(closed);
       expect(orphaned).not.toContain(online);
       expect(orphaned).toHaveLength(2);
+    });
+
+    it('leaves a die its absent keeper sealed, whose face only the keeper’s browser has', () => {
+      const sealed = new DiceSymbol();
+      sealed.owner = 'ghost-user';
+      sealed.sealed = true;
+      const kept = new DiceSymbol();
+      kept.owner = 'ghost-user';
+
+      expect(findOrphanedOwnership([sealed, kept], peers)).toEqual([kept]);
     });
 
     it('releases what an absent owner holds and leaves the rest', () => {

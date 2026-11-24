@@ -95,6 +95,14 @@ export class DiceSymbol extends OwnedTabletopObject {
     return this.isSealedHere && sealedFaceOf(this.identifier) !== null;
   }
 
+  /**
+   * Whether who keeps the die is its keeper's own to change, by showing it or giving its seal up: so
+   * for a sealed die, whose face would be lost to any other seat taking it from its keeper.
+   */
+  override get keepsItsOwner(): boolean {
+    return this.isSealed;
+  }
+
   /** Whether the die is sealed by a seat that keeps it: what is sealed and kept by nobody tells nothing. */
   get isSealed(): boolean {
     return this.sealed && this.hasOwner;

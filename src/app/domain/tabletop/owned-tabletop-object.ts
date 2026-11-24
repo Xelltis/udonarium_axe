@@ -23,6 +23,14 @@ export abstract class OwnedTabletopObject extends TabletopObject {
     this.owner = toUserId;
   }
 
+  /**
+   * Whether who owns the object is the owner's own to change, by what the owner does with it, and no
+   * other seat's, the game master's included: none, for most objects.
+   */
+  get keepsItsOwner(): boolean {
+    return false;
+  }
+
   /** Whether some user has claimed the object. */
   get hasOwner(): boolean {
     return this.owner.length > 0;

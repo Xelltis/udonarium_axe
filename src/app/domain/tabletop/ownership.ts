@@ -18,6 +18,14 @@ export function asOwnable(object: unknown): OwnableObject | null {
 }
 
 /**
+ * Whether who owns an object is its owner's own to change, and no other seat's, as a sealed die's is
+ * (see `OwnedTabletopObject.keepsItsOwner`).
+ */
+export function keepsItsOwner(object: unknown): boolean {
+  return object instanceof OwnedTabletopObject && object.keepsItsOwner;
+}
+
+/**
  * Releases every owned object in the list and returns how many were released. Clearing an owner is
  * a synced change.
  */
@@ -89,7 +97,12 @@ export function findOrphanedOwnership(
   const orphaned: OwnableObject[] = [];
   for (const object of objects) {
     const ownable = asOwnable(object);
-    if (ownable && ownable.owner.length > 0 && !peerContexts.some((p) => p.userId === ownable.owner && p.isOpen)) {
+    if (
+      ownable &&
+      ownable.owner.length > 0 &&
+      !keepsItsOwner(ownable) &&
+      !peerContexts.some((p) => p.userId === ownable.owner && p.isOpen)
+    ) {
       orphaned.push(ownable);
     }
   }
