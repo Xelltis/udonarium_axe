@@ -359,6 +359,27 @@ describe('FileArchiver', () => {
       }
     });
 
+    it('hands the parts along with the piece where both were dropped loose, taken out of their zip', async () => {
+      const read: { tag: string; along?: string }[] = [];
+      const off = xmlLoaded$.subscribe((event) =>
+        read.push({
+          tag: event.xmlElement.tagName,
+          ...(event.along ? { along: event.along.tagName } : {}),
+        })
+      );
+
+      try {
+        await FileArchiver.instance.load([
+          new File(['<piece-parts><character></character></piece-parts>'], 'parts.xml', { type: 'text/xml' }),
+          new File(['<character></character>'], 'data.xml', { type: 'text/xml' }),
+        ]);
+
+        expect(read).toEqual([{ tag: 'character', along: 'piece-parts' }]);
+      } finally {
+        off();
+      }
+    });
+
     it('leaves the rest of an archive once it is no longer wanted', async () => {
       const read: string[] = [];
       const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
