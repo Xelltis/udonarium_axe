@@ -1516,7 +1516,8 @@
       },
       "log": {
         "reveal": "{{name}} の出目は {{face}} です。",
-        "revealNoName": "ダイスの出目は {{face}} です。"
+        "revealNoName": "ダイスの出目は {{face}} です。",
+        "revealMany": "伏せたダイス{{count}}個の出目は {{faces}} です。"
       },
       "myDice": {
         "title": "マイダイス",
@@ -1988,6 +1989,7 @@
         "copyWithheld": "伏せられた部分があるのでコピーできません（部屋のサーバーで伏せた形のまま受け取った部分があります）",
         "saveWithheld": "伏せられた部分があるので保存できません（部屋のサーバーで伏せた形のまま受け取った部分があります）",
         "saveFaceHidden": "表や出目が見えないので保存できません",
+        "saveSealed": "伏せたダイスの出目はこのブラウザにしかないため、保存できません。公開してから保存してください",
         "popupWidth": "ポップアップ横幅",
         "popupMaxHeight": "ポップアップ縦幅最大",
         "limitHeight": "height設定値に高さを制限",

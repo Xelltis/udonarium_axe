@@ -16,6 +16,8 @@ let held: Map<string, string> | null = null;
 /** Whether the browser keeps what is written, as one blocking site data does not: only then is it read again. */
 let durable = true;
 let followingOtherTabs = false;
+/** Who is told of the dice whose faces another tab changed. */
+const changedElsewhere = new Set<(identifiers: readonly string[]) => void>();
 
 /** The faces kept, as last read; what cannot be read is as if nothing were kept. */
 function faces(): Map<string, string> {
@@ -47,13 +49,34 @@ function written(): void {
   durable = writeLocal(SEALED_FACES_KEY, kept.length > 0 ? JSON.stringify(Object.fromEntries(kept)) : null);
 }
 
-/** Reads the faces again once another tab has written them. */
+/**
+ * Reads the faces again once another tab has written them, and tells of the dice whose faces are now
+ * other than they were read here.
+ */
 function followOtherTabs(): void {
   if (followingOtherTabs || typeof window === 'undefined') return;
   followingOtherTabs = true;
   window.addEventListener('storage', (event) => {
-    if (event.key === SEALED_FACES_KEY || event.key === null) held = null;
+    if (event.key !== SEALED_FACES_KEY && event.key !== null) return;
+    const before = held;
+    held = null;
+    if (!before) return;
+    const after = faces();
+    const changed = [...new Set([...before.keys(), ...after.keys()])].filter(
+      (identifier) => before.get(identifier) !== after.get(identifier)
+    );
+    if (changed.length > 0) for (const listener of changedElsewhere) listener(changed);
   });
+}
+
+/**
+ * Tells a listener of the dice whose faces another tab of the page changed, as it rolled or sealed
+ * them there, for what this tab draws of them to be drawn anew. Answers how to stop telling it.
+ */
+export function onSealedFacesChangedElsewhere(listener: (identifiers: readonly string[]) => void): () => void {
+  followOtherTabs();
+  changedElsewhere.add(listener);
+  return () => changedElsewhere.delete(listener);
 }
 
 /** The face this browser keeps for a die, or null where it keeps none. */

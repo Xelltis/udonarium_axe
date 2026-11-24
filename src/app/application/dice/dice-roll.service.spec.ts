@@ -13,6 +13,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -612,6 +613,25 @@ describe('DiceRollService', () => {
       expect(service.revealOwnSealed([open, theirs])).toBe(1);
 
       expect([open.isSealed, theirs.isSealed]).toEqual([false, true]);
+    });
+
+    it('shows the dice this seat sealed together, with one sound and one notice of every face', () => {
+      const sound = vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
+      const plotted = ['一', '二', '三'].map((name, index) => {
+        const die = makeDice(name);
+        service.seal(die);
+        service.setFace(die, `${index + 2}`);
+        return die;
+      });
+      sound.mockClear();
+
+      expect(service.revealOwnSealed(plotted)).toBe(3);
+
+      expect(sound).toHaveBeenCalledOnce();
+      expect(notice).toHaveBeenCalledOnce();
+      expect(notice.mock.calls[0][1] as string).toContain('一 2 / 二 3 / 三 4');
+      expect(service.revealOwnSealed(plotted)).toBe(0);
+      expect(notice).toHaveBeenCalledOnce();
     });
   });
 });

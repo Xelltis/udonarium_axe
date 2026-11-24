@@ -171,11 +171,13 @@ export class DiceSymbol extends OwnedTabletopObject {
   /**
    * Whether a seat may read the die's face and its name, and turn it: roll it, set its face, hide or
    * show its name, and change it on its sheet. Anyone may while nobody keeps the die. Once a seat
-   * keeps it, that seat may, and so may a seat that sees what is kept back, unless the die is sealed,
-   * which only the seat that keeps it may read.
+   * keeps it, that seat may, and so may a seat that sees what is kept back. A sealed die only the
+   * browser that holds its face may read, as no other has it: not even its keeper's on another
+   * device, or once the browser's site data was cleared.
    */
   isOpenTo(seesHidden: boolean): boolean {
-    return (seesHidden && !this.isSealed) || this.isVisible;
+    if (this.isSealed) return this.holdsSealedFace;
+    return seesHidden || this.isVisible;
   }
 
   /**

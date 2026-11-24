@@ -1516,7 +1516,8 @@
       },
       "log": {
         "reveal": "{{name}}'s die reads {{face}}.",
-        "revealNoName": "The die reads {{face}}."
+        "revealNoName": "The die reads {{face}}.",
+        "revealMany": "The {{count}} sealed dice read {{faces}}."
       },
       "myDice": {
         "title": "My Dice",
@@ -1988,6 +1989,7 @@
         "copyWithheld": "This cannot be copied: part of it came from a room server in its withheld shape.",
         "saveWithheld": "This cannot be saved: part of it came from a room server in its withheld shape.",
         "saveFaceHidden": "This cannot be saved: its front or face is not shown to you.",
+        "saveSealed": "A sealed die cannot be saved, as its face is in this browser alone. Reveal it first.",
         "popupWidth": "Popup width",
         "popupMaxHeight": "Popup max height",
         "limitHeight": "Limit height to value",

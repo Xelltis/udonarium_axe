@@ -121,13 +121,24 @@ export class DiceRollService {
    * face is said whatever lines it opens. False, with nothing done, where this seat may not show it.
    */
   reveal(die: DiceSymbol): boolean {
-    if (!this.canReveal(die)) return false;
+    const opened = this.open(die);
+    if (!opened) return false;
+    SoundEffect.play(PresetSound.unlock);
+    this.announceRevealed(opened.told ? [] : [die]);
+    return true;
+  }
+
+  /**
+   * Shows a kept die's face to everyone, opening its latest throw kept back, as {@link reveal} does
+   * but for the sound and the notice: whether the lines it opened tell its face. Null, with nothing
+   * done, where this seat may not show it.
+   */
+  private open(die: DiceSymbol): { readonly told: boolean } | null {
+    if (!this.canReveal(die)) return null;
     const sealed = die.isSealed;
     if (sealed) die.unseal();
     die.owner = '';
-    SoundEffect.play(PresetSound.unlock);
-    if (this.lineEdit.discloseDieRolls(die.identifier) < 1 || sealed) this.announceRevealed(die);
-    return true;
+    return { told: this.lineEdit.discloseDieRolls(die.identifier) > 0 && !sealed };
   }
 
   /** Keeps a die's face to this seat alone and plays the sound of it. False, with nothing done, where this seat may not. */
@@ -179,11 +190,16 @@ export class DiceRollService {
     return true;
   }
 
-  /** Shows every die this seat has sealed, as asked by the game master. Answers how many were shown. */
+  /**
+   * Shows every die this seat has sealed, as asked by the game master, together: one sound, and one
+   * notice that says every face. Answers how many were shown.
+   */
   revealOwnSealed(dice: readonly DiceSymbol[]): number {
-    let shown = 0;
-    for (const die of dice) if (die.isSealed && die.isMine && this.reveal(die)) shown++;
-    return shown;
+    const shown = dice.filter((die) => die.isSealed && die.isMine && this.open(die));
+    if (shown.length < 1) return 0;
+    SoundEffect.play(PresetSound.unlock);
+    this.announceRevealed(shown);
+    return shown.length;
   }
 
   /** Throws one die, or a handful together. Whatever this seat may not turn stays as it was. */
@@ -217,12 +233,20 @@ export class DiceRollService {
     return rolled;
   }
 
-  private announceRevealed(die: DiceSymbol): void {
+  /** Says the faces of dice just shown, in one notice however many there are; nothing for none. */
+  private announceRevealed(dice: readonly DiceSymbol[]): void {
+    if (dice.length < 1) return;
+    const [die] = dice;
     const name = die.name.trim();
     const message =
-      name.length > 0
-        ? encodeI18nMessage('feature.dice.log.reveal', { name, face: die.face })
-        : encodeI18nMessage('feature.dice.log.revealNoName', { face: die.face });
+      dice.length > 1
+        ? encodeI18nMessage('feature.dice.log.revealMany', {
+            count: dice.length,
+            faces: dice.map((one) => [one.name.trim(), one.face].filter((word) => word).join(' ')).join(' / '),
+          })
+        : name.length > 0
+          ? encodeI18nMessage('feature.dice.log.reveal', { name, face: die.face })
+          : encodeI18nMessage('feature.dice.log.revealNoName', { face: die.face });
     this.chatMessageService.sendSystemNotice('diceReveal', message);
   }
 

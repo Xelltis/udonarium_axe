@@ -310,7 +310,8 @@ export class DiceSymbolSheetComponent {
    * Downloads the die as a save file, showing progress until shortly after it finishes; does
    * nothing while a save is running. Nor for a die a room server withholds the face of from this
    * user, as for a copy, nor for a die another seat keeps from this one, whose face the file would
-   * hold, both of which it says.
+   * hold, nor for a sealed die, whose face is in this browser alone and would not be in the file,
+   * each of which it says.
    */
   async saveToXML() {
     const dice = this._diceSymbol();
@@ -321,6 +322,10 @@ export class DiceSymbolSheetComponent {
     }
     if (!this.readsFace()) {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.saveFaceHidden'));
+      return;
+    }
+    if (dice.isSealed) {
+      this.snackbar.show(this.translateFn('feature.inventory.sheet.saveSealed'));
       return;
     }
     await this.saveProgress.run((onProgress) =>

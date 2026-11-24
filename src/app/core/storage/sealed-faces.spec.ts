@@ -2,6 +2,7 @@ import {
   forgetSealedFace,
   keepSealedFace,
   MOST_SEALED_FACES,
+  onSealedFacesChangedElsewhere,
   rereadSealedFaces,
   sealedFaceOf,
 } from '@axe/core/storage/sealed-faces';
@@ -69,6 +70,24 @@ describe('sealed faces', () => {
     keepSealedFace('die-b', '5');
 
     expect([sealedFaceOf('die-a'), sealedFaceOf('die-b')]).toEqual(['3', '5']);
+  });
+
+  it('tells of the dice whose faces another tab changed from what was read here, and of none it left alone', () => {
+    keepSealedFace('die-a', '3');
+    keepSealedFace('die-b', '4');
+    sealedFaceOf('die-a');
+    const told: (readonly string[])[] = [];
+    const stop = onSealedFacesChangedElsewhere((identifiers) => told.push(identifiers));
+
+    localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-a': '6', 'die-b': '4', 'die-c': '1' }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'axe-sealed-dice-faces' }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'another-key' }));
+    stop();
+    localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-a': '1' }));
+    sealedFaceOf('die-a');
+    window.dispatchEvent(new StorageEvent('storage', { key: 'axe-sealed-dice-faces' }));
+
+    expect(told).toEqual([['die-a', 'die-c']]);
   });
 
   it('keeps what another tab kept when it keeps one of its own, and reads it as the other tab writes it', () => {

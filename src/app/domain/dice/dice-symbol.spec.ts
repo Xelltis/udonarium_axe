@@ -515,15 +515,18 @@ describe('DiceSymbol', () => {
       expect([dice.isSealed, dice.owner, dice.face]).toEqual([false, '', '1']);
     });
 
-    it('holds its face only in the browser of the seat that sealed it', () => {
+    it('holds its face only in the browser of the seat that sealed it, which alone reads it', () => {
       const dice = sealedBy('me', '5');
       expect(dice.holdsSealedFace).toBe(true);
+      expect(dice.isOpenTo(false)).toBe(true);
 
       rereadSealedFaces();
       localStorage.removeItem('axe-sealed-dice-faces');
       rereadSealedFaces();
 
       expect(dice.holdsSealedFace).toBe(false);
+      expect(dice.isOpenTo(false)).toBe(false);
+      expect(dice.isOpenTo(true)).toBe(false);
       seat('them');
       expect(dice.holdsSealedFace).toBe(false);
     });

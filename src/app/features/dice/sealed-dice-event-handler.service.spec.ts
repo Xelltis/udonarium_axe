@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
@@ -68,5 +69,17 @@ describe('SealedDiceEventHandlerService', () => {
     expect([mine.isSealed, mine.owner, mine.sentFace]).toEqual([false, '', '2']);
     expect([theirs.isSealed, theirs.owner]).toEqual([true, 'somebody-else']);
     expect(kept.owner).toBe('me');
+  });
+
+  it('draws anew a sealed die whose face another tab of the page changed', () => {
+    const mine = die('me', true);
+    const version = TestBed.inject(ObjectChangeService).versionOf(mine.identifier);
+    const before = version();
+
+    localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ [mine.identifier]: '6' }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'axe-sealed-dice-faces' }));
+
+    expect(version()).toBeGreaterThan(before);
+    expect(mine.face).toBe('6');
   });
 });

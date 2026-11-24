@@ -1516,7 +1516,8 @@
       },
       "log": {
         "reveal": "{{name}}의 눈은 {{face}}입니다.",
-        "revealNoName": "주사위 눈은 {{face}}입니다."
+        "revealNoName": "주사위 눈은 {{face}}입니다.",
+        "revealMany": "숨긴 주사위 {{count}}개의 눈은 {{faces}}입니다."
       },
       "myDice": {
         "title": "마이 주사위",
@@ -1988,6 +1989,7 @@
         "copyWithheld": "가려진 부분이 있어 복사할 수 없습니다. 방 서버에서 가려진 형태로 받은 부분이 있습니다.",
         "saveWithheld": "가려진 부분이 있어 저장할 수 없습니다. 방 서버에서 가려진 형태로 받은 부분이 있습니다.",
         "saveFaceHidden": "앞면이나 눈이 보이지 않아 저장할 수 없습니다.",
+        "saveSealed": "숨긴 주사위의 눈은 이 브라우저에만 있어 저장할 수 없습니다. 공개한 뒤에 저장하세요.",
         "popupWidth": "팝업 가로 폭",
         "popupMaxHeight": "팝업 세로 최대",
         "limitHeight": "height 설정값으로 높이 제한",
