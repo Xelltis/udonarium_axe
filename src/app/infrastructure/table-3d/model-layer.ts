@@ -360,6 +360,7 @@ export class ModelLayer {
     this.turns = turns;
     this.turnHerdsTo(turns ? this.turnedToMs : 0);
     if (!turns) this.turnedToMs = 0;
+    this.settleStood();
     this.lay();
   }
 
@@ -368,10 +369,15 @@ export class ModelLayer {
     return { timeMs: this.movedToMs ?? performance.now(), moving: this.turns, standing: this.standing };
   }
 
-  /** Moves every model stood on to the moment again, as what it is asked to do there has changed. */
+  /**
+   * Moves every model stood on to the moment again, as what it is asked to do there has changed,
+   * whether it is moved on at all among it: what each plays is taken up again, from its first pose
+   * where it stands still.
+   */
   private settleStood(): void {
     const moment = this.moment();
     for (const stood of this.stood.values()) {
+      stood.actor.resettle();
       stood.pace = stood.actor.advance(moment);
       this.place(stood);
     }
@@ -770,12 +776,12 @@ export class ModelLayer {
    * A copy of a model read made of another read of the same bytes, for a piece where the other is for
    * a block or drawn another way: its meshes' shapes, its pictures and its motions shared with the
    * other, its materials its own, made as this copy has them drawn (`look`) and covered for the
-   * moonlight as it is drawn (`moonlit`), and its measure the other's (see {@link measuredAs}).
+   * moonlight as it is drawn (`moonlit`), and its measure the other's (see {@link measuredAs}). What
+   * a VRM is rigged with goes with every copy, however the copy is measured.
    */
   private variantOf(other: LoadedModel, moonlit: boolean, look: ModelLook = MODEL_AS_MADE): LoadedModel {
     const scene = cloneSkinned(other.gltf.scene) as Group;
     this.wear(scene, other.made, look, moonlit, other.ownGlow, this.detail);
-    // What a VRM is rigged with goes with every copy of it, however the copy is measured.
     const variant = measuredAs(other, scene);
     return other.rig ? { ...variant, rig: other.rig } : variant;
   }

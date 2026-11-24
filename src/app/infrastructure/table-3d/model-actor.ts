@@ -205,6 +205,14 @@ export class ModelActor {
     this.restless = true;
   }
 
+  /**
+   * Has the model take up again what it plays, as when whether its standing motion is played changes:
+   * one no longer moved on stands in the first pose of what it stands in, not wherever it had got to.
+   */
+  resettle(): void {
+    this.restless = true;
+  }
+
   /** Has the model move its mouth while its piece speaks, where it has a shape to speak with. */
   speak(speaking: boolean): void {
     this.speaking = speaking;
@@ -226,7 +234,8 @@ export class ModelActor {
 
   /**
    * Moves the model on to a moment: its motions, its face, and where a hand moves the whole of it.
-   * Answers how fast it wants drawing from here.
+   * What is tied to the bones follows them each frame a motion moves them, before anything swings
+   * from it. Answers how fast it wants drawing from here.
    */
   advance(moment: ActorMoment): ActorPace {
     const step = this.lastMs === null ? 0 : Math.min(LONGEST_STEP, Math.max(0, (moment.timeMs - this.lastMs) / 1000));
@@ -239,7 +248,6 @@ export class ModelActor {
     const stands = !down && moment.standing && (this.current !== null || lively);
     if (moment.moving && (acting || (!down && this.walking) || (stands && this.current !== null))) {
       this.mixer.update(step);
-      // What is tied to the bones follows them as they are now, before anything swings from it.
       this.ties?.update();
     }
     this.face(moment, down);

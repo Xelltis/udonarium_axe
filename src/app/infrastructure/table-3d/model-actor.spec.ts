@@ -67,6 +67,26 @@ describe('ModelActor', () => {
     expect(bone.position.y).toBeCloseTo(5);
   });
 
+  it('stands in the first pose of what it stands in once it is no longer moved on, not wherever it had got to', () => {
+    const root = new Group();
+    const bone = new Group();
+    bone.name = 'bone';
+    root.add(bone);
+    const breathe = new AnimationClip('Idle', 1, [
+      new VectorKeyframeTrack('bone.position', [0, 1], [0, 5, 0, 0, 9, 0]),
+    ]);
+    const actor = new ModelActor(root, [breathe], 'knight');
+    actor.cast(ASKED);
+    actor.advance(at(0));
+    actor.advance(at(500));
+    expect(bone.position.y).toBeGreaterThan(5.1);
+
+    actor.resettle();
+    actor.advance(at(600, { moving: false }));
+
+    expect(bone.position.y).toBeCloseTo(5);
+  });
+
   it('walks in its idle where it has no walk of its own, and plays nothing where it has no motion at all', () => {
     const standing = actorWith(['Idle']);
     standing.walk(true, 0);
