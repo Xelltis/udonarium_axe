@@ -143,15 +143,19 @@ export class DiceRollService {
 
   /**
    * Shows a kept die's face to everyone, opening its latest throw kept back, as {@link reveal} does
-   * but for the sound and the notice: whether the lines it opened tell its face. Null, with nothing
-   * done, where this seat may not show it.
+   * but for the sound and the notice: whether the lines it opened tell its face. A sealed die opens
+   * none: what was thrown of it in secret before it was sealed told a face it was turned from as it
+   * was sealed. Null, with nothing done, where this seat may not show it.
    */
   private open(die: DiceSymbol): { readonly told: boolean } | null {
     if (!this.canReveal(die)) return null;
-    const sealed = die.isSealed;
-    if (sealed) die.unseal();
+    if (die.isSealed) {
+      die.unseal();
+      die.owner = '';
+      return { told: false };
+    }
     die.owner = '';
-    return { told: this.lineEdit.discloseDieRolls(die.identifier) > 0 && !sealed };
+    return { told: this.lineEdit.discloseDieRolls(die.identifier) > 0 };
   }
 
   /** Keeps a die's face to this seat alone and plays the sound of it. False, with nothing done, where this seat may not. */

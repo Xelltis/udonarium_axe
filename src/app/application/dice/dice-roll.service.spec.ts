@@ -563,6 +563,18 @@ describe('DiceRollService', () => {
       expect(open.face).toBe(rolled.face);
     });
 
+    it('opens none of what was thrown of it in secret before it was sealed, which told another face', () => {
+      const disclosing = vi.spyOn(TestBed.inject(ChatLineEditService), 'discloseDieRolls').mockReturnValue(1);
+      const open = makeDice('みんなの');
+      open.owner = 'me';
+      service.seal(open);
+
+      service.reveal(open);
+
+      expect(disclosing).not.toHaveBeenCalled();
+      expect(notice).toHaveBeenCalledOnce();
+    });
+
     it('tells the room the face once its keeper shows it', () => {
       const open = makeDice('みんなの');
       service.seal(open);
