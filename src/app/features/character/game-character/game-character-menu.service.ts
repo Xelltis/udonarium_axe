@@ -96,13 +96,13 @@ export function screenCentreOf(
     : { x: fallback.x, y: fallback.y };
 }
 
+/** How many of a model's own motions the menu of a piece offers to play. */
+const MOST_MODEL_MOTIONS = 24;
+
 /**
  * Where a right-click on a character arrives: the menu it opens, and the panels about the piece
  * that the menu opens in turn.
  */
-/** How many of a model's own motions the menu of a piece offers to play. */
-const MOST_MODEL_MOTIONS = 24;
-
 @Injectable({ providedIn: 'root' })
 export class GameCharacterMenuService {
   private readonly contextMenuService = inject(ContextMenuService);
