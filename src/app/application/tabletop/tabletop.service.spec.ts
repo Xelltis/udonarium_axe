@@ -8,6 +8,7 @@ import { xml2element } from '@axe/core/util/xml-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -77,6 +78,17 @@ describe('TabletopService', () => {
         ]);
         expect(ObjectStore.instance.getObjects(GameCharacter)).toHaveLength(3);
         expect(ObjectStore.instance.getObjects(ChatTab).some((tab) => tab.name === 'no part')).toBe(false);
+      });
+
+      it('reads nothing among them that is no piece, which reading would make in the room', () => {
+        TestBed.inject(TabletopService);
+        const along = xml2element(
+          '<piece-parts><model-tag modelIdentifier="statue" tag="棚"></model-tag></piece-parts>'
+        )!;
+
+        emitXmlLoaded({ xmlElement: xml2element(body)!, along });
+
+        expect(ModelTag.get('statue')).toBeNull();
       });
 
       it('gives each piece brought in from the same file parts of its own', () => {

@@ -312,11 +312,12 @@ export class TabletopService {
    * when it was saved, wherever it was brought to: each is set where the body stands already before
    * it is put down, so it is put there as it stood rather than middle on middle. Each is brought in as the piece was, and is a part
    * of this piece alone, however many times the same file is brought in. Anything among them that is
-   * no piece is left out.
+   * no piece is left out before it is read, as reading it would make it in the room.
    */
   private placePartsOf(body: GameCharacter, along: Element, saved: { x: number; y: number; z: number }): void {
     const userId = PeerCursor.myCursor?.userId ?? '';
     for (const element of Array.from(along.children)) {
+      if (element.tagName !== GameCharacter.aliasName) continue;
       element.setAttribute('ridingOn', body.identifier);
       element.setAttribute('rideSeat', writtenSeat('part'));
       const part = this.objectSerializer.parseXml(element);
