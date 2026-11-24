@@ -330,6 +330,34 @@ describe('FileArchiver', () => {
       expect(result.audios).toEqual(['taken-sound']);
     });
 
+    it('hands the parts a piece was saved with along with it, and not as data of their own', async () => {
+      const read: { tag: string; along?: string }[] = [];
+      const off = xmlLoaded$.subscribe((event) =>
+        read.push({
+          tag: event.xmlElement.tagName,
+          ...(event.along ? { along: event.along.tagName } : {}),
+        })
+      );
+      const saved = new File(
+        [
+          zipSync({
+            'data.xml': strToU8('<character></character>'),
+            'parts.xml': strToU8('<piece-parts><character></character></piece-parts>'),
+          }).slice(),
+        ],
+        'piece.zip',
+        { type: 'application/zip' }
+      );
+
+      try {
+        await FileArchiver.instance.load([saved]);
+
+        expect(read).toEqual([{ tag: 'character', along: 'piece-parts' }]);
+      } finally {
+        off();
+      }
+    });
+
     it('leaves the rest of an archive once it is no longer wanted', async () => {
       const read: string[] = [];
       const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));

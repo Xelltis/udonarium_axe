@@ -14,7 +14,7 @@ import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { isBundledModel } from '@axe/core/storage/bundled-models';
-import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { ALONG_DATA_FILE, FileArchiver } from '@axe/core/storage/file-archiver';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
@@ -29,6 +29,7 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 import { formatXml } from '@axe/core/util/format-xml';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { xml2element } from '@axe/core/util/xml-util';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import type { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
 import {
@@ -75,6 +76,9 @@ const ATTACHMENT_IMAGE_ATTRIBUTE = 'attachmentImageIdentifiers';
 const STAMP_ATTRIBUTE = /^stamps?$/;
 
 const CHAT_LOG_IMAGE_DECODE_LIMIT = 4;
+
+/** The root the parts of a piece are saved under, which no version reads as a piece of its own. */
+const PIECE_PARTS_TAG = 'piece-parts';
 
 @Injectable({
   providedIn: 'root',
@@ -283,7 +287,8 @@ export class SaveDataService {
 
   /**
    * Saves one object, such as a character, table or chat tab, as a zip download with the pictures
-   * it refers to.
+   * it refers to. A character is saved with the parts that stand with it, beside it in `parts.xml`,
+   * which a version that knows nothing of parts leaves unread.
    *
    * The file is named with a timestamp and progress is reported as a percentage. Queued with the
    * other saves.
@@ -305,7 +310,11 @@ export class SaveDataService {
     const xml: string = this.convertToXml(gameObject);
 
     files.push(new File([xml], 'data.xml', { type: 'text/plain' }));
-    const images: ImageFile[] = this.withCarried(this.searchImageFiles(xml), [gameObject]);
+    // A piece of many parts is saved whole, its parts beside it in a file only this version reads.
+    const parts = gameObject instanceof GameCharacter ? gameObject.partsAlong() : [];
+    const partsXml = parts.length > 0 ? this.partsToXml(parts) : '';
+    if (partsXml) files.push(new File([partsXml], ALONG_DATA_FILE, { type: 'text/plain' }));
+    const images: ImageFile[] = this.withCarried(this.searchImageFiles(xml + partsXml), [gameObject, ...parts]);
     for (const image of images) {
       const file = this.createImageArchiveFile(image);
       if (file) files.push(file);
@@ -351,6 +360,12 @@ export class SaveDataService {
     return new File([blob], image.identifier + '.' + MimeType.extension(blob.type), {
       type: blob.type,
     });
+  }
+
+  /** The parts of a piece as saved beside it, each as it would be saved on its own, under one root. */
+  private partsToXml(parts: readonly GameObject[]): string {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><${PIECE_PARTS_TAG}>${parts.map((part) => part.toXml()).join('')}</${PIECE_PARTS_TAG}>`;
+    return formatXml(xml, { indentation: '  ', lineSeparator: '\n' });
   }
 
   private convertToXml(gameObject: GameObject, pretty = true): string {

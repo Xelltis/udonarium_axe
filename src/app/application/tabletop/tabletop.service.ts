@@ -22,6 +22,7 @@ import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { claimBroughtInPiece } from '@axe/domain/tabletop/ownership';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { clampCellPx, rescaleTableContents } from '@axe/domain/tabletop/rescale-table-contents';
+import { writtenSeat } from '@axe/domain/tabletop/ride/ride-rules';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { lightSourcesOn } from '@axe/domain/tabletop/table-lights';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -289,12 +290,14 @@ export class TabletopService {
         const pointer = event.dropPoint
           ? pick.landingAt(event.dropPoint.x, event.dropPoint.y)
           : pick.landingAtPointer();
+        const saved = { x: gameObject.location.x, y: gameObject.location.y, z: gameObject.posZ };
         gameObject.location.x = pointer.x - this.gridSize() / 2;
         gameObject.location.y = pointer.y - this.gridSize() / 2;
         gameObject.posZ = pointer.z;
         claimBroughtInPiece(gameObject, PeerCursor.myCursor?.userId ?? '');
         if (gameObject instanceof GameCharacter) gameObject.partyIdentifier = '';
         this.placeToTabletop(gameObject);
+        if (gameObject instanceof GameCharacter && event.along) this.placePartsOf(gameObject, event.along, saved);
         SoundEffect.play(PresetSound.piecePut);
       } else if (gameObject instanceof ChatTab) {
         this.chatTabList.addChatTab(gameObject);
@@ -302,6 +305,33 @@ export class TabletopService {
 
       this.addWhatRoomArchiveLacks();
     }, this.destroyRef);
+  }
+
+  /**
+   * Puts down the parts a piece was saved with as parts of it, standing where they stood against it
+   * when it was saved, wherever it was brought to. Each is brought in as the piece was, and is a part
+   * of this piece alone, however many times the same file is brought in. Anything among them that is
+   * no piece is left out.
+   */
+  private placePartsOf(body: GameCharacter, along: Element, saved: { x: number; y: number; z: number }): void {
+    const userId = PeerCursor.myCursor?.userId ?? '';
+    for (const element of Array.from(along.children)) {
+      element.setAttribute('ridingOn', body.identifier);
+      element.setAttribute('rideSeat', writtenSeat('part'));
+      const part = this.objectSerializer.parseXml(element);
+      if (!(part instanceof GameCharacter)) {
+        part?.destroy();
+        continue;
+      }
+      part.location.x = body.location.x + (part.location.x - saved.x);
+      part.location.y = body.location.y + (part.location.y - saved.y);
+      part.posZ = body.posZ + (part.posZ - saved.z);
+      // Where the body stands already, so it is put there as it stood rather than middle on middle.
+      part.location.name = body.location.name;
+      claimBroughtInPiece(part, userId);
+      part.partyIdentifier = '';
+      this.placeToTabletop(part);
+    }
   }
 
   /** Gives every character the data a room archive dropped in from an older version leaves out. */

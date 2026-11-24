@@ -44,6 +44,53 @@ describe('TabletopService', () => {
       expect(character.owner).toBe('the-dropper');
     });
 
+    describe('with the parts it was saved with', () => {
+      // happy-dom takes no attribute with a dot in its name, so where they stood is told by their height.
+      const body = '<character posZ="5"></character>';
+      const parts = () =>
+        xml2element(
+          '<piece-parts>' +
+            '<character posZ="15" ridingOn="old-body" rideSeat="part" owner="whoever-saved-it"></character>' +
+            '<character posZ="5" ridingOn="old-body" rideSeat="part"></character>' +
+            '<chat-tab name="no part"></chat-tab>' +
+            '</piece-parts>'
+        )!;
+
+      it('puts them down as its parts, standing where they stood against it, wherever it is brought to', () => {
+        TestBed.inject(TabletopService);
+        PeerCursor.createMyCursor().userId = 'the-dropper';
+
+        emitXmlLoaded({ xmlElement: xml2element(body)!, along: parts() });
+
+        const brought = ObjectStore.instance.getObjects(GameCharacter).find((piece) => !piece.isWrittenAsPart)!;
+        const along = brought.partsAlong();
+        expect(
+          along.map((part) => [
+            part.location.x - brought.location.x,
+            part.location.y - brought.location.y,
+            part.posZ - brought.posZ,
+            part.owner,
+          ])
+        ).toEqual([
+          [0, 0, 10, 'the-dropper'],
+          [0, 0, 0, 'the-dropper'],
+        ]);
+        expect(ObjectStore.instance.getObjects(GameCharacter)).toHaveLength(3);
+        expect(ObjectStore.instance.getObjects(ChatTab).some((tab) => tab.name === 'no part')).toBe(false);
+      });
+
+      it('gives each piece brought in from the same file parts of its own', () => {
+        TestBed.inject(TabletopService);
+
+        emitXmlLoaded({ xmlElement: xml2element(body)!, along: parts() });
+        emitXmlLoaded({ xmlElement: xml2element(body)!, along: parts() });
+
+        const bodies = ObjectStore.instance.getObjects(GameCharacter).filter((piece) => !piece.isWrittenAsPart);
+        expect(bodies).toHaveLength(2);
+        expect(bodies.map((piece) => piece.partsAlong().length)).toEqual([2, 2]);
+      });
+    });
+
     it('joins no party, even one in this room under the name it was saved with', () => {
       TestBed.inject(TabletopService);
       new Party('party-1').initialize();

@@ -759,14 +759,16 @@ export class GameCharacterSheetComponent {
    * Saves the piece with its pictures as a zip file named after it, from the sheet's save button.
    *
    * Progress is shown while it saves and cleared half a second after. A click while a save is still
-   * running is ignored, as is one for a piece a room server withholds part of from this seat, which
-   * dropped back on a table would go to the whole room in that shape, as a copy would. So is one for
+   * running is ignored, as is one for a piece a room server withholds part of from this seat, or one
+   * of whose parts, saved with it, it withholds, which dropped back on a table would go to the whole
+   * room in that shape, as a copy would. So is one for
    * a card whose front, or a die whose face, this seat may not read, which the file would hold.
    */
   async saveToXML() {
     const obj = this.tabletopObject;
     if (!obj || this.isSaving()) return;
-    if (isWithheldHere(obj)) {
+    const parts = obj instanceof GameCharacter ? obj.partsAlong() : [];
+    if (isWithheldHere(obj) || parts.some((part) => isWithheldHere(part))) {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.saveWithheld'));
       return;
     }

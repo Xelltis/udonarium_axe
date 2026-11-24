@@ -82,6 +82,8 @@ export interface AlarmPopEvent {
 export interface XmlLoadedEvent {
   xmlElement: Element;
   dropPoint?: { x: number; y: number };
+  /** What the save kept beside its data to go with it, as the parts of a piece saved with it. */
+  along?: Element;
 }
 
 export interface ImageDroppedEvent {

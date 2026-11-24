@@ -51,6 +51,9 @@ export const MAX_LOADED_AUDIO_BYTES = 10 * MEGA_BYTE;
 export const MAX_LOADED_MODEL_BYTES = 10 * MEGA_BYTE;
 const DROP_STACK_OFFSET = 20;
 const XML_MIME_TYPE = 'text/xml';
+
+/** The file a save keeps beside its data and hands along with it: the parts of a piece saved with it. */
+export const ALONG_DATA_FILE = 'parts.xml';
 const INTERNAL_DRAG_TYPE = 'application/x-axe-internal-drag';
 
 /** What a load found out as it went. */
@@ -289,7 +292,8 @@ export class FileArchiver {
     files: File[] | FileList,
     dropPoint: { x: number; y: number } | undefined,
     placesDroppedImages: boolean,
-    run: LoadRun
+    run: LoadRun,
+    along?: Element
   ): Promise<void> {
     if (!files) return;
     const loadFiles: File[] = files instanceof FileList ? toArrayOfFileList(files) : files;
@@ -301,7 +305,7 @@ export class FileArchiver {
       if (isImageDropped) droppedImageCount++;
       await this.handleAudio(file, run);
       await this.handleModel(file, run);
-      await this.handleText(file, dropPoint, run);
+      await this.handleText(file, dropPoint, run, along);
       await this.handleZip(file, dropPoint, run);
       emitFileLoaded();
     }
@@ -453,7 +457,16 @@ export class FileArchiver {
     if (model) run.models.push(model.identifier);
   }
 
-  private async handleText(file: File, dropPoint: { x: number; y: number } | undefined, run: LoadRun): Promise<void> {
+  /**
+   * Hands on the data a file holds as XML. What a save keeps beside its data, as the parts of a piece
+   * saved with it, goes along with the data rather than on its own.
+   */
+  private async handleText(
+    file: File,
+    dropPoint: { x: number; y: number } | undefined,
+    run: LoadRun,
+    along?: Element
+  ): Promise<void> {
     if (!isXmlCandidateFile(file)) return;
 
     let isLoadOk = true;
@@ -479,7 +492,8 @@ export class FileArchiver {
         const xmlElement: Element | null = xml2element(await FileReaderUtil.readAsTextAsync(file));
         if (xmlElement) {
           if (name === 'data.xml') run.dataRead = true;
-          emitXmlLoaded({ xmlElement, dropPoint });
+          const alongData = name === 'data.xml' && along ? { along } : {};
+          emitXmlLoaded({ xmlElement, dropPoint, ...alongData });
         }
       } catch (reason) {
         Logger.warn('[FileArchiver] XML読み込みエラー', reason);
@@ -528,6 +542,7 @@ export class FileArchiver {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }
     }
+    const along = await this.takeAlongData(rest, renamed);
     for (const entry of rest) {
       if (isNetworkIsolated() !== isolated) {
         Logger.warn('[FileArchiver] 読み込みの途中で盤面と卓が入れ替わったので、残りを読みません');
@@ -536,10 +551,27 @@ export class FileArchiver {
       if (!run.stillWanted()) return;
       try {
         const file = renamed.size > 0 && isXmlCandidateFile(entry) ? await withImagesRenamed(entry, renamed) : entry;
-        await this.loadFiles([file], dropPoint, false, run);
+        await this.loadFiles([file], dropPoint, false, run, along ?? undefined);
       } catch (reason) {
         Logger.warn('[FileArchiver] ZIP展開エラー', reason);
       }
+    }
+  }
+
+  /**
+   * Takes out of a save's files the one it keeps beside its data, `parts.xml`, read under the
+   * pictures' new ids, to go along with the data. Null where there is none, or none that reads.
+   */
+  private async takeAlongData(files: File[], renamed: ReadonlyMap<string, string>): Promise<Element | null> {
+    const index = files.findIndex((file) => baseNameOf(file.name) === ALONG_DATA_FILE);
+    if (index < 0) return null;
+    const [file] = files.splice(index, 1);
+    try {
+      const read = renamed.size > 0 ? await withImagesRenamed(file, renamed) : file;
+      return xml2element(await FileReaderUtil.readAsTextAsync(read));
+    } catch (reason) {
+      Logger.warn('[FileArchiver] XML読み込みエラー', reason);
+      return null;
     }
   }
 

@@ -599,6 +599,71 @@ describe('SaveDataService', () => {
     });
   });
 
+  describe('a piece of many parts', () => {
+    const made: GameCharacter[] = [];
+
+    function piece(name: string, bodyOf?: GameCharacter): GameCharacter {
+      const one = GameCharacter.create(name, 1, '');
+      one.location.name = 'table';
+      if (bodyOf) {
+        one.ridingOn = bodyOf.identifier;
+        one.rideSeat = 'part';
+      }
+      made.push(one);
+      return one;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const one of made.splice(0)) one.destroy();
+    });
+
+    async function filesOf(saved: GameCharacter): Promise<Record<string, string>> {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saving = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+      await privateApi._saveGameObjectAsync(saved, 'piece');
+      const files = saving.mock.calls[0][0] as File[];
+      return Object.fromEntries(await Promise.all(files.map(async (file) => [file.name, await file.text()])));
+    }
+
+    it('is saved whole, its parts beside it under a root no version reads as a piece', async () => {
+      const body = piece('竜');
+      piece('右腕', body);
+      piece('左腕', body);
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const searched = vi.spyOn(privateApi, 'searchImageFiles');
+
+      const files = await filesOf(body);
+
+      expect(files['data.xml']).toContain('<data name="name">竜</data>');
+      expect(files['data.xml']).not.toContain('<data name="name">右腕</data>');
+      expect(files['parts.xml']).toMatch(/<piece-parts>/);
+      expect(files['parts.xml'].match(/<character /g)).toHaveLength(2);
+      expect(files['parts.xml']).toContain('<data name="name">右腕</data>');
+      expect(files['parts.xml']).toContain('<data name="name">左腕</data>');
+      expect(searched.mock.calls[0][0]).toContain('右腕');
+    });
+
+    it('leaves out a part standing elsewhere, and saves a part on its own as it is', async () => {
+      const body = piece('竜');
+      const arm = piece('右腕', body);
+      piece('尾', body).location.name = 'graveyard';
+
+      const whole = await filesOf(body);
+      vi.restoreAllMocks();
+      const alone = await filesOf(arm);
+
+      expect(whole['parts.xml'].match(/<character /g)).toHaveLength(1);
+      expect(whole['parts.xml']).not.toContain('<data name="name">尾</data>');
+      expect(Object.keys(alone)).not.toContain('parts.xml');
+      expect(alone['data.xml']).toContain('<data name="name">右腕</data>');
+    });
+
+    it('is saved as it always was where it has no parts', async () => {
+      expect(Object.keys(await filesOf(piece('一人')))).not.toContain('parts.xml');
+    });
+  });
+
   describe('the archive a room snapshot is taken from', () => {
     it('is packed without the archiver, which would ask for a reload over a snapshot in the background', async () => {
       const service = TestBed.inject(SaveDataService);
