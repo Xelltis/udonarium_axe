@@ -51,7 +51,8 @@ function written(): void {
 
 /**
  * Reads the faces again once another tab has written them, and tells of the dice whose faces are now
- * other than they were read here.
+ * other than they were read here. A tab whose browser refused what it wrote holds those faces alone,
+ * which it goes on holding over what the other tab wrote.
  */
 function followOtherTabs(): void {
   if (followingOtherTabs || typeof window === 'undefined') return;
@@ -62,6 +63,7 @@ function followOtherTabs(): void {
     held = null;
     if (!before) return;
     const after = faces();
+    if (!durable) for (const [identifier, face] of before) if (!after.has(identifier)) after.set(identifier, face);
     const changed = [...new Set([...before.keys(), ...after.keys()])].filter(
       (identifier) => before.get(identifier) !== after.get(identifier)
     );
@@ -96,6 +98,15 @@ export function keepSealedFace(identifier: string, face: string): void {
 export function forgetSealedFace(identifier: string): void {
   if (!current().delete(identifier)) return;
   written();
+}
+
+/**
+ * Reads the faces again from where the browser keeps them, as before answering what every tab of the
+ * seat is asked at once, so that what another tab has just done is known here though the browser has
+ * not told of it yet. A tab whose browser refuses to keep them goes on with what it holds.
+ */
+export function refreshSealedFaces(): void {
+  if (durable) held = null;
 }
 
 /** Forgets what was read from the browser, so the next question reads it afresh, as a page loaded anew does. */

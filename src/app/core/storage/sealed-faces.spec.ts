@@ -90,6 +90,24 @@ describe('sealed faces', () => {
     expect(told).toEqual([['die-a', 'die-c']]);
   });
 
+  it('goes on holding what the browser refused to keep, as another tab writes what it keeps', () => {
+    const shared = localStorage;
+    const refuse = () => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    };
+    vi.spyOn(globalThis, 'localStorage', 'get').mockReturnValue({
+      getItem: (key: string) => shared.getItem(key),
+      setItem: refuse,
+      removeItem: refuse,
+    } as unknown as Storage);
+    keepSealedFace('die-a', '3');
+
+    shared.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-b': '6' }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'axe-sealed-dice-faces' }));
+
+    expect([sealedFaceOf('die-a'), sealedFaceOf('die-b')]).toEqual(['3', '6']);
+  });
+
   it('keeps what another tab kept when it keeps one of its own, and reads it as the other tab writes it', () => {
     keepSealedFace('die-a', '3');
     localStorage.setItem('axe-sealed-dice-faces', JSON.stringify({ 'die-a': '3', 'die-b': '6' }));

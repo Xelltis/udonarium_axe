@@ -6,6 +6,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { callRevealSealedDice, callRollDiceSymbol } from '@axe/core/event/domain-events';
+import { refreshSealedFaces } from '@axe/core/storage/sealed-faces';
 import { diceRollLog, RolledDie } from '@axe/domain/dice/dice-roll-log';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -192,9 +193,12 @@ export class DiceRollService {
 
   /**
    * Shows every die this seat has sealed, as asked by the game master, together: one sound, and one
-   * notice that says every face. Answers how many were shown.
+   * notice that says every face. Every tab of the seat is asked at once, and the faces are read again
+   * first, so that a tab shows none another tab of the same browser has just shown. Answers how many
+   * were shown.
    */
   revealOwnSealed(dice: readonly DiceSymbol[]): number {
+    refreshSealedFaces();
     const shown = dice.filter((die) => die.isSealed && die.isMine && this.open(die));
     if (shown.length < 1) return 0;
     SoundEffect.play(PresetSound.unlock);

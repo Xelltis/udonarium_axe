@@ -615,6 +615,15 @@ describe('DiceRollService', () => {
       expect([open.isSealed, theirs.isSealed]).toEqual([false, true]);
     });
 
+    it('shows none another tab of the same browser has just shown, though it has not been told of it yet', () => {
+      const plotted = makeDice('プロット');
+      service.seal(plotted);
+      localStorage.setItem('axe-sealed-dice-faces', '{}');
+
+      expect(service.revealOwnSealed([plotted])).toBe(0);
+      expect(notice).not.toHaveBeenCalled();
+    });
+
     it('shows the dice this seat sealed together, with one sound and one notice of every face', () => {
       const sound = vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
       const plotted = ['一', '二', '三'].map((name, index) => {
