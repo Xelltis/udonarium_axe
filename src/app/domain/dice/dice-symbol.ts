@@ -35,6 +35,13 @@ export class DiceSymbol extends OwnedTabletopObject {
    */
   @SyncVar() sealed: boolean = false;
   /**
+   * The user ID of the seat that sealed the die, as it kept it then; empty where it is not told, as in
+   * a room made before it was, where the seat keeping it is taken for the one that sealed it. A die
+   * that has come to be kept by another seat without its seal let go of, as a version that knows
+   * nothing of sealing hands it on, tells nothing, as one kept by nobody does.
+   */
+  @SyncVar() sealedBy: string = '';
+  /**
    * The piece this die belongs to. Empty when it belongs to nobody.
    *
    * It is apart from `owner`, which says who may see the face. A die can stand in front of
@@ -52,13 +59,13 @@ export class DiceSymbol extends OwnedTabletopObject {
    * The face the die shows. For the keeper of a sealed die it is the face its browser keeps; for any
    * other seat it is the face the room was told, which for a sealed die is none. A face given to a
    * sealed die by its keeper is kept in the keeper's browser and drawn there anew, the room told only
-   * that the die changed. A die left sealed with nobody keeping it, as by a version that knows nothing
-   * of sealing taking its keeper away, has a face nobody holds, and stands on its first, as one whose
-   * seal is let go of does.
+   * that the die changed. A die left sealed with nobody keeping it, or kept by a seat other than the
+   * one that sealed it, as a version that knows nothing of sealing takes its keeper away or hands it
+   * on, has a face nobody holds, and stands on its first, as one whose seal is let go of does.
    */
   get face(): string {
     if (this.isSealedHere) return sealedFaceOf(this.identifier) ?? this.sentFace;
-    if (this.sealed && !this.hasOwner) return this.sentFace || (this.faces[0] ?? '');
+    if (this.sealed && !this.isSealed) return this.sentFace || (this.faces[0] ?? '');
     return this.sentFace;
   }
   set face(face: string) {
@@ -90,6 +97,7 @@ export class DiceSymbol extends OwnedTabletopObject {
    * to another seat.
    */
   override handOverWithinSeat(toUserId: string): void {
+    if (this.isSealed) this.sealedBy = toUserId;
     this.keeper = toUserId;
   }
 
@@ -106,13 +114,16 @@ export class DiceSymbol extends OwnedTabletopObject {
     return this.isSealed;
   }
 
-  /** Whether the die is sealed by a seat that keeps it: what is sealed and kept by nobody tells nothing. */
+  /**
+   * Whether the die is sealed by the seat that keeps it: what is sealed and kept by nobody, or by a
+   * seat other than the one that sealed it, tells nothing.
+   */
   get isSealed(): boolean {
-    return this.sealed && this.hasOwner;
+    return this.sealed && this.hasOwner && (this.sealedBy === '' || this.sealedBy === this.keeper);
   }
 
   private get isSealedHere(): boolean {
-    return this.sealed && this.isMine;
+    return this.isSealed && this.isMine;
   }
 
   /**
@@ -122,6 +133,7 @@ export class DiceSymbol extends OwnedTabletopObject {
   seal(): void {
     const face = this.face;
     keepSealedFace(this.identifier, face);
+    this.sealedBy = this.keeper;
     this.sealed = true;
     this.sentFace = '';
   }
@@ -144,6 +156,7 @@ export class DiceSymbol extends OwnedTabletopObject {
   unseal(): void {
     const face = this.face;
     this.sealed = false;
+    this.sealedBy = '';
     this.sentFace = face;
     forgetSealedFace(this.identifier);
   }
@@ -168,6 +181,7 @@ export class DiceSymbol extends OwnedTabletopObject {
    */
   private letSealGo(): void {
     this.sealed = false;
+    this.sealedBy = '';
     forgetSealedFace(this.identifier);
     if (!this.sentFace) this.sentFace = this.faces[0] ?? '';
   }

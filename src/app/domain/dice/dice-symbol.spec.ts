@@ -526,6 +526,17 @@ describe('DiceSymbol', () => {
       expect(JSON.parse(localStorage.getItem('axe-sealed-dice-faces') ?? '{}')).toEqual({ [deleted.identifier]: '3' });
     });
 
+    it('stands on its first face, open to its new keeper, where another seat came to keep it with its seal left on', () => {
+      const dice = sealedBy('me', '5');
+
+      dice.keeper = 'gm';
+
+      seat('gm');
+      expect([dice.isSealed, dice.face, dice.isOpenTo(false)]).toEqual([false, '1', true]);
+      seat('me');
+      expect(dice.holdsSealedFace).toBe(false);
+    });
+
     it('stands on its first face, open to all, where it is left sealed with nobody keeping it', () => {
       const dice = sealedBy('me', '5');
 
