@@ -1,12 +1,17 @@
 import { readiedVrm } from '@axe/infrastructure/three-kit/vrm-reading';
-import { VRMExpression, VRMExpressionMorphTargetBind } from '@pixiv/three-vrm';
+import {
+  VRMAimConstraint,
+  VRMExpression,
+  VRMExpressionMorphTargetBind,
+  VRMNodeConstraintManager,
+} from '@pixiv/three-vrm';
 import {
   VRMSpringBoneCollider,
   VRMSpringBoneColliderShapeSphere,
   VRMSpringBoneJoint,
   VRMSpringBoneManager,
 } from '@pixiv/three-vrm-springbone';
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
+import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
@@ -102,5 +107,46 @@ describe('readiedVrm', () => {
     (gltf.userData['vrm'] as { springBoneManager?: unknown }).springBoneManager = undefined;
 
     expect(readiedVrm(gltf)?.swingingOf(new Group())).toBeNull();
+  });
+
+  it('ties a bone to another on each copy’s own bones, found by name though what swings hangs on the copy, which follows as the copy’s bone moves', () => {
+    const { gltf, scene } = readVrm();
+    const arm = new Object3D();
+    arm.name = 'arm';
+    arm.position.set(1, 1, 0);
+    const elbow = new Object3D();
+    elbow.name = 'elbow';
+    elbow.position.set(1, 0, 0);
+    const sleeve = new Object3D();
+    sleeve.name = 'sleeve';
+    scene.add(arm);
+    arm.add(elbow);
+    arm.parent!.add(sleeve);
+    sleeve.position.copy(arm.position);
+    const aim = new VRMAimConstraint(sleeve, elbow);
+    aim.aimAxis = 'PositiveX';
+    const manager = new VRMNodeConstraintManager();
+    manager.addConstraint(aim);
+    (gltf.userData['vrm'] as { nodeConstraintManager?: unknown }).nodeConstraintManager = manager;
+    const rig = readiedVrm(gltf)!;
+    const copy = cloneSkinned(scene);
+    // What swings is made first, as a copy stood on the table has it, hanging colliders on the copy's bones.
+    rig.swingingOf(copy);
+    const ties = rig.tiesOf(copy)!;
+    const along = (object: Object3D) =>
+      new Vector3(1, 0, 0).applyQuaternion(object.getWorldQuaternion(new Quaternion()));
+
+    copy.getObjectByName('arm')!.rotation.set(0, 0, -Math.PI / 2);
+    ties.update();
+
+    const pointing = along(copy.getObjectByName('sleeve')!);
+    expect([pointing.x, pointing.y].map((value) => Number(value.toFixed(3)))).toEqual([0, -1]);
+    expect(along(scene.getObjectByName('sleeve')!).x).toBeCloseTo(1);
+  });
+
+  it('ties nothing on a VRM that ties no bones', () => {
+    const { gltf } = readVrm();
+
+    expect(readiedVrm(gltf)?.tiesOf(new Group())).toBeNull();
   });
 });

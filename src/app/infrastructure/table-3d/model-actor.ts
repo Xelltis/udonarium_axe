@@ -12,7 +12,7 @@ import { type ModelAct, type ModelMotions, type MotionRole } from '@axe/domain/t
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
 import { faceOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { meshesOf } from '@axe/infrastructure/three-kit/model-faces';
-import type { SwingingParts, VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
+import type { SwingingParts, TiedParts, VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import {
   type AnimationAction,
   AnimationClip,
@@ -96,6 +96,8 @@ export class ModelActor {
   private readonly expressions: ReadonlyMap<string, readonly ExpressionMorph[]>;
   /** What of this copy swings as it moves, as a VRM's hair and cloth do, or nothing. */
   private readonly swinging: SwingingParts | null;
+  /** The bones of this copy tied to others, as a VRM's sleeves to its arms, or nothing. */
+  private readonly ties: TiedParts | null;
   /** Until when what swings is moved on, in milliseconds: on for a while after the copy last moved, to come to rest. */
   private swingUntilMs = 0;
   /** The morphs written at the moment before, by the influences they are written in. */
@@ -136,6 +138,7 @@ export class ModelActor {
     this.mixer = new AnimationMixer(root);
     this.expressions = expressionsOn(root, rig);
     this.swinging = rig?.swingingOf(root) ?? null;
+    this.ties = rig?.tiesOf(root) ?? null;
     this.names = clips.map((clip) => clip.name);
     this.shaped = shapedMeshesOf(root);
     this.shapes = [...new Set([...this.expressions.keys(), ...this.shaped.flatMap((mesh) => [...mesh.places.keys()])])];
@@ -226,6 +229,8 @@ export class ModelActor {
     const stands = !down && moment.standing && (this.current !== null || lively);
     if (moment.moving && (acting || (!down && this.walking) || (stands && this.current !== null))) {
       this.mixer.update(step);
+      // What is tied to the bones follows them as they are now, before anything swings from it.
+      this.ties?.update();
     }
     this.face(moment, down);
     const posed = this.madePose(moment);

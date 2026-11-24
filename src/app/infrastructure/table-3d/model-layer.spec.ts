@@ -630,7 +630,7 @@ describe('ModelLayer', () => {
       vi.spyOn(internals.reader, 'read').mockResolvedValue({
         scene: new Group(),
         animations: [new AnimationClip('Idle', 1, [])],
-        rig: { expressions: [], swingingOf: () => null, motionOf },
+        rig: { expressions: [], swingingOf: () => null, tiesOf: () => null, motionOf },
       });
       const readMotion = vi.spyOn(internals.reader, 'readMotion').mockResolvedValue({ motion: 'wave' });
 

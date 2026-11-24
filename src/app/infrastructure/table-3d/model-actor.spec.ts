@@ -364,6 +364,7 @@ describe('ModelActor with a VRM', () => {
       ],
       swingingOf: () => ({ update: (seconds: number) => void swung.push(seconds), reset: () => undefined }),
       motionOf: () => null,
+      tiesOf: () => null,
     };
     const actor = new ModelActor(root, [], 'avatar', rig);
     return { actor, influences: face.morphTargetInfluences, swung };
@@ -408,6 +409,27 @@ describe('ModelActor with a VRM', () => {
     actor.walk(true, 4000);
     actor.advance(at(4000, { moving: false }));
     expect(swung).toHaveLength(before);
+  });
+});
+
+describe('ModelActor with bones tied to others', () => {
+  it('keeps what is tied to the bones to them each frame it plays a motion, and not while nothing moves them', () => {
+    const tied = vi.fn();
+    const rig = {
+      expressions: [],
+      swingingOf: () => null,
+      motionOf: () => null,
+      tiesOf: () => ({ update: tied }),
+    };
+    const actor = new ModelActor(new Group(), [new AnimationClip('Idle', 1, [])], 'avatar', rig);
+    actor.cast(ASKED);
+
+    actor.advance(at(0));
+    actor.advance(at(40));
+    expect(tied).toHaveBeenCalledTimes(2);
+
+    actor.advance(at(80, { moving: false }));
+    expect(tied).toHaveBeenCalledTimes(2);
   });
 });
 
