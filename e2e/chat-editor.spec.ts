@@ -455,12 +455,19 @@ test.describe('the palette written in the editor', () => {
       palette.locator('input[name^="chat-tab"]:checked').evaluate((input) => input.parentElement!.textContent!.trim());
     const tab = await checkedTab();
 
-    const settled = () =>
-      page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    // The editor takes up the caret the browser moved only once it hears of the move, which a busy
+    // page puts off: a key sent before then acts where the caret was.
+    const caretAtLineEnd = () =>
+      editor.evaluate((element) => {
+        type Head = { parentOffset: number; parent: { content: { size: number } } };
+        const { $head } = (element as unknown as { editor: { state: { selection: { $head: Head } } } }).editor.state
+          .selection;
+        return $head.parentOffset === $head.parent.content.size;
+      });
     await editor.locator('p').first().click();
     await page.keyboard.press('Control+ArrowLeft');
     await page.keyboard.press('End');
-    await settled();
+    await expect.poll(caretAtLineEnd).toBe(true);
     await page.keyboard.press('Backspace');
     await page.keyboard.type('5');
     await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る\n:気力-1');
