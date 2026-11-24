@@ -134,13 +134,14 @@ export class MapEditorObjectPaintComponent {
     this.setObjectPaint({ seed: 1 + Math.floor(Math.random() * MOST_SEED) });
   }
 
-  /** Reads a `.glb` file chosen into the room's models, and takes it up for the brush. */
+  /** Reads a model file chosen into the room's models, and takes up the first that may be drawn for the brush. */
   protected async readModel(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
     if (files.length < 1) return;
     const { models } = await this.fileArchiver.load(files);
-    if (models.length > 0) this.chooseModel(models[0]);
+    const drawn = this.modelStorage.firstDrawable(models);
+    if (drawn) this.chooseModel(drawn);
   }
 }

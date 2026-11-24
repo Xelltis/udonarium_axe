@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { placeableModelOf } from '@axe/domain/tabletop/placeable-models';
 import { MapEditorObjectPaintComponent } from '@axe/features/map-editor/editor/map-editor-object-paint.component';
@@ -80,6 +81,34 @@ describe('MapEditorObjectPaintComponent', () => {
 
     expect(state.functionSpec().object).toMatchObject({ model: 'held-statue', name: 'statue', size: 1, height: 1 });
     expect(host().querySelector('[data-testid="object-height"]')).not.toBeNull();
+  });
+
+  it('takes up for the brush the first model read from a file that may be drawn, never a motion for VRM models', async () => {
+    const storage = TestBed.inject(ModelStorage);
+    const held = {
+      'held-wave': { identifier: 'held-wave', name: 'wave.vrma', isReady: true },
+      'held-statue': { identifier: 'held-statue', name: 'statue.glb', isReady: true },
+    } as const;
+    vi.spyOn(storage, 'models', 'get').mockReturnValue(Object.values(held) as never);
+    vi.spyOn(storage, 'get').mockImplementation((identifier) => held[identifier as keyof typeof held] as never);
+    vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({
+      dataRead: false,
+      images: [],
+      audios: [],
+      models: ['held-wave', 'held-statue'],
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const shelves = [...host().querySelectorAll('[data-testid="object-shelves"] button')] as HTMLButtonElement[];
+    shelves.find((one) => one.textContent?.trim() === '部屋のモデル')!.click();
+    fixture.detectChanges();
+    const input = host().querySelector<HTMLInputElement>('[data-testid="object-model-file"]')!;
+    Object.defineProperty(input, 'files', { value: [new File([new Uint8Array(8)], 'wave.vrma')] });
+
+    input.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(state.functionSpec().object).toMatchObject({ model: 'held-statue', name: 'statue' });
   });
 
   it('lets nothing hide what is behind it that a piece walks over', async () => {
