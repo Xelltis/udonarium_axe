@@ -1,4 +1,5 @@
 import { clamp } from '@axe/core/util/clamp';
+import { namedRecord } from '@axe/core/util/named-record';
 import { recordOf, storedRecordOf } from '@axe/core/util/stored-record';
 
 /**
@@ -43,7 +44,7 @@ export const MODEL_FACE_AS_MADE: ModelFace = Object.freeze({
   blink: '',
   mouth: '',
   breath: '',
-  weights: Object.freeze({}),
+  weights: Object.freeze(namedRecord<number>()),
   sways: Object.freeze([]),
 });
 
@@ -51,7 +52,7 @@ export const MODEL_FACE_AS_MADE: ModelFace = Object.freeze({
 export function modelFaceOf(value: unknown): ModelFace {
   const source = storedRecordOf(value);
   if (!source) return MODEL_FACE_AS_MADE;
-  const weights: Record<string, number> = {};
+  const weights = namedRecord<number>();
   const stored = recordOf(source['weights']) ?? {};
   for (const key of Object.keys(stored).slice(0, MAX_FACE_WEIGHTS)) {
     const name = nameOf(key);
@@ -88,7 +89,7 @@ export function writeModelFace(face: ModelFace): string {
   if (face.blink) written['blink'] = face.blink;
   if (face.mouth) written['mouth'] = face.mouth;
   if (face.breath) written['breath'] = face.breath;
-  const weights: Record<string, number> = {};
+  const weights = namedRecord<number>();
   for (const name of Object.keys(face.weights).sort()) if (face.weights[name] > 0) weights[name] = face.weights[name];
   if (Object.keys(weights).length > 0) written['weights'] = weights;
   if (face.sways.length > 0)

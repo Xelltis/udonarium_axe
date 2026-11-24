@@ -94,7 +94,10 @@ function vrmExpressionNamesOf(json: GltfJson): string[] {
   const groups = json.extensions?.VRM?.blendShapeMaster?.blendShapeGroups;
   if (!Array.isArray(groups)) return [];
   return groups.flatMap((group) => {
-    const preset = typeof group?.presetName === 'string' ? VRM0_SHAPES[group.presetName] : undefined;
+    const preset =
+      typeof group?.presetName === 'string' && Object.hasOwn(VRM0_SHAPES, group.presetName)
+        ? VRM0_SHAPES[group.presetName]
+        : undefined;
     const name = preset ?? (typeof group?.name === 'string' ? group.name : '');
     return name ? [name] : [];
   });

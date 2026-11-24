@@ -1,4 +1,5 @@
 import { clamp } from '@axe/core/util/clamp';
+import { namedRecord } from '@axe/core/util/named-record';
 import { recordOf, storedRecordOf } from '@axe/core/util/stored-record';
 
 /**
@@ -65,13 +66,17 @@ export const AS_MADE: MaterialLook = Object.freeze({
 });
 
 /** A model drawn as it was made. */
-export const MODEL_AS_MADE: ModelLook = Object.freeze({ ...AS_MADE, finish: '', materials: Object.freeze({}) });
+export const MODEL_AS_MADE: ModelLook = Object.freeze({
+  ...AS_MADE,
+  finish: '',
+  materials: Object.freeze(namedRecord<MaterialLook>()),
+});
 
 /** The look a model was stored with: as it was made where nothing was stored, or what was cannot be read. */
 export function modelLookOf(value: unknown): ModelLook {
   const source = storedRecordOf(value);
   if (!source) return MODEL_AS_MADE;
-  const materials = materialRecord<MaterialLook>();
+  const materials = namedRecord<MaterialLook>();
   const stored = recordOf(source['materials']);
   for (const key of Object.keys(stored ?? {}).slice(0, MAX_MODEL_LOOK_MATERIALS)) {
     const named = key.trim().slice(0, MAX_MATERIAL_NAME);
@@ -94,7 +99,7 @@ export function writeModelLook(look: ModelLook): string {
   const written: Record<string, unknown> = { ...writtenMaterial(look) };
   delete written['hidden'];
   if (look.finish) written['finish'] = look.finish;
-  const materials = materialRecord<unknown>();
+  const materials = namedRecord<unknown>();
   for (const key of Object.keys(look.materials).sort()) {
     const one = writtenMaterial(ownMaterialLook(look, key)!);
     if (Object.keys(one).length > 0) materials[key] = one;
@@ -145,18 +150,13 @@ export function ownMaterialLook(look: ModelLook, key: string): MaterialLook | un
   return Object.hasOwn(look.materials, key) ? look.materials[key] : undefined;
 }
 
-/** A record of a model's materials by their names, which has nothing in it but what is put there, whatever a material is named. */
-function materialRecord<T>(): Record<string, T> {
-  return Object.create(null) as Record<string, T>;
-}
-
 /**
  * A look with one of its materials given a look of its own, or with that taken back where nothing is
  * changed of it; the look as it was where the material may not be given one.
  */
 export function withMaterialLook(look: ModelLook, key: string, material: MaterialLook): ModelLook {
   if (!isAsMade(material) && !mayChangeMaterial(look, key)) return look;
-  const materials = Object.assign(materialRecord<MaterialLook>(), look.materials);
+  const materials = namedRecord<MaterialLook>(look.materials);
   if (isAsMade(material)) delete materials[key];
   else materials[key] = material;
   return { ...look, materials };

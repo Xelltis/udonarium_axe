@@ -125,6 +125,7 @@ describe('gltfNamesOf', () => {
               { name: 'A', presetName: 'a' },
               { name: 'Wink', presetName: 'unknown' },
               { presetName: 'nothing' },
+              { name: 'Odd', presetName: 'constructor' },
             ],
           },
         },
@@ -132,7 +133,7 @@ describe('gltfNamesOf', () => {
     };
 
     expect(gltfNamesOf(glb(one))?.shapes).toEqual(['blink', 'aa', 'smirk', 'Fcl_EYE_Close']);
-    expect(gltfNamesOf(glb(zero))?.shapes).toEqual(['happy', 'aa', 'Wink']);
+    expect(gltfNamesOf(glb(zero))?.shapes).toEqual(['happy', 'aa', 'Wink', 'Odd']);
   });
 
   it('says whether the file is a VRM, of either version', () => {

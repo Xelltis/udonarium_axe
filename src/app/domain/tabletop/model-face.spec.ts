@@ -10,6 +10,15 @@ import {
 } from '@axe/domain/tabletop/model-face-motion';
 
 describe('what a piece does with its model’s shapes', () => {
+  it('keeps the weight of a shape by its name whatever it is named, `constructor` and `__proto__` too', () => {
+    const face = modelFaceOf(JSON.stringify({ weights: { constructor: 0.5, ['__proto__']: 0.25 } }));
+
+    expect(Object.keys(face.weights).sort()).toEqual(['__proto__', 'constructor']);
+    expect(modelFaceOf(writeModelFace(face)).weights['constructor']).toBe(0.5);
+    expect(Object.hasOwn(MODEL_FACE_AS_MADE.weights, 'constructor')).toBe(false);
+    expect('constructor' in MODEL_FACE_AS_MADE.weights).toBe(false);
+  });
+
   it('is the model’s own where nothing was stored, or what was cannot be read', () => {
     for (const value of ['', undefined, null, 'Joy', '[]', '{"weights":']) {
       expect(modelFaceOf(value)).toEqual(MODEL_FACE_AS_MADE);

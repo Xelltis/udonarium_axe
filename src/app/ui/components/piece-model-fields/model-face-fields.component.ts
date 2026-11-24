@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { namedRecord } from '@axe/core/util/named-record';
 import {
   MAX_FACE_SWAYS,
   MAX_FACE_WEIGHTS,
@@ -75,7 +76,7 @@ export class ModelFaceFieldsComponent {
   protected readonly toHold = computed(() =>
     Object.keys(this.face().weights).length >= MAX_FACE_WEIGHTS
       ? []
-      : this.shapes().filter((name) => !(name in this.face().weights))
+      : this.shapes().filter((name) => !Object.hasOwn(this.face().weights, name))
   );
   protected readonly toSway = computed(() => {
     const swayed = new Set(this.face().sways.map((sway) => sway.name));
@@ -88,7 +89,7 @@ export class ModelFaceFieldsComponent {
 
   /** Holds the model in a shape so far, or lets go of the shape where it is held in none of it. */
   protected hold(name: string, weight: unknown): void {
-    const weights = { ...this.face().weights };
+    const weights = namedRecord<number>(this.face().weights);
     const number = Number(weight);
     if (Number.isFinite(number) && number > 0) weights[name] = number;
     else delete weights[name];
