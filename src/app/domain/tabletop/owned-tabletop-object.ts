@@ -14,6 +14,15 @@ export abstract class OwnedTabletopObject extends TabletopObject {
     return object ? object.name : '';
   }
 
+  /**
+   * Hands the object from one id of a seat over to another id of the same seat, as when somebody logs
+   * in outside a room, as any change of owner does: what it keeps for its owner in the seat's own
+   * browser stays theirs, the browser being the same.
+   */
+  handOverWithinSeat(toUserId: string): void {
+    this.owner = toUserId;
+  }
+
   /** Whether some user has claimed the object. */
   get hasOwner(): boolean {
     return this.owner.length > 0;

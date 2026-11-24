@@ -81,6 +81,15 @@ export class DiceSymbol extends OwnedTabletopObject {
     this.keeper = owner;
   }
 
+  /**
+   * Hands the die over to another id of the same seat, as when somebody logs in outside a room. A
+   * sealed die stays sealed, its face being in the same browser still, as it is not when the die goes
+   * to another seat.
+   */
+  override handOverWithinSeat(toUserId: string): void {
+    this.keeper = toUserId;
+  }
+
   /** Whether this browser holds the face of a die this seat sealed: only one that does can show it. */
   get holdsSealedFace(): boolean {
     return this.isSealedHere && sealedFaceOf(this.identifier) !== null;
