@@ -571,6 +571,19 @@ describe('DiceRollService', () => {
       expect(notice.mock.calls[0][1] as string).toContain('6');
     });
 
+    it('lets its keeper turn it only from the browser that holds its face, so that no other keeps a face apart', () => {
+      const elsewhere = sealedBy('me');
+      const here = makeDice('みんなの');
+      service.seal(here);
+
+      expect([service.canTurn(elsewhere), service.canTurn(here)]).toEqual([false, true]);
+      expect(service.setFace(elsewhere, '5')).toBe(false);
+      expect(service.roll([elsewhere])).toEqual([]);
+      expect(JSON.parse(localStorage.getItem('axe-sealed-dice-faces') ?? '{}')).not.toHaveProperty(
+        elsewhere.identifier
+      );
+    });
+
     it('lets its keeper show it only from the browser that holds its face, and give the seal up from any other', () => {
       const elsewhere = sealedBy('me');
       const here = makeDice('みんなの');

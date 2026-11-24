@@ -49,10 +49,14 @@ export class DiceRollService {
    * Whether this seat may turn a die, rolling it or setting its face: a seat that may change the table,
    * for a die nobody keeps or that it keeps. The game master reads, shows and keeps another seat's kept
    * die but does not throw it, as the kept-back line of such a throw would be the master's, which the
-   * keeper could not open as they show the die.
+   * keeper could not open as they show the die. A sealed die is turned only in the browser that holds
+   * its face, as one turned anywhere else would keep a face of its own there, apart from the other;
+   * its keeper elsewhere may give the seal up first.
    */
   canTurn(die: DiceSymbol): boolean {
-    return this.permission.canEditTabletop() && (!die.hasOwner || die.isMine);
+    if (!this.permission.canEditTabletop()) return false;
+    if (die.isSealed) return die.holdsSealedFace;
+    return !die.hasOwner || die.isMine;
   }
 
   /**
