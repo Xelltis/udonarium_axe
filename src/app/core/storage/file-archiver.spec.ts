@@ -7,6 +7,7 @@ import {
   type ImageDroppedEvent,
   xmlLoaded$,
 } from '@axe/core/event/domain-events';
+import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -375,6 +376,23 @@ describe('FileArchiver', () => {
         ]);
 
         expect(read).toEqual([{ tag: 'character', along: 'piece-parts' }]);
+      } finally {
+        off();
+      }
+    });
+
+    it('reads nothing of parts dropped loose without the data of the piece they go with, and logs it', async () => {
+      const read: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+      try {
+        await FileArchiver.instance.load([
+          new File(['<piece-parts><character></character></piece-parts>'], 'parts.xml', { type: 'text/xml' }),
+        ]);
+
+        expect(read).toEqual(['piece-parts']);
+        expect(warned).toHaveBeenCalledWith(expect.stringContaining('parts.xml'));
       } finally {
         off();
       }

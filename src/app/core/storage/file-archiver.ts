@@ -284,7 +284,11 @@ export class FileArchiver {
       models: [],
     };
     const loose = files instanceof FileList ? toArrayOfFileList(files) : [...files];
-    const along = await this.takeAlongData(loose, new Map());
+    const withData = loose.some((file) => baseNameOf(file.name) === 'data.xml');
+    const along = withData ? await this.takeAlongData(loose, new Map()) : null;
+    if (!withData && loose.some((file) => baseNameOf(file.name) === ALONG_DATA_FILE)) {
+      Logger.warn('[FileArchiver] parts.xml は data.xml と一緒に読み込んでください');
+    }
     await this.loadFiles(loose, dropPoint, true, run, along ?? undefined);
     if (run.tooLarge.length > 0) emitFilesTooLarge({ files: run.tooLarge });
     return { dataRead: run.dataRead, images: run.images, audios: run.audios, models: run.models };
@@ -562,8 +566,9 @@ export class FileArchiver {
 
   /**
    * Takes out of a save's files the one it keeps beside its data, `parts.xml`, read under the
-   * pictures' new ids, to go along with the data: of those in a zip, or of those dropped loose, as a
-   * save taken out of its zip is. Null where there is none, or none that reads.
+   * pictures' new ids, to go along with the data: of those in a zip, or of those dropped loose beside a
+   * `data.xml`, as a save taken out of its zip is; dropped without one, nothing is read of it, which
+   * is logged. Null where there is none, or none that reads.
    */
   private async takeAlongData(files: File[], renamed: ReadonlyMap<string, string>): Promise<Element | null> {
     const index = files.findIndex((file) => baseNameOf(file.name) === ALONG_DATA_FILE);
