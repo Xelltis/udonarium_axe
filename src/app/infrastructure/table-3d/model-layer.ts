@@ -775,7 +775,9 @@ export class ModelLayer {
   private variantOf(other: LoadedModel, moonlit: boolean, look: ModelLook = MODEL_AS_MADE): LoadedModel {
     const scene = cloneSkinned(other.gltf.scene) as Group;
     this.wear(scene, other.made, look, moonlit, other.ownGlow, this.detail);
-    return measuredAs(other, scene);
+    // What a VRM is rigged with goes with every copy of it, however the copy is measured.
+    const variant = measuredAs(other, scene);
+    return other.rig ? { ...variant, rig: other.rig } : variant;
   }
 
   private settle(key: string): void {

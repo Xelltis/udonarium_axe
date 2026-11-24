@@ -551,6 +551,31 @@ describe('ModelLayer', () => {
     layer.dispose();
   });
 
+  it('gives every copy of a VRM what the VRM is rigged with, though its meshes do not line up with the twin’s', () => {
+    const layer = new ModelLayer(
+      () => undefined,
+      () => undefined,
+      () => ({}) as WebGPURenderer
+    );
+    const scene = new Group();
+    scene.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial()));
+    const rig = { expressions: [], swingingOf: () => null, tiesOf: () => null, motionOf: () => null };
+    type Loaded = {
+      gltf: { scene: Group; animations: [] };
+      parts: { mesh: Mesh }[];
+      made: [];
+      ownGlow: boolean;
+      rig?: unknown;
+    };
+    const internals = layer as unknown as { variantOf: (other: Loaded, moonlit: boolean) => Loaded };
+    const lined = { gltf: { scene, animations: [] }, parts: [], made: [], ownGlow: false, rig } as unknown as Loaded;
+    const unlined = { ...lined, parts: [{ mesh: new Mesh() }] } as unknown as Loaded;
+
+    expect(internals.variantOf(lined, false).rig).toBe(rig);
+    expect(internals.variantOf(unlined, false).rig).toBe(rig);
+    layer.dispose();
+  });
+
   it('measures the copy for a piece as its twin was read, each part its own mesh, however the twin stands posed since', async () => {
     const layer = new ModelLayer(
       () => undefined,
