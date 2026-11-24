@@ -8,7 +8,8 @@ export const NO_MODEL_NAMES: GltfNames = Object.freeze({ motions: [], shapes: []
 
 /**
  * What the models held here name of themselves, for whoever sets one up to choose among: its
- * motions, after them those of the motions for VRM models a VRM is given, the shapes it can be
+ * motions, after them those of the motions for VRM models a VRM is given whose files are held here,
+ * as one not come yet has nothing to play, the shapes it can be
  * blended towards and its materials. Each model is read once, from its
  * file's JSON alone, the first time it is asked after while its bytes are held in full; what reads it
  * is fetched the first time any is.
@@ -46,7 +47,10 @@ export class ModelNamesService {
     }
     const own = names();
     if (!own.vrm) return own;
-    const given = this.motionFiles.givenTo(identifier).map((motion) => motion.name);
+    const given = this.motionFiles
+      .givenTo(identifier)
+      .filter((motion) => motion.url !== '')
+      .map((motion) => motion.name);
     return given.length > 0 ? { ...own, motions: [...new Set([...own.motions, ...given])] } : own;
   }
 }

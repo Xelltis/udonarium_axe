@@ -75,10 +75,11 @@ describe('ModelNamesService', () => {
     expect(names.namesOf('junk')).toBe(NO_MODEL_NAMES);
   });
 
-  it('names after a VRM’s own motions those it is given, and none given to a model that is no VRM', async () => {
-    const given = vi
-      .spyOn(TestBed.inject(ModelMotionFilesService), 'givenTo')
-      .mockReturnValue([{ identifier: 'wave', name: 'Wave', url: '' }]);
+  it('names after a VRM’s own motions those it is given that are held here, and none given to a model that is no VRM', async () => {
+    const given = vi.spyOn(TestBed.inject(ModelMotionFilesService), 'givenTo').mockReturnValue([
+      { identifier: 'wave', name: 'Wave', url: 'blob:wave' },
+      { identifier: 'bow', name: 'bow12345', url: '' },
+    ]);
     held['avatar'] = { blob: new Blob([binaryGltf({ extensionsUsed: ['VRMC_vrm'], animations: [{ name: 'Idle' }] })]) };
     held['knight'] = { blob: knight() };
 
