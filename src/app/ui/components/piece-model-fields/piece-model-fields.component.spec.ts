@@ -127,7 +127,7 @@ describe('PieceModelFieldsComponent', () => {
 
     it('adds a picture of the model as the preview shows it to the piece’s portraits, named as the model', async () => {
       vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([
-        { identifier: 'a'.repeat(64), name: 'knight.glb', isReady: true },
+        { identifier: 'a'.repeat(64), name: 'Avatar.vrm', isReady: true },
       ] as never);
       const picture = new Blob(['picture']);
       vi.spyOn(ModelPreviewComponent.prototype, 'picture').mockResolvedValue(picture);
@@ -138,7 +138,7 @@ describe('PieceModelFieldsComponent', () => {
       element.querySelector<HTMLButtonElement>('[data-testid="piece-model-portrait"]')!.click();
       await fixture.whenStable();
 
-      expect(added).toHaveBeenCalledWith(piece, picture, 'knight');
+      expect(added).toHaveBeenCalledWith(piece, picture, 'Avatar');
     });
 
     it('offers no portrait to anything but a piece', async () => {

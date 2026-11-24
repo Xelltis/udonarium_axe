@@ -4,7 +4,7 @@ import { ModelPortraitService } from '@axe/application/character/model-portrait.
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModelNamesService, NO_MODEL_NAMES } from '@axe/application/tabletop/model-names.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
-import { isModelMotion } from '@axe/core/storage/model-file';
+import { isModelMotion, modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import type { ModelAct, MotionRole } from '@axe/domain/tabletop/model-motions';
@@ -147,14 +147,11 @@ export class PieceModelFieldsComponent {
   /** The name of the model the target is drawn as, as it is listed. */
   private modelName(): string {
     const identifier = this.fields().identifier;
-    return (
-      this.models()
-        .find((model) => model.identifier === identifier)
-        ?.name.replace(/\.glb$/i, '') ?? ''
-    );
+    const name = this.models().find((model) => model.identifier === identifier)?.name;
+    return name ? modelNameOf(name) : '';
   }
 
-  /** Reads a `.glb` file chosen into the models held here, and gives it to the target. */
+  /** Reads a model file chosen into the models held here, and gives it to the target. */
   protected async read(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
