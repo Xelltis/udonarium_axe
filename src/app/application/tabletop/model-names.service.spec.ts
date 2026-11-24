@@ -66,6 +66,26 @@ describe('ModelNamesService', () => {
     await vi.waitFor(() => expect(names.namesOf('knight').materials).toEqual(['Armour']));
   });
 
+  it('reads a model again where its reading failed, once it is asked after again', async () => {
+    const bytes = knight();
+    let failed = false;
+    const flaky = {
+      slice: (start?: number, end?: number) => {
+        if (!failed) {
+          failed = true;
+          return { arrayBuffer: () => Promise.reject(new Error('gone')) };
+        }
+        return bytes.slice(start, end);
+      },
+    } as unknown as Blob;
+    held['knight'] = { blob: flaky };
+    names.namesOf('knight');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(names.namesOf('knight')).toBe(NO_MODEL_NAMES);
+
+    await vi.waitFor(() => expect(names.namesOf('knight').materials).toEqual(['Armour']));
+  });
+
   it('names nothing of bytes that are no model', async () => {
     held['junk'] = { blob: new Blob([new Uint8Array(64)]) };
 

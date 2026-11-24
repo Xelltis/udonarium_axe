@@ -24,7 +24,8 @@ export class ModelNamesService {
   /**
    * What a model names, by the identifier it is kept under: nothing until it has been read, and
    * nothing for one that is not held here or cannot be read. Read as a signal, so what is shown of it
-   * follows its being read; asked again once a model not held before has come, it is read then.
+   * follows its being read; asked again once a model not held before has come, it is read then, and
+   * so is one whose reading failed, as where what reads it could not be fetched.
    */
   namesOf(identifier: string): GltfNames {
     let names = this.read.get(identifier);
@@ -41,7 +42,7 @@ export class ModelNamesService {
           .then(({ gltfNamesOfBlob }) => gltfNamesOfBlob(blob))
           .then(
             (found) => known.set(found ?? NO_MODEL_NAMES),
-            () => undefined
+            () => this.asked.delete(identifier)
           );
       }
     }
