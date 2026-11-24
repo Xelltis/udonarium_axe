@@ -82,4 +82,28 @@ describe('SealedDiceEventHandlerService', () => {
     expect(version()).toBeGreaterThan(before);
     expect(mine.face).toBe('6');
   });
+
+  it('answers under a lock of this seat’s own, and takes none where this seat has sealed no die', () => {
+    const asked: string[] = [];
+    const locks = {
+      request: (name: string, _options: unknown, run: (lock: unknown) => unknown) => {
+        asked.push(name);
+        return Promise.resolve(run(name.endsWith(':me') ? { name } : null));
+      },
+    };
+    Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ role: PeerRole.GameMaster } as PeerCursor);
+    try {
+      localDispatch('REVEAL_SEALED_DICE', null, 'gm-peer');
+      expect(asked).toEqual([]);
+
+      const mine = die('me', true);
+      localDispatch('REVEAL_SEALED_DICE', null, 'gm-peer');
+
+      expect(asked).toEqual(['axe-reveal-sealed-dice:me']);
+      expect(mine.isSealed).toBe(false);
+    } finally {
+      delete (navigator as { locks?: unknown }).locks;
+    }
+  });
 });
