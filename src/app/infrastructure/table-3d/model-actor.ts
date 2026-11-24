@@ -46,6 +46,12 @@ export interface ActorMoment {
   readonly standing: boolean;
 }
 
+/**
+ * How far a copy may go between two frames, in the model's own units, before it is held to have been
+ * put somewhere rather than moved there: a VRM's metre, which no walk covers in one frame.
+ */
+const JUMP_IN_MODEL_UNITS = 1;
+
 /** How long what swings is moved on after a copy last moved, in milliseconds, for it to come to rest. */
 const SWING_SETTLE_MS = 1600;
 
@@ -100,6 +106,8 @@ export class ModelActor {
   private readonly ties: TiedParts | null;
   /** Until when what swings is moved on, in milliseconds: on for a while after the copy last moved, to come to rest. */
   private swingUntilMs = 0;
+  /** Where the copy stood when what swings was last moved on, or null before it ever was. */
+  private swungAt: Vector3 | null = null;
   /** The morphs written at the moment before, by the influences they are written in. */
   private writtenAt = new Map<number[], Set<number>>();
   /** The names of all the shapes its meshes can be blended towards. */
@@ -130,7 +138,7 @@ export class ModelActor {
   private restless = true;
 
   constructor(
-    root: Object3D,
+    private readonly root: Object3D,
     private readonly clips: readonly AnimationClip[],
     owner: string,
     rig: VrmRig | null = null
@@ -251,8 +259,23 @@ export class ModelActor {
     if (!this.swinging || !moment.moving) return false;
     if (moved) this.swingUntilMs = moment.timeMs + SWING_SETTLE_MS;
     if (moment.timeMs >= this.swingUntilMs) return false;
+    this.restWhereJumped();
     this.swinging.update(step);
     return true;
+  }
+
+  /**
+   * Stands what swings at rest where the copy stands, where it has been put there rather than moved:
+   * the first time it swings, after being made where nothing stands, and whenever it is set down far
+   * from where it last swung, as a piece dropped or moved by another seat is. Swung on from where it
+   * was, its hair and cloth would be flung across the table.
+   */
+  private restWhereJumped(): void {
+    this.root.updateWorldMatrix(true, false);
+    const at = this.root.getWorldPosition(new Vector3());
+    const scale = this.root.matrixWorld.getMaxScaleOnAxis() || 1;
+    if (!this.swungAt || this.swungAt.distanceTo(at) / scale > JUMP_IN_MODEL_UNITS) this.swinging?.reset();
+    this.swungAt = at;
   }
 
   /** Stops every motion and lets go of what playing them holds. */

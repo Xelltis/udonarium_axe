@@ -357,17 +357,21 @@ describe('ModelActor with a VRM', () => {
     const root = new Group();
     root.add(face);
     const swung: number[] = [];
+    const rested: number[] = [];
     const rig = {
       expressions: [
         { name: 'blink', binds: [{ mesh: 0, morph: 0, weight: 1 }] },
         { name: 'happy', binds: [{ mesh: 0, morph: 1, weight: 0.5 }] },
       ],
-      swingingOf: () => ({ update: (seconds: number) => void swung.push(seconds), reset: () => undefined }),
+      swingingOf: () => ({
+        update: (seconds: number) => void swung.push(seconds),
+        reset: () => void rested.push(swung.length),
+      }),
       motionOf: () => null,
       tiesOf: () => null,
     };
     const actor = new ModelActor(root, [], 'avatar', rig);
-    return { actor, influences: face.morphTargetInfluences, swung };
+    return { actor, root, influences: face.morphTargetInfluences, swung, rested };
   }
 
   it('names the shapes the VRM names first, and holds its face in one as far as each morph goes for it', () => {
@@ -389,6 +393,24 @@ describe('ModelActor with a VRM', () => {
     }
 
     expect(Math.max(...shut)).toBeGreaterThan(0.8);
+  });
+
+  it('stands what swings at rest where it is first swung, and again where it is set down far away, not while it walks', () => {
+    const { actor, root, rested } = vrm();
+    actor.cast({ ...ASKED, face: writeModelFace({ ...MODEL_FACE_AS_MADE, blink: NO_SHAPE }) });
+    actor.walk(true, 0);
+
+    root.position.set(3000, 0, 2000);
+    actor.advance(at(0));
+    expect(rested).toEqual([0]);
+
+    root.position.x += 0.2;
+    actor.advance(at(16));
+    expect(rested).toEqual([0]);
+
+    root.position.set(0, 0, 0);
+    actor.advance(at(32));
+    expect(rested).toEqual([0, 2]);
   });
 
   it('swings while it moves and a while after, wanting every frame meanwhile, and then rests', () => {
