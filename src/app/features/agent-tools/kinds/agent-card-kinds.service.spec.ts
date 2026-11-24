@@ -530,6 +530,10 @@ describe('AgentCardKinds', () => {
       expect(act('dice-symbol', plot.identifier, 'seal')).toMatchObject({ kept_by: 'AI', face: '4' });
       expect([plot.isSealed, plot.sentFace]).toEqual([true, '']);
       expect(() => act('dice-symbol', plot.identifier, 'seal')).toThrow(/sealed it already/);
+      const free = dieOf('見学');
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      expect(() => act('dice-symbol', free.identifier, 'seal')).toThrow(/may not change the table/);
+      asPlayer();
       expect(() => act('dice-symbol', plot.identifier, 'reveal_sealed')).toThrow(/Only the game master may ask/);
 
       plot.owner = 'someone-else';
@@ -538,6 +542,7 @@ describe('AgentCardKinds', () => {
       PeerCursor.myCursor.role = PeerRole.GameMaster;
       expect(() => act('dice-symbol', plot.identifier, 'reveal')).toThrow(/only the browser that sealed it/);
       expect(() => act('dice-symbol', plot.identifier, 'keep')).toThrow(/nobody may take it from its keeper/);
+      expect(() => act('dice-symbol', plot.identifier, 'seal')).toThrow(/Another seat sealed this die/);
       act('dice-symbol', plot.identifier, 'reveal_sealed');
       expect(send.mock.calls.map(([context]) => (context as { eventName: string }).eventName)).toContain(
         'REVEAL_SEALED_DICE'

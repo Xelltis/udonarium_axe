@@ -918,7 +918,14 @@ export class AgentCardKinds {
             if (die.isSealed && die.isMine) throw new AgentToolError('invalid_input', 'This seat sealed it already.');
             this.myUserId();
             if (!this.diceRoll.seal(die)) {
-              throw new AgentToolError('not_allowed', 'Another seat keeps this die, so this seat may not seal it.');
+              throw new AgentToolError(
+                'not_allowed',
+                !this.permission.canEditTabletop()
+                  ? 'This seat may not change the table, as one watching, so it may not seal a die.'
+                  : die.isSealed
+                    ? 'Another seat sealed this die; nobody may take it from its keeper.'
+                    : 'Another seat keeps this die, so this seat may not seal it.'
+              );
             }
             return this.shown(kind, die);
           },
