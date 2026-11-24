@@ -1,8 +1,9 @@
 /**
  * Runs what every tab of the page in this browser is asked to do at once in one of them alone: the
  * first to come takes the browser's lock of that name and keeps it a while after, as the others are
- * told of the same asking a moment apart, and any that comes while it is kept does nothing. Where
- * the browser has no locks, every tab runs it.
+ * told of the same asking a moment apart, and any that comes while it is kept does nothing. It is
+ * kept so long whether the task ran through or not. Where the browser has no locks, or refuses to
+ * lend this page one, every tab runs it.
  */
 export function inOneTab(
   name: string,
@@ -14,11 +15,20 @@ export function inOneTab(
     task();
     return;
   }
-  void locks.request(name, { ifAvailable: true }, async (lock) => {
-    if (!lock) return;
-    task();
-    await new Promise<void>((resolve) => setTimeout(resolve, keptMs));
-  });
+  let ran = false;
+  locks
+    .request(name, { ifAvailable: true }, async (lock) => {
+      if (!lock) return;
+      ran = true;
+      try {
+        task();
+      } finally {
+        await new Promise<void>((resolve) => setTimeout(resolve, keptMs));
+      }
+    })
+    .catch(() => {
+      if (!ran) task();
+    });
 }
 
 function browserLocks(): LockManager | null {

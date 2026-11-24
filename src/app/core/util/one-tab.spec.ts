@@ -36,6 +36,33 @@ describe('inOneTab', () => {
     expect(ran).toEqual(['a', 'd']);
   });
 
+  it('keeps the lock its while though the task throws, and runs the task where the browser refuses a lock', async () => {
+    vi.useFakeTimers();
+    const locks = sharedLocks();
+    const ran: string[] = [];
+
+    inOneTab(
+      'reveal',
+      1000,
+      () => {
+        ran.push('a');
+        throw new Error('part-way');
+      },
+      locks
+    );
+    await vi.advanceTimersByTimeAsync(10);
+    inOneTab('reveal', 1000, () => ran.push('b'), locks);
+    await vi.advanceTimersByTimeAsync(0);
+    const refusing = {
+      ...locks,
+      request: () => Promise.reject(new DOMException('No', 'SecurityError')),
+    } as LockManager;
+    inOneTab('reveal', 1000, () => ran.push('c'), refusing);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(ran).toEqual(['a', 'c']);
+  });
+
   it('runs in every tab where the browser has no locks', () => {
     const ran: string[] = [];
 
