@@ -149,6 +149,21 @@ describe('ModelActsService', () => {
     expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Wave' });
   });
 
+  it('plays the model’s own motion asked for by name, though its name be a word for a role, here and on every seat', () => {
+    const orc = piece('オーク', 0, 0);
+    const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
+    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ role: PeerRole.Player } as PeerCursor);
+
+    acts.play(orc.identifier, 'Attack', { named: true });
+    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Attack' });
+
+    acts.playForAll(orc.identifier, 'Attack', { named: true });
+    const told = sent.mock.calls.map(([context]) => (context as { data: unknown }).data);
+    expect(told).toEqual([{ identifier: orc.identifier, motion: 'Attack', named: true }]);
+    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Hit', named: true }, 'player-peer');
+    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Hit' });
+  });
+
   it('plays a motion this seat is told of by a seat that may change the table, and tells every seat of one played for all', () => {
     const orc = piece('オーク', 0, 0);
     const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);

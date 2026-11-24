@@ -153,6 +153,12 @@ export interface ServerRollUnansweredEvent {
 export interface ModelMotionEvent {
   identifier: string;
   motion: string;
+  /**
+   * Whether the word is the name of one of the model's own motions outright, as one chosen from a
+   * list of them, which is played though it be a word for a role as well. Left out, a word for a role,
+   * as one written in chat, asks for that role.
+   */
+  named?: boolean;
 }
 
 /**
@@ -500,6 +506,7 @@ networkMessage$.subscribe((msg) => {
       modelMotion$.emit({
         identifier: data.identifier,
         motion: data.motion.slice(0, MAX_MOTION_WORD),
+        ...(data.named === true ? { named: true } : {}),
         from: msg.sendFrom,
       });
       break;

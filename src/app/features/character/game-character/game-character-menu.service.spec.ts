@@ -127,17 +127,19 @@ describe('GameCharacterMenuService', () => {
     }
 
     it('offers a blow, a spell and a blow taken, and then the model’s own motions, each played for the whole room', () => {
-      holdModel(['Wave', 'Bow']);
+      holdModel(['Wave', 'Attack']);
       const played = vi.spyOn(TestBed.inject(ModelActsService), 'playForAll').mockImplementation(() => undefined);
 
       const entries = offered()!;
-      expect(named(entries)).toEqual(['攻撃', '魔法・射撃', '被弾', 'Wave', 'Bow']);
+      expect(named(entries)).toEqual(['攻撃', '魔法・射撃', '被弾', 'Wave', 'Attack']);
       entries[0].action!();
       entries[3].action!();
+      entries[4].action!();
 
       expect(played.mock.calls).toEqual([
-        [character.identifier, 'attack'],
-        [character.identifier, 'Wave'],
+        [character.identifier, 'attack', { named: false }],
+        [character.identifier, 'Wave', { named: true }],
+        [character.identifier, 'Attack', { named: true }],
       ]);
     });
 

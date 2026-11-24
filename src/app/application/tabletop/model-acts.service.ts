@@ -39,7 +39,8 @@ export class ModelActsService {
 
   constructor() {
     modelMotion$.subscribe((event) => {
-      if (this.permission.canPeerEditTabletop(event.from)) this.play(event.identifier, event.motion);
+      if (this.permission.canPeerEditTabletop(event.from))
+        this.play(event.identifier, event.motion, { named: event.named === true });
     }, inject(DestroyRef));
   }
 
@@ -81,10 +82,11 @@ export class ModelActsService {
 
   /**
    * Has a piece's model play a motion now, on this screen: the role a word for one asks for, a blow,
-   * a spell or a blow taken, or else the model's own motion of that name.
+   * a spell or a blow taken, or else the model's own motion of that name. Asked by name, it is the
+   * model's own motion of that name, though the name be a word for a role as well.
    */
-  play(identifier: string, motion: string): void {
-    const role = askedRoleOf(motion);
+  play(identifier: string, motion: string, { named = false }: { readonly named?: boolean } = {}): void {
+    const role = named ? null : askedRoleOf(motion);
     const key = `asked:${++this.serial}`;
     this.ask(
       this.drawnAs(identifier),
@@ -92,9 +94,9 @@ export class ModelActsService {
     );
   }
 
-  /** Has a piece's model play a motion once on every screen, this one included. */
-  playForAll(identifier: string, motion: string): void {
-    callModelMotion({ identifier, motion });
+  /** Has a piece's model play a motion once on every screen, this one included, as {@link play} has it. */
+  playForAll(identifier: string, motion: string, { named = false }: { readonly named?: boolean } = {}): void {
+    callModelMotion(named ? { identifier, motion, named } : { identifier, motion });
   }
 
   private ask(owner: string, act: ModelAct): void {

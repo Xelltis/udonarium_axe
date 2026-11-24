@@ -52,6 +52,7 @@ import {
   buildGameCharacterContextMenuModel,
   buildUnviewableCharacterContextMenu,
   FightMenuEntries,
+  type ModelMotionEntry,
 } from '@axe/features/character/game-character/game-character-context-menu';
 import { buildPartContextMenu } from '@axe/features/character/game-character/part-context-menu';
 import {
@@ -195,7 +196,7 @@ export class GameCharacterMenuService {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         modelMotions: this.rolePermission.canEditTabletop() ? () => this.modelMotionsOf(char) : undefined,
-        onPlayModelMotion: (word) => this.modelActs.playForAll(char.identifier, word),
+        onPlayModelMotion: ({ word, named }) => this.modelActs.playForAll(char.identifier, word, { named }),
         onDeployDice: () => this.characterDice.deploy(char),
         onShowBattle: () =>
           this.roomPanels.open<BattleCutInPanelHandle>('battleCutIn', {}, (panel) => panel.focusOn(char.identifier)),
@@ -504,14 +505,18 @@ export class GameCharacterMenuService {
    * and after them the model's own motions by name, as many as the menu has room for. None for a
    * piece drawn as no model held here.
    */
-  private modelMotionsOf(char: GameCharacter): { word: string; label: string }[] {
+  private modelMotionsOf(char: GameCharacter): ModelMotionEntry[] {
     const model = pieceModelOf(char);
     if (!model || !this.modelStorage.get(model.identifier)?.isReady) return [];
-    const roles = ASKED_ROLES.map((role) => ({ word: role, label: this.translateFn(`ui.pieceModel.${role}`) }));
+    const roles = ASKED_ROLES.map((role) => ({
+      word: role,
+      label: this.translateFn(`ui.pieceModel.${role}`),
+      named: false,
+    }));
     const own = this.modelNames
       .namesOf(model.identifier)
       .motions.slice(0, MOST_MODEL_MOTIONS)
-      .map((name) => ({ word: name, label: name }));
+      .map((name) => ({ word: name, label: name, named: true }));
     return [...roles, ...own];
   }
 

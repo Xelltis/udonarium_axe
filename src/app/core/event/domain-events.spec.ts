@@ -143,11 +143,15 @@ describe('domain-events emit→subscribe wiring', () => {
     localDispatch('MODEL_MOTION', { identifier: 7, motion: 'Wave' }, 'peer-a');
     localDispatch('MODEL_MOTION', null, 'peer-a');
     localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'x'.repeat(500) }, 'peer-b');
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'Attack', named: true }, 'peer-b');
+    localDispatch('MODEL_MOTION', { identifier: 'piece-1', motion: 'Attack', named: 'yes' }, 'peer-b');
     unsub();
 
     expect(received).toEqual([
       { identifier: 'piece-1', motion: 'Wave', from: 'peer-a' },
       { identifier: 'piece-1', motion: 'x'.repeat(120), from: 'peer-b' },
+      { identifier: 'piece-1', motion: 'Attack', named: true, from: 'peer-b' },
+      { identifier: 'piece-1', motion: 'Attack', from: 'peer-b' },
     ]);
   });
 
