@@ -53,6 +53,7 @@ describe('the motion a model plays for a role', () => {
   it('stands in the first motion of a model with nothing named for standing, but none named for another role', () => {
     expect(motionNameFor('idle', ['Run', 'Wave'], '')).toBe('Wave');
     expect(motionNameFor('idle', ['Punch', 'Death', 'Walk'], '')).toBeNull();
+    expect(motionNameFor('idle', ['Standing Melee Attack', 'Breathe', 'Standing Idle'], '')).toBe('Standing Idle');
     expect(motionNameFor('idle', ['Punch'], 'Punch')).toBe('Punch');
     expect(motionNameFor('idle', [], '')).toBeNull();
   });

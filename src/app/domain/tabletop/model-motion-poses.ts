@@ -13,10 +13,10 @@ const NAMED: Readonly<Record<MotionRole, RegExp>> = {
 /**
  * The motion a model plays for a role, of those it has: the one its piece asks for by name, or where
  * it names none or one the model lacks, the model's own, told by its name. A model with nothing for
- * working a spell strikes a blow instead, one with nothing named for standing stands in its first
- * motion named for no other role, as a blow or a walk, which it would otherwise play over and over
- * where it stands, and a motion named for a blow is not taken for the taking of one. Null where it
- * has none.
+ * working a spell strikes a blow instead, and a motion named for a blow is not taken for the taking
+ * of one. Standing, it plays over and over a motion named for standing, or else its first motion,
+ * but never one named for another role as well, as a blow or a walk, which it would play over and
+ * over where it stands. Null where it has none.
  */
 export function motionNameFor(role: MotionRole, names: readonly string[], asked: string): string | null {
   if (asked) {
@@ -25,7 +25,10 @@ export function motionNameFor(role: MotionRole, names: readonly string[], asked:
   }
   const own = (wanted: MotionRole) =>
     names.find((name) => NAMED[wanted].test(name) && !(wanted === 'hit' && isBlow(name))) ?? null;
-  if (role === 'idle') return own('idle') ?? names.find((name) => !namedForAnother(name)) ?? null;
+  if (role === 'idle') {
+    const standing = names.filter((name) => !namedForAnother(name));
+    return standing.find((name) => NAMED.idle.test(name)) ?? standing[0] ?? null;
+  }
   if (role === 'cast') return own('cast') ?? own('attack');
   return own(role);
 }

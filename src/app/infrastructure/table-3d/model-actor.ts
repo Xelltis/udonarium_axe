@@ -115,6 +115,8 @@ export class ModelActor {
   private readonly seed: number;
   private asked: { idle: string; walk: string; motions: ModelMotions; face: ModelFace } | null = null;
   private current: AnimationAction | null = null;
+  /** The motion held still at its first pose while the model has nothing to stand in over and over, or null. */
+  private held: AnimationAction | null = null;
   private walking = false;
   private walkedFromMs = 0;
   private act: ModelAct | null = null;
@@ -314,8 +316,31 @@ export class ModelActor {
       }
     }
     const clip = this.clipFor(this.walking ? 'walk' : 'idle') ?? this.clipFor('idle');
+    if (!clip && this.clips.length > 0) {
+      this.holdFirstPose();
+      return;
+    }
     const blends = moment.moving && (moment.standing || this.walking);
     this.play(clip, false, blends ? BLEND_SECONDS : 0, 0);
+  }
+
+  /**
+   * Stands a model with nothing to stand in over and over, as one whose motions are all named for a
+   * blow, a walk or the like, in the first pose of its first motion, held still: not in the pose its
+   * bones were made in, which for a VRM is a T.
+   */
+  private holdFirstPose(): void {
+    const first = this.mixer.clipAction(this.clips[0]);
+    if (this.held === first && this.current === null) return;
+    this.mixer.stopAllAction();
+    first.reset();
+    first.setLoop(LoopOnce, 1);
+    first.time = 0;
+    first.paused = true;
+    first.play();
+    this.held = first;
+    this.current = null;
+    this.mixer.update(0);
   }
 
   /**
@@ -411,7 +436,8 @@ export class ModelActor {
    */
   private play(clip: AnimationClip | null, once: boolean, blendSeconds: number, fromSeconds: number): void {
     const next = clip ? this.mixer.clipAction(clip) : null;
-    const before = this.current;
+    const before = this.current ?? this.held;
+    this.held = null;
     if (next === before && !once && blendSeconds > 0 && next?.isRunning()) return;
     if (next) {
       next.reset();

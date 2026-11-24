@@ -2,7 +2,7 @@ import { MODEL_FACE_AS_MADE, NO_SHAPE, writeModelFace } from '@axe/domain/tablet
 import { MADE_MOTION_MS, MADE_REST } from '@axe/domain/tabletop/model-motion-poses';
 import { MODEL_MOTIONS_AS_MADE, type ModelAct, writeModelMotions } from '@axe/domain/tabletop/model-motions';
 import { type ActorMoment, ModelActor, posedPlacement } from '@axe/infrastructure/table-3d/model-actor';
-import { AnimationClip, Group, Matrix4, Mesh, Vector3 } from 'three/webgpu';
+import { AnimationClip, Group, Matrix4, Mesh, Vector3, VectorKeyframeTrack } from 'three/webgpu';
 
 const ASKED = { idle: '', walk: '', motions: '', face: '' };
 
@@ -39,6 +39,32 @@ describe('ModelActor', () => {
     actor.walk(false, 400);
     expect(actor.advance(at(400))).toBe('slow');
     expect(actor.motion).toBe('Idle');
+  });
+
+  it('stands held still in the first pose of its first motion where every motion is named for a blow or a walk', () => {
+    const root = new Group();
+    const bone = new Group();
+    bone.name = 'bone';
+    root.add(bone);
+    const lift = (name: string) =>
+      new AnimationClip(name, 1, [new VectorKeyframeTrack('bone.position', [0, 1], [0, 5, 0, 0, 9, 0])]);
+    const actor = new ModelActor(root, [lift('Walk'), lift('Punch')], 'knight');
+    actor.cast(ASKED);
+
+    expect(actor.advance(at(0))).toBe('still');
+    expect(actor.motion).toBeNull();
+    expect(bone.position.y).toBeCloseTo(5);
+
+    actor.walk(true, 100);
+    actor.advance(at(100));
+    actor.advance(at(400));
+    expect(actor.motion).toBe('Walk');
+    actor.walk(false, 600);
+    actor.advance(at(600));
+    actor.advance(at(1000));
+
+    expect(actor.motion).toBeNull();
+    expect(bone.position.y).toBeCloseTo(5);
   });
 
   it('walks in its idle where it has no walk of its own, and plays nothing where it has no motion at all', () => {
