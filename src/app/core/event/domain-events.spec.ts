@@ -15,6 +15,7 @@ import {
   finishVote$,
   messageAdded$,
   modelMotion$,
+  revealSealedDice$,
   selectFile$,
   selectGameTable$,
   sendMessage$,
@@ -148,5 +149,15 @@ describe('domain-events emit→subscribe wiring', () => {
       { identifier: 'piece-1', motion: 'Wave' },
       { identifier: 'piece-1', motion: 'x'.repeat(120) },
     ]);
+  });
+
+  it('tells every seat it is asked to show the dice it sealed', () => {
+    let asked = 0;
+    const unsub = revealSealedDice$.subscribe(() => asked++);
+
+    localDispatch('REVEAL_SEALED_DICE', null);
+    unsub();
+
+    expect(asked).toBe(1);
   });
 });

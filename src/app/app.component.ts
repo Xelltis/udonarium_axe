@@ -62,6 +62,7 @@ import { ChatSoundEventHandlerService } from '@axe/features/chat/chat-sound-even
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
 import { DiceChatEventHandlerService } from '@axe/features/dice/dice-chat-event-handler.service';
 import { DiceThrowEventHandlerService } from '@axe/features/dice/dice-throw-event-handler.service';
+import { SealedDiceEventHandlerService } from '@axe/features/dice/sealed-dice-event-handler.service';
 import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-event-handler.service';
 import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-removal-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
@@ -239,6 +240,7 @@ export class AppComponent {
     inject(TabletopShortcutEventHandlerService);
     inject(DiceChatEventHandlerService);
     inject(DiceThrowEventHandlerService);
+    inject(SealedDiceEventHandlerService);
     inject(DiceThrowService);
     inject(ChatSettingsEventHandlerService);
     inject(ChatSoundEventHandlerService);

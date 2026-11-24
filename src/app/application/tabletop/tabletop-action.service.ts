@@ -247,13 +247,14 @@ export class TabletopActionService {
     position: PointerCoordinate,
     item: DiceMenuItem,
     count: number,
-    ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean } = {}
+    ownership: { ownerCharacterIdentifier?: string; hiddenToOthers?: boolean; sealed?: boolean } = {}
   ): DiceSymbol[] {
     const owner = ownership.hiddenToOthers === true ? PeerCursor.myUserId : '';
     return getDicePlacements(position, count, this.tabletopService.gridSize()).map((placement) => {
       const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
       if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;
       if (owner.length > 0) dice.owner = owner;
+      if (owner.length > 0 && ownership.sealed === true) dice.seal();
       return dice;
     });
   }

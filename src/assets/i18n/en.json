@@ -1437,6 +1437,7 @@
         "owner": "Owner",
         "ownerNone": "Nobody",
         "hidden": "Only I may read them",
+        "sealed": "Hide from the GM too",
         "cancel": "Cancel",
         "create": "Create"
       },
@@ -1444,6 +1445,8 @@
         "rollDice": "Roll dice",
         "showDice": "Reveal dice",
         "showSelfOnly": "Show to self only",
+        "sealSelfOnly": "Only I can see (hide from the GM too)",
+        "revealSealed": "Reveal all sealed dice",
         "setFace": "Set face",
         "owner": "Give to a piece",
         "ownerNone": "Belong to nobody",
@@ -1466,6 +1469,7 @@
         "komaImageHeight": "Piece height (px)",
         "faceImageSection": "Per-face image settings",
         "currentFace": "Current face",
+        "sealed": "Hidden from the GM too. The face is kept on this device only",
         "faceImageAlt": "face {{name}}",
         "setImage": "Set image",
         "setLabel": "Set",
@@ -1504,6 +1508,7 @@
         "rolled": "{{who}} rolled {{name}} → {{face}}",
         "rolledMany": "{{who}} rolled {{count}} dice → {{results}}",
         "rolledManyTotal": "{{who}} rolled {{count}} dice → {{results}} (total {{total}})",
+        "rolledSealed": "{{who}} rolled {{count}} sealed dice",
         "notRolled": "{{count}} dice you cannot read were not rolled"
       },
       "log": {

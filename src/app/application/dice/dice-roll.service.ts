@@ -5,7 +5,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { callRollDiceSymbol } from '@axe/core/event/domain-events';
+import { callRevealSealedDice, callRollDiceSymbol } from '@axe/core/event/domain-events';
 import { diceRollLog, RolledDie } from '@axe/domain/dice/dice-roll-log';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -63,19 +63,40 @@ export class DiceRollService {
     return this.permission.canEditTabletop() && this.readsFace(die);
   }
 
-  /** Whether this seat may show a kept die's face to everyone: the seat that keeps it, or the game master. */
+  /**
+   * Whether this seat may show a kept die's face to everyone: the seat that keeps it, or the game
+   * master, though not for a sealed die, whose face only its keeper's browser has.
+   */
   canReveal(die: DiceSymbol): boolean {
     if (!die.hasOwner || !this.permission.canEditTabletop()) return false;
-    return die.isMine || this.permission.canSeeHidden();
+    return die.isMine || (this.permission.canSeeHidden() && !die.isSealed);
   }
 
   /**
    * Whether this seat may keep a die's face to itself: one nobody keeps, or, for the game master, one
-   * another seat keeps, as a die kept is that seat's own to open.
+   * another seat keeps, as a die kept is that seat's own to open. A sealed die is not taken from its
+   * keeper, which would lose its face.
    */
   canKeep(die: DiceSymbol): boolean {
     if (PeerCursor.myUserId.length < 1 || !this.permission.canEditTabletop() || die.isMine) return false;
-    return !die.hasOwner || this.permission.canSeeHidden();
+    return !die.hasOwner || (this.permission.canSeeHidden() && !die.isSealed);
+  }
+
+  /**
+   * Whether this seat may seal a die's face, keeping it from the game master too: a die nobody keeps,
+   * or one this seat keeps and has not sealed yet.
+   */
+  canSeal(die: DiceSymbol): boolean {
+    if (PeerCursor.myUserId.length < 1 || !this.permission.canEditTabletop() || die.isSealed) return false;
+    return !die.hasOwner || die.isMine;
+  }
+
+  /**
+   * Whether this seat may ask every seat to show the dice it has sealed: the game master, while a die
+   * on the table is sealed.
+   */
+  canAskToRevealSealed(dice: readonly DiceSymbol[]): boolean {
+    return this.permission.canSeeHidden() && this.permission.canEditTabletop() && dice.some((die) => die.isSealed);
   }
 
   /** Turns a die to one of its faces without rolling it. False, with nothing done, where this seat may not turn it. */
@@ -99,9 +120,12 @@ export class DiceRollService {
    */
   reveal(die: DiceSymbol): boolean {
     if (!this.canReveal(die)) return false;
+    // A sealed die's throws were told as throws alone, so its face is said whatever lines it opens.
+    const sealed = die.isSealed;
+    if (sealed) die.unseal();
     die.owner = '';
     SoundEffect.play(PresetSound.unlock);
-    if (this.lineEdit.discloseDieRolls(die.identifier) < 1) this.announceRevealed(die);
+    if (this.lineEdit.discloseDieRolls(die.identifier) < 1 || sealed) this.announceRevealed(die);
     return true;
   }
 
@@ -111,6 +135,33 @@ export class DiceRollService {
     die.owner = PeerCursor.myUserId;
     SoundEffect.play(PresetSound.lock);
     return true;
+  }
+
+  /**
+   * Keeps a die's face to this seat alone, the game master included, and plays the sound of it: its
+   * face is kept in this browser and the room is told none. False, with nothing done, where this seat
+   * may not seal it.
+   */
+  seal(die: DiceSymbol): boolean {
+    if (!this.canSeal(die)) return false;
+    die.owner = PeerCursor.myUserId;
+    die.seal();
+    SoundEffect.play(PresetSound.lock);
+    return true;
+  }
+
+  /** Asks every seat, this one included, to show the dice it has sealed. False, with nothing asked, where this seat may not. */
+  askToRevealSealed(dice: readonly DiceSymbol[]): boolean {
+    if (!this.canAskToRevealSealed(dice)) return false;
+    callRevealSealedDice();
+    return true;
+  }
+
+  /** Shows every die this seat has sealed, as asked by the game master. Answers how many were shown. */
+  revealOwnSealed(dice: readonly DiceSymbol[]): number {
+    let shown = 0;
+    for (const die of dice) if (die.isSealed && die.isMine && this.reveal(die)) shown++;
+    return shown;
   }
 
   /** Throws one die, or a handful together. Whatever this seat may not turn stays as it was. */
@@ -124,12 +175,14 @@ export class DiceRollService {
 
     const open: RolledDie[] = [];
     const secret: SecretRoll[] = [];
+    let sealed = 0;
     const rolled = thrown.map<RolledDie>((die) => {
       callRollDiceSymbol(die.identifier);
       // The thrower watches their own die roll rather than waiting for the round trip.
       this.objectChange.notifyDiceRolled(die.identifier);
       const result = { name: die.name, face: die.diceRoll(), sides: die.faces.length };
-      if (die.hasOwner) secret.push({ die, result });
+      if (die.isSealed) sealed++;
+      else if (die.hasOwner) secret.push({ die, result });
       else open.push(result);
       return result;
     });
@@ -137,6 +190,7 @@ export class DiceRollService {
 
     this.announce(open);
     this.announceSecret(secret);
+    this.announceSealed(sealed);
     this.announceSkipped(skipped);
     return rolled;
   }
@@ -159,6 +213,20 @@ export class DiceRollService {
     if (!tab) return;
     const text = encodeI18nMessage('feature.dice.message.notRolled', { count });
     this.chatMessageService.sendSystemMessageOnePlayer(tab, text, me.identifier, undefined, true);
+  }
+
+  /**
+   * A throw of sealed dice is told to the room as a throw and no more: a line kept back from the room
+   * still goes to every seat, and the face is what is sealed.
+   */
+  private announceSealed(count: number): void {
+    if (count < 1) return;
+    const who = PeerCursor.myCursor?.name ?? '';
+    const text = encodeI18nMessage('feature.dice.message.rolledSealed', { who, count });
+    const tab = this.activeChatTab.current();
+    const roller = PeerCursor.myCursor?.userId ?? '';
+    if (tab) this.chatMessageService.sendSystemMessageToTab(tab, text, undefined, roller);
+    else this.chatMessageService.sendSystemMessage(text, undefined, roller);
   }
 
   private announce(rolled: readonly RolledDie[]): void {

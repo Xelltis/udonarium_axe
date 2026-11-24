@@ -1,4 +1,5 @@
 import { ImageFile } from '@axe/core/storage/image-file';
+import { forgetSealedFace, keepSealedFace, sealedFaceOf } from '@axe/core/storage/sealed-faces';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { DataElement } from '@axe/domain/data/data-element';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
@@ -21,8 +22,18 @@ export class DiceSymbol extends OwnedTabletopObject {
   /** Whether this die has been spent. A die is no less a die for it; it is only marked as done. */
   @SyncVar() isUsed: boolean = false;
 
-  @SyncVar() face: string = '0';
-  @SyncVar() owner: string = '';
+  /**
+   * The face the room is told the die shows: its face, except for a die sealed by its keeper, which
+   * tells the room nothing and keeps its face in the keeper's browser alone.
+   */
+  @SyncVar('face') sentFace: string = '0';
+  /** The user ID of the seat that keeps the die's face to itself; empty while anyone may read it. */
+  @SyncVar('owner') keeper: string = '';
+  /**
+   * Whether the seat that keeps the die keeps its face from the game master too, and from the room
+   * altogether: the face is not sent while it is, so no seat but the keeper's can read it in any way.
+   */
+  @SyncVar() sealed: boolean = false;
   /**
    * The piece this die belongs to. Empty when it belongs to nobody.
    *
@@ -36,6 +47,69 @@ export class DiceSymbol extends OwnedTabletopObject {
 
   @SyncVar() specifyKomaImageFlag: boolean = false;
   @SyncVar('komaImageHeignt') komaImageHeight: number = 100;
+
+  /**
+   * The face the die shows. For the keeper of a sealed die it is the face its browser keeps; for any
+   * other seat it is the face the room was told, which for a sealed die is none. A face given to a
+   * sealed die by its keeper is kept in the keeper's browser and drawn there anew, the room told only
+   * that the die changed.
+   */
+  get face(): string {
+    if (this.isSealedHere) return sealedFaceOf(this.identifier) ?? this.sentFace;
+    return this.sentFace;
+  }
+  set face(face: string) {
+    if (!this.isSealedHere) {
+      this.sentFace = face;
+      return;
+    }
+    keepSealedFace(this.identifier, face);
+    this.sentFace = '';
+    this.update();
+  }
+
+  /**
+   * Who keeps the die's face. A die handed to another seat, or to none, is unsealed, its face lost to
+   * the room: it was kept in the browser of the seat that had it alone.
+   */
+  get owner(): string {
+    return this.keeper;
+  }
+  set owner(owner: string) {
+    if (owner !== this.keeper && this.sealed) this.sealed = false;
+    this.keeper = owner;
+  }
+
+  /** Whether the die is sealed by a seat that keeps it: what is sealed and kept by nobody tells nothing. */
+  get isSealed(): boolean {
+    return this.sealed && this.hasOwner;
+  }
+
+  private get isSealedHere(): boolean {
+    return this.sealed && this.isMine;
+  }
+
+  /**
+   * Seals the die's face to the seat that keeps it: the face it shows is kept in this browser and the
+   * room is told none. Meant for the keeper's own seat, which is the only one that can open it again.
+   */
+  seal(): void {
+    const face = this.face;
+    keepSealedFace(this.identifier, face);
+    this.sealed = true;
+    this.sentFace = '';
+  }
+
+  /**
+   * Tells the room the face of a sealed die again, as kept in this browser, and lets go of what was
+   * kept. The die stays kept by its seat until it is shown.
+   */
+  unseal(): void {
+    const face = this.face;
+    this.sealed = false;
+    this.sentFace = face;
+    forgetSealedFace(this.identifier);
+  }
 
   /** How many cells the die spans, kept in its common data. 1 when unset. */
   get size(): number {
@@ -69,10 +143,11 @@ export class DiceSymbol extends OwnedTabletopObject {
   /**
    * Whether a seat may read the die's face and its name, and turn it: roll it, set its face, hide or
    * show its name, and change it on its sheet. Anyone may while nobody keeps the die. Once a seat
-   * keeps it, that seat may, and so may a seat that sees what is kept back.
+   * keeps it, that seat may, and so may a seat that sees what is kept back, unless the die is sealed,
+   * which only the seat that keeps it may read.
    */
   isOpenTo(seesHidden: boolean): boolean {
-    return seesHidden || this.isVisible;
+    return (seesHidden && !this.isSealed) || this.isVisible;
   }
 
   /**

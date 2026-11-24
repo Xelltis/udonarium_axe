@@ -1437,6 +1437,7 @@
         "owner": "소유자",
         "ownerNone": "없음",
         "hidden": "나만 보기(뒤집어 놓기)",
+        "sealed": "GM에게도 숨기기",
         "cancel": "취소",
         "create": "만들기"
       },
@@ -1444,6 +1445,8 @@
         "rollDice": "주사위 굴리기",
         "showDice": "주사위 공개",
         "showSelfOnly": "나만 보기",
+        "sealSelfOnly": "나만 보기 (GM에게도 숨기기)",
+        "revealSealed": "숨긴 주사위를 한꺼번에 공개",
         "setFace": "주사위 눈 설정",
         "owner": "말에게 맡기기",
         "ownerNone": "주인 없애기",
@@ -1466,6 +1469,7 @@
         "komaImageHeight": "말 높이(px)",
         "faceImageSection": "면별 이미지 설정",
         "currentFace": "현재 면",
+        "sealed": "GM에게도 숨기고 있습니다. 눈은 이 기기에만 있습니다",
         "faceImageAlt": "{{name}}면",
         "setImage": "이미지 설정",
         "setLabel": "설정",
@@ -1504,6 +1508,7 @@
         "rolled": "{{who}}이(가) {{name}}을(를) 굴렸습니다 → {{face}}",
         "rolledMany": "{{who}}이(가) 주사위 {{count}}개를 굴렸습니다 → {{results}}",
         "rolledManyTotal": "{{who}}이(가) 주사위 {{count}}개를 굴렸습니다 → {{results}}(합계 {{total}})",
+        "rolledSealed": "{{who}} 님이 숨긴 주사위 {{count}}개를 굴렸습니다",
         "notRolled": "읽을 수 없는 주사위 {{count}}개는 굴리지 않았습니다"
       },
       "log": {

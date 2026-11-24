@@ -1437,6 +1437,7 @@
         "owner": "所有者",
         "ownerNone": "なし",
         "hidden": "自分だけ見る（伏せて置く）",
+        "sealed": "GMにも隠す",
         "cancel": "キャンセル",
         "create": "作成"
       },
@@ -1444,6 +1445,8 @@
         "rollDice": "ダイスを振る",
         "showDice": "ダイスを公開",
         "showSelfOnly": "自分だけ見る",
+        "sealSelfOnly": "自分だけ見る（GMにも隠す）",
+        "revealSealed": "伏せたダイスを一斉に公開",
         "setFace": "ダイス目を設定",
         "owner": "コマに持たせる",
         "ownerNone": "持ち主を外す",
@@ -1466,6 +1469,7 @@
         "komaImageHeight": "コマ高さ (px)",
         "faceImageSection": "面ごとの画像設定",
         "currentFace": "現在の面",
+        "sealed": "GMにも隠しています。目はこの端末にだけあります",
         "faceImageAlt": "face {{name}}",
         "setImage": "画像を設定",
         "setLabel": "設定",
@@ -1504,6 +1508,7 @@
         "rolled": "{{who}} が {{name}} を振りました → {{face}}",
         "rolledMany": "{{who}} が ダイス{{count}}個を振りました → {{results}}",
         "rolledManyTotal": "{{who}} が ダイス{{count}}個を振りました → {{results}}（合計 {{total}}）",
+        "rolledSealed": "{{who}} が 伏せたダイス{{count}}個を振りました",
         "notRolled": "読めないダイス {{count}} 個は振られませんでした"
       },
       "log": {

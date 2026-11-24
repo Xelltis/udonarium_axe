@@ -197,6 +197,8 @@ export const modelMotion$ = new EventChannel<ModelMotionEvent>();
 export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
 /** Every screen darkens for a moment, as a scene changes under the dark. */
 export const sceneFade$ = new EventChannel<void>();
+/** Every seat is asked to show the dice it keeps sealed, whose faces only that seat's browser has. */
+export const revealSealedDice$ = new EventChannel<void>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
@@ -396,6 +398,11 @@ export function callModelMotion(event: ModelMotionEvent) {
   networkSend('MODEL_MOTION', event);
 }
 
+/** Asks every device, this one included, to show the dice it keeps sealed. Nothing of it is kept. */
+export function callRevealSealedDice() {
+  networkSend('REVEAL_SEALED_DICE', null);
+}
+
 /** Darkens every screen for a moment, this one included, while a scene is put on under the dark. */
 export function callSceneFade() {
   networkSend('SCENE_FADE', null);
@@ -486,6 +493,9 @@ networkMessage$.subscribe((msg) => {
     }
     case 'SCENE_FADE':
       sceneFade$.emit();
+      break;
+    case 'REVEAL_SEALED_DICE':
+      revealSealedDice$.emit();
       break;
     case 'RESOURCE_CHANGE':
       resourceChange$.emit(msg.data as ResourceChangeEvent);

@@ -346,6 +346,7 @@ export class DiceSymbolComponent {
       {
         onDiceRoll: () => this.diceRoll(),
         onShowDetail: () => this.showDetail(this.diceSymbol()),
+        tableDice: this.tabletopService.diceSymbols,
         ownerCandidates: this.tabletopService.characters
           .filter((character) => this.visionService.isTokenVisible(character) && !this.names.isKept(character))
           .map((character) => ({ identifier: character.identifier, name: character.name })),

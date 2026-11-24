@@ -18,13 +18,25 @@ export interface DiceOwnerCandidate {
 /** Who may turn, show and keep a die, and the doing of each, as the dice service holds them. */
 export type DiceFaceRules = Pick<
   DiceRollService,
-  'canTurn' | 'canChange' | 'canReveal' | 'canKeep' | 'setFace' | 'setNameHidden' | 'reveal' | 'keep'
+  | 'canTurn'
+  | 'canChange'
+  | 'canReveal'
+  | 'canKeep'
+  | 'canSeal'
+  | 'canAskToRevealSealed'
+  | 'setFace'
+  | 'setNameHidden'
+  | 'reveal'
+  | 'keep'
+  | 'seal'
+  | 'askToRevealSealed'
 >;
 
 /**
  * Builds the right-click menu for a die on the table.
  *
- * It offers rolling, opening a kept face or keeping it to oneself, which piece the die belongs to
+ * It offers rolling, opening a kept face or keeping it to oneself, from the game master too or not,
+ * asking every seat to open the faces it sealed, which piece the die belongs to
  * and storing it on that piece, setting the face, locking, hiding the name, marking it spent, the
  * detail sheet, copying and deleting. Rolling, setting the face, hiding the name, showing and
  * keeping are offered only where `dice` lets this seat, and done through it; the other entries
@@ -37,6 +49,8 @@ export function buildDiceSymbolContextMenu(
   callbacks: {
     onDiceRoll: () => void;
     onShowDetail: () => void;
+    /** The dice on the table, asked whether any is sealed. Left out for none. */
+    tableDice?: readonly DiceSymbol[];
     /** The pieces the die can be given to. Left out where there are none to offer. */
     ownerCandidates?: DiceOwnerCandidate[];
     /** Takes the die off the table and onto the sheet of the piece it belongs to. */
@@ -67,6 +81,21 @@ export function buildDiceSymbolContextMenu(
     actions.push({
       name: t('feature.dice.contextMenu.showSelfOnly'),
       action: () => dice.keep(diceSymbol),
+    });
+  }
+
+  if (dice.canSeal(diceSymbol)) {
+    actions.push({
+      name: t('feature.dice.contextMenu.sealSelfOnly'),
+      action: () => dice.seal(diceSymbol),
+    });
+  }
+
+  const tableDice = callbacks.tableDice ?? [];
+  if (dice.canAskToRevealSealed(tableDice)) {
+    actions.push({
+      name: t('feature.dice.contextMenu.revealSealed'),
+      action: () => dice.askToRevealSealed(tableDice),
     });
   }
 

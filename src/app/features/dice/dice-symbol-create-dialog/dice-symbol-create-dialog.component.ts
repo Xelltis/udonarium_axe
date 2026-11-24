@@ -31,6 +31,8 @@ export class DiceSymbolCreateDialogComponent {
   /** Empty for dice that belong to nobody, which is what a die made from the menu is. */
   ownerCharacterIdentifier = '';
   hiddenToOthers = false;
+  /** Whether the dice kept to the maker are kept from the game master too. Asked only while they are kept. */
+  sealed = false;
 
   /** The most dice that can be made at once, as the opener set it, or 30 when it set none. */
   get maxCount(): number {
@@ -54,6 +56,7 @@ export class DiceSymbolCreateDialogComponent {
       count: this.clampCount(this.count),
       ownerCharacterIdentifier: this.knownOwner(this.ownerCharacterIdentifier),
       hiddenToOthers: this.hiddenToOthers === true,
+      sealed: this.hiddenToOthers === true && this.sealed === true,
     };
     this.modalService.resolve(request);
   }

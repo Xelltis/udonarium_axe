@@ -54,6 +54,7 @@ describe('DiceSymbolCreateDialogComponent', () => {
       count: 4,
       ownerCharacterIdentifier: '',
       hiddenToOthers: false,
+      sealed: false,
     });
   });
 
@@ -126,6 +127,22 @@ describe('DiceSymbolCreateDialogComponent', () => {
       component.hiddenToOthers = true;
       component.confirm();
       expect(modalService.resolve).toHaveBeenLastCalledWith(expect.objectContaining({ hiddenToOthers: true }));
+    });
+
+    it('seals them from the game master too only while they are kept to their maker', async () => {
+      await setup({});
+      component.sealed = true;
+
+      component.confirm();
+      expect(modalService.resolve).toHaveBeenLastCalledWith(
+        expect.objectContaining({ hiddenToOthers: false, sealed: false })
+      );
+
+      component.hiddenToOthers = true;
+      component.confirm();
+      expect(modalService.resolve).toHaveBeenLastCalledWith(
+        expect.objectContaining({ hiddenToOthers: true, sealed: true })
+      );
     });
   });
 

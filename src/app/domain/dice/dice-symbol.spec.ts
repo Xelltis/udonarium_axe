@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { rereadSealedFaces, sealedFaceOf } from '@axe/core/storage/sealed-faces';
+import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -410,6 +412,111 @@ describe('DiceSymbol', () => {
       // the missing face asks storage for nothing,
       // and the fallback asks for the picture of the first
       expect(storageSpy.mock.calls[0][0]).toBe('img-id-1');
+    });
+  });
+
+  describe('sealed by the seat that keeps it', () => {
+    const seat = (userId: string) =>
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({ userId } as IPeerContext);
+
+    function sealedBy(userId: string, face = '5'): DiceSymbol {
+      const dice = DiceSymbol.create('plot', DiceType.D6, 1);
+      dice.face = face;
+      dice.owner = userId;
+      seat(userId);
+      dice.seal();
+      return dice;
+    }
+
+    beforeEach(() => {
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+    });
+
+    afterEach(() => {
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+    });
+
+    it('tells the room no face, and shows its keeper the face it had', () => {
+      const dice = sealedBy('me', '5');
+
+      expect(dice.sentFace).toBe('');
+      expect(dice.face).toBe('5');
+      expect(dice.isSealed).toBe(true);
+    });
+
+    it('shows any other seat no face, the game master included', () => {
+      const dice = sealedBy('me', '5');
+
+      seat('them');
+      expect(dice.face).toBe('');
+      expect(dice.isOpenTo(true)).toBe(false);
+      expect(dice.isOpenTo(false)).toBe(false);
+    });
+
+    it('keeps a face it is turned to in the keeper’s browser, never telling the room', () => {
+      const dice = sealedBy('me', '5');
+
+      dice.face = '2';
+      const rolled = dice.diceRoll();
+
+      expect(dice.sentFace).toBe('');
+      expect(dice.face).toBe(rolled);
+      expect(sealedFaceOf(dice.identifier)).toBe(rolled);
+    });
+
+    it('writes no face into the saved data', () => {
+      const dice = sealedBy('me', '5');
+
+      const xml = ObjectSerializer.instance.toXml(dice);
+
+      expect(xml).toContain('face=""');
+      expect(xml).toContain('sealed="true"');
+    });
+
+    it('shows its keeper the face again once the page is loaded anew', () => {
+      const dice = sealedBy('me', '3');
+
+      rereadSealedFaces();
+
+      expect(dice.face).toBe('3');
+    });
+
+    it('tells the room the face once it is unsealed, and lets go of what was kept', () => {
+      const dice = sealedBy('me', '4');
+
+      dice.unseal();
+
+      expect([dice.sealed, dice.sentFace, dice.face]).toEqual([false, '4', '4']);
+      expect(sealedFaceOf(dice.identifier)).toBeNull();
+    });
+
+    it('is unsealed when handed to another seat or to none, its face lost to the room', () => {
+      const handed = sealedBy('me', '6');
+      const dropped = sealedBy('me', '6');
+
+      handed.owner = 'them';
+      dropped.owner = '';
+
+      expect([handed.sealed, handed.isSealed, handed.sentFace]).toEqual([false, false, '']);
+      expect([dropped.sealed, dropped.isSealed, dropped.sentFace]).toEqual([false, false, '']);
+    });
+
+    it('seals nothing while nobody keeps it', () => {
+      const dice = DiceSymbol.create('plot', DiceType.D6, 1);
+      dice.sealed = true;
+
+      expect(dice.isSealed).toBe(false);
+      expect(dice.isOpenTo(false)).toBe(true);
+    });
+
+    it('reads data saved before dice could be sealed as unsealed', () => {
+      const dice = ObjectSerializer.instance.parseXml('<dice-symbol face="3" owner="me"></dice-symbol>') as DiceSymbol;
+      seat('me');
+
+      expect([dice.sealed, dice.isSealed, dice.face]).toEqual([false, false, '3']);
+      dice.destroy();
     });
   });
 });
