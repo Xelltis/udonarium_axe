@@ -441,6 +441,19 @@ describe('CutInWindowComponent', () => {
       expect(50_000 - act.atMs).toBeLessThan(3_500);
     });
 
+    it('acts anew each time the cut-in is started again', () => {
+      makeCutIn({ modelIdentifier: 'knight', modelAct: 'attack' });
+      const now = vi.spyOn(performance, 'now').mockReturnValue(1_000);
+      component.startCutIn();
+      const first = shown().modelDoing().act!;
+
+      now.mockReturnValue(9_000);
+      component.startCutIn();
+
+      expect(shown().modelDoing().act!.atMs).toBe(9_000);
+      expect(shown().modelDoing().act).not.toBe(first);
+    });
+
     it('walks for as long as it is shown, or plays one of the model’s own motions, as the cut-in keeps', () => {
       const cutIn = makeCutIn({ modelIdentifier: 'knight', modelAct: 'walk' });
       component.startCutIn();

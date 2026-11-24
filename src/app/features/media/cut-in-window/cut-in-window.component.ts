@@ -160,14 +160,14 @@ export class CutInWindowComponent {
     const cutIn = this.cutIn;
     if (!this.playbackStarted() || !cutIn) return CUT_IN_MODEL_STANDS;
     this.objectChange.versionOf(cutIn.identifier)();
-    return cutInModelDoing(`${cutIn.modelAct ?? ''}`, cutIn.identifier, this.modelShownAtMs);
+    return cutInModelDoing(`${cutIn.modelAct ?? ''}`, cutIn.identifier, this.modelShownAtMs());
   });
   /**
    * When the cut-in began to be shown, on the clock frames are timed by, which its model's act is
    * timed on: for a window joining a shared start, as far back as its sounds join it, so that the
    * model is as far into its act as on every other window.
    */
-  private modelShownAtMs = 0;
+  private readonly modelShownAtMs = signal(0);
 
   readonly cutInImageUrl = computed(() => {
     this.objectChange.fileVersion();
@@ -307,7 +307,7 @@ export class CutInWindowComponent {
       this.sceneSound = this.cutInSound.play(scene, sceneSoundOffsetMs ?? this.playbackOffsetMs, scene.sceneLoop);
     }
 
-    this.modelShownAtMs = performance.now() - this.playbackOffsetMs;
+    this.modelShownAtMs.set(performance.now() - this.playbackOffsetMs);
     this.playbackStarted.set(true);
     if (this.readyVideoTarget && this.isVideoCued) this.startVideo(this.readyVideoTarget);
 
