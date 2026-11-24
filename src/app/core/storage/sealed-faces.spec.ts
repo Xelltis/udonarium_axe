@@ -6,6 +6,7 @@ import {
   rereadSealedFaces,
   sealedFaceOf,
 } from '@axe/core/storage/sealed-faces';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { refuseLocalStorage } from '@axe/testing/refused-storage';
 
 describe('sealed faces', () => {
@@ -52,6 +53,21 @@ describe('sealed faces', () => {
     expect(sealedFaceOf('die-0')).toBeNull();
     expect(sealedFaceOf('die-1')).toBe('6');
     expect(sealedFaceOf(`die-${MOST_SEALED_FACES}`)).toBe('1');
+  });
+
+  it('lets go of the faces of dice gone from the room first, keeping those of dice still in it, however old', () => {
+    const inRoom = new Set(['die-0', 'die-1']);
+    vi.spyOn(ObjectStore.instance, 'get').mockImplementation(
+      (identifier: string) => (inRoom.has(identifier) ? ({ identifier } as never) : null) as never
+    );
+    for (let i = 0; i < MOST_SEALED_FACES; i++) keepSealedFace(`die-${i}`, '1');
+    keepSealedFace('die-new', '6');
+    keepSealedFace('die-newer', '2');
+    rereadSealedFaces();
+
+    expect([sealedFaceOf('die-0'), sealedFaceOf('die-1')]).toEqual(['1', '1']);
+    expect([sealedFaceOf('die-2'), sealedFaceOf('die-3')]).toEqual([null, null]);
+    expect([sealedFaceOf('die-new'), sealedFaceOf('die-newer')]).toEqual(['6', '2']);
   });
 
   it('reads what it cannot make sense of as nothing kept', () => {

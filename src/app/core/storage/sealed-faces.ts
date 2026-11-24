@@ -1,8 +1,9 @@
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { ObjectStore } from '@axe/core/sync/object-store';
 
 const SEALED_FACES_KEY = 'axe-sealed-dice-faces';
 
-/** How many dice this browser keeps the faces of, the latest kept first: dice long gone fall off the end. */
+/** How many dice this browser keeps the faces of: past that, those of dice gone from the room fall off first, the oldest first. */
 export const MOST_SEALED_FACES = 500;
 
 /**
@@ -43,8 +44,22 @@ function current(): Map<string, string> {
   return faces();
 }
 
+/**
+ * Writes the faces down, no more than are kept: past that, the oldest of a die not in the room is let
+ * go of first, as one deleted or put onto a sheet, and only then the oldest of any.
+ */
 function written(): void {
-  const kept = [...faces()].slice(-MOST_SEALED_FACES);
+  const all = [...faces()];
+  const over = all.length - MOST_SEALED_FACES;
+  const gone = new Set(
+    over > 0
+      ? all
+          .filter(([identifier]) => ObjectStore.instance.get(identifier) === null)
+          .slice(0, over)
+          .map(([identifier]) => identifier)
+      : []
+  );
+  const kept = all.filter(([identifier]) => !gone.has(identifier)).slice(-MOST_SEALED_FACES);
   held = new Map(kept);
   durable = writeLocal(SEALED_FACES_KEY, kept.length > 0 ? JSON.stringify(Object.fromEntries(kept)) : null);
 }
