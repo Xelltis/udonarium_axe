@@ -50,11 +50,6 @@ export function motionOfChatTokenName(name: string): string | null {
   return word.length > 0 ? word : null;
 }
 
-/** The token that asks the speaker's model for a motion, as it is added to a palette row. */
-export function buildMotionChatToken(word: string): string {
-  return `《${MOTION_TOKEN_PREFIXES[0]}${word}》`;
-}
-
 /** A `《name》` token in a line and where it stands, brackets included. */
 export interface EffectTokenSite {
   /** The name inside, without the spaces around it. */

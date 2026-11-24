@@ -1,7 +1,6 @@
 import {
   BATTLE_CHAT_TOKEN,
   buildEffectChatToken,
-  buildMotionChatToken,
   effectTokenSites,
   hasBattleChatToken,
   motionOfChatTokenName,
@@ -131,9 +130,5 @@ describe('a token that asks the speaker’s model for a motion', () => {
     expect(motionsAskedIn('《動き:Wave》 ok 《motion:Bow》')).toEqual(['Wave', 'Bow']);
     expect(motionsAskedIn('|手《動き:Wave》')).toEqual([]);
     expect(motionsAskedIn('《爆炎》')).toEqual([]);
-  });
-
-  it('is written in a form that reads back as the motion', () => {
-    expect(motionsAskedIn(buildMotionChatToken('Wave'))).toEqual(['Wave']);
   });
 });
