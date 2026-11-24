@@ -127,6 +127,17 @@ export class DiceSymbol extends OwnedTabletopObject {
   }
 
   /**
+   * Seals the die on a face nobody knows: turned to one of its faces at random as it is sealed, since
+   * the face it showed was told to the room, or to the game master, before it was sealed. What a seat
+   * seals is so a face no other seat has seen.
+   */
+  sealUnseen(): void {
+    this.seal();
+    const faces = this.faces;
+    if (faces.length > 0) this.face = faces[Math.floor(Math.random() * faces.length)];
+  }
+
+  /**
    * Tells the room the face of a sealed die again, as kept in this browser, and lets go of what was
    * kept. The die stays kept by its seat until it is shown.
    */

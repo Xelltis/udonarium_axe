@@ -254,7 +254,7 @@ export class TabletopActionService {
       const dice = this.createDiceSymbol(position, item.diceName, item.type, item.imagePathPrefix, placement);
       if (ownership.ownerCharacterIdentifier) dice.ownerCharacterIdentifier = ownership.ownerCharacterIdentifier;
       if (owner.length > 0) dice.owner = owner;
-      if (owner.length > 0 && ownership.sealed === true) dice.seal();
+      if (owner.length > 0 && ownership.sealed === true) dice.sealUnseen();
       return dice;
     });
   }

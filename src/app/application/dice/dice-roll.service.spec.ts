@@ -518,17 +518,20 @@ describe('DiceRollService', () => {
       rereadSealedFaces();
     });
 
-    it('seals a die nobody keeps or this seat keeps, keeping its face from the room', () => {
+    it('seals a die nobody keeps or this seat keeps on a face nobody knows, keeping it from the room', () => {
       const open = makeDice('みんなの');
       open.face = '4';
       const theirs = makeDice('ひとの');
       theirs.owner = 'somebody-else';
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
 
       expect(service.seal(theirs)).toBe(false);
       expect(service.seal(open)).toBe(true);
 
-      expect([open.owner, open.isSealed, open.sentFace, open.face]).toEqual(['me', true, '', '4']);
+      expect([open.owner, open.isSealed, open.sentFace, open.face]).toEqual(['me', true, '', '6']);
       expect(service.canSeal(open)).toBe(false);
+      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(sendSystemMessage.mock.calls[0][0] as string).toContain('rolledSealed');
     });
 
     it('keeps it from the game master, who may neither read it, show it nor take it', () => {
@@ -547,6 +550,7 @@ describe('DiceRollService', () => {
     it('tells the room it was thrown, and not what it showed', () => {
       const open = makeDice('みんなの');
       service.seal(open);
+      sendSystemMessage.mockClear();
 
       const [rolled] = service.roll([open]);
 

@@ -156,14 +156,18 @@ export class DiceRollService {
 
   /**
    * Keeps a die's face to this seat alone, the game master included, and plays the sound of it: its
-   * face is kept in this browser and the room is told none. False, with nothing done, where this seat
-   * may not seal it.
+   * face is kept in this browser and the room is told none. It is sealed on a face nobody knows, as
+   * the one it showed was told already, and the room is told it was thrown, as a throw of a sealed die
+   * is. False, with nothing done, where this seat may not seal it.
    */
   seal(die: DiceSymbol): boolean {
     if (!this.canSeal(die)) return false;
     die.owner = PeerCursor.myUserId;
-    die.seal();
+    die.sealUnseen();
+    callRollDiceSymbol(die.identifier);
+    this.objectChange.notifyDiceRolled(die.identifier);
     SoundEffect.play(PresetSound.lock);
+    this.announceSealed(1);
     return true;
   }
 

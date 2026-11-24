@@ -524,10 +524,14 @@ describe('AgentCardKinds', () => {
       localStorage.removeItem('axe-sealed-dice-faces');
       rereadSealedFaces();
       const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
+      const chat = TestBed.inject(ChatMessageService);
+      vi.spyOn(chat, 'sendSystemMessage').mockReturnValue(null as never);
+      vi.spyOn(chat, 'sendSystemMessageToTab').mockReturnValue(null as never);
+      vi.spyOn(Math, 'random').mockReturnValue(0);
       const plot = dieOf('プロット');
       asPlayer();
 
-      expect(act('dice-symbol', plot.identifier, 'seal')).toMatchObject({ kept_by: 'AI', face: '4' });
+      expect(act('dice-symbol', plot.identifier, 'seal')).toMatchObject({ kept_by: 'AI', face: '1' });
       expect([plot.isSealed, plot.sentFace]).toEqual([true, '']);
       expect(() => act('dice-symbol', plot.identifier, 'seal')).toThrow(/sealed it already/);
       const free = dieOf('見学');
