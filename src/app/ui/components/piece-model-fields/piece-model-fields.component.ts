@@ -4,6 +4,7 @@ import { ModelPortraitService } from '@axe/application/character/model-portrait.
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModelNamesService, NO_MODEL_NAMES } from '@axe/application/tabletop/model-names.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { isModelMotion } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import type { ModelAct, MotionRole } from '@axe/domain/tabletop/model-motions';
@@ -160,7 +161,12 @@ export class PieceModelFieldsComponent {
     input.value = '';
     if (files.length < 1) return;
     const { models } = await this.fileArchiver.load(files);
-    if (models.length > 0) this.choose(models[0]);
+    // A motion for VRM models read along is held for a VRM to be given, never drawn as the piece.
+    const drawn = models.find((identifier) => {
+      const held = this.modelStorage.get(identifier);
+      return !held || !isModelMotion(held);
+    });
+    if (drawn) this.choose(drawn);
   }
 
   private write(changes: ModelFieldChanges): void {
