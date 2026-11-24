@@ -115,6 +115,23 @@ describe('how a model is drawn', () => {
     expect(mayChangeMaterial(freed, 'A-first')).toBe(true);
   });
 
+  it('keeps a material by its name whatever it is named, `constructor` and `__proto__` too', () => {
+    expect(mayChangeMaterial(MODEL_AS_MADE, 'constructor')).toBe(true);
+    expect(materialLookIn(MODEL_AS_MADE, 'constructor')).toBe(MODEL_AS_MADE);
+
+    const look = withMaterialLook(
+      withMaterialLook(MODEL_AS_MADE, '__proto__', { ...AS_MADE, hidden: true }),
+      'constructor',
+      { ...AS_MADE, plain: true }
+    );
+    const read = modelLookOf(writeModelLook(look));
+
+    expect(Object.keys(read.materials).sort()).toEqual(['__proto__', 'constructor']);
+    expect(materialLookIn(read, '__proto__').hidden).toBe(true);
+    expect(materialLookIn(read, 'constructor').plain).toBe(true);
+    expect(Object.getPrototypeOf(read.materials)).toBeNull();
+  });
+
   it('offers ready-made looks that each come back as stored', () => {
     for (const preset of MODEL_LOOK_PRESET_NAMES) {
       const look = presetModelLook(preset);

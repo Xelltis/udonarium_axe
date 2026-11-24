@@ -12,6 +12,7 @@ import {
   type ModelFinish,
   type ModelLook,
   modelLookOf,
+  ownMaterialLook,
   withMaterialLook,
   writeModelLook,
 } from '@axe/domain/tabletop/model-look';
@@ -74,7 +75,7 @@ export class ModelLookFieldsComponent {
   /** What is set of the material being set alone, or of the whole model. */
   protected readonly set = computed<MaterialLook>(() => {
     const scope = this.scope();
-    return scope ? (this.look().materials[scope] ?? AS_MADE) : this.look();
+    return scope ? (ownMaterialLook(this.look(), scope) ?? AS_MADE) : this.look();
   });
 
   /** The ready-made look the whole model is drawn in, or empty where it is none of them. */
@@ -107,7 +108,7 @@ export class ModelLookFieldsComponent {
   protected change(changes: Partial<MaterialLook>): void {
     const scope = this.scope();
     const look = this.look();
-    if (scope) this.write(withMaterialLook(look, scope, { ...(look.materials[scope] ?? AS_MADE), ...changes }));
+    if (scope) this.write(withMaterialLook(look, scope, { ...(ownMaterialLook(look, scope) ?? AS_MADE), ...changes }));
     else this.write({ ...look, ...changes, hidden: false });
   }
 

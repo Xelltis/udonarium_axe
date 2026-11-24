@@ -71,7 +71,7 @@ export const MODEL_AS_MADE: ModelLook = Object.freeze({ ...AS_MADE, finish: '', 
 export function modelLookOf(value: unknown): ModelLook {
   const source = storedRecordOf(value);
   if (!source) return MODEL_AS_MADE;
-  const materials: Record<string, MaterialLook> = {};
+  const materials = materialRecord<MaterialLook>();
   const stored = recordOf(source['materials']);
   for (const key of Object.keys(stored ?? {}).slice(0, MAX_MODEL_LOOK_MATERIALS)) {
     const named = key.trim().slice(0, MAX_MATERIAL_NAME);
@@ -94,9 +94,9 @@ export function writeModelLook(look: ModelLook): string {
   const written: Record<string, unknown> = { ...writtenMaterial(look) };
   delete written['hidden'];
   if (look.finish) written['finish'] = look.finish;
-  const materials: Record<string, unknown> = {};
+  const materials = materialRecord<unknown>();
   for (const key of Object.keys(look.materials).sort()) {
-    const one = writtenMaterial(look.materials[key]);
+    const one = writtenMaterial(ownMaterialLook(look, key)!);
     if (Object.keys(one).length > 0) materials[key] = one;
   }
   if (Object.keys(materials).length > 0) written['materials'] = materials;
@@ -110,7 +110,7 @@ export function modelLookKeyOf(value: unknown): string {
 
 /** How one material of a model is drawn: what is set for it alone, over what is set for the whole model. */
 export function materialLookIn(look: ModelLook, key: string): MaterialLook {
-  const own = look.materials[key];
+  const own = ownMaterialLook(look, key);
   if (!own) return look;
   return {
     tint: own.tint || look.tint,
@@ -134,7 +134,20 @@ export function isAsMade(look: MaterialLook): boolean {
  * any while fewer than {@link MAX_MODEL_LOOK_MATERIALS} have, as no more are kept.
  */
 export function mayChangeMaterial(look: ModelLook, key: string): boolean {
-  return key in look.materials || Object.keys(look.materials).length < MAX_MODEL_LOOK_MATERIALS;
+  return ownMaterialLook(look, key) !== undefined || Object.keys(look.materials).length < MAX_MODEL_LOOK_MATERIALS;
+}
+
+/**
+ * The look one of a model's materials is given of its own, or none: read as the material's own entry
+ * alone, as a material may be named anything, `constructor` or `__proto__` too.
+ */
+export function ownMaterialLook(look: ModelLook, key: string): MaterialLook | undefined {
+  return Object.hasOwn(look.materials, key) ? look.materials[key] : undefined;
+}
+
+/** A record of a model's materials by their names, which has nothing in it but what is put there, whatever a material is named. */
+function materialRecord<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
 }
 
 /**
@@ -143,7 +156,7 @@ export function mayChangeMaterial(look: ModelLook, key: string): boolean {
  */
 export function withMaterialLook(look: ModelLook, key: string, material: MaterialLook): ModelLook {
   if (!isAsMade(material) && !mayChangeMaterial(look, key)) return look;
-  const materials = { ...look.materials };
+  const materials = Object.assign(materialRecord<MaterialLook>(), look.materials);
   if (isAsMade(material)) delete materials[key];
   else materials[key] = material;
   return { ...look, materials };
