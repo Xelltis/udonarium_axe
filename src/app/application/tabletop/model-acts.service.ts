@@ -6,7 +6,7 @@ import { callModelMotion } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { askedRoleOf } from '@axe/domain/tabletop/model-asked-roles';
-import { type ModelAct } from '@axe/domain/tabletop/model-motions';
+import { type ModelAct, outweighs } from '@axe/domain/tabletop/model-motions';
 
 const NO_ACTS: ReadonlyMap<string, ModelAct> = new Map();
 
@@ -60,7 +60,7 @@ export class ModelActsService {
         (identifier) => this.standsAt(identifier),
         (identifier) => this.drawnAs(identifier)
       );
-      for (const [identifier, act] of asked) if (!played.has(identifier)) played.set(identifier, act);
+      for (const [identifier, act] of asked) if (outweighs(act, played.get(identifier))) played.set(identifier, act);
       return played.size < 1 ? NO_ACTS : played;
     },
     { equal: (a, b) => a === b || (a.size === 0 && b.size === 0) }

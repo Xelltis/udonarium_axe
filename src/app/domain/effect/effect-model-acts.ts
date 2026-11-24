@@ -2,7 +2,7 @@ import { type EffectBlow, wallClockOf } from '@axe/domain/effect/effect-blows';
 import type { EffectCast } from '@axe/domain/effect/effect-cast';
 import { defeatReactionOf } from '@axe/domain/effect/effect-defeat';
 import type { EffectKind } from '@axe/domain/effect/effect-kind';
-import type { ModelAct } from '@axe/domain/tabletop/model-motions';
+import { ACT_GRAVITY, type ModelAct } from '@axe/domain/tabletop/model-motions';
 
 /** An effect being played, as far as what the models of the pieces in it act is worked out from. */
 export interface ActedCast {
@@ -48,7 +48,7 @@ export function modelActsOf(
   const lay = (identifier: string, act: ModelAct) => {
     const owner = drawnAs(identifier);
     const before = acts.get(owner);
-    if (!before || GRAVITY[act.role] >= GRAVITY[before.role]) acts.set(owner, act);
+    if (!before || ACT_GRAVITY[act.role] >= ACT_GRAVITY[before.role]) acts.set(owner, act);
   };
   for (const { key, cast, kind, startedAt, blows } of casts) {
     const caster = cast.casterIdentifier;
@@ -75,9 +75,6 @@ export function modelActsOf(
   }
   return acts;
 }
-
-/** How grave each act is beside the others, which decides the one a piece in several acts. */
-const GRAVITY: Readonly<Record<ModelAct['role'], number>> = { named: 0, cast: 1, attack: 1, hit: 2, defeat: 3 };
 
 /** The way from one point of the table to another, of unit length, or nothing where either is unknown or they are one. */
 function towards(from: { x: number; y: number } | null, to: { x: number; y: number } | null): Pick<ModelAct, 'toward'> {

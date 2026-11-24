@@ -169,14 +169,17 @@ describe('ModelActsService', () => {
     ]);
   });
 
-  it('lets what an effect asks of a piece come before what it was asked outright', () => {
+  it('lets what an effect asks of a piece come before a lighter act it was asked outright, but not a graver one', () => {
     const knight = piece('騎士', 0, 0);
     const orc = piece('オーク', 200, 0);
+    vi.spyOn(performance, 'now').mockReturnValue(1200);
     acts.play(knight.identifier, 'Wave');
 
     casts.set([playing('bash', knight, orc)]);
-
     expect(acts.acts().get(knight.identifier)?.role).toBe('attack');
+
+    acts.strike(knight.identifier);
+    expect(acts.acts().get(knight.identifier)?.role).toBe('hit');
   });
 
   it('forgets what was asked outright long ago when something else is', () => {
