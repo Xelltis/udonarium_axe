@@ -33,7 +33,8 @@ export class SkyMirror {
     const sky = this.sky.value;
     const under = this.ground.value;
     const [r, g, b] = [colour.r * strength, colour.g * strength, colour.b * strength];
-    if (sky.x === r && sky.y === g && sky.z === b && under.x === r * ground) return false;
+    const same = (v: Vector3, x: number, y: number, z: number) => v.x === x && v.y === y && v.z === z;
+    if (same(sky, r, g, b) && same(under, r * ground, g * ground, b * ground)) return false;
     sky.set(r, g, b);
     under.set(r * ground, g * ground, b * ground);
     return true;
