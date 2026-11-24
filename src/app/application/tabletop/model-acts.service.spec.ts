@@ -4,13 +4,10 @@ import { type ActiveEffectCast, EffectPlaybackService } from '@axe/application/e
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
 import { Network } from '@axe/core/network/network';
-import { localDispatch } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectBlowsOf } from '@axe/domain/effect/effect-blows';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -152,7 +149,6 @@ describe('ModelActsService', () => {
   it('plays the model’s own motion asked for by name, though its name be a word for a role, here and on every seat', () => {
     const orc = piece('オーク', 0, 0);
     const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
-    vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ role: PeerRole.Player } as PeerCursor);
 
     acts.play(orc.identifier, 'Attack', { named: true });
     expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Attack' });
@@ -160,23 +156,11 @@ describe('ModelActsService', () => {
     acts.playForAll(orc.identifier, 'Attack', { named: true });
     const told = sent.mock.calls.map(([context]) => (context as { data: unknown }).data);
     expect(told).toEqual([{ identifier: orc.identifier, motion: 'Attack', named: true }]);
-    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Hit', named: true }, 'player-peer');
-    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Hit' });
   });
 
-  it('plays a motion this seat is told of by a seat that may change the table, and tells every seat of one played for all', () => {
+  it('tells every seat of a motion played for all', () => {
     const orc = piece('オーク', 0, 0);
     const sent = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
-    const roles: Record<string, PeerRole> = { 'player-peer': PeerRole.Player, 'guest-peer': PeerRole.Guest };
-    vi.spyOn(PeerCursor, 'findByPeerId').mockImplementation((peerId) =>
-      roles[peerId] ? ({ role: roles[peerId] } as PeerCursor) : null
-    );
-
-    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Bow' }, 'guest-peer');
-    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Bow' }, 'nobody-peer');
-    expect(acts.acts().get(orc.identifier)).toBeUndefined();
-    localDispatch('MODEL_MOTION', { identifier: orc.identifier, motion: 'Wave' }, 'player-peer');
-    expect(acts.acts().get(orc.identifier)).toMatchObject({ role: 'named', name: 'Wave' });
 
     acts.playForAll(orc.identifier, 'Bow');
     const told = sent.mock.calls.map(([context]) => context as { eventName: string; data: unknown });

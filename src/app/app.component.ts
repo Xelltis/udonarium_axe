@@ -107,6 +107,7 @@ import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
+import { ModelMotionEventHandlerService } from '@axe/features/tabletop/model-motion/model-motion-event-handler.service';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
 import { RulerBandComponent } from '@axe/features/tabletop/ruler/ruler-band.component';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
@@ -263,6 +264,7 @@ export class AppComponent {
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
     inject(ModelDropEventHandlerService);
+    inject(ModelMotionEventHandlerService);
     inject(FilesTooLargeEventHandlerService);
     inject(AssetRemovalEventHandlerService);
     inject(MovePlanEventHandlerService);
