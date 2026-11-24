@@ -4,7 +4,7 @@ import { ModelMotionFilesService } from '@axe/application/tabletop/model-motion-
 import { type ModelFileContext } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { MAX_MODEL_MOTION_FILES } from '@axe/domain/media/model-motion-files';
+import { MAX_MODEL_MOTION_FILES } from '@axe/domain/media/model-motion-ids';
 import { ModelTag } from '@axe/domain/media/model-tag';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

@@ -72,6 +72,20 @@ describe('ModelTag', () => {
     expect(ModelTag.get('oak')?.motions).toBe('');
   });
 
+  it('adds the motions a file names after those the model is given already, taking none away', () => {
+    const avatar = held('avatar');
+    ModelTag.giveMotions('avatar', '["wave"]');
+    const saved = ModelTagList.create([avatar]).toXml();
+    ModelTag.giveMotions('avatar', '["bow","jump"]');
+
+    ObjectSerializer.instance.parseXml(saved);
+    expect(ModelTag.get('avatar')?.motions).toBe('["bow","jump","wave"]');
+
+    ObjectSerializer.instance.parseXml('<model-tag modelIdentifier="avatar" tag="人"></model-tag>');
+    expect(ModelTag.get('avatar')?.motions).toBe('["bow","jump","wave"]');
+    expect(ModelTag.get('avatar')?.tag).toBe('人');
+  });
+
   it('gives a model motions, making its tag where it has none, and keeps its tag as it was', () => {
     ModelTag.tagWith('avatar', 'people');
 

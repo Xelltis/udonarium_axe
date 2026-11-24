@@ -2,12 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { type ModelFileContext } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import {
-  MAX_MODEL_MOTION_FILES,
-  modelMotionFilesOf,
-  motionFileIdsOf,
-  writeMotionFileIds,
-} from '@axe/domain/media/model-motion-files';
+import { modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
+import { MAX_MODEL_MOTION_FILES, motionFileIdsOf, writeMotionFileIds } from '@axe/domain/media/model-motion-ids';
 import { ModelTag } from '@axe/domain/media/model-tag';
 
 /** A model known here by a name, its bytes held or not. */

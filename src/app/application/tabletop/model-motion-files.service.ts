@@ -3,13 +3,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
-import {
-  MAX_MODEL_MOTION_FILES,
-  type ModelMotionFile,
-  modelMotionFilesOf,
-  motionFileIdsOf,
-  writeMotionFileIds,
-} from '@axe/domain/media/model-motion-files';
+import { type ModelMotionFile, modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
+import { MAX_MODEL_MOTION_FILES, motionFileIdsOf, writeMotionFileIds } from '@axe/domain/media/model-motion-ids';
 import { ModelTag, modelTagIdentifierOf } from '@axe/domain/media/model-tag';
 
 /** A motion for VRM models held here, as it may be chosen to give a model. */

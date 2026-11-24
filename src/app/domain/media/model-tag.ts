@@ -1,6 +1,7 @@
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { motionFileIdsOf, writeMotionFileIds } from '@axe/domain/media/model-motion-ids';
 
 /** The kind the tags of models go by, as the object store names it. */
 export const MODEL_TAG_ALIAS = 'model-tag';
@@ -51,13 +52,17 @@ export class ModelTag extends ObjectNode {
 
   /**
    * Copies a tag read from a file onto the model's own tag, then destroys the copy that was read. The
-   * tag is made first when the model has none, and the change is shared with the room.
+   * tag is made first when the model has none, and the change is shared with the room. The motions the
+   * file names are added after those the model is given already, none of which a file takes away, as
+   * a piece saved before its model was given more brings in no fewer.
    */
   override parseInnerXml(_element: Element) {
     const held = ModelTag.get(this.modelIdentifier) ?? ModelTag.create(this.modelIdentifier);
+    const motions = writeMotionFileIds([...motionFileIdsOf(held.motions), ...motionFileIdsOf(this.motions)]);
     const context = held.toContext();
     context.syncData = this.toContext().syncData;
     held.apply(context);
+    held.motions = motions;
     held.update();
     this.destroy();
   }
