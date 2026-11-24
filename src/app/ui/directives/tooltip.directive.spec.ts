@@ -169,6 +169,37 @@ describe('TooltipDirective', () => {
     expect(fixture.nativeElement.querySelectorAll('[data-testid="stub-panel"]')).toHaveLength(4);
   });
 
+  describe('a pointer moving on before the detail opens', () => {
+    function moveTo(target: Element, clientX: number, clientY: number): void {
+      const move = new MouseEvent('mousemove', { clientX, clientY, bubbles: true });
+      // happy-dom gives a made event no place on the page, which is where the pointer is read from.
+      Object.defineProperties(move, { pageX: { value: clientX }, pageY: { value: clientY } });
+      target.dispatchEvent(move);
+    }
+
+    it('opens nothing once it has gone off the piece, though the piece never heard it leave', async () => {
+      const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+      moveTo(piece, 0, 10);
+      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+
+      moveTo(document.body, 400, 300);
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('still opens once it comes to rest after moving about on the piece', async () => {
+      const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+      moveTo(piece, 0, 10);
+      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+
+      moveTo(fixture.nativeElement.querySelector('[data-testid="piece-body"]'), 8, 14);
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(4);
+    });
+  });
+
   it('opens no detail while it is asked to open none, as over a look on the ground locked in place', async () => {
     host.secondOff.set(true);
     fixture.detectChanges();

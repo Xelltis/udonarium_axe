@@ -225,7 +225,10 @@ export class TooltipDirective {
       const magnitude =
         (pointerX - this.pointerDeviceService.pointerX) ** 2 + (pointerY - this.pointerDeviceService.pointerY) ** 2;
       if (magnitude > HOVER_STILL_PX ** 2) {
-        this.startOpenTimer();
+        // The pointer may have gone off the piece without the piece hearing of it, as when the piece
+        // came under a pointer that then moved on, and a detail would open wherever it next rests.
+        const host = this.viewContainerRef.element.nativeElement as Element;
+        if (host.contains(this.pointerDeviceService.targetElement)) this.startOpenTimer();
       } else {
         this.open();
       }
