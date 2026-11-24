@@ -77,10 +77,7 @@ export class DiceSymbol extends OwnedTabletopObject {
     return this.keeper;
   }
   set owner(owner: string) {
-    if (owner !== this.keeper && this.sealed) {
-      this.sealed = false;
-      if (!this.sentFace) this.sentFace = this.faces[0] ?? '';
-    }
+    if (owner !== this.keeper && this.sealed) this.letSealGo();
     this.keeper = owner;
   }
 
@@ -120,11 +117,26 @@ export class DiceSymbol extends OwnedTabletopObject {
     forgetSealedFace(this.identifier);
   }
 
-  /** A copy of the die. A die sealed by this seat is copied sealed alike, this browser keeping its face for the copy too. */
+  /**
+   * A copy of the die. A sealed die copied in the browser that holds its face is copied sealed alike,
+   * this browser keeping its face for the copy too; copied anywhere else, as by the game master, the
+   * copy has a face nobody holds, and lets its seal go.
+   */
   override clone(): this {
     const copy = super.clone();
-    if (this.isSealedHere) keepSealedFace(copy.identifier, this.face);
+    if (this.holdsSealedFace) keepSealedFace(copy.identifier, this.face);
+    else if (copy.sealed) copy.letSealGo();
     return copy;
+  }
+
+  /**
+   * Lets go of the seal of a die whose face is lost to the room, as one handed to another seat or a
+   * copy made where its face is not held: it stands unsealed on the face the room was told, or on its
+   * first, as a die made anew does. No sealed die is ever left with a face nobody holds.
+   */
+  private letSealGo(): void {
+    this.sealed = false;
+    if (!this.sentFace) this.sentFace = this.faces[0] ?? '';
   }
 
   /** How many cells the die spans, kept in its common data. 1 when unset. */

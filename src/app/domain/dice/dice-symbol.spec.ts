@@ -545,6 +545,30 @@ describe('DiceSymbol', () => {
       copy.destroy();
     });
 
+    it('copies with its seal let go, on its first face, where the face is not held, as by another seat', () => {
+      const dice = sealedBy('me', '4');
+      vi.spyOn(GameObject.prototype, 'clone').mockImplementation(() => {
+        const made = DiceSymbol.create('plot', DiceType.D6, 1);
+        made.owner = 'me';
+        made.sealed = true;
+        made.sentFace = '';
+        return made;
+      });
+
+      seat('them');
+      const byAnother = dice.clone();
+      seat('me');
+      rereadSealedFaces();
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+      const elsewhere = dice.clone();
+
+      for (const copy of [byAnother, elsewhere]) {
+        expect([copy.isSealed, copy.sentFace, copy.owner]).toEqual([false, '1', 'me']);
+        copy.destroy();
+      }
+    });
+
     it('seals nothing while nobody keeps it', () => {
       const dice = DiceSymbol.create('plot', DiceType.D6, 1);
       dice.sealed = true;
