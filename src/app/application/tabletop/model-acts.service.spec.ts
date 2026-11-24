@@ -182,6 +182,17 @@ describe('ModelActsService', () => {
     expect(acts.acts().get(knight.identifier)?.role).toBe('hit');
   });
 
+  it('lets an effect begun since come before a blow the piece took a while ago, though the blow is graver', () => {
+    const knight = piece('騎士', 0, 0);
+    const orc = piece('オーク', 200, 0);
+    vi.spyOn(performance, 'now').mockReturnValue(500);
+    acts.strike(knight.identifier);
+
+    casts.set([playing('bash', knight, orc, 5000)]);
+
+    expect(acts.acts().get(knight.identifier)?.role).toBe('attack');
+  });
+
   it('forgets what was asked outright long ago when something else is', () => {
     const [orc, goblin] = [piece('オーク', 0, 0), piece('ゴブリン', 50, 0)];
     const now = vi.spyOn(performance, 'now').mockReturnValue(0);

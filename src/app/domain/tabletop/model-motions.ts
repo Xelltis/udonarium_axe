@@ -94,12 +94,12 @@ export const ACT_GRAVITY: Readonly<Record<ModelAct['role'], number>> = {
 };
 
 /**
- * Whether an act a piece is asked for outright comes before the act it is in, as an effect has it: a
- * graver act does, and of two as grave, the later one, as a blow taken while working a spell or a
- * gesture asked for after a blow struck.
+ * Whether an act a piece is asked for outright comes before the act it is in, as an effect has it:
+ * one asked for since, and as grave or graver, as a blow taken while working a spell. One asked for
+ * before the effect began gives way to it, as a blow taken a while ago does to a blow struck now, and
+ * so does one lighter, as a gesture does to a blow.
  */
 export function outweighs(act: ModelAct, before: ModelAct | undefined): boolean {
   if (!before) return true;
-  const [grave, graveBefore] = [ACT_GRAVITY[act.role], ACT_GRAVITY[before.role]];
-  return grave > graveBefore || (grave === graveBefore && act.atMs >= before.atMs);
+  return act.atMs >= before.atMs && ACT_GRAVITY[act.role] >= ACT_GRAVITY[before.role];
 }
