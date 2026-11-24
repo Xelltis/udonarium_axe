@@ -1,14 +1,39 @@
 import type { ActRole, ModelAct, MotionRole } from '@axe/domain/tabletop/model-motions';
 
-/** What the name of a motion made for each role is likely to hold, in whichever of the tongues models are named in. */
-const NAMED: Readonly<Record<MotionRole, RegExp>> = {
-  idle: /idle|stand|wait|待機|立ち/i,
-  walk: /walk|run|move|歩|走/i,
-  attack: /attack|slash|strike|punch|kick|swing|stab|melee|bite|攻撃|斬|殴/i,
-  cast: /cast|spell|magic|shoot|throw|ranged|bow|魔法|詠唱|射撃|投/i,
-  hit: /hit|hurt|damage|flinch|react|pain|stagger|被弾|ダメージ|やられ|のけぞ/i,
-  defeat: /death|die|dead|defeat|down|fall|knock|\bko\b|死亡|撃破|倒れ|ダウン/i,
+/**
+ * The words a motion made for each role is likely to be named with: in letters, the beginnings of the
+ * words of its name, so that "Walking" is a walk but "Soldier" is no death; in kana and kanji, which
+ * run on without a break between words, anywhere in its name.
+ */
+const NAMED: Readonly<Record<MotionRole, { readonly word: RegExp; readonly written: RegExp }>> = {
+  idle: { word: /^(?:idle|stand|wait)/, written: /待機|立ち/ },
+  walk: { word: /^(?:walk|run|move)/, written: /歩|走/ },
+  attack: {
+    word: /^(?:attack|slash|strike|punch|kick|swing|stab|melee|bite)/,
+    written: /攻撃|斬|殴/,
+  },
+  cast: { word: /^(?:cast|spell|magic|shoot|throw|ranged|bows?$)/, written: /魔法|詠唱|射撃|投/ },
+  hit: { word: /^(?:hit|hurt|damage|flinch|react|pain|stagger)/, written: /被弾|ダメージ|やられ|のけぞ/ },
+  defeat: { word: /^(?:death|die[sd]?$|dead|defeat|down|fall|knock|ko$)/, written: /死亡|撃破|倒れ|ダウン/ },
 };
+
+/**
+ * Whether a motion is named for a role: whether a word of its name, as the name is broken at
+ * anything but a letter and where a capital follows a small letter, begins as the role's words do,
+ * or whether it holds the role's kana or kanji.
+ */
+function namedFor(role: MotionRole, name: string): boolean {
+  const named = NAMED[role];
+  return named.written.test(name) || wordsOf(name).some((word) => named.word.test(word));
+}
+
+function wordsOf(name: string): string[] {
+  return name
+    .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
+    .split(/[^\p{L}]+/u)
+    .map((word) => word.toLowerCase())
+    .filter((word) => word !== '');
+}
 
 /**
  * The motion a model plays for a role, of those it has: the one its piece asks for by name, or where
@@ -24,10 +49,10 @@ export function motionNameFor(role: MotionRole, names: readonly string[], asked:
     if (exact !== undefined) return exact;
   }
   const own = (wanted: MotionRole) =>
-    names.find((name) => NAMED[wanted].test(name) && !(wanted === 'hit' && isBlow(name))) ?? null;
+    names.find((name) => namedFor(wanted, name) && !(wanted === 'hit' && isBlow(name))) ?? null;
   if (role === 'idle') {
     const standing = names.filter((name) => !namedForAnother(name));
-    return standing.find((name) => NAMED.idle.test(name)) ?? standing[0] ?? null;
+    return standing.find((name) => namedFor('idle', name)) ?? standing[0] ?? null;
   }
   if (role === 'cast') return own('cast') ?? own('attack');
   return own(role);
@@ -35,14 +60,14 @@ export function motionNameFor(role: MotionRole, names: readonly string[], asked:
 
 /** Whether a motion is named for a role other than standing. */
 function namedForAnother(name: string): boolean {
-  return ACT_OR_WALK.some((role) => NAMED[role].test(name));
+  return ACT_OR_WALK.some((role) => namedFor(role, name));
 }
 
 /** The roles a motion may be named for besides standing. */
 const ACT_OR_WALK: readonly MotionRole[] = ['walk', 'attack', 'cast', 'hit', 'defeat'];
 
 function isBlow(name: string): boolean {
-  return NAMED.attack.test(name) || NAMED.cast.test(name);
+  return namedFor('attack', name) || namedFor('cast', name);
 }
 
 function sameName(one: string, other: string): boolean {

@@ -58,6 +58,24 @@ describe('the motion a model plays for a role', () => {
     expect(motionNameFor('idle', [], '')).toBeNull();
   });
 
+  it('is told by the beginnings of the words of its name, not by letters inside one', () => {
+    const soldier = ['Soldier_Idle', 'Soldier_Walk', 'Elbow_Wave', 'Remove_Hat', 'SoldierDeath'];
+    expect(motionNameFor('idle', soldier, '')).toBe('Soldier_Idle');
+    expect(motionNameFor('walk', soldier, '')).toBe('Soldier_Walk');
+    expect(motionNameFor('defeat', soldier, '')).toBe('SoldierDeath');
+    expect(motionNameFor('cast', soldier, '')).toBeNull();
+    expect(motionNameFor('idle', ['Elbow_Wave', 'Remove_Hat'], '')).toBe('Elbow_Wave');
+  });
+
+  it('takes the words of a name run together, with their endings, and a name in capitals', () => {
+    const run = ['HitReact', 'Walking', 'KO', 'Bow', 'Dies'];
+    expect(motionNameFor('hit', run, '')).toBe('HitReact');
+    expect(motionNameFor('walk', run, '')).toBe('Walking');
+    expect(motionNameFor('defeat', ['Walking', 'KO'], '')).toBe('KO');
+    expect(motionNameFor('defeat', ['Walking', 'Dies'], '')).toBe('Dies');
+    expect(motionNameFor('cast', run, '')).toBe('Bow');
+  });
+
   it('strikes a blow for a spell where the model has nothing for working one', () => {
     expect(motionNameFor('cast', ['Idle', 'Punch'], '')).toBe('Punch');
   });
