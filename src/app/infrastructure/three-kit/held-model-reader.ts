@@ -1,4 +1,4 @@
-import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
+import { type GltfFacts, gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import { isHeldModelUrl } from '@axe/core/storage/model-file';
 import type { VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import { LoadingManager } from 'three';
@@ -48,10 +48,9 @@ export class HeldModelReader {
 
   /** The model held at a URL of bytes held here, or null for one that is not to be drawn. */
   async read(url: string): Promise<ReadModel | null> {
-    if (!isHeldModelUrl(url)) return null;
-    const bytes = await (await fetch(url)).arrayBuffer();
-    const facts = gltfFactsOf(bytes);
-    if (!facts || facts.triangles > MAX_MODEL_TRIANGLES) return null;
+    const held = await this.heldBytes(url);
+    if (!held) return null;
+    const { bytes, facts } = held;
     if (facts.extensions.includes('KHR_draco_mesh_compression')) this.loader.setDRACOLoader(await this.dracoLoader());
     if (facts.extensions.includes('KHR_texture_basisu')) this.loader.setKTX2Loader(await this.ktx2Loader());
     const vrm = facts.extensions.some((extension) => VRM_READ.has(extension)) ? await this.vrmReading() : null;
@@ -66,11 +65,23 @@ export class HeldModelReader {
    * that is not held here or holds no such motion.
    */
   async readMotion(url: string): Promise<unknown> {
+    const held = await this.heldBytes(url);
+    if (!held?.facts.extensions.includes(VRM_MOTION)) return null;
+    const reading = await this.vrmReading();
+    return reading.vrmMotionIn(await this.loader.parseAsync(held.bytes, ''));
+  }
+
+  /**
+   * The bytes held at a URL of bytes held here, with what they are found to be, for any of them to be
+   * read: null for a URL of anything else, or bytes that are no binary glTF or that draw more
+   * triangles than a model may, which are never read, whatever they are read as.
+   */
+  private async heldBytes(url: string): Promise<{ bytes: ArrayBuffer; facts: GltfFacts } | null> {
     if (!isHeldModelUrl(url)) return null;
     const bytes = await (await fetch(url)).arrayBuffer();
-    if (!gltfFactsOf(bytes)?.extensions.includes(VRM_MOTION)) return null;
-    const reading = await this.vrmReading();
-    return reading.vrmMotionIn(await this.loader.parseAsync(bytes, ''));
+    const facts = gltfFactsOf(bytes);
+    if (!facts || facts.triangles > MAX_MODEL_TRIANGLES) return null;
+    return { bytes, facts };
   }
 
   /** Lets go of the decoders it fetched. */
