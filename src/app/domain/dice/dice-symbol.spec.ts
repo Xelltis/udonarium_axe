@@ -3,6 +3,7 @@ import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { rereadSealedFaces, sealedFaceOf } from '@axe/core/storage/sealed-faces';
+import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
@@ -501,6 +502,23 @@ describe('DiceSymbol', () => {
 
       expect([handed.sealed, handed.isSealed, handed.sentFace]).toEqual([false, false, '']);
       expect([dropped.sealed, dropped.isSealed, dropped.sentFace]).toEqual([false, false, '']);
+    });
+
+    it('copies its face for a copy its keeper makes, still telling the room none', () => {
+      const dice = sealedBy('me', '4');
+      // happy-dom takes no attribute with a dot in its name, so the copy is made as the XML would make it.
+      vi.spyOn(GameObject.prototype, 'clone').mockImplementation(() => {
+        const made = DiceSymbol.create('plot', DiceType.D6, 1);
+        made.owner = 'me';
+        made.sealed = true;
+        made.sentFace = '';
+        return made;
+      });
+
+      const copy = dice.clone();
+
+      expect([copy.isSealed, copy.sentFace, copy.face]).toEqual([true, '', '4']);
+      copy.destroy();
     });
 
     it('seals nothing while nobody keeps it', () => {

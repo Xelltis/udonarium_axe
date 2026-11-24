@@ -111,6 +111,13 @@ export class DiceSymbol extends OwnedTabletopObject {
     forgetSealedFace(this.identifier);
   }
 
+  /** A copy of the die. A die sealed by this seat is copied sealed alike, this browser keeping its face for the copy too. */
+  override clone(): this {
+    const copy = super.clone();
+    if (this.isSealedHere) keepSealedFace(copy.identifier, this.face);
+    return copy;
+  }
+
   /** How many cells the die spans, kept in its common data. 1 when unset. */
   get size(): number {
     return this.getCommonValue('size', 1);
