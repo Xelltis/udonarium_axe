@@ -129,8 +129,20 @@ export function isAsMade(look: MaterialLook): boolean {
   return Object.keys(writtenMaterial(look)).length === 0;
 }
 
-/** A look with one of its materials given a look of its own, or with that taken back where nothing is changed of it. */
+/**
+ * Whether one of a model's materials may be given a look of its own: one that has one already, or
+ * any while fewer than {@link MAX_MODEL_LOOK_MATERIALS} have, as no more are kept.
+ */
+export function mayChangeMaterial(look: ModelLook, key: string): boolean {
+  return key in look.materials || Object.keys(look.materials).length < MAX_MODEL_LOOK_MATERIALS;
+}
+
+/**
+ * A look with one of its materials given a look of its own, or with that taken back where nothing is
+ * changed of it; the look as it was where the material may not be given one.
+ */
 export function withMaterialLook(look: ModelLook, key: string, material: MaterialLook): ModelLook {
+  if (!isAsMade(material) && !mayChangeMaterial(look, key)) return look;
   const materials = { ...look.materials };
   if (isAsMade(material)) delete materials[key];
   else materials[key] = material;

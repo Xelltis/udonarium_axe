@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { modelLookOf, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { MAX_MODEL_LOOK_MATERIALS, modelLookOf, writeModelLook } from '@axe/domain/tabletop/model-look';
 import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { ModelLookFieldsComponent } from '@axe/ui/components/piece-model-fields/model-look-fields.component';
@@ -164,6 +164,18 @@ describe('ModelLookFieldsComponent', () => {
     await settle();
 
     expect(piece.modelLook).toBe('');
+  });
+
+  it('lets no more materials be chosen once as many as are kept are set apart, and says so', async () => {
+    const names = Array.from({ length: MAX_MODEL_LOOK_MATERIALS + 1 }, (_, index) => `M${index}`);
+    const materials = Object.fromEntries(names.slice(0, -1).map((name) => [name, { plain: true }]));
+    piece.modelLook = JSON.stringify({ materials });
+    const { find } = await render(names);
+
+    const options = find<HTMLSelectElement>('model-look-scope')!.options;
+    expect(options[1].disabled).toBe(false);
+    expect(options[names.length].disabled).toBe(true);
+    expect(find('model-look-materials-full')?.textContent).toContain(String(MAX_MODEL_LOOK_MATERIALS));
   });
 
   it('offers no material to choose where the model names none', async () => {

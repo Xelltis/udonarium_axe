@@ -5,6 +5,8 @@ import {
   AS_MADE,
   type MaterialLook,
   MAX_MODEL_GLOW,
+  MAX_MODEL_LOOK_MATERIALS,
+  mayChangeMaterial,
   MODEL_AS_MADE,
   MODEL_FINISHES,
   type ModelFinish,
@@ -83,6 +85,14 @@ export class ModelLookFieldsComponent {
 
   /** The materials given a look of their own, which the list marks. */
   protected readonly changed = computed(() => new Set(Object.keys(this.look().materials)));
+
+  /** Whether a material may be chosen to be set apart: not one more once as many as are kept have been. */
+  protected mayChoose(material: string): boolean {
+    return mayChangeMaterial(this.look(), material);
+  }
+
+  /** As many materials as may be set apart, which the list says once they all have been. */
+  protected readonly mostMaterials = MAX_MODEL_LOOK_MATERIALS;
 
   protected choosePreset(preset: ModelLookPreset | ''): void {
     if (preset === '') return;

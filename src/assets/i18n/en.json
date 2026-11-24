@@ -7454,6 +7454,7 @@
       "setUp": "Set up its look and motions",
       "look": "Look",
       "lookScope": "Applies to",
+      "lookMaterialsFull": "Up to {{count}} materials can be set apart. Set one back as made to set another",
       "wholeModel": "The whole model",
       "preset": "Preset",
       "presetCustom": "(Set by hand)",

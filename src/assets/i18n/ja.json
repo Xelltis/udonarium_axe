@@ -7454,6 +7454,7 @@
       "setUp": "見た目と動きを設定",
       "look": "見た目",
       "lookScope": "対象",
+      "lookMaterialsFull": "素材ごとに変えられるのは{{count}}個までです。ほかの素材は、変えた素材を元に戻すと変えられます",
       "wholeModel": "モデル全体",
       "preset": "プリセット",
       "presetCustom": "（手で調整）",

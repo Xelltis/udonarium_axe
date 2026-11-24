@@ -11,10 +11,17 @@
     >
       <option [ngValue]="''">{{ 'ui.pieceModel.wholeModel' | transloco }}</option>
       @for (material of materials(); track material) {
-        <option [ngValue]="material">{{ changed().has(material) ? '● ' : '' }}{{ material }}</option>
+        <option [ngValue]="material" [disabled]="!mayChoose(material)">
+          {{ changed().has(material) ? '● ' : '' }}{{ material }}
+        </option>
       }
     </select>
   </div>
+  @if (changed().size >= mostMaterials) {
+    <p class="text-ui-dim m-0 text-[0.72em]" data-testid="model-look-materials-full">
+      {{ 'ui.pieceModel.lookMaterialsFull' | transloco: { count: mostMaterials } }}
+    </p>
+  }
 }
 @if (whole) {
   <div [class]="styles.row">

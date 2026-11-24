@@ -3,6 +3,8 @@ import {
   isAsMade,
   materialLookIn,
   MAX_MODEL_GLOW,
+  MAX_MODEL_LOOK_MATERIALS,
+  mayChangeMaterial,
   MODEL_AS_MADE,
   modelLookKeyOf,
   modelLookOf,
@@ -93,6 +95,24 @@ describe('how a model is drawn', () => {
     expect(withMaterialLook(changed, 'Blade', AS_MADE).materials).toEqual({});
     expect(isAsMade(AS_MADE)).toBe(true);
     expect(isAsMade({ ...AS_MADE, metalness: 0 })).toBe(false);
+  });
+
+  it('sets apart no more materials than it keeps, so that none set apart is lost once it is stored', () => {
+    let look = MODEL_AS_MADE;
+    for (let index = 0; index < MAX_MODEL_LOOK_MATERIALS; index++) {
+      look = withMaterialLook(look, `M${String(index).padStart(2, '0')}`, { ...AS_MADE, plain: true });
+    }
+
+    expect(mayChangeMaterial(look, 'A-first')).toBe(false);
+    expect(mayChangeMaterial(look, 'M00')).toBe(true);
+    expect(withMaterialLook(look, 'A-first', { ...AS_MADE, plain: true })).toBe(look);
+    expect(withMaterialLook(look, 'M00', { ...AS_MADE, hidden: true }).materials['M00']).toMatchObject({
+      hidden: true,
+    });
+    expect(Object.keys(modelLookOf(writeModelLook(look)).materials)).toHaveLength(MAX_MODEL_LOOK_MATERIALS);
+
+    const freed = withMaterialLook(look, 'M00', AS_MADE);
+    expect(mayChangeMaterial(freed, 'A-first')).toBe(true);
   });
 
   it('offers ready-made looks that each come back as stored', () => {
