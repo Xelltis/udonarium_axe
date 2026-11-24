@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { Network } from '@axe/core/network/network';
+import { rereadSealedFaces } from '@axe/core/storage/sealed-faces';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { heldDiceOf, storeHeldDie } from '@axe/domain/character/character-dice';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -170,6 +171,36 @@ describe('CharacterDiceService', () => {
     } finally {
       vi.restoreAllMocks();
       PeerCursor.myCursor = null!;
+    }
+  });
+
+  it('leaves on the table a die another seat sealed, which only its keeper may take, and takes the keeper’s own', () => {
+    beMyself('me');
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.userId = 'me';
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    try {
+      const character = makeCharacter();
+      const theirs = makeSymbol('プロット');
+      theirs.ownerCharacterIdentifier = character.identifier;
+      theirs.keeper = 'someone';
+      theirs.sealed = true;
+      theirs.sentFace = '';
+      const mine = makeSymbol('自分の');
+      mine.ownerCharacterIdentifier = character.identifier;
+      mine.owner = 'me';
+      mine.seal();
+
+      expect([service.canStore(theirs), service.canStore(mine)]).toEqual([false, true]);
+      service.store(character, theirs);
+      expect(service.putAway(character)).toBe(1);
+
+      expect(ObjectStore.instance.get(theirs.identifier)).toBe(theirs);
+      expect(ObjectStore.instance.get(mine.identifier)).toBeNull();
+    } finally {
+      PeerCursor.myCursor = null!;
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
     }
   });
 

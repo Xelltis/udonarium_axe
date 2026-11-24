@@ -350,7 +350,9 @@ export class DiceSymbolComponent {
         ownerCandidates: this.tabletopService.characters
           .filter((character) => this.visionService.isTokenVisible(character) && !this.names.isKept(character))
           .map((character) => ({ identifier: character.identifier, name: character.name })),
-        onStoreToOwner: (ownerIdentifier) => this.storeToOwner(ownerIdentifier),
+        onStoreToOwner: this.characterDice.canStore(this.diceSymbol())
+          ? (ownerIdentifier) => this.storeToOwner(ownerIdentifier)
+          : undefined,
       },
       this.translateFn
     );
