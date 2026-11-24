@@ -9,9 +9,12 @@ import { inOneTab } from '@axe/core/util/one-tab';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
-/** The lock the tabs of one seat in a browser answer the game master's asking to show sealed dice under, the seat's user id after it. */
+/**
+ * The lock the tabs of one seat in a browser answer the game master's asking to show sealed dice
+ * under, the seat's user id and the asking after it, so that each asking is answered once.
+ */
 const REVEAL_LOCK = 'axe-reveal-sealed-dice';
-/** How long a tab that answered keeps the others from answering, as each is told a moment apart. */
+/** How long a tab that answered keeps the others from answering the same asking, as each is told of it a moment apart. */
 const REVEAL_KEPT_MS = 3000;
 
 /**
@@ -38,7 +41,9 @@ export class SealedDiceEventHandlerService {
       if (!this.permission.canPeerSeeHidden(event.from)) return;
       const dice = this.objectStore.getObjects(DiceSymbol);
       if (!dice.some((die) => die.isSealed && die.isMine)) return;
-      inOneTab(`${REVEAL_LOCK}:${PeerCursor.myUserId}`, REVEAL_KEPT_MS, () => this.diceRoll.revealOwnSealed(dice));
+      inOneTab(`${REVEAL_LOCK}:${PeerCursor.myUserId}:${event.asking}`, REVEAL_KEPT_MS, () =>
+        this.diceRoll.revealOwnSealed(dice)
+      );
     }, destroyRef);
     destroyRef.onDestroy(
       onSealedFacesChangedElsewhere((identifiers) => {

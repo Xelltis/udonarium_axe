@@ -155,13 +155,17 @@ describe('domain-events emit→subscribe wiring', () => {
     ]);
   });
 
-  it('tells every seat it is asked to show the dice it sealed, and by which peer', () => {
+  it('tells every seat it is asked to show the dice it sealed, by which asking and by which peer', () => {
     const asked: unknown[] = [];
     const unsub = revealSealedDice$.subscribe((event) => asked.push(event));
 
+    localDispatch('REVEAL_SEALED_DICE', { asking: 'a1' }, 'peer-gm');
     localDispatch('REVEAL_SEALED_DICE', null, 'peer-gm');
     unsub();
 
-    expect(asked).toEqual([{ from: 'peer-gm' }]);
+    expect(asked).toEqual([
+      { asking: 'a1', from: 'peer-gm' },
+      { asking: '', from: 'peer-gm' },
+    ]);
   });
 });

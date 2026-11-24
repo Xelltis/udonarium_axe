@@ -83,25 +83,31 @@ describe('SealedDiceEventHandlerService', () => {
     expect(mine.face).toBe('6');
   });
 
-  it('answers under a lock of this seat’s own, and takes none where this seat has sealed no die', () => {
-    const asked: string[] = [];
+  it('answers each asking once under a lock of this seat’s own, and takes none where this seat has sealed no die', () => {
+    const held = new Set<string>();
     const locks = {
       request: (name: string, _options: unknown, run: (lock: unknown) => unknown) => {
-        asked.push(name);
-        return Promise.resolve(run(name.endsWith(':me') ? { name } : null));
+        if (held.has(name)) return Promise.resolve(run(null));
+        held.add(name);
+        return Promise.resolve(run({ name }));
       },
     };
     Object.defineProperty(navigator, 'locks', { value: locks, configurable: true });
     vi.spyOn(PeerCursor, 'findByPeerId').mockReturnValue({ role: PeerRole.GameMaster } as PeerCursor);
     try {
-      localDispatch('REVEAL_SEALED_DICE', null, 'gm-peer');
-      expect(asked).toEqual([]);
+      localDispatch('REVEAL_SEALED_DICE', { asking: 'first' }, 'gm-peer');
+      expect([...held]).toEqual([]);
 
-      const mine = die('me', true);
-      localDispatch('REVEAL_SEALED_DICE', null, 'gm-peer');
+      const first = die('me', true);
+      localDispatch('REVEAL_SEALED_DICE', { asking: 'first' }, 'gm-peer');
+      expect([...held]).toEqual(['axe-reveal-sealed-dice:me:first']);
+      expect(first.isSealed).toBe(false);
 
-      expect(asked).toEqual(['axe-reveal-sealed-dice:me']);
-      expect(mine.isSealed).toBe(false);
+      const later = die('me', true);
+      localDispatch('REVEAL_SEALED_DICE', { asking: 'first' }, 'gm-peer');
+      expect(later.isSealed).toBe(true);
+      localDispatch('REVEAL_SEALED_DICE', { asking: 'second' }, 'gm-peer');
+      expect(later.isSealed).toBe(false);
     } finally {
       delete (navigator as { locks?: unknown }).locks;
     }

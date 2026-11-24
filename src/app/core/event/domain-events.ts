@@ -212,8 +212,11 @@ export const modelMotion$ = new EventChannel<SentEvent<ModelMotionEvent>>();
 export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
 /** Every screen darkens for a moment, as a scene changes under the dark. */
 export const sceneFade$ = new EventChannel<void>();
-/** Every seat is asked to show the dice it keeps sealed, whose faces only that seat's browser has. */
-export const revealSealedDice$ = new EventChannel<SentEvent<object>>();
+/**
+ * Every seat is asked to show the dice it keeps sealed, whose faces only that seat's browser has: by
+ * the asking, a word each asking is told apart by, as every tab of a seat hears it.
+ */
+export const revealSealedDice$ = new EventChannel<SentEvent<{ asking: string }>>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
@@ -413,9 +416,12 @@ export function callModelMotion(event: ModelMotionEvent) {
   networkSend('MODEL_MOTION', event);
 }
 
-/** Asks every device, this one included, to show the dice it keeps sealed. Nothing of it is kept. */
+/**
+ * Asks every device, this one included, to show the dice it keeps sealed, the asking told apart from
+ * any other by a word of its own. Nothing of it is kept.
+ */
 export function callRevealSealedDice() {
-  networkSend('REVEAL_SEALED_DICE', null);
+  networkSend('REVEAL_SEALED_DICE', { asking: crypto.randomUUID() });
 }
 
 /** Darkens every screen for a moment, this one included, while a scene is put on under the dark. */
@@ -514,9 +520,11 @@ networkMessage$.subscribe((msg) => {
     case 'SCENE_FADE':
       sceneFade$.emit();
       break;
-    case 'REVEAL_SEALED_DICE':
-      revealSealedDice$.emit({ from: msg.sendFrom });
+    case 'REVEAL_SEALED_DICE': {
+      const asking = (msg.data as { asking?: unknown } | null)?.asking;
+      revealSealedDice$.emit({ asking: typeof asking === 'string' ? asking.slice(0, 64) : '', from: msg.sendFrom });
       break;
+    }
     case 'RESOURCE_CHANGE':
       resourceChange$.emit(msg.data as ResourceChangeEvent);
       break;
