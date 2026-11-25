@@ -51,6 +51,7 @@ describe('MovingPictures', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       clearRect: () => undefined,
+      drawImage: () => undefined,
     } as unknown as CanvasRenderingContext2D);
   });
 
@@ -221,5 +222,61 @@ describe('MovingPictures', () => {
     await settled();
 
     expect([moving.closed, moving.drawn, moving.framesClosed]).toEqual([true, [], 0]);
+  });
+
+  describe('reading a picture frame by frame', () => {
+    /** Has the page fetch a GIF and read it with a decoder of these frames, played as the picture says. */
+    function decoding(track: { frameCount: number; repetitionCount: number } | Error) {
+      const closed = { decoder: 0, frames: 0, decoded: [] as number[] };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () => new Response(new Uint8Array([...'GIF89a'].map((c) => c.charCodeAt(0)).concat(Array(16).fill(0))))
+        )
+      );
+      vi.stubGlobal(
+        'ImageDecoder',
+        class {
+          static isTypeSupported = async () => true;
+          readonly tracks = {
+            ready: track instanceof Error ? Promise.reject(track) : Promise.resolve(),
+            selectedTrack: track instanceof Error ? null : track,
+          };
+          readonly completed = Promise.resolve();
+          decode = async ({ frameIndex }: { frameIndex: number }) => {
+            closed.decoded.push(frameIndex);
+            return { image: { displayWidth: 4, displayHeight: 4, duration: 50_000, close: () => closed.frames++ } };
+          };
+          close = () => closed.decoder++;
+        }
+      );
+      return closed;
+    }
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('plays a picture as many times as it repeats and once more, standing each frame as long as it says', async () => {
+      const read = decoding({ frameCount: 2, repetitionCount: 1 });
+      const pictures = new MovingPictures(() => undefined);
+      const picture = new Texture();
+      pictures.follow('blob:gif', picture);
+      await vi.waitFor(() => expect(picture.image).toBeInstanceOf(HTMLCanvasElement));
+
+      expect(await advanceThrough(pictures, [0, 50, 100, 150])).toEqual([50, null, null, null]);
+      expect(pictures.advance(200)).toBeNull();
+      expect(read.decoded).toEqual([0, 0, 1, 0, 1]);
+      expect(read.frames).toBe(read.decoded.length);
+    });
+
+    it('closes the decoder of a picture that stands still or cannot be read', async () => {
+      const still = decoding({ frameCount: 1, repetitionCount: 0 });
+      new MovingPictures(() => undefined).follow('blob:still', new Texture());
+      await vi.waitFor(() => expect(still.decoder).toBe(1));
+
+      vi.unstubAllGlobals();
+      const broken = decoding(new Error('broken'));
+      new MovingPictures(() => undefined).follow('blob:broken', new Texture());
+      await vi.waitFor(() => expect(broken.decoder).toBe(1));
+    });
   });
 });
