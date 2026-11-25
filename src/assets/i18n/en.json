@@ -2250,7 +2250,6 @@
           "target": "Aim at the picked characters only",
           "clearTargets": "Stop aiming at everything",
           "nextTarget": "Target the pieces of the other side one at a time, nearest first",
-          "previousTarget": "Target the piece before",
           "disclosure": "Switch who the picked pieces are disclosed to (GM only ⇔ everyone)",
           "ruler": "Take up or put away the ruler",
           "enter": "Confirm the targets picked for an effect",
@@ -2264,8 +2263,8 @@
           "aim": "Aim at a piece, or stop",
           "clearAims": "Stop aiming at everything",
           "snap": "While turning a piece, snap to 45° (30° on hexes)",
-          "turnHandle": "Turn a piece by the knob on the ring round its pedestal, shown while the pointer is over the piece",
-          "rollHandle": "Tip a piece forward or back by the handle right of its picture, shown while the pointer is over the piece",
+          "turnHandle": "Turn a piece by the knob on the ring round its pedestal",
+          "rollHandle": "Tip a piece forward or back by the handle right of its picture",
           "standUpright": "Stand a tipped piece upright by its tipping handle"
         },
         "hotbar": {

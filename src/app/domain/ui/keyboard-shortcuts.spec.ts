@@ -80,7 +80,6 @@ describe('the list of keys', () => {
       'target',
       'clearTargets',
       'nextTarget',
-      'previousTarget',
       'disclosure',
       'ruler',
     ]);
