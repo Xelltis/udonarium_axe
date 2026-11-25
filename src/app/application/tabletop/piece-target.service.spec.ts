@@ -210,4 +210,24 @@ describe('PieceTargetService', () => {
     expect(service().aimable()).toEqual([fighting, resting]);
     for (const piece of [fighting, resting, away, unseen]) piece.destroy();
   });
+
+  it('aims at the pieces of the other side from a piece one at a time, nearest first, on and back, each alone', () => {
+    const on = (name: string, x: number, side: string) => {
+      const one = GameCharacter.create(name, 1, '');
+      one.location = { name: 'table', x, y: 0 };
+      one.battleSide = side;
+      return one;
+    };
+    const hero = on('勇者', 0, 'left');
+    const ally = on('仲間', 50, 'left');
+    const near = on('近', 100, 'right');
+    const far = on('遠', 300, 'right');
+
+    expect(service().aimNext(hero, 1)).toBe(near);
+    expect(service().aimNext(hero, 1)).toBe(far);
+    expect(service().aimNext(hero, 1)).toBe(near);
+    expect(service().aimNext(hero, -1)).toBe(far);
+    expect([hero, ally, near, far].filter((piece) => piece.targeted)).toEqual([far]);
+    for (const piece of [hero, ally, near, far]) piece.destroy();
+  });
 });

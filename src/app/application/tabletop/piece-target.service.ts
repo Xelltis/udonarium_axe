@@ -8,7 +8,9 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { type AimCandidate, aimOrder, nextAim } from '@axe/domain/tabletop/aim-order';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
@@ -60,6 +62,25 @@ export class PieceTargetService {
   /** Whether this seat may aim at a piece: one on the table in view, not taken out of the fight, and seen by this seat. */
   mayAimAt(piece: GameCharacter): boolean {
     return piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece);
+  }
+
+  /**
+   * Aims at the next piece of the other side of the fight from a piece, nearest first, a step on (1) or
+   * back (-1) from the one aimed at now, and at it alone, as a key does over and over (see `aimOrder`).
+   * Only pieces this seat may aim at are taken. Answers the piece aimed at, or null where there is none.
+   */
+  aimNext(from: GameCharacter | null, step: 1 | -1): GameCharacter | null {
+    const reading = this.zones.reading();
+    const candidateOf = (piece: GameCharacter): AimCandidate => {
+      const at = reading.pointOf(piece);
+      return { identifier: piece.identifier, x: at.x, y: at.y, side: standingBattleSide(piece) };
+    };
+    const aimable = this.aimable();
+    const order = aimOrder(from ? candidateOf(from) : null, aimable.map(candidateOf));
+    const aimed = new Set(aimable.filter((piece) => piece.targeted).map((piece) => piece.identifier));
+    const next = aimable.find((piece) => piece.identifier === nextAim(order, aimed, step)) ?? null;
+    if (next) this.setOnly([next]);
+    return next;
   }
 
   toggle(piece: GameCharacter): void {

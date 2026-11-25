@@ -24,6 +24,12 @@ describe('tabletopKeyDown', () => {
     expect(tabletopKeyDown('M', { ...idle, shift: true })).toBeNull();
   });
 
+  it('aims at the next piece of the other side on Tab, and the one before on Shift+Tab, but not while typing', () => {
+    expect(tabletopKeyDown('Tab', idle)).toBe('nextTarget');
+    expect(tabletopKeyDown('Tab', { ...idle, shift: true })).toBe('previousTarget');
+    expect(tabletopKeyDown('Tab', { ...idle, typing: true })).toBeNull();
+  });
+
   it('reads the full-width letters a board left in Japanese input sends', () => {
     expect(tabletopKeyDown('ｔ', idle)).toBe('target');
     expect(tabletopKeyDown('Ｇ', idle)).toBe('toggleDisclosure');

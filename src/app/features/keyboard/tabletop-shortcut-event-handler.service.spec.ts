@@ -3,6 +3,7 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -47,6 +48,45 @@ describe('TabletopShortcutEventHandlerService', () => {
   function pick(...pieces: { identifier: string; aliasName: string }[]): void {
     selection.replaceSelection(pieces.map((piece) => piece.identifier));
   }
+
+  describe('Tab', () => {
+    function on(name: string, x: number, side: string): GameCharacter {
+      const one = GameCharacter.create(name, 1, '');
+      one.location = { name: 'table', x, y: 0 };
+      one.battleSide = side;
+      return one;
+    }
+
+    it('aims from the piece whose turn it is at the nearest of the other side, then the next, and back on Shift+Tab', () => {
+      const hero = on('勇者', 0, 'left');
+      const near = on('近', 100, 'right');
+      const far = on('遠', 300, 'right');
+      const picked = on('選', 900, 'right');
+      selection.selectObject(picked.identifier, picked.aliasName);
+      vi.spyOn(TestBed.inject(TurnOrderService), 'currentIdentifier', 'get').mockReturnValue(hero.identifier);
+
+      const event = press('Tab');
+      expect(event.defaultPrevented).toBe(true);
+      expect(near.targeted).toBe(true);
+      press('Tab');
+      expect([near.targeted, far.targeted]).toEqual([false, true]);
+      press('Tab', { shiftKey: true });
+      expect([near.targeted, far.targeted]).toEqual([true, false]);
+      expect(show).toHaveBeenCalledWith(`feature.keyboard.tabletop.targetedOne {"name":"近"}`);
+      for (const piece of [hero, near, far, picked]) piece.destroy();
+    });
+
+    it('aims from the piece picked last where it is nobody’s turn, and says so where there is nothing to aim at', () => {
+      const lone = on('ひとり', 0, 'left');
+      selection.selectObject(lone.identifier, lone.aliasName);
+
+      press('Tab');
+
+      expect(lone.targeted).toBe(false);
+      expect(show).toHaveBeenCalledWith('feature.keyboard.tabletop.nothingToAim');
+      lone.destroy();
+    });
+  });
 
   describe('T', () => {
     it('aims at the picked characters only, and says how many', () => {

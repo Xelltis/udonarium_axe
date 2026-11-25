@@ -2209,6 +2209,8 @@
     "keyboard": {
       "tabletop": {
         "targeted": "{{count}}体をターゲットにしました",
+        "nothingToAim": "ターゲットにできる反対側のコマがありません",
+        "targetedOne": "{{name}} をターゲットにしました",
         "targetsCleared": "ターゲットを全部外しました",
         "nothingToTarget": "キャラクターのコマを選んでから T を押してください",
         "disclosedToAll": "{{count}}個の公開範囲を全員にしました",
@@ -2247,6 +2249,8 @@
           "zoom": "近づく・離れる",
           "target": "選んだキャラクターだけをターゲットにする",
           "clearTargets": "ターゲットを全部外す",
+          "nextTarget": "反対側のコマを近い順に1体ずつターゲットにする",
+          "previousTarget": "ひとつ前のコマをターゲットにする",
           "disclosure": "選んだコマの公開範囲を切り替える（GMのみ⇔全員）",
           "ruler": "物差しを持つ・しまう",
           "enter": "エフェクトの対象選びを決める",

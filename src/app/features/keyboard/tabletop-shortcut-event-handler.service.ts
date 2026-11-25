@@ -1,4 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -7,6 +9,7 @@ import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.s
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RulerService } from '@axe/application/tabletop/ruler.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -19,6 +22,7 @@ import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode, switchedDisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { tabletopKeyDown, TabletopShortcutCommand } from '@axe/features/keyboard/tabletop-shortcut';
 
@@ -35,7 +39,8 @@ function isDisclosablePiece(object: GameObject): object is DisclosablePiece {
 
 /**
  * The keys that act on the pieces picked out on the table: T to aim at them, Shift+T to take every
- * aim away, and G to switch who they are disclosed to; and M, which takes the ruler up or puts it away.
+ * aim away, and G to switch who they are disclosed to; M, which takes the ruler up or puts it away;
+ * and Tab and Shift+Tab, which aim at the pieces of the other side one at a time, nearest first.
  *
  * The picked pieces are the ones gathered with Ctrl+click or a dragged box, or else the one piece
  * clicked last. Keys are only taken while nothing else holds the keyboard: not while typing, not
@@ -59,6 +64,9 @@ export class TabletopShortcutEventHandlerService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly ruler = inject(RulerService);
   private readonly permission = inject(RolePermissionService);
+  private readonly turnOrder = inject(TurnOrderService);
+  private readonly activeCharacter = inject(ActiveCharacterService);
+  private readonly names = inject(PieceNameService);
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
@@ -69,6 +77,8 @@ export class TabletopShortcutEventHandlerService {
   run(command: TabletopShortcutCommand): void {
     if (command === 'target') this.aimAtPicked();
     else if (command === 'clearTargets') this.takeAimsAway();
+    else if (command === 'nextTarget') this.aimOnward(1);
+    else if (command === 'previousTarget') this.aimOnward(-1);
     else if (command === 'toggleRuler') this.takeRuler();
     else this.switchDisclosure();
   }
@@ -121,6 +131,35 @@ export class TabletopShortcutEventHandlerService {
     }
     this.targets.setOnly(characters);
     this.snackbar.show(this.t('feature.keyboard.tabletop.targeted', { count: characters.length }));
+  }
+
+  /**
+   * Aims at the next piece of the other side, or the one before, from the piece the aim is taken from:
+   * the piece whose turn it is, else the piece picked last, else the piece this seat plays, else the
+   * first piece of its own it may aim at (see `PieceTargetService.aimNext`).
+   */
+  private aimOnward(step: 1 | -1): void {
+    const next = this.targets.aimNext(this.aimedFrom(), step);
+    this.snackbar.show(
+      next
+        ? this.t('feature.keyboard.tabletop.targetedOne', { name: this.names.shown(next) })
+        : this.t('feature.keyboard.tabletop.nothingToAim')
+    );
+  }
+
+  private aimedFrom(): GameCharacter | null {
+    const piece = (identifier: string | null | undefined) => {
+      const found = identifier ? this.objectStore.get(identifier) : null;
+      return found instanceof GameCharacter && found.isVisibleOnTable ? found : null;
+    };
+    const me = PeerCursor.myCursor?.userId ?? '';
+    return (
+      piece(this.turnOrder.currentIdentifier) ??
+      piece(this.selection.selectedObject()?.identifier) ??
+      piece(this.activeCharacter.identifier()) ??
+      this.targets.aimable().find((one) => me.length > 0 && one.owner === me) ??
+      null
+    );
   }
 
   private takeAimsAway(): void {
