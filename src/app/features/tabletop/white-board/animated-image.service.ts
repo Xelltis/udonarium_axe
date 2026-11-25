@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { isGifBytes, readWhetherMoves } from '@axe/core/storage/animated-image';
+import { isGifBytes, READ_AGAIN_AFTER_MS, readWhetherMoves } from '@axe/core/storage/animated-image';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 
 /** How much of a file tells whether it is a GIF. */
@@ -25,6 +25,8 @@ export class AnimatedImageService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly answers = signal<ReadonlyMap<string, boolean>>(new Map());
   private readonly asking = new Map<string, Promise<boolean>>();
+  /** When each picture that could not be read last failed, so it is not read again before a while has passed. */
+  private readonly failedAt = new Map<string, number>();
 
   /**
    * Whether a picture moves, answered at once from what is known.
@@ -40,14 +42,16 @@ export class AnimatedImageService {
   }
 
   /**
-   * Finds out whether a picture moves by reading the start of its bytes, once however many ask.
+   * Finds out whether a picture moves by reading its bytes as far as they say, once however many ask.
    *
-   * A picture that cannot be read yet answers false without that being remembered, so it is read
-   * again next time.
+   * A picture whose bytes cannot be read answers false without that being remembered as its answer,
+   * and is read again when asked after a while (see `READ_AGAIN_AFTER_MS`), as a cut-in reads one.
    */
   probe(identifier: string): Promise<boolean> {
     const known = this.answers().get(identifier);
     if (known !== undefined) return Promise.resolve(known);
+    const failed = this.failedAt.get(identifier);
+    if (failed !== undefined && Date.now() - failed < READ_AGAIN_AFTER_MS) return Promise.resolve(false);
     // One reading is enough; whoever else asks in the meantime waits for the same one.
     const asked = this.asking.get(identifier);
     if (asked) return asked;
@@ -66,14 +70,16 @@ export class AnimatedImageService {
       animated =
         isGifBytes(head) || (await readWhetherMoves((length) => blob.slice(0, length).arrayBuffer(), blob.size));
     } catch {
-      // Unreadable for now; the picture is drawn as it always was and asked about again later.
+      // Unreadable for now; the picture is drawn as it always was and asked about again after a while.
+      this.failedAt.set(identifier, Date.now());
       return false;
     }
+    this.failedAt.delete(identifier);
     this.answers.update((current) => new Map(current).set(identifier, animated));
     return animated;
   }
 
-  /** The bytes of a picture, read as far as they say whether it moves (see `readWhetherMoves`). */
+  /** The bytes of a picture, fetched whole, as its URL hands them out; null for a picture not held. */
   private async blobOf(identifier: string): Promise<Blob | null> {
     const file = this.imageStorage.get(identifier);
     const url = file?.url ?? '';

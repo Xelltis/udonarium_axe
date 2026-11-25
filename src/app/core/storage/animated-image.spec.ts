@@ -1,4 +1,4 @@
-import { blobMoves, isAnimatedImageBytes, knownBlobMoves } from '@axe/core/storage/animated-image';
+import { animationOfHead, blobMoves, knownBlobMoves, readWhetherMoves } from '@axe/core/storage/animated-image';
 
 function bytesOf(...parts: (readonly number[] | string)[]): ArrayBuffer {
   const bytes: number[] = [];
@@ -23,17 +23,17 @@ function riffChunk(name: string, size = 0): number[] {
   return [...nameBytes(name), size & 0xff, (size >> 8) & 0xff, (size >> 16) & 0xff, (size >> 24) & 0xff];
 }
 
-describe('isAnimatedImageBytes()', () => {
+describe('animationOfHead()', () => {
   it('finds the animation control chunk of an apng', () => {
-    expect(
-      isAnimatedImageBytes(bytesOf(PNG_HEAD, chunk('IHDR', 13), new Array(13 + 4).fill(0), chunk('acTL', 8)))
-    ).toBe(true);
+    expect(animationOfHead(bytesOf(PNG_HEAD, chunk('IHDR', 13), new Array(13 + 4).fill(0), chunk('acTL', 8)))).toBe(
+      true
+    );
   });
 
   it('calls a still png still', () => {
-    expect(
-      isAnimatedImageBytes(bytesOf(PNG_HEAD, chunk('IHDR', 13), new Array(13 + 4).fill(0), chunk('IDAT', 4)))
-    ).toBe(false);
+    expect(animationOfHead(bytesOf(PNG_HEAD, chunk('IHDR', 13), new Array(13 + 4).fill(0), chunk('IDAT', 4)))).toBe(
+      false
+    );
   });
 
   it('walks a gif past its colour tables and its extensions, the loop and the frame control among them', () => {
@@ -43,21 +43,21 @@ describe('isAnimatedImageBytes()', () => {
     const comment = [0x21, 0xfe, 3, 0x61, 0x62, 0x63, 0];
     const image = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0x80, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0];
     const frames = (count: number) => Array.from({ length: count }, () => [...control, ...image]).flat();
-    expect(isAnimatedImageBytes(bytesOf(...screen, loop, comment, frames(2), [0x3b]))).toBe(true);
-    expect(isAnimatedImageBytes(bytesOf(...screen, loop, comment, frames(1), [0x3b]))).toBe(false);
+    expect(animationOfHead(bytesOf(...screen, loop, comment, frames(2), [0x3b]))).toBe(true);
+    expect(animationOfHead(bytesOf(...screen, loop, comment, frames(1), [0x3b]))).toBe(false);
   });
 
-  it('tells a gif of more than one image from one of a single image, and takes a head that ends too soon as moving', () => {
+  it('tells a gif of more than one image from one of a single image, and says nothing yet of a head that ends too soon', () => {
     const screen = ['GIF89a', [4, 0, 4, 0, 0, 0, 0]] as const;
     const image = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0];
-    expect(isAnimatedImageBytes(bytesOf(...screen, image, image, [0x3b]))).toBe(true);
-    expect(isAnimatedImageBytes(bytesOf(...screen, image, [0x3b]))).toBe(false);
-    expect(isAnimatedImageBytes(bytesOf(...screen, image.slice(0, 12)))).toBe(true);
+    expect(animationOfHead(bytesOf(...screen, image, image, [0x3b]))).toBe(true);
+    expect(animationOfHead(bytesOf(...screen, image, [0x3b]))).toBe(false);
+    expect(animationOfHead(bytesOf(...screen, image.slice(0, 12)))).toBeNull();
   });
 
   it('finds the animation chunk of a webp', () => {
     expect(
-      isAnimatedImageBytes(
+      animationOfHead(
         bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8X', 10), [0x02], new Array(9).fill(0), riffChunk('ANIM', 6))
       )
     ).toBe(true);
@@ -65,7 +65,7 @@ describe('isAnimatedImageBytes()', () => {
 
   it('reads a webp as animated by the flag of its first chunk, though a large colour profile pushes its ANIM chunk past the head', () => {
     const flagged = (flags: number) =>
-      isAnimatedImageBytes(
+      animationOfHead(
         bytesOf(
           'RIFF',
           [0, 0, 0, 0],
@@ -81,13 +81,13 @@ describe('isAnimatedImageBytes()', () => {
 
   it('reads an avif of the image-sequence brand as moving, and one of the still brand as still', () => {
     const avif = (major: string, compatible: string) =>
-      isAnimatedImageBytes(bytesOf([0, 0, 0, 24], 'ftyp', major, [0, 0, 0, 0], compatible, 'mif1'));
+      animationOfHead(bytesOf([0, 0, 0, 24], 'ftyp', major, [0, 0, 0, 0], compatible, 'mif1'));
     expect([avif('avis', 'avif'), avif('avif', 'avis'), avif('avif', 'mif1')]).toEqual([true, true, false]);
   });
 
-  it('takes a png whose head ends before its first pixels as moving, and reads the rest of a blob to tell', async () => {
+  it('says nothing yet of a png whose head ends before its first pixels, and reads on through a blob to tell', async () => {
     const head = bytesOf(PNG_HEAD, chunk('IHDR', 13), new Array(13 + 4).fill(0), chunk('iTXt', 70_000));
-    expect(isAnimatedImageBytes(head)).toBe(true);
+    expect(animationOfHead(head)).toBeNull();
     const still = new Blob(
       [
         bytesOf(
@@ -146,20 +146,20 @@ describe('isAnimatedImageBytes()', () => {
   });
 
   it('calls a still webp still', () => {
-    expect(
-      isAnimatedImageBytes(bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8 ', 8), new Array(8).fill(0)))
-    ).toBe(false);
+    expect(animationOfHead(bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8 ', 8), new Array(8).fill(0)))).toBe(
+      false
+    );
   });
 
   it('calls a lossless webp still', () => {
-    expect(
-      isAnimatedImageBytes(bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8L', 8), new Array(8).fill(0)))
-    ).toBe(false);
+    expect(animationOfHead(bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8L', 8), new Array(8).fill(0)))).toBe(
+      false
+    );
   });
 
   it('says nothing of what it cannot read', () => {
-    expect(isAnimatedImageBytes(new ArrayBuffer(0))).toBe(false);
-    expect(isAnimatedImageBytes(bytesOf('not an image at all'))).toBe(false);
+    expect(animationOfHead(new ArrayBuffer(0))).toBe(false);
+    expect(animationOfHead(bytesOf('not an image at all'))).toBe(false);
   });
 });
 
@@ -173,6 +173,27 @@ describe('blobMoves()', () => {
 
     expect([await blobMoves(still), await blobMoves(moving), await blobMoves(drawing)]).toEqual([false, true, true]);
     expect(blobMoves(still)).toBe(blobMoves(still));
+  });
+});
+
+describe('readWhetherMoves()', () => {
+  it('reads a larger part each time the file has not said, and calls one that ends before saying still', async () => {
+    const silent = bytesOf(
+      PNG_HEAD,
+      chunk('IHDR', 13),
+      new Array(13 + 4).fill(0),
+      chunk('iTXt', 300_000),
+      new Array(300_004).fill(0)
+    );
+    const asked: number[] = [];
+
+    const moves = await readWhetherMoves(async (length) => {
+      asked.push(length);
+      return silent.slice(0, length);
+    }, silent.byteLength);
+
+    expect(moves).toBe(false);
+    expect(asked).toEqual([65_536, 262_144, silent.byteLength]);
   });
 });
 

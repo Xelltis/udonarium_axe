@@ -433,6 +433,66 @@ describe('MovingPictures', () => {
       expect(read.frames).toBe(read.decoded.length);
     });
 
+    it('reads a picture only as far as it says it stands still, and decodes an AVIF that says it moves', async () => {
+      const made: string[] = [];
+      vi.stubGlobal(
+        'ImageDecoder',
+        class {
+          static isTypeSupported = async () => true;
+          readonly tracks = { ready: Promise.resolve(), selectedTrack: { frameCount: 2, repetitionCount: Infinity } };
+          readonly completed = Promise.resolve();
+          constructor({ type }: { type: string }) {
+            made.push(type);
+          }
+          decode = async () => ({
+            image: { displayWidth: 4, displayHeight: 4, duration: 50_000, close: () => undefined },
+          });
+          close = () => undefined;
+        }
+      );
+      const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+      const chunk = (name: string, length: number) => [
+        0,
+        (length >> 16) & 0xff,
+        (length >> 8) & 0xff,
+        length & 0xff,
+        ...[...name].map((c) => c.charCodeAt(0)),
+      ];
+      const longStill = new Uint8Array([
+        ...png,
+        ...chunk('IHDR', 13),
+        ...Array(17).fill(0),
+        ...chunk('iTXt', 100_000),
+        ...Array(100_004).fill(0),
+        ...chunk('IDAT', 1),
+        ...Array(5).fill(0),
+        ...Array(200_000).fill(0),
+      ]);
+      const avif = new Uint8Array([
+        0,
+        0,
+        0,
+        20,
+        ...'ftypavis'.split('').map((c) => c.charCodeAt(0)),
+        0,
+        0,
+        0,
+        0,
+        ...'avif'.split('').map((c) => c.charCodeAt(0)),
+      ]);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => new Response(url === 'blob:still' ? longStill : avif))
+      );
+
+      const pictures = new MovingPictures(() => undefined);
+      pictures.follow('blob:still', new Texture());
+      pictures.follow('blob:avif', new Texture());
+      await vi.waitFor(() => expect(pictures.shown).toBe(1));
+
+      expect(made).toEqual(['image/avif']);
+    });
+
     it('closes the decoder of a picture that stands still or cannot be read', async () => {
       const still = decoding({ frameCount: 1, repetitionCount: 0 });
       new MovingPictures(() => undefined).follow('blob:still', new Texture());

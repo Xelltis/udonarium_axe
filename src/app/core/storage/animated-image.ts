@@ -14,24 +14,16 @@ function ascii(view: DataView, offset: number, length: number): string {
   return text;
 }
 
-/**
- * Whether a picture moves, read from the head of its file: an APNG (an acTL chunk before its first
- * pixels), a WebP that says it is animated (the flag of its VP8X chunk, or an ANIM chunk), an AVIF
- * of the image-sequence brand, or a GIF with a second image. Where the head ends before it says either
- * way, the picture is taken as moving, so a reader that only has the head never stills a moving one.
- */
-export function isAnimatedImageBytes(buffer: ArrayBuffer): boolean {
-  return animationOfHead(buffer) !== false;
-}
-
 /** Whether the bytes are of a GIF, which a reader may take as moving at its word (see `AnimatedImageService`). */
 export function isGifBytes(buffer: ArrayBuffer): boolean {
   return buffer.byteLength >= 3 && ascii(new DataView(buffer), 0, 3) === 'GIF';
 }
 
 /**
- * Whether the bytes, the head of a picture's file or all of it, say the picture moves: true or false
- * where they do, null where they end before saying.
+ * Whether the bytes, the head of a picture's file or all of it, say the picture moves: an APNG (an
+ * acTL chunk before its first pixels), a WebP that says it is animated (the flag of its VP8X chunk,
+ * or an ANIM chunk), an AVIF of the image-sequence brand, or a GIF with a second image. True or false
+ * where they say, null where they end before saying, for the reader to read on (see `readWhetherMoves`).
  */
 export function animationOfHead(buffer: ArrayBuffer): boolean | null {
   if (buffer.byteLength < 12) return false;
@@ -164,7 +156,7 @@ const toldOfBlobs = new WeakMap<Blob, Promise<boolean>>();
 const knownOfBlobs = new WeakMap<Blob, { readonly moves: boolean; readonly failedAt: number | null }>();
 
 /** How long a blob that could not be read is answered still before it is read again, in milliseconds. */
-const READ_AGAIN_AFTER_MS = 30_000;
+export const READ_AGAIN_AFTER_MS = 30_000;
 
 async function readWhetherBlobMoves(blob: Blob): Promise<boolean> {
   if (blob.type === 'image/svg+xml') return true;

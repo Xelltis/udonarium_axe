@@ -114,17 +114,26 @@ describe('AnimatedImageService', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('asks again after a reading that could not be made', async () => {
-    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
-    const fetcher = vi.fn(async () => {
-      throw new Error('gone');
-    });
-    vi.stubGlobal('fetch', fetcher);
-    const animated = service();
+  it('asks again after a reading that could not be made only once a while has passed, as the board is drawn again meanwhile', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
+      const fetcher = vi.fn(async () => {
+        throw new Error('gone');
+      });
+      vi.stubGlobal('fetch', fetcher);
+      const animated = service();
 
-    expect(await animated.probe('picture')).toBe(false);
-    expect(await animated.probe('picture')).toBe(false);
-    expect(fetcher).toHaveBeenCalledTimes(2);
+      expect(await animated.probe('picture')).toBe(false);
+      expect(await animated.probe('picture')).toBe(false);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(Date.now() + 30_000);
+      expect(await animated.probe('picture')).toBe(false);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('says nothing of a picture the storehouse does not have', async () => {
