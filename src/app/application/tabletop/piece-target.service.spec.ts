@@ -425,6 +425,18 @@ describe('PieceTargetService', () => {
       expect(service().aimOrderFrom(hero)).toEqual([onFloor, flying, onWall]);
     });
 
+    it('aims first at the piece whose middle is nearest, a tall one beside a flying one', () => {
+      const hero = on('勇者', 0, 'left');
+      hero.altitude = 3;
+      const tall = GameCharacter.create('巨人', 6, '');
+      tall.location = { name: 'table', x: 25, y: -125 };
+      tall.battleSide = 'right';
+      made.push(tall);
+      const low = on('小さい', 100, 'right');
+
+      expect(service().aimOrderFrom(hero)).toEqual([tall, low]);
+    });
+
     it('passes over the caster of an effect held ready, which it cannot be cast at', () => {
       const hero = on('勇者', 0, 'left');
       const caster = on('術者', 50, 'right');

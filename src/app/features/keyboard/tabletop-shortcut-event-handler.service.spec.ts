@@ -196,6 +196,16 @@ describe('TabletopShortcutEventHandlerService', () => {
         expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
       });
 
+      it('takes a focus a key brought to another control from nothing as moved by the keyboard', () => {
+        pressOn(button);
+        button.focus();
+        button.blur();
+        key('ArrowDown');
+        other.focus();
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+      });
+
       it('hears the keys before any control stops them, as tiles moved among by arrow keys do', () => {
         pressOn(button);
         button.focus();
