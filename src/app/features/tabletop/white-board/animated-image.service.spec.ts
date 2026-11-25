@@ -318,11 +318,70 @@ describe('AnimatedImageService', () => {
 
     state.value = ImageState.COMPLETE;
     drawn.update((count) => count + 1);
-    expect(asked()).toBe(false);
+    expect(asked()).toBe(true);
     await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(asked()).toBe(false);
     expect(await animated.probe('picture')).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers the board a told GIF as moving all the while its own bytes are read, rather than blinking out', async () => {
+    const state = { value: ImageState.THUMBNAIL };
+    vi.spyOn(ImageStorage.prototype, 'get').mockImplementation(
+      () =>
+        ({
+          url: 'blob:picture',
+          originalType: 'image/gif',
+          get state() {
+            return state.value;
+          },
+        }) as never
+    );
+    let deliver: () => void = () => undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            deliver = () => resolve({ ok: true, blob: async () => new Blob([gif]) });
+          }) as never
+      )
+    );
+    const animated = service();
+    const drawn = signal(0);
+    const asked = computed(() => {
+      drawn();
+      return animated.isAnimated('picture');
+    });
+    const answers: boolean[] = [asked()];
+
+    state.value = ImageState.COMPLETE;
+    drawn.update((count) => count + 1);
+    answers.push(asked());
+    deliver();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    answers.push(asked());
+
+    expect(answers).toEqual([true, true, true]);
+  });
+
+  it('hands the editor a told GIF whose bytes cannot be read as moving, as the board hangs it', async () => {
+    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({
+      url: 'blob:picture',
+      originalType: 'image/gif',
+      state: ImageState.COMPLETE,
+    } as never);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('gone');
+      })
+    );
+    const animated = service();
+
+    expect(await animated.probe('picture')).toBe(true);
+    expect(animated.isAnimated('picture')).toBe(true);
   });
 
   it('rests the board on a picture that came empty, as on one that could not be read', async () => {

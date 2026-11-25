@@ -31,11 +31,11 @@ type Unanswered =
  * Every GIF is taken as moving, one image or many: the boards saved so far left every GIF out of the
  * picture they wear and hang it over the board, and a GIF told still now would be drawn nowhere.
  *
- * Only an answer read from the whole picture's bytes is kept; a GIF a peer told of with its thumbnail
- * is answered moving from what was told while only the thumbnail is held (see `toldMoving`). A read
- * that keeps none leaves the picture with one way to be read again, settled in `leaveUnanswered`:
- * remembering "still" for those would leave a moving picture neither hung nor painted, since the
- * board leaves what moves out of the picture it wears. The service reads such a picture again by
+ * Only an answer read from the whole picture's bytes is kept; until then a picture told a GIF by its
+ * type, as a peer tells with a thumbnail, is answered moving (see `toldGif`). A read that keeps none
+ * leaves the picture with one way to be read again, settled in `leaveUnanswered`: remembering
+ * "still" for those would leave a moving picture neither hung nor painted, since the board leaves
+ * what moves out of the picture it wears. The service reads such a picture again by
  * itself rather than telling the board to ask, so a read that fails again tells nobody, and no two
  * unreadable pictures wake each other on a clock.
  */
@@ -50,37 +50,40 @@ export class AnimatedImageService {
   /**
    * Whether a picture moves, answered at once from what is known.
    *
-   * An unknown picture answers false and starts reading its bytes. The answer is kept in a signal,
-   * so a template or computed that asked hears again once the bytes are read.
+   * A picture with no answer read yet answers what its type tells (see `toldGif`) and starts reading
+   * its bytes. The answer is kept in a signal, so a template or computed that asked hears again once
+   * the bytes are read.
    *
    * A picture at rest after a failed read is not read; asked during the rest, as the board is drawn
-   * again, it is read once the rest is over. One read from its thumbnail is not read again while only
-   * the thumbnail is held.
+   * again, it is read once the rest is over. Of a picture of which only the thumbnail is held, the
+   * thumbnail is not read again, nor read at all for a GIF.
    */
   isAnimated(identifier: string): boolean {
     const known = this.answers().get(identifier);
     if (known !== undefined) return known;
-    if (this.toldMoving(identifier)) return true;
+    const told = this.toldGif(identifier);
+    if (told && this.onlyThumbnail(identifier)) return true;
     const left = this.unanswered.get(identifier);
     if (left?.kind === 'resting' && Date.now() - left.since < READ_AGAIN_AFTER_MS) {
       this.wakeAfterRest(identifier, left);
-      return false;
+      return told;
     }
-    if (left?.kind === 'awaitingWhole' && this.onlyThumbnail(identifier)) return false;
+    if (left?.kind === 'awaitingWhole' && this.onlyThumbnail(identifier)) return told;
     void this.probe(identifier);
-    return false;
+    return told;
   }
 
   /**
    * Finds out whether a picture moves by reading its bytes as far as they say, once however many ask.
    *
    * It reads whatever rest the picture is at, for one that asks to know, as the editor saving the
-   * board. A picture whose bytes cannot be read answers false without that being kept as its answer.
+   * board. A picture whose bytes cannot be read answers what its type tells without that being kept
+   * as its answer, and a GIF of which only the thumbnail is held answers moving unread.
    */
   probe(identifier: string): Promise<boolean> {
     const known = this.answers().get(identifier);
     if (known !== undefined) return Promise.resolve(known);
-    if (this.toldMoving(identifier)) return Promise.resolve(true);
+    if (this.toldGif(identifier) && this.onlyThumbnail(identifier)) return Promise.resolve(true);
     const asked = this.asking.get(identifier);
     if (asked) return asked;
 
@@ -104,7 +107,7 @@ export class AnimatedImageService {
       animated =
         isGifBytes(head) || (await readWhetherMoves((length) => blob.slice(0, length).arrayBuffer(), blob.size));
     } catch {
-      return this.leaveUnanswered(identifier, 'unreadable') ?? false;
+      return this.leaveUnanswered(identifier, 'unreadable') ?? this.toldGif(identifier);
     }
     if (fromThumbnail) return this.leaveUnanswered(identifier, 'thumbnail') ?? animated;
     return this.keep(identifier, animated);
@@ -166,13 +169,13 @@ export class AnimatedImageService {
   }
 
   /**
-   * Whether a picture of which only the thumbnail is held is a GIF, as the peer that sent the thumbnail
-   * told, and so moves, as every GIF does. Only looked at, never kept: once the picture has come whole
-   * its own bytes are read instead, as a picture can be told a GIF by its name alone.
+   * Whether a picture is told a GIF by its type, by its own bytes' or the one a peer told with its
+   * thumbnail, and so is answered moving, as every GIF is, until its bytes are read. Only looked at,
+   * never kept: the answer read from the bytes is kept instead, as a picture can be told a GIF by its
+   * name alone.
    */
-  private toldMoving(identifier: string): boolean {
-    const file = this.imageStorage.get(identifier);
-    return file?.state === ImageState.THUMBNAIL && file.originalType === GIF_TYPE;
+  private toldGif(identifier: string): boolean {
+    return this.imageStorage.get(identifier)?.originalType === GIF_TYPE;
   }
 
   private onlyThumbnail(identifier: string): boolean {
@@ -181,7 +184,8 @@ export class AnimatedImageService {
 
   /**
    * The bytes of a picture, fetched whole, as its URL hands them out; null for a picture not held.
-   * A response other than a success, as a host refusing for a while, throws, so it is not read as a picture.
+   * A response other than a success, as a host refusing for a while, throws, so it is not read as a
+   * picture.
    */
   private async blobOf(identifier: string): Promise<Blob | null> {
     const file = this.imageStorage.get(identifier);
