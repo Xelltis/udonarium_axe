@@ -71,6 +71,9 @@ import { escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** How far the mouse may be from where it was as a detail opened and not have moved, in pixels. */
+const TOUCH_SLACK_PX = 2;
+
 @Component({
   selector: 'overview-panel',
   templateUrl: './overview-panel.component.html',
@@ -619,14 +622,10 @@ export class OverviewPanelComponent {
       this.followOwnSize(() => this.placeBesidePointer());
       const panel: HTMLElement = this.draggablePanel().nativeElement;
       const touched = (event: Event) => {
-        const moved =
-          !(event instanceof PointerEvent) ||
-          event.type !== 'pointermove' ||
-          event.movementX !== 0 ||
-          event.movementY !== 0;
-        if (moved) this.touched = true;
+        if (event.type !== 'pointermove' || this.movedFromWhereItOpened(event as PointerEvent)) this.touched = true;
       };
-      for (const kind of ['pointermove', 'pointerdown', 'focusin'] as const) panel.addEventListener(kind, touched);
+      for (const kind of ['pointermove', 'pointerdown', 'wheel', 'focusin'] as const)
+        panel.addEventListener(kind, touched);
     });
   }
 
@@ -683,8 +682,8 @@ export class OverviewPanelComponent {
   /**
    * Places the detail beside the pointer, clear of it and of the piece under it and inside the window
    * it is in, by the box it is seen in (see `detailPlacement`), as it opens and again each time it
-   * grows or shrinks, until the reader has touched it: moved the mouse over it, pressed in it, focused
-   * it, or moved it.
+   * grows or shrinks, until the reader has touched it: moved the mouse over it, pressed in it, scrolled
+   * it, focused it, or moved it.
    */
   placeBesidePointer(): void {
     if (this.touched) return;
@@ -703,11 +702,19 @@ export class OverviewPanelComponent {
     this.placedBesidePointer = { left: panel.style.left, top: panel.style.top };
   }
 
+  /**
+   * Whether the mouse, moving over the detail, has moved from where it was as the detail opened beside
+   * it, read by where it is rather than by how far a move says it went, which a browser may not tell.
+   */
+  private movedFromWhereItOpened(event: PointerEvent): boolean {
+    return Math.hypot(event.clientX - this.left, event.clientY - this.top) > TOUCH_SLACK_PX;
+  }
+
   /** Where the detail was last placed beside the pointer; null before it has been. */
   private placedBesidePointer: { readonly left: string; readonly top: string } | null = null;
   /**
-   * Whether the reader has moved the mouse over the detail, pressed in it, or focused it, after which
-   * it stays put; a detail that opens under a mouse at rest is not touched by that.
+   * Whether the reader has moved the mouse over the detail, pressed in it, scrolled it or focused it,
+   * after which it stays put; a detail that opens under a mouse at rest is not touched by that.
    */
   private touched = false;
 

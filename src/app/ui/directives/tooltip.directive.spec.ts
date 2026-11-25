@@ -726,6 +726,21 @@ describe('TooltipDirective', () => {
 
       expect(bottom.pointerHidden).toBe(true);
     });
+
+    it('hides none while the mouse is in another window than the details stand in', async () => {
+      await hover('first-piece');
+      const bottom = panels()[0];
+      coverPointerWith(bottom);
+      TestBed.inject(PointerDeviceService).mouseAt = {
+        document: document.implementation.createHTMLDocument('elsewhere'),
+        x: 100,
+        y: 100,
+      };
+
+      bottom.applyEdgePlacement();
+
+      expect(bottom.pointerHidden).toBe(false);
+    });
   });
 
   it('still goes away when the seats are rebuilt on the way out', async () => {

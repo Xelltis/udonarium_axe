@@ -193,20 +193,22 @@ export class TooltipDirective {
    *
    * A detail that has come to rest over the piece being pointed at hides itself, so that
    * the piece and the table under it stay in view. Only the one panel under the pointer
-   * goes; the others carry the same reading for everyone else around the table.
+   * goes; the others carry the same reading for everyone else around the table. Where the
+   * mouse is in another window than the details stand in, none hides.
    */
   private hidePanelUnderPointer(session: TooltipSession, x?: number, y?: number): void {
     if (!session.seats) return;
     const here = this.pointerDeviceService.mouseAt;
     const inView = here !== null && here.document === session.view.document;
-    const pointerX = x ?? (inView ? here.x : this.pointerDeviceService.pointerX);
-    const pointerY = y ?? (inView ? here.y : this.pointerDeviceService.pointerY);
+    const pointerX = x ?? (inView ? here.x : null);
+    const pointerY = y ?? (inView ? here.y : null);
 
     // Without a pointer to keep clear of, every detail belongs on screen.
     const follows = !this.viewport.isTouch();
     let hidden = false;
     for (const ref of [...session.refs]) {
-      const covers: boolean = follows && !hidden && ref.instance.coversPoint(pointerX, pointerY);
+      const covers: boolean =
+        follows && !hidden && pointerX !== null && pointerY !== null && ref.instance.coversPoint(pointerX, pointerY);
       ref.instance.setPointerHidden(covers);
       hidden = hidden || covers;
     }
@@ -336,7 +338,7 @@ export class TooltipDirective {
       ? (this.overlays.layerFor(at.document) ?? this.overlays.mainLayer())
       : this.overlays.front();
     const injector = parentViewContainerRef.injector;
-    const view = at?.document.defaultView ?? window;
+    const view = (parentViewContainerRef.element.nativeElement as Node).ownerDocument?.defaultView ?? window;
     const seats = this.edgeSeats(view);
     const refs: ComponentRef<TooltipPanelInstance>[] = [];
     const session: TooltipSession = { refs, seats, at, view, detach: () => {} };

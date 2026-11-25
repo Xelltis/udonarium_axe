@@ -265,7 +265,7 @@ describe('OverviewPanelComponent', () => {
       const panel = await renderBeside();
       const top = panel.style.top;
 
-      panel.dispatchEvent(new PointerEvent('pointermove', { movementX: 3, movementY: 0 }));
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 320, clientY: 500 }));
       sizePanel(panel, 250, 300);
       component.placeBesidePointer();
 
@@ -275,15 +275,15 @@ describe('OverviewPanelComponent', () => {
     it('is not touched by opening under a mouse at rest, and keeps being placed as it grows', async () => {
       const panel = await renderBeside();
 
-      panel.dispatchEvent(new PointerEvent('pointermove', { movementX: 0, movementY: 0 }));
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 300, clientY: 500, movementX: 4 }));
       sizePanel(panel, 250, 300);
       component.placeBesidePointer();
 
       expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
     });
 
-    it('stays put once the reader has pressed in it or focused it', async () => {
-      for (const touch of [new Event('pointerdown'), new Event('focusin')]) {
+    it('stays put once the reader has pressed in it, scrolled it or focused it', async () => {
+      for (const touch of [new Event('pointerdown'), new Event('wheel'), new Event('focusin')]) {
         const panel = await renderBeside();
         const top = panel.style.top;
         panel.dispatchEvent(touch);
