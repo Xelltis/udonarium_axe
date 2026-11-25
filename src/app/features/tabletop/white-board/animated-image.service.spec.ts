@@ -15,7 +15,7 @@ describe('AnimatedImageService', () => {
     vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ blob: async () => ({ slice: () => ({ arrayBuffer: async () => bytes }) }) }) as never)
+      vi.fn(async () => ({ blob: async () => new Blob([bytes]) }) as never)
     );
   }
 
@@ -55,6 +55,18 @@ describe('AnimatedImageService', () => {
     serve(single);
 
     expect(await service().probe('picture')).toBe(true);
+  });
+
+  it('calls a still PNG still though what it says of itself runs past the head of its file', async () => {
+    const long = new Uint8Array([
+      ...[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      ...[0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, ...new Array(13 + 4).fill(0)],
+      ...[0, 1, 0x11, 0x70, 0x74, 0x45, 0x58, 0x74, ...new Array(70_000 + 4).fill(0)],
+      ...[0, 0, 0, 1, 0x49, 0x44, 0x41, 0x54, 0, 0, 0, 0, 0],
+    ]).buffer;
+    serve(long);
+
+    expect(await service().probe('picture')).toBe(false);
   });
 
   it('calls a still picture still', async () => {

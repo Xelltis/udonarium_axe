@@ -1,4 +1,4 @@
-import { blobMoves, isAnimatedImageBytes } from '@axe/core/storage/animated-image';
+import { blobMoves, isAnimatedImageBytes, knownBlobMoves } from '@axe/core/storage/animated-image';
 
 function bytesOf(...parts: (readonly number[] | string)[]): ArrayBuffer {
   const bytes: number[] = [];
@@ -151,6 +151,12 @@ describe('isAnimatedImageBytes()', () => {
     ).toBe(false);
   });
 
+  it('calls a lossless webp still', () => {
+    expect(
+      isAnimatedImageBytes(bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8L', 8), new Array(8).fill(0)))
+    ).toBe(false);
+  });
+
   it('says nothing of what it cannot read', () => {
     expect(isAnimatedImageBytes(new ArrayBuffer(0))).toBe(false);
     expect(isAnimatedImageBytes(bytesOf('not an image at all'))).toBe(false);
@@ -167,5 +173,28 @@ describe('blobMoves()', () => {
 
     expect([await blobMoves(still), await blobMoves(moving), await blobMoves(drawing)]).toEqual([false, true, true]);
     expect(blobMoves(still)).toBe(blobMoves(still));
+  });
+});
+
+describe('knownBlobMoves()', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('answers a blob that could not be read as still for a while, and as unknown after, so it is asked about again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const unreadable = {
+      type: 'image/png',
+      size: 100,
+      slice: () => ({
+        arrayBuffer: async () => {
+          throw new Error('gone');
+        },
+      }),
+    } as unknown as Blob;
+
+    await blobMoves(unreadable);
+    expect(knownBlobMoves(unreadable)).toBe(false);
+
+    vi.setSystemTime(Date.now() + 30_000);
+    expect(knownBlobMoves(unreadable)).toBeUndefined();
   });
 });

@@ -166,4 +166,32 @@ describe('ShownPictureUrls', () => {
     expect(letGo).toHaveBeenCalledWith(second);
     end();
   });
+
+  it('reads a picture that cannot be read once, not over and over as the showing is drawn again', async () => {
+    const { urls, end } = showing();
+    const read = vi.fn(async () => {
+      throw new Error('gone');
+    });
+    const blob = new Blob([new Uint8Array([1])], { type: 'image/png' });
+    vi.spyOn(blob, 'slice').mockReturnValue({ arrayBuffer: read } as unknown as Blob);
+    const picture = ImageFile.create({
+      identifier: 'unreadable',
+      name: 'unreadable.png',
+      type: 'image/png',
+      blob,
+      url: 'blob:unreadable',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const shown = computed(() => urls.urlOf(picture));
+
+    for (let draw = 0; draw < 5; draw++) {
+      shown();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    expect(read).toHaveBeenCalledOnce();
+    expect(shown()).toBe('blob:unreadable');
+    end();
+  });
 });

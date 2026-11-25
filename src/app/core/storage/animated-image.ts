@@ -33,7 +33,7 @@ export function isGifBytes(buffer: ArrayBuffer): boolean {
  * Whether the bytes, the head of a picture's file or all of it, say the picture moves: true or false
  * where they do, null where they end before saying.
  */
-function animationOfHead(buffer: ArrayBuffer): boolean | null {
+export function animationOfHead(buffer: ArrayBuffer): boolean | null {
   if (buffer.byteLength < 12) return false;
   const view = new DataView(buffer);
   if (startsWith(view, PNG_SIGNATURE)) return pngAnimation(view);
@@ -112,20 +112,21 @@ export function gifHasSecondFrame(view: DataView): boolean | null {
 
 /**
  * Whether the picture held in a blob moves: an APNG, an animated WebP or AVIF, a GIF of more than one
- * image, or an SVG, which may carry animation of its own. The head of the file is read, and all of it
- * only where the head ends before saying. Read once per blob and kept; a blob that cannot be read is
- * answered still for now and read again when next asked.
+ * image, or an SVG, which may carry animation of its own. Read as far as the file says, a larger part
+ * each time where it has not said yet, and no further. Read once per blob and kept; a blob that cannot
+ * be read is answered still, and read again only when asked after a while (see {@link knownBlobMoves}).
  */
 export function blobMoves(blob: Blob): Promise<boolean> {
   let told = toldOfBlobs.get(blob);
   if (!told) {
     told = readWhetherBlobMoves(blob).then(
       (moves) => {
-        knownOfBlobs.set(blob, moves);
+        knownOfBlobs.set(blob, { moves, failedAt: null });
         return moves;
       },
       () => {
         toldOfBlobs.delete(blob);
+        knownOfBlobs.set(blob, { moves: false, failedAt: Date.now() });
         return false;
       }
     );
@@ -134,20 +135,40 @@ export function blobMoves(blob: Blob): Promise<boolean> {
   return told;
 }
 
-/** Whether a blob's picture moves, where {@link blobMoves} has told it already; undefined before. */
+/**
+ * Whether a blob's picture moves, where {@link blobMoves} has told it already; undefined before, and
+ * for a blob that could not be read once a while has passed, so it is asked about again.
+ */
 export function knownBlobMoves(blob: Blob): boolean | undefined {
-  return knownOfBlobs.get(blob);
+  const known = knownOfBlobs.get(blob);
+  if (!known) return undefined;
+  if (known.failedAt !== null && Date.now() - known.failedAt >= READ_AGAIN_AFTER_MS) return undefined;
+  return known.moves;
+}
+
+/**
+ * Reads bytes as far as they say whether the picture moves, a larger part each time from `read`, which
+ * answers the first bytes of the file up to a length, and answers whether it moves. A file that ends
+ * before saying is still.
+ */
+export async function readWhetherMoves(read: (length: number) => Promise<ArrayBuffer>, size: number): Promise<boolean> {
+  for (let length = HEAD_BYTES; ; length *= 4) {
+    const bytes = await read(Math.min(length, size));
+    const told = animationOfHead(bytes);
+    if (told !== null) return told;
+    if (bytes.byteLength >= size || length >= size) return false;
+  }
 }
 
 const toldOfBlobs = new WeakMap<Blob, Promise<boolean>>();
-const knownOfBlobs = new WeakMap<Blob, boolean>();
+const knownOfBlobs = new WeakMap<Blob, { readonly moves: boolean; readonly failedAt: number | null }>();
+
+/** How long a blob that could not be read is answered still before it is read again, in milliseconds. */
+const READ_AGAIN_AFTER_MS = 30_000;
 
 async function readWhetherBlobMoves(blob: Blob): Promise<boolean> {
   if (blob.type === 'image/svg+xml') return true;
-  const head = await blob.slice(0, HEAD_BYTES).arrayBuffer();
-  const told = animationOfHead(head);
-  if (told !== null || blob.size <= head.byteLength) return told === true;
-  return animationOfHead(await blob.arrayBuffer()) === true;
+  return readWhetherMoves((length) => blob.slice(0, length).arrayBuffer(), blob.size);
 }
 
 /** How much of a file is read first to tell whether it moves, which each format says near its start. */

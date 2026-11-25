@@ -1,9 +1,9 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { isAnimatedImageBytes, isGifBytes } from '@axe/core/storage/animated-image';
+import { isGifBytes, readWhetherMoves } from '@axe/core/storage/animated-image';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 
-/** How much of a file has to be read to find out whether it moves. */
-const HEAD_BYTES = 64 * 1024;
+/** How much of a file tells whether it is a GIF. */
+const GIF_HEAD_BYTES = 6;
 
 /**
  * Remembers which pictures move.
@@ -58,26 +58,27 @@ export class AnimatedImageService {
   }
 
   private async read(identifier: string): Promise<boolean> {
-    let head: ArrayBuffer;
+    let animated: boolean;
     try {
-      head = await this.headOf(identifier);
+      const blob = await this.blobOf(identifier);
+      if (!blob || blob.size < 1) return false;
+      const head = await blob.slice(0, GIF_HEAD_BYTES).arrayBuffer();
+      animated =
+        isGifBytes(head) || (await readWhetherMoves((length) => blob.slice(0, length).arrayBuffer(), blob.size));
     } catch {
       // Unreadable for now; the picture is drawn as it always was and asked about again later.
       return false;
     }
-    if (head.byteLength < 1) return false;
-
-    const animated = isGifBytes(head) || isAnimatedImageBytes(head);
     this.answers.update((current) => new Map(current).set(identifier, animated));
     return animated;
   }
 
-  private async headOf(identifier: string): Promise<ArrayBuffer> {
+  /** The bytes of a picture, read as far as they say whether it moves (see `readWhetherMoves`). */
+  private async blobOf(identifier: string): Promise<Blob | null> {
     const file = this.imageStorage.get(identifier);
     const url = file?.url ?? '';
-    if (!url) return new ArrayBuffer(0);
+    if (!url) return null;
     const response = await fetch(url);
-    const blob = await response.blob();
-    return blob.slice(0, HEAD_BYTES).arrayBuffer();
+    return response.blob();
   }
 }

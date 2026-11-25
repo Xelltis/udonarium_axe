@@ -1,4 +1,4 @@
-import { isAnimatedImageBytes } from '@axe/core/storage/animated-image';
+import { animationOfHead } from '@axe/core/storage/animated-image';
 import { clamp } from '@axe/core/util/clamp';
 import { LONGEST_PICTURE_PX } from '@axe/infrastructure/table-3d/table-3d-port';
 import type { Texture } from 'three/webgpu';
@@ -407,7 +407,8 @@ const HEAD_BYTES = 64 * 1024;
 
 /**
  * The bytes of the picture at a URL where it moves; null for one that stands still, of which no more
- * is read than its head, or one that cannot be fetched.
+ * is read than says so (a larger part each time where it has not said yet), or one that cannot be
+ * fetched.
  */
 async function movingBytesAt(url: string): Promise<ArrayBuffer | null> {
   const response = await fetch(url);
@@ -416,15 +417,17 @@ async function movingBytesAt(url: string): Promise<ArrayBuffer | null> {
   const parts: Uint8Array[] = [];
   let length = 0;
   let told: boolean | null = null;
+  let askAt = HEAD_BYTES;
   for (;;) {
     const { done, value } = await reader.read();
     if (value) {
       parts.push(value);
       length += value.byteLength;
     }
-    if (told === null && (done || length >= HEAD_BYTES)) {
-      told = isAnimatedImageBytes(joined(parts, length).buffer as ArrayBuffer);
-      if (!told) {
+    if (told === null && (done || length >= askAt)) {
+      told = animationOfHead(joined(parts, length).buffer as ArrayBuffer) ?? (done ? false : null);
+      askAt *= 4;
+      if (told === false) {
         await reader.cancel();
         return null;
       }
@@ -444,12 +447,13 @@ function joined(parts: readonly Uint8Array[], length: number): Uint8Array {
   return all;
 }
 
-/** The type a moving picture is read as, by its head: PNG, GIF or WebP. */
+/** The type a moving picture is read as, by its head: PNG, GIF, WebP or AVIF. */
 function movingTypeOf(bytes: ArrayBuffer): string | null {
   const head = new Uint8Array(bytes, 0, Math.min(12, bytes.byteLength));
   const ascii = (from: number, length: number) => String.fromCharCode(...head.slice(from, from + length));
   if (head[0] === 0x89 && ascii(1, 3) === 'PNG') return 'image/png';
   if (ascii(0, 3) === 'GIF') return 'image/gif';
   if (ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') return 'image/webp';
+  if (ascii(4, 4) === 'ftyp') return 'image/avif';
   return null;
 }
