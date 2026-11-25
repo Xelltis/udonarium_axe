@@ -218,9 +218,10 @@ export class TooltipDirective {
 
   /**
    * Waits a moment to open the detail, starting over while the pointer moves about on the piece. Once
-   * the pointer has moved onto anything else, it waits no more: it may have gone off the piece without
-   * the piece hearing of it, as when the piece came under a pointer that then moved on, and the detail
-   * would open wherever it next rests.
+   * the pointer is on anything else, it waits no more and opens nothing, whether it moved there or a
+   * panel came over the piece under it: it may have gone off the piece without the piece hearing of it,
+   * as when the piece came under a pointer that then moved on, and the detail would open wherever it
+   * next rests, over what it rests on.
    */
   private startOpenTimer() {
     const pointerX = this.pointerDeviceService.pointerX;
@@ -230,12 +231,10 @@ export class TooltipDirective {
       this.openTooltipTimer = null;
       const magnitude =
         (pointerX - this.pointerDeviceService.pointerX) ** 2 + (pointerY - this.pointerDeviceService.pointerY) ** 2;
-      if (magnitude > HOVER_STILL_PX ** 2) {
-        const host = this.viewContainerRef.element.nativeElement as Element;
-        if (host.contains(this.pointerDeviceService.targetElement)) this.startOpenTimer();
-      } else {
-        this.open();
-      }
+      const host = this.viewContainerRef.element.nativeElement as Element;
+      if (!host.contains(this.pointerDeviceService.targetElement)) return;
+      if (magnitude > HOVER_STILL_PX ** 2) this.startOpenTimer();
+      else this.open();
     }, OPEN_DELAY_MS);
   }
 

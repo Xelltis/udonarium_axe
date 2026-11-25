@@ -113,9 +113,22 @@ describe('TooltipDirective', () => {
     return character;
   }
 
+  /** Moves the pointer onto a target, giving the event the place on the page happy-dom leaves out of a made one. */
+  function moveTo(target: Element, clientX: number, clientY: number): void {
+    const move = new MouseEvent('mousemove', { clientX, clientY, bubbles: true });
+    Object.defineProperties(move, { pageX: { value: clientX }, pageY: { value: clientY } });
+    target.dispatchEvent(move);
+  }
+
+  /** The pointer moving onto a target and coming into it, as a real pointer does. */
+  function enter(target: Element, clientX = 0, clientY = 10): void {
+    moveTo(target, clientX, clientY);
+    target.dispatchEvent(new MouseEvent('mouseenter', { clientX, clientY }));
+  }
+
   async function hover(testId: string, clientX = 0, clientY = 10): Promise<void> {
     const piece = fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
-    piece.dispatchEvent(new MouseEvent('mouseenter', { clientX, clientY }));
+    enter(piece, clientX, clientY);
     await wait(OPEN_WAIT_MS);
     fixture.detectChanges();
   }
@@ -170,19 +183,23 @@ describe('TooltipDirective', () => {
   });
 
   describe('a pointer moving on before the detail opens', () => {
-    /** Moves the pointer onto a target, giving the event the place on the page happy-dom leaves out of a made one. */
-    function moveTo(target: Element, clientX: number, clientY: number): void {
-      const move = new MouseEvent('mousemove', { clientX, clientY, bubbles: true });
-      Object.defineProperties(move, { pageX: { value: clientX }, pageY: { value: clientY } });
-      target.dispatchEvent(move);
-    }
-
     it('opens nothing once it has gone off the piece, though the piece never heard it leave', async () => {
       const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
       moveTo(piece, 0, 10);
       piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
 
       moveTo(document.body, 400, 300);
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('opens nothing where something has come over the piece under a pointer at rest, as a panel opened over it', async () => {
+      const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+      moveTo(piece, 0, 10);
+      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+
+      moveTo(document.body, 0, 10);
       await wait(OPEN_WAIT_MS * 3);
 
       expect(panels()).toHaveLength(0);
@@ -272,8 +289,8 @@ describe('TooltipDirective', () => {
 
     /** The pointer coming onto the row from outside the piece, which it enters on the way. */
     async function hoverRow(): Promise<void> {
-      element('body-piece').dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
-      element('part-row').dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+      enter(element('body-piece'));
+      enter(element('part-row'));
       await wait(OPEN_WAIT_MS);
       fixture.detectChanges();
     }
