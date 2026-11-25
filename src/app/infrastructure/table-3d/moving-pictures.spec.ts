@@ -47,6 +47,9 @@ async function advanceThrough(pictures: MovingPictures, moments: readonly number
   return due;
 }
 
+/** Two images of a GIF after its screen, each with its descriptor, its code size and an empty block, then its end. */
+const TWO_IMAGES = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0, 0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0, 0x3b];
+
 describe('MovingPictures', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
@@ -231,7 +234,10 @@ describe('MovingPictures', () => {
       vi.stubGlobal(
         'fetch',
         vi.fn(
-          async () => new Response(new Uint8Array([...'GIF89a'].map((c) => c.charCodeAt(0)).concat(Array(16).fill(0))))
+          async () =>
+            new Response(
+              new Uint8Array([...[...'GIF89a'].map((c) => c.charCodeAt(0)), 4, 0, 4, 0, 0, 0, 0, ...TWO_IMAGES])
+            )
         )
       );
       vi.stubGlobal(

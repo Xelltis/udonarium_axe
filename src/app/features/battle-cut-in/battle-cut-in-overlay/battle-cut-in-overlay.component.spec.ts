@@ -6,6 +6,7 @@ import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { blobMoves } from '@axe/core/storage/animated-image';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -28,6 +29,7 @@ import type {
   FigureStageView,
   StageFigure,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BattleCutInOverlayComponent', () => {
@@ -164,15 +166,17 @@ describe('BattleCutInOverlayComponent', () => {
     expect(picture.dataset['theme']).toBe('horror');
   });
 
-  it('lays the room’s own picture the scene names behind it, with the band in plain colours', () => {
+  it('lays the room’s own picture the scene names behind it, with the band in plain colours', async () => {
+    const blob = movingPngBlob();
     ImageStorage.instance.add({
       identifier: 'arena',
-      name: 'arena.webp',
-      type: 'image/webp',
-      blob: new Blob(['picture'], { type: 'image/webp' }),
+      name: 'arena.png',
+      type: 'image/png',
+      blob,
       url: 'blob:arena',
       thumbnail: { type: '', blob: null, url: '' },
     });
+    await blobMoves(blob);
     try {
       const root = play(scene({ theme: 'horror', background: 'arena' }));
 
@@ -187,15 +191,17 @@ describe('BattleCutInOverlayComponent', () => {
     }
   });
 
-  it('shows the room’s own picture from another URL for the next scene in the same stage, letting go of the last', () => {
+  it('shows the room’s own picture from another URL for the next scene in the same stage, letting go of the last', async () => {
+    const blob = movingPngBlob();
     ImageStorage.instance.add({
       identifier: 'arena-again',
       name: 'arena.png',
       type: 'image/png',
-      blob: new Blob(['picture'], { type: 'image/png' }),
+      blob,
       url: 'blob:arena-again',
       thumbnail: { type: '', blob: null, url: '' },
     });
+    await blobMoves(blob);
     const letGo = vi.spyOn(URL, 'revokeObjectURL');
     try {
       const root = play(scene({ background: 'arena-again' }));
@@ -214,16 +220,18 @@ describe('BattleCutInOverlayComponent', () => {
     }
   });
 
-  it('puts in a fighter’s picture that arrives while the scene plays', () => {
+  it('puts in a fighter’s picture that arrives while the scene plays', async () => {
+    const lateBlob = movingPngBlob();
+    await blobMoves(lateBlob);
     const played = scene();
     const root = play({ ...played, attacker: { ...played.attacker, image: 'late-hero' } });
     expect(root.querySelector('img[alt="勇者"]')).toBeNull();
 
     ImageStorage.instance.add({
       identifier: 'late-hero',
-      name: 'hero.webp',
-      type: 'image/webp',
-      blob: new Blob(['picture'], { type: 'image/webp' }),
+      name: 'hero.png',
+      type: 'image/png',
+      blob: lateBlob,
       url: 'blob:late-hero',
       thumbnail: { type: '', blob: null, url: '' },
     });
@@ -265,16 +273,18 @@ describe('BattleCutInOverlayComponent', () => {
     }
   });
 
-  it('asks for the turned picture of a fighter drawn turned, without the fighters being worked out again as it is made', () => {
+  it('asks for the turned picture of a fighter drawn turned, without the fighters being worked out again as it is made', async () => {
     for (const identifier of ['facing-hero', 'facing-goblin']) {
+      const blob = movingPngBlob();
       ImageStorage.instance.add({
         identifier,
-        name: `${identifier}.webp`,
-        type: 'image/webp',
-        blob: new Blob(['picture'], { type: 'image/webp' }),
+        name: `${identifier}.png`,
+        type: 'image/png',
+        blob,
         url: `blob:${identifier}`,
         thumbnail: { type: '', blob: null, url: '' },
       });
+      await blobMoves(blob);
     }
     const made = signal(0);
     const asked = vi.spyOn(TestBed.inject(MirroredPictureService), 'of').mockImplementation(() => {
@@ -291,6 +301,10 @@ describe('BattleCutInOverlayComponent', () => {
       const views = fixture.componentInstance.views();
 
       expect(asked.mock.calls.map(([url]) => url)).toEqual(['blob:facing-hero']);
+      const hero = views.find((view) => view.fighter.identifier === 'hero')!;
+      expect(hero.mirrored).toBe(true);
+      expect(hero.imageUrl).toMatch(/^blob:/);
+      expect(hero.imageUrl).not.toBe('blob:facing-hero');
 
       made.set(1);
       fixture.detectChanges();

@@ -174,7 +174,10 @@ interface FighterView {
   side: BattleSide;
   striking: boolean;
   point: Point3;
+  /** The URL its picture is shown from in this scene (see `ShownPictureUrls`). */
   imageUrl: string;
+  /** The picture's own URL, which its turned copy is cut from and kept by. */
+  pictureUrl: string;
   /**
    * Whether its picture is turned left for right: a picture facing the side it stands on faces
    * away from the one across.
@@ -595,7 +598,7 @@ export class BattleCutInOverlayComponent {
       resolveImage: (identifier) => {
         const view = views.find((held) => held.fighter.identifier === identifier);
         if (!view || modelled.has(view.key)) return '';
-        return view.mirrored ? this.mirrors.of(view.imageUrl) || view.imageUrl : view.imageUrl;
+        return view.mirrored ? this.mirrors.of(view.pictureUrl) || view.imageUrl : view.imageUrl;
       },
     };
   });
@@ -765,7 +768,7 @@ export class BattleCutInOverlayComponent {
 
     effect(() => {
       for (const view of this.views()) {
-        if (view.mirrored && view.imageUrl.length > 0) untracked(() => this.mirrors.of(view.imageUrl));
+        if (view.mirrored && view.pictureUrl.length > 0) untracked(() => this.mirrors.of(view.pictureUrl));
       }
     });
 
@@ -968,7 +971,7 @@ export class BattleCutInOverlayComponent {
   ): FighterView {
     const image = fighter.image.length > 0 ? this.images.get(fighter.image) : null;
     const mirrored = fighter.facing === side;
-    const imageUrl = mirrored ? (image?.url ?? '') : this.shownUrls.urlOf(image, this.serial());
+    const imageUrl = this.shownUrls.urlOf(image, this.serial());
     const model = pieceModelOfFighter(fighter.model);
     const held = model ? this.models.get(model.identifier) : null;
     return {
@@ -978,6 +981,7 @@ export class BattleCutInOverlayComponent {
       striking,
       point,
       imageUrl,
+      pictureUrl: image?.url ?? '',
       mirrored,
       readable: this.readable(fighter.identifier),
       reaction,

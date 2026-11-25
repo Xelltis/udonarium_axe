@@ -1,15 +1,19 @@
-import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
+import { computed, createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
+import { blobMoves } from '@axe/core/storage/animated-image';
 import { ImageFile } from '@axe/core/storage/image-file';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 
-/** A picture held here in full under an identifier, shown from the URL given. */
-function held(identifier: string, url: string): ImageFile {
+/** A moving picture held here in full under an identifier, shown from the URL given, once told it moves. */
+async function held(identifier: string, url: string): Promise<ImageFile> {
+  const blob = movingPngBlob();
+  await blobMoves(blob);
   return ImageFile.create({
     identifier,
     name: `${identifier}.png`,
     type: 'image/png',
-    blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+    blob,
     url,
     thumbnail: { type: '', blob: null, url: '' },
   });
@@ -23,9 +27,9 @@ describe('ShownPictureUrls', () => {
     return { urls: injector.get(ShownPictureUrls), end: () => injector.destroy() };
   }
 
-  it('shows a picture held here from a URL of the showing’s own, the same each time, and another for another showing', () => {
+  it('shows a picture held here from a URL of the showing’s own, the same each time, and another for another showing', async () => {
     const made = vi.spyOn(URL, 'createObjectURL');
-    const picture = held('hero', 'blob:held');
+    const picture = await held('hero', 'blob:held');
     const first = showing();
     const second = showing();
 
@@ -39,10 +43,10 @@ describe('ShownPictureUrls', () => {
     second.end();
   });
 
-  it('lets go of the URLs it made once the showing ends', () => {
+  it('lets go of the URLs it made once the showing ends', async () => {
     const letGo = vi.spyOn(URL, 'revokeObjectURL');
     const { urls, end } = showing();
-    const url = urls.urlOf(held('hero', 'blob:held'));
+    const url = urls.urlOf(await held('hero', 'blob:held'));
 
     end();
 
@@ -57,15 +61,17 @@ describe('ShownPictureUrls', () => {
     end();
   });
 
-  it('gives the full bytes a URL of their own once they come after the thumbnail, letting go of the thumbnail’s', () => {
+  it('gives the full bytes a URL of their own once they come after the thumbnail, letting go of the thumbnail’s', async () => {
     const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    const [thumbBlob, fullBlob] = [movingPngBlob(), movingPngBlob()];
+    await Promise.all([blobMoves(thumbBlob), blobMoves(fullBlob)]);
     const picture = ImageFile.create({
       identifier: 'late',
       name: 'late.png',
       type: '',
       blob: null,
       url: '',
-      thumbnail: { type: 'image/png', blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), url: 'blob:thumb' },
+      thumbnail: { type: 'image/png', blob: thumbBlob, url: 'blob:thumb' },
     });
     const { urls, end } = showing();
     const thumbnail = urls.urlOf(picture);
@@ -74,7 +80,7 @@ describe('ShownPictureUrls', () => {
       identifier: 'late',
       name: 'late.png',
       type: 'image/png',
-      blob: new Blob([new Uint8Array([1, 2])], { type: 'image/png' }),
+      blob: fullBlob,
       url: 'blob:full',
       thumbnail: { type: '', blob: null, url: '' },
     });
@@ -82,6 +88,44 @@ describe('ShownPictureUrls', () => {
 
     expect(full).not.toBe(thumbnail);
     expect(letGo).toHaveBeenCalledWith(thumbnail);
+    end();
+  });
+
+  it('shows a picture that stands still from its own URL, so it is not read again for each showing', async () => {
+    const { urls, end } = showing();
+    const blob = new Blob([new Uint8Array([1])], { type: 'image/png' });
+    await blobMoves(blob);
+    const still = ImageFile.create({
+      identifier: 'still',
+      name: 'still.png',
+      type: 'image/png',
+      blob,
+      url: 'blob:still',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+
+    expect(urls.urlOf(still)).toBe('blob:still');
+    end();
+  });
+
+  it('shows a picture not yet told to move from its own URL, and from one of the showing’s own once it is', async () => {
+    const { urls, end } = showing();
+    const blob = movingPngBlob();
+    const picture = ImageFile.create({
+      identifier: 'untold',
+      name: 'untold.png',
+      type: 'image/png',
+      blob,
+      url: 'blob:untold',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const shown = computed(() => urls.urlOf(picture));
+    expect(shown()).toBe('blob:untold');
+
+    await blobMoves(blob);
+    await Promise.resolve();
+
+    expect(shown()).not.toBe('blob:untold');
     end();
   });
 
@@ -100,9 +144,9 @@ describe('ShownPictureUrls', () => {
     end();
   });
 
-  it('gives the pictures URLs of their own again for each showing named, and for each one begun, letting go of the last', () => {
+  it('gives the pictures URLs of their own again for each showing named, and for each one begun, letting go of the last', async () => {
     const letGo = vi.spyOn(URL, 'revokeObjectURL');
-    const picture = held('hero', 'blob:held');
+    const picture = await held('hero', 'blob:held');
     const { urls, end } = showing();
     const first = urls.urlOf(picture, 1);
 

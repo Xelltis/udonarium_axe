@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { blobMoves } from '@axe/core/storage/animated-image';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CutInStageComponent', () => {
@@ -426,6 +428,8 @@ describe('CutInStageComponent', () => {
 
 describe('CutInStageComponent within a showing of its own', () => {
   beforeEach(async () => {
+    const standIn = movingPngBlob();
+    await blobMoves(standIn);
     TestBed.configureTestingModule({
       imports: [CutInStageComponent],
       providers: [...TEST_PROVIDERS, ShownPictureUrls],
@@ -434,7 +438,7 @@ describe('CutInStageComponent within a showing of its own', () => {
       identifier: 'stand-in',
       name: 'stand-in.png',
       type: 'image/png',
-      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      blob: standIn,
       url: 'blob:held-stand-in',
       thumbnail: { type: '', blob: null, url: '' },
     });
@@ -445,12 +449,14 @@ describe('CutInStageComponent within a showing of its own', () => {
     ImageStorage.instance.delete('hero-face');
   });
 
-  it('shows the speaker’s portrait in a portrait’s place from the showing’s own URL too', () => {
+  it('shows the speaker’s portrait in a portrait’s place from the showing’s own URL too', async () => {
+    const face = movingPngBlob();
+    await blobMoves(face);
     ImageStorage.instance.add({
       identifier: 'hero-face',
       name: 'hero-face.png',
       type: 'image/png',
-      blob: new Blob([new Uint8Array([2])], { type: 'image/png' }),
+      blob: face,
       url: 'blob:held-hero-face',
       thumbnail: { type: '', blob: null, url: '' },
     });

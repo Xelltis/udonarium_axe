@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
+import { blobMoves } from '@axe/core/storage/animated-image';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -10,7 +11,9 @@ import { CutInSceneEditorComponent } from '@axe/features/media/cut-in-editor/cut
 import { CutInTimelineComponent, type TimelineRow } from '@axe/features/media/cut-in-editor/cut-in-timeline.component';
 import { TIMELINE_HEAD_W_PX } from '@axe/features/media/cut-in-editor/cut-in-timeline-geometry';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { onTestFinished } from 'vitest';
 
 describe('CutInSceneEditorComponent', () => {
   let fixture: ComponentFixture<CutInSceneEditorComponent>;
@@ -750,20 +753,36 @@ describe('CutInSceneEditorComponent', () => {
   describe('the pictures of the preview', () => {
     type PlaybackApi = { togglePlaying(): void };
 
-    it('gives them URLs of their own each time the preview plays from the start, for a moving picture to play from its start', () => {
+    it('gives them URLs of their own each time the preview plays from the start, for a moving picture to play from its start', async () => {
+      const blob = movingPngBlob();
+      await blobMoves(blob);
+      ImageStorage.instance.add({
+        identifier: 'preview-apng',
+        name: 'preview.png',
+        type: 'image/png',
+        blob,
+        url: 'blob:preview-apng',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      onTestFinished(() => ImageStorage.instance.delete('preview-apng'));
       editor().addImageLayer();
+      component.layers()[0].imageIdentifier = 'preview-apng';
+      editor().changed();
       fixture.detectChanges();
-      const urls = fixture.debugElement.injector.get(ShownPictureUrls);
-      const begun = vi.spyOn(urls, 'beginShowing');
+      const shown = () =>
+        (fixture.nativeElement as HTMLElement).querySelector('cut-in-stage img')?.getAttribute('src') ?? '';
       const playback = component as unknown as PlaybackApi;
 
       playback.togglePlaying();
+      fixture.detectChanges();
+      const first = shown();
       playback.togglePlaying();
-      expect(begun).toHaveBeenCalledTimes(1);
-
       editor().onSeek(0);
       playback.togglePlaying();
-      expect(begun).toHaveBeenCalledTimes(2);
+      fixture.detectChanges();
+
+      expect(first).not.toBe('blob:preview-apng');
+      expect(shown()).not.toBe(first);
       playback.togglePlaying();
     });
   });

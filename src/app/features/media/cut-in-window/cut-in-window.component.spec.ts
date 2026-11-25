@@ -4,6 +4,7 @@ import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { blobMoves } from '@axe/core/storage/animated-image';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
@@ -19,6 +20,7 @@ import {
   CutInWindowComponent,
 } from '@axe/features/media/cut-in-window/cut-in-window.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeReadyAudio(identifier: string): AudioFile {
@@ -54,12 +56,14 @@ describe('CutInWindowComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('shows its picture from a URL of this window’s own, for a moving picture to play from its start each time', () => {
+  it('shows its picture from a URL of this window’s own, for a moving picture to play from its start each time', async () => {
+    const blob = movingPngBlob();
+    await blobMoves(blob);
     const picture = ImageStorage.instance.add({
       identifier: 'apng-once',
       name: 'once.png',
       type: 'image/png',
-      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      blob,
       url: 'blob:held-once',
       thumbnail: { type: '', blob: null, url: '' },
     });
@@ -78,13 +82,15 @@ describe('CutInWindowComponent', () => {
     ImageStorage.instance.delete('apng-once');
   });
 
-  it('shows the same picture from another URL in the next window, and lets go of a window’s own as it closes', () => {
+  it('shows the same picture from another URL in the next window, and lets go of a window’s own as it closes', async () => {
     const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    const blob = movingPngBlob();
+    await blobMoves(blob);
     const picture = ImageStorage.instance.add({
       identifier: 'apng-twice',
       name: 'twice.png',
       type: 'image/png',
-      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      blob,
       url: 'blob:held-twice',
       thumbnail: { type: '', blob: null, url: '' },
     });
@@ -109,6 +115,43 @@ describe('CutInWindowComponent', () => {
     second.window.destroy();
     cutIn.destroy();
     ImageStorage.instance.delete('apng-twice');
+  });
+
+  it('shows the full picture from a URL of its own once its bytes come after the thumbnail, during the showing', async () => {
+    const [thumbBlob, fullBlob] = [movingPngBlob(), movingPngBlob()];
+    await Promise.all([blobMoves(thumbBlob), blobMoves(fullBlob)]);
+    const picture = ImageStorage.instance.add({
+      identifier: 'apng-late',
+      name: 'late.png',
+      type: '',
+      blob: null,
+      url: '',
+      thumbnail: { type: 'image/png', blob: thumbBlob, url: 'blob:thumb-late' },
+    });
+    const cutIn = new CutIn('apng-cut-in-late');
+    cutIn.initialize();
+    cutIn.imageIdentifier = picture.identifier;
+    component.cutIn = cutIn;
+    component.startCutIn();
+    fixture.detectChanges();
+    const shown = () => (fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src') ?? '';
+    const thumbnail = shown();
+
+    picture.apply({
+      identifier: 'apng-late',
+      name: 'late.png',
+      type: 'image/png',
+      blob: fullBlob,
+      url: 'blob:full-late',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    fixture.detectChanges();
+
+    expect(shown()).not.toBe(thumbnail);
+    expect(shown()).not.toBe('blob:full-late');
+    cutIn.destroy();
+    ImageStorage.instance.delete('apng-late');
   });
 
   describe('the size of the video player', () => {

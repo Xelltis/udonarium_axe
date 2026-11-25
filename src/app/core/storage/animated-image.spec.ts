@@ -1,4 +1,4 @@
-import { isAnimatedImageBytes } from '@axe/core/storage/animated-image';
+import { blobMoves, isAnimatedImageBytes } from '@axe/core/storage/animated-image';
 
 function bytesOf(...parts: (number[] | string)[]): ArrayBuffer {
   const bytes: number[] = [];
@@ -36,8 +36,12 @@ describe('isAnimatedImageBytes()', () => {
     ).toBe(false);
   });
 
-  it('takes a gif at its word', () => {
-    expect(isAnimatedImageBytes(bytesOf('GIF89a', new Array(16).fill(0)))).toBe(true);
+  it('tells a gif of more than one image from one of a single image, and takes a head that ends too soon as moving', () => {
+    const screen = ['GIF89a', [4, 0, 4, 0, 0, 0, 0]] as const;
+    const image = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0];
+    expect(isAnimatedImageBytes(bytesOf(...screen, image, image, [0x3b]))).toBe(true);
+    expect(isAnimatedImageBytes(bytesOf(...screen, image, [0x3b]))).toBe(false);
+    expect(isAnimatedImageBytes(bytesOf(...screen, image.slice(0, 12)))).toBe(true);
   });
 
   it('finds the animation chunk of a webp', () => {
@@ -57,5 +61,18 @@ describe('isAnimatedImageBytes()', () => {
   it('says nothing of what it cannot read', () => {
     expect(isAnimatedImageBytes(new ArrayBuffer(0))).toBe(false);
     expect(isAnimatedImageBytes(bytesOf('not an image at all'))).toBe(false);
+  });
+});
+
+describe('blobMoves()', () => {
+  it('reads whether a picture moves once for each blob, an SVG moving as it may', async () => {
+    const screen = ['GIF89a', [4, 0, 4, 0, 0, 0, 0]] as const;
+    const image = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0];
+    const still = new Blob([bytesOf(...screen, image, [0x3b])], { type: 'image/gif' });
+    const moving = new Blob([bytesOf(...screen, image, image, [0x3b])], { type: 'image/gif' });
+    const drawing = new Blob(['<svg/>'], { type: 'image/svg+xml' });
+
+    expect([await blobMoves(still), await blobMoves(moving), await blobMoves(drawing)]).toEqual([false, true, true]);
+    expect(blobMoves(still)).toBe(blobMoves(still));
   });
 });
