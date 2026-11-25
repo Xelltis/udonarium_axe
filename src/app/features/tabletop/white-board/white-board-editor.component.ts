@@ -1161,6 +1161,11 @@ export class WhiteBoardEditorComponent {
    * A picture that moves is left out of the one the board wears, because the board hangs
    * that one over the top where it can go on moving. Every other canvas - the sheet being
    * drawn on, a picture saved to a file - takes the lot, standing still.
+   *
+   * What is left out has to be exactly what the board hangs, so the reading of each picture is
+   * waited for rather than asked about at once, where a picture still being read may answer "still".
+   * Words being typed over are shown in the box, so they are not drawn underneath as well, which
+   * would leave the old and the new overlapping.
    */
   private async paintMarks(ctx: CanvasRenderingContext2D, ruled: boolean, hangingLeftOut = false): Promise<void> {
     const items = this.scene.layers
@@ -1171,8 +1176,6 @@ export class WhiteBoardEditorComponent {
       .filter((url): url is string => !!url);
     if (urls.length > 0) await warmRasterImages(urls);
 
-    // What is left out has to be exactly what the board hangs, so the reading is waited for
-    // here rather than asked about again below, where a picture still being read answers "still".
     const moving = new Set<string>();
     if (hangingLeftOut) {
       const read = await Promise.all(
@@ -1194,8 +1197,6 @@ export class WhiteBoardEditorComponent {
           return url ? getRasterImage(url) : null;
         },
       },
-      // Words being typed over are shown in the box, so drawing them underneath as well
-      // would leave the old and the new overlapping.
       { drawGrid: ruled, hideTextId: this.retyping?.kind === 'text' ? this.retyping.id : undefined }
     );
   }
