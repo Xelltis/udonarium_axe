@@ -261,15 +261,38 @@ describe('OverviewPanelComponent', () => {
       expect([panel.style.left, panel.style.top]).toEqual([400 + 250 + 'px', 250 + 180 + 'px']);
     });
 
-    it('stays put once the reader has come onto it, however it grows, so what they reach for stays under the pointer', async () => {
+    it('stays put once the reader has moved the mouse over it, however it grows, so what they reach for stays under the pointer', async () => {
       const panel = await renderBeside();
       const top = panel.style.top;
 
-      panel.dispatchEvent(new Event('pointerenter'));
+      panel.dispatchEvent(new PointerEvent('pointermove', { movementX: 3, movementY: 0 }));
       sizePanel(panel, 250, 300);
       component.placeBesidePointer();
 
       expect(panel.style.top).toBe(top);
+    });
+
+    it('is not touched by opening under a mouse at rest, and keeps being placed as it grows', async () => {
+      const panel = await renderBeside();
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { movementX: 0, movementY: 0 }));
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+    });
+
+    it('stays put once the reader has pressed in it or focused it', async () => {
+      for (const touch of [new Event('pointerdown'), new Event('focusin')]) {
+        const panel = await renderBeside();
+        const top = panel.style.top;
+        panel.dispatchEvent(touch);
+        sizePanel(panel, 250, 300);
+        component.placeBesidePointer();
+        expect(panel.style.top).toBe(top);
+        fixture = TestBed.createComponent(OverviewPanelComponent);
+        component = fixture.componentInstance;
+      }
     });
 
     it('places itself again as its size is seen to change', async () => {

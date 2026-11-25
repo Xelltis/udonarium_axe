@@ -618,8 +618,15 @@ export class OverviewPanelComponent {
       this.placeBesidePointer();
       this.followOwnSize(() => this.placeBesidePointer());
       const panel: HTMLElement = this.draggablePanel().nativeElement;
-      const touched = () => (this.touched = true);
-      for (const kind of ['pointerenter', 'pointerdown', 'focusin'] as const) panel.addEventListener(kind, touched);
+      const touched = (event: Event) => {
+        const moved =
+          !(event instanceof PointerEvent) ||
+          event.type !== 'pointermove' ||
+          event.movementX !== 0 ||
+          event.movementY !== 0;
+        if (moved) this.touched = true;
+      };
+      for (const kind of ['pointermove', 'pointerdown', 'focusin'] as const) panel.addEventListener(kind, touched);
     });
   }
 
@@ -635,7 +642,8 @@ export class OverviewPanelComponent {
     if (!seat) return;
 
     const panel: HTMLElement = this.draggablePanel().nativeElement;
-    const anchor = edgeDetailAnchor(seat, panel.offsetWidth, panel.offsetHeight, window.innerWidth, window.innerHeight);
+    const view = panel.ownerDocument.defaultView ?? window;
+    const anchor = edgeDetailAnchor(seat, panel.offsetWidth, panel.offsetHeight, view.innerWidth, view.innerHeight);
     panel.style.left = anchor.left + 'px';
     panel.style.top = anchor.top + 'px';
     this.placementListener?.();
@@ -675,7 +683,8 @@ export class OverviewPanelComponent {
   /**
    * Places the detail beside the pointer, clear of it and of the piece under it and inside the window
    * it is in, by the box it is seen in (see `detailPlacement`), as it opens and again each time it
-   * grows or shrinks, until the reader has touched it: come onto it, pressed in it, or moved it.
+   * grows or shrinks, until the reader has touched it: moved the mouse over it, pressed in it, focused
+   * it, or moved it.
    */
   placeBesidePointer(): void {
     if (this.touched) return;
@@ -696,7 +705,10 @@ export class OverviewPanelComponent {
 
   /** Where the detail was last placed beside the pointer; null before it has been. */
   private placedBesidePointer: { readonly left: string; readonly top: string } | null = null;
-  /** Whether the reader has come onto the detail, pressed in it, or focused it, after which it stays put. */
+  /**
+   * Whether the reader has moved the mouse over the detail, pressed in it, or focused it, after which
+   * it stays put; a detail that opens under a mouse at rest is not touched by that.
+   */
   private touched = false;
 
   /** Opens or closes the enlarged view of the object's picture. */

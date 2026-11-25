@@ -294,6 +294,33 @@ describe('TooltipDirective', () => {
     expect(panels()).toHaveLength(0);
   });
 
+  it('opens a detail that arrives only where the mouse still rests on the piece, in the window it rests in', async () => {
+    TestBed.inject(TooltipPanelSource).panel = null;
+    let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
+    TestBed.inject(TooltipPanelSource).load = () => new Promise((resolve) => (deliver = resolve));
+    const layerFor = vi.spyOn(TestBed.inject(OverlayLayers), 'layerFor');
+
+    await hover('first-piece');
+    standAt(document.body, 0, 10);
+    deliver(StubTooltipPanelComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(panels()).toHaveLength(0);
+
+    await hover('first-piece');
+    expect(panels()).toHaveLength(4);
+    expect(layerFor).toHaveBeenCalledWith(document);
+  });
+
+  it('lets go of what it listened to once its panels are taken away with the window they stood in', async () => {
+    await hover('first-piece');
+    const letGo = vi.spyOn(document.body, 'removeEventListener');
+
+    host.panelHost().clear();
+
+    expect(letGo.mock.calls.map(([type]) => type)).toContain('mousedown');
+  });
+
   it('asks the reader to reload once when the detail cannot be fetched, and does not ask for it again', async () => {
     const source = TestBed.inject(TooltipPanelSource);
     source.panel = null;

@@ -66,6 +66,10 @@ export class TooltipPanelSource {
 interface TooltipSession {
   readonly refs: ComponentRef<TooltipPanelInstance>[];
   readonly seats: EdgeDetailSeat[] | null;
+  /** Where the mouse rested as the detail opened, or null for a tap. */
+  readonly at: MousePlace | null;
+  /** The window the detail opened in, which it is laid out by and closes with. */
+  readonly view: Window;
   deleteOff?: () => void;
   /** Stops watching the thing for being moved from where a detail was opened beside it. */
   movedOff?: () => void;
@@ -191,12 +195,12 @@ export class TooltipDirective {
    * the piece and the table under it stay in view. Only the one panel under the pointer
    * goes; the others carry the same reading for everyone else around the table.
    */
-  private hidePanelUnderPointer(
-    session: TooltipSession,
-    pointerX: number = this.pointerDeviceService.pointerX,
-    pointerY: number = this.pointerDeviceService.pointerY
-  ): void {
+  private hidePanelUnderPointer(session: TooltipSession, x?: number, y?: number): void {
     if (!session.seats) return;
+    const here = this.pointerDeviceService.mouseAt;
+    const inView = here !== null && here.document === session.view.document;
+    const pointerX = x ?? (inView ? here.x : this.pointerDeviceService.pointerX);
+    const pointerY = y ?? (inView ? here.y : this.pointerDeviceService.pointerY);
 
     // Without a pointer to keep clear of, every detail belongs on screen.
     const follows = !this.viewport.isTouch();
@@ -249,7 +253,8 @@ export class TooltipDirective {
   private startCloseTimer() {
     this.closeTooltipTimer = setTimeout(() => {
       this.closeTooltipTimer = null;
-      if (document.activeElement && this.containsInTooltip(document.activeElement)) {
+      const focused = (this.tooltipSession?.view.document ?? document).activeElement;
+      if (focused && this.containsInTooltip(focused)) {
         this.startCloseTimer();
       } else {
         this.closeAll();
@@ -273,7 +278,11 @@ export class TooltipDirective {
    * A fetch that fails asks the reader to reload the page, as any part of the app that cannot be
    * fetched does, and is not tried again: every hover would fail the same way.
    */
-  private fetchPanelThenOpen() {
+  /**
+   * Fetches the detail the first time it is asked for, and opens it once it has come where the mouse
+   * still rests on the host, as the mouse then is, or for a tap as a tap does.
+   */
+  private fetchPanelThenOpen(at: MousePlace | null) {
     const load = this.panels.load;
     if (!load || this.panels.failed) return;
     this.waitingForPanel = true;
@@ -282,7 +291,11 @@ export class TooltipDirective {
     void load()
       .then((panelClass) => {
         this.panels.panel = panelClass;
-        if (this.waitingForPanel) this.open();
+        if (!this.waitingForPanel) return;
+        const now = this.pointerDeviceService.mouseAt;
+        if (!at) this.open();
+        else if (now && this.isTopmostAt(now)) this.open(now);
+        else this.stopWaitingForPanel();
       })
       .catch((reason: unknown) => {
         Logger.warn('[Tooltip] コマの詳細を読み込めませんでした', reason);
@@ -314,7 +327,7 @@ export class TooltipDirective {
     if (this.pointerDeviceService.isDragging || this.off() || !tabletopObject) return;
     const panelClass = this.panels.panel;
     if (!panelClass) {
-      this.fetchPanelThenOpen();
+      this.fetchPanelThenOpen(at);
       return;
     }
     this.stopWaitingForPanel();
@@ -323,9 +336,10 @@ export class TooltipDirective {
       ? (this.overlays.layerFor(at.document) ?? this.overlays.mainLayer())
       : this.overlays.front();
     const injector = parentViewContainerRef.injector;
-    const seats = this.edgeSeats();
+    const view = at?.document.defaultView ?? window;
+    const seats = this.edgeSeats(view);
     const refs: ComponentRef<TooltipPanelInstance>[] = [];
-    const session: TooltipSession = { refs, seats, detach: () => {} };
+    const session: TooltipSession = { refs, seats, at, view, detach: () => {} };
     this.tooltipSession = session;
 
     for (const seat of seats ?? [null]) {
@@ -352,6 +366,7 @@ export class TooltipDirective {
       componentRef.onDestroy(() => {
         const index = refs.indexOf(componentRef);
         if (index >= 0) refs.splice(index, 1);
+        if (refs.length === 0 && this.tooltipSession === session) this.close();
       });
       refs.push(componentRef);
     }
@@ -372,16 +387,16 @@ export class TooltipDirective {
     const followViewport = debounce(() => this.onViewportChanged(session), VIEWPORT_FOLLOW_DELAY_MS);
     const host = this.viewContainerRef.element.nativeElement as Element;
     if (seats) {
-      window.addEventListener('resize', followViewport, false);
-      window.addEventListener('orientationchange', followViewport, false);
+      view.addEventListener('resize', followViewport, false);
+      view.addEventListener('orientationchange', followViewport, false);
       host.addEventListener('mousemove', this.callbackOnMouseMove, false);
     }
     session.detach = () => {
       pressedIn.removeEventListener('touchstart', this.callbackOnMouseDown, true);
       pressedIn.removeEventListener('mousedown', this.callbackOnMouseDown, true);
       if (seats) {
-        window.removeEventListener('resize', followViewport, false);
-        window.removeEventListener('orientationchange', followViewport, false);
+        view.removeEventListener('resize', followViewport, false);
+        view.removeEventListener('orientationchange', followViewport, false);
         host.removeEventListener('mousemove', this.callbackOnMouseMove, false);
       }
       followViewport.cancel();
@@ -390,23 +405,23 @@ export class TooltipDirective {
     TooltipDirective.activeOwner = this;
   }
 
-  /** The seats to fill, or null when the detail belongs beside the piece as it always has. */
-  private edgeSeats(): EdgeDetailSeat[] | null {
+  /** The seats to fill in the window the detail opens in, or null when the detail belongs beside the piece as it always has. */
+  private edgeSeats(view: Window): EdgeDetailSeat[] | null {
     const display = this.tabletopService.display();
     if (!this.tabletopService.mode2d() || asHoverDetailPlacement(display.hoverDetailPlacement) !== 'screen-edges') {
       return null;
     }
-    return makeEdgeDetailSeats(window.innerWidth, window.innerHeight);
+    return makeEdgeDetailSeats(view.innerWidth, view.innerHeight);
   }
 
   /** A screen that changed shape may want other seats; one that only grew just wants the panels moved. */
   private onViewportChanged(session: TooltipSession): void {
     if (this.tooltipSession !== session || !session.seats) return;
 
-    if (!sameEdgeDetailSeats(session.seats, makeEdgeDetailSeats(window.innerWidth, window.innerHeight))) {
+    if (!sameEdgeDetailSeats(session.seats, makeEdgeDetailSeats(session.view.innerWidth, session.view.innerHeight))) {
       // Building the seats again clears the timers, so a detail on its way out keeps going.
       const wasClosing = this.closeTooltipTimer !== null;
-      this.open();
+      this.open(session.at);
       if (wasClosing && this.hasTooltip()) this.startCloseTimer();
       return;
     }
