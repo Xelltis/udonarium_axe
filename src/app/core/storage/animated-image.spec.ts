@@ -4,7 +4,7 @@ function bytesOf(...parts: (readonly number[] | string)[]): ArrayBuffer {
   const bytes: number[] = [];
   for (const part of parts) {
     if (typeof part === 'string') for (const char of part) bytes.push(char.charCodeAt(0));
-    else bytes.push(...part);
+    else for (const byte of part) bytes.push(byte);
   }
   return new Uint8Array(bytes).buffer;
 }
