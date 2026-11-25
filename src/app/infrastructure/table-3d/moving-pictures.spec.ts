@@ -241,7 +241,7 @@ describe('MovingPictures', () => {
     expect(first.image).toBeInstanceOf(HTMLCanvasElement);
   });
 
-  it('reads a picture that could not be read again a while later, a few times, with nothing new wearing it', async () => {
+  it('reads a picture that could not be read again a while later, and for a new wearer, no more than a few times in all', async () => {
     vi.useFakeTimers();
     try {
       const read = vi.fn(async () => {
@@ -250,6 +250,8 @@ describe('MovingPictures', () => {
       const pictures = new MovingPictures(() => undefined, read);
       pictures.follow('blob:apng', new Texture());
 
+      await vi.advanceTimersByTimeAsync(1000);
+      pictures.follow('blob:apng', new Texture());
       for (let wait = 0; wait < 5; wait++) await vi.advanceTimersByTimeAsync(5000);
 
       expect(read).toHaveBeenCalledTimes(3);

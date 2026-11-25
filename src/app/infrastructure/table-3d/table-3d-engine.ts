@@ -269,6 +269,8 @@ class ThreeTableEngine implements Table3dEngine {
   /** The pictures painted ground is drawn with, read the first time any ground is painted. */
   private groundPictures: Texture[] | null = null;
   private readonly loaded = new Map<string, Texture>();
+  /** The shared pictures a face of a block or a wall wears, which throw a shadow cut to them. */
+  private readonly facePictures = new Set<Texture>();
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
   private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
@@ -727,7 +729,9 @@ class ThreeTableEngine implements Table3dEngine {
   private forgetPictures(world: TableWorld): void {
     const worn = wornPictures(world);
     for (const key of unwornPictureKeys(this.loaded.keys(), worn)) {
-      this.loaded.get(key)!.dispose();
+      const picture = this.loaded.get(key)!;
+      this.facePictures.delete(picture);
+      picture.dispose();
       this.loaded.delete(key);
     }
     for (const [look, material] of this.looks) {
@@ -1246,20 +1250,25 @@ class ThreeTableEngine implements Table3dEngine {
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
     return faceMaterialOf(
       face,
-      (url, tiled) => this.sharedPicture(url, tiled, true),
+      (url, tiled) => {
+        const picture = this.sharedPicture(url, tiled);
+        this.facePictures.add(picture);
+        return picture;
+      },
       (material, taking) => this.veil.cover(material, taking, true)
     );
   }
 
   /**
-   * A picture shared by everything that wears it the same way, tiled or stretched; a face of a block or
-   * a wall, which throws a shadow cut to it, wears one of its own, whose frames draw the shadows again.
+   * A picture shared by everything that wears it the same way, tiled or stretched. Where a face of a
+   * block or a wall wears it, a shadow is cut to it, and its frames draw the shadows again.
    */
-  private sharedPicture(url: string, tiled: boolean, castsShadow = false): Texture {
-    const key = pictureKey(url, `${tiled}${castsShadow ? '|shadow' : ''}`);
+  private sharedPicture(url: string, tiled: boolean): Texture {
+    const key = pictureKey(url, String(tiled));
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url, undefined, { shadows: castsShadow });
+      const shared: Texture = this.picture(url, undefined, { shadows: () => this.facePictures.has(shared) });
+      picture = shared;
       if (tiled) picture.wrapS = picture.wrapT = RepeatWrapping;
       this.loaded.set(key, picture);
     }

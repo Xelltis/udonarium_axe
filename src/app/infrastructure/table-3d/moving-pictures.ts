@@ -72,6 +72,8 @@ interface Moving {
   failed: boolean;
   /** How many times it has been read. */
   tries: number;
+  /** The wait before it is read again, where one is set. */
+  again: ReturnType<typeof setTimeout> | null;
   drawing: boolean;
   drawn: boolean;
   done: boolean;
@@ -137,15 +139,15 @@ export class MovingPictures {
         heldAtMs: null,
         failed: false,
         tries: 0,
+        again: null,
         drawing: false,
         drawn: false,
         done: false,
       };
       this.moving.set(url, moving);
       this.readInto(url, moving);
-    } else if (moving.failed) {
-      moving.failed = false;
-      this.readInto(url, moving);
+    } else if (moving.failed && moving.tries < READ_TRIES) {
+      this.readAgain(url, moving);
     }
     moving.wearers.add(wearer);
     if (moving.drawn && moving.canvas) this.dress(wearer, moving.canvas);
@@ -284,13 +286,20 @@ export class MovingPictures {
         if (this.moving.get(url) !== moving || this.closed) return;
         moving.failed = true;
         if (moving.tries >= READ_TRIES) return;
-        setTimeout(() => {
-          if (this.moving.get(url) !== moving || !moving.failed || this.closed) return;
-          moving.failed = false;
-          this.readInto(url, moving);
+        moving.again = setTimeout(() => {
+          moving.again = null;
+          if (this.moving.get(url) === moving && moving.failed && !this.closed) this.readAgain(url, moving);
         }, READ_AGAIN_MS);
       }
     );
+  }
+
+  /** Reads a picture that could not be read again, calling off a wait for it set before. */
+  private readAgain(url: string, moving: Moving): void {
+    if (moving.again !== null) clearTimeout(moving.again);
+    moving.again = null;
+    moving.failed = false;
+    this.readInto(url, moving);
   }
 
   /** Draws a frame of a picture and has every wearer wear it; its time counted from a moment, or from the next advance for none. */
@@ -337,6 +346,8 @@ export class MovingPictures {
     const moving = this.moving.get(url);
     if (!moving) return;
     this.moving.delete(url);
+    if (moving.again !== null) clearTimeout(moving.again);
+    moving.again = null;
     moving.source?.close();
     moving.source = null;
   }
