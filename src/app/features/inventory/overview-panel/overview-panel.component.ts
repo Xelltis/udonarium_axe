@@ -612,11 +612,11 @@ export class OverviewPanelComponent {
     afterNextRender(() => {
       if (this.edgeSeat) {
         this.applyEdgePlacement();
-        this.followOwnSize();
+        this.followOwnSize(() => this.applyEdgePlacement());
         return;
       }
-      this.initPanelPosition();
-      this.adjustPositionRoot();
+      this.placeBesidePointer();
+      this.followOwnSize(() => this.placeBesidePointer());
     });
   }
 
@@ -657,22 +657,42 @@ export class OverviewPanelComponent {
     this.draggablePanel().nativeElement.style.visibility = hidden ? 'hidden' : '';
   }
 
-  /** A detail grows as its picture and its numbers arrive, and has to keep its distance from the edge. */
-  private followOwnSize(): void {
+  /**
+   * A detail grows as its picture and its numbers arrive, and has to keep its distance from the edge
+   * it is pinned to, or from the pointer and the piece under it.
+   */
+  private followOwnSize(place: () => void): void {
     if (typeof ResizeObserver !== 'function') return;
 
-    const observer = new ResizeObserver(() => this.applyEdgePlacement());
+    const observer = new ResizeObserver(place);
     observer.observe(this.draggablePanel().nativeElement);
     this.destroyRef.onDestroy(() => observer.disconnect());
   }
 
-  /** Opens the detail beside the pointer, clear of it and of the piece under it (see `detailPlacement`). */
+  /**
+   * Places the detail beside the pointer, clear of it and of the piece under it (see
+   * `detailPlacement`), as it opens and again each time it grows or shrinks, until the reader moves it
+   * somewhere else.
+   */
+  placeBesidePointer(): void {
+    const panel: HTMLElement = this.draggablePanel().nativeElement;
+    const placed = this.placedBesidePointer;
+    if (placed && (panel.style.left !== placed.left || panel.style.top !== placed.top)) return;
+    this.initPanelPosition();
+    this.adjustPositionRoot();
+    this.placedBesidePointer = { left: panel.style.left, top: panel.style.top };
+  }
+
+  /** Where the detail was last placed beside the pointer; null before it has been. */
+  private placedBesidePointer: { readonly left: string; readonly top: string } | null = null;
+
   private initPanelPosition() {
     const panel: HTMLElement = this.draggablePanel().nativeElement;
     const { left, top } = detailPlacement(
       { x: this.left, y: this.top },
       { width: panel.offsetWidth, height: panel.offsetHeight },
-      { width: window.innerWidth, height: window.innerHeight }
+      { width: window.innerWidth, height: window.innerHeight },
+      this.rotationDegrees
     );
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';

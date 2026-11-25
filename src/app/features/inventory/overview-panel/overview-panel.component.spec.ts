@@ -214,6 +214,65 @@ describe('OverviewPanelComponent', () => {
     });
   });
 
+  describe('a detail opened beside the pointer', () => {
+    /** Gives the panel a size, and lays it out where its style puts it, as happy-dom lays nothing out. */
+    function sizePanel(panel: HTMLElement, width: number, height: number): void {
+      const at = (side: 'left' | 'top') => parseFloat(panel.style[side]) || 0;
+      Object.defineProperty(panel, 'offsetWidth', { value: width, configurable: true });
+      Object.defineProperty(panel, 'offsetHeight', { value: height, configurable: true });
+      Object.defineProperty(panel, 'offsetLeft', { get: () => at('left'), configurable: true });
+      Object.defineProperty(panel, 'offsetTop', { get: () => at('top'), configurable: true });
+      panel.getBoundingClientRect = () => new DOMRect(at('left'), at('top'), width, height);
+    }
+
+    async function renderBeside(): Promise<HTMLElement> {
+      component.tabletopObject = GameCharacter.create('pointer-detail-test', 1, '');
+      component.left = 300;
+      component.top = 500;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
+      sizePanel(panel, 250, 180);
+      component.placeBesidePointer();
+      return panel;
+    }
+
+    it('places itself again as it grows, its foot kept above the pointer', async () => {
+      const panel = await renderBeside();
+      expect(panel.style.top).toBe(500 - 180 - 50 + 'px');
+
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+    });
+
+    it('places a detail turned half round by the box it is seen in, below a pointer near the top', async () => {
+      component.tabletopObject = GameCharacter.create('turned-detail-test', 1, '');
+      component.rotationDegrees = 180;
+      component.left = 300;
+      component.top = 200;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
+      sizePanel(panel, 250, 180);
+      component.placeBesidePointer();
+
+      expect([panel.style.left, panel.style.top]).toEqual([400 + 250 + 'px', 250 + 180 + 'px']);
+    });
+
+    it('stays where the reader moved it, however it grows', async () => {
+      const panel = await renderBeside();
+      panel.style.left = '20px';
+      panel.style.top = '30px';
+
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect([panel.style.left, panel.style.top]).toEqual(['20px', '30px']);
+    });
+  });
+
   describe('a detail pinned to a screen edge', () => {
     const bottomSeat = { edge: 'bottom', rotationDegrees: 0, alongEdgeRatio: 0.5 } as const;
 

@@ -109,8 +109,11 @@ export class TooltipDirective {
   private callbackOnMouseDown = (e: Event) => this.onMouseDown(e as MouseEvent);
   private callbackOnMouseMove = (e: Event) => this.onMouseMove(e as MouseEvent);
   private callbackOnPressWhileWaiting = (e: Event) => this.onPressWhileWaiting(e);
+  private callbackOnPointerOver = (e: Event) => this.notePointer(e as MouseEvent);
 
   private openTooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Where the pointer was last told to be on the host, in the host's own window; null before it came onto it. */
+  private pointerOnHost: { readonly x: number; readonly y: number } | null = null;
   private closeTooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private waitingForPanel = false;
 
@@ -155,7 +158,12 @@ export class TooltipDirective {
     this.outer?.clearTimer();
     this.clearTimer();
     this.tooltipRotationDegrees = this.rotationDegreesAt(e.clientX, e.clientY);
+    this.notePointer(e);
     if (!this.hasTooltip()) this.startOpenTimer();
+  }
+
+  private notePointer(e: MouseEvent) {
+    this.pointerOnHost = { x: e.clientX, y: e.clientY };
   }
 
   private onMouseLeave(e: MouseEvent) {
@@ -217,25 +225,29 @@ export class TooltipDirective {
   }
 
   /**
-   * Waits a moment to open the detail, starting over while the pointer moves about on the piece. Once
-   * the pointer is on anything else, it waits no more and opens nothing, whether it moved there or a
-   * panel came over the piece under it: it may have gone off the piece without the piece hearing of it,
-   * as when the piece came under a pointer that then moved on, and the detail would open wherever it
-   * next rests, over what it rests on.
+   * Waits a moment to open the detail, starting over while the pointer moves about on the host, and
+   * opens it once the pointer rests where the host is the topmost thing under it. The pointer is read
+   * as the host is told of it, in the host's own window, so a host in a window of its own and a host
+   * that came under a pointer at rest, as the table scrolls under it, open alike; and what stands
+   * over the host there, as a panel opened over it, takes the pointer from it, so nothing opens over
+   * what the pointer rests on.
    */
   private startOpenTimer() {
-    const pointerX = this.pointerDeviceService.pointerX;
-    const pointerY = this.pointerDeviceService.pointerY;
-
+    const from = this.pointerOnHost;
     this.openTooltipTimer = setTimeout(() => {
       this.openTooltipTimer = null;
-      const magnitude =
-        (pointerX - this.pointerDeviceService.pointerX) ** 2 + (pointerY - this.pointerDeviceService.pointerY) ** 2;
-      const host = this.viewContainerRef.element.nativeElement as Element;
-      if (!host.contains(this.pointerDeviceService.targetElement)) return;
-      if (magnitude > HOVER_STILL_PX ** 2) this.startOpenTimer();
-      else this.open();
+      const at = this.pointerOnHost;
+      if (!from || !at) return;
+      if ((from.x - at.x) ** 2 + (from.y - at.y) ** 2 > HOVER_STILL_PX ** 2) this.startOpenTimer();
+      else if (this.isTopmostAt(at)) this.open();
     }, OPEN_DELAY_MS);
+  }
+
+  /** Whether the host is the topmost thing at a point of its own window, or holds what is. */
+  private isTopmostAt(at: { readonly x: number; readonly y: number }): boolean {
+    const host = this.viewContainerRef.element.nativeElement as Element;
+    const topmost = host.ownerDocument.elementFromPoint(at.x, at.y);
+    return topmost !== null && host.contains(topmost);
   }
 
   private startCloseTimer() {
@@ -435,11 +447,13 @@ export class TooltipDirective {
   private addEventListeners(element: Element) {
     element.addEventListener('mouseenter', this.callbackOnMouseEnter, false);
     element.addEventListener('mouseleave', this.callbackOnMouseLeave, false);
+    element.addEventListener('mousemove', this.callbackOnPointerOver, false);
   }
 
   private removeEventListeners(element: Element) {
     element.removeEventListener('mouseenter', this.callbackOnMouseEnter, false);
     element.removeEventListener('mouseleave', this.callbackOnMouseLeave, false);
+    element.removeEventListener('mousemove', this.callbackOnPointerOver, false);
   }
 }
 

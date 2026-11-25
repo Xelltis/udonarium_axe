@@ -113,8 +113,17 @@ describe('TooltipDirective', () => {
     return character;
   }
 
+  /** What stands topmost at each point of the page, as the browser would answer; happy-dom lays nothing out. */
+  const topmost = new Map<string, Element>();
+
+  /** Puts a thing topmost at a point of the page, as a panel opened there would stand. */
+  function standAt(target: Element, clientX: number, clientY: number): void {
+    topmost.set(`${clientX},${clientY}`, target);
+  }
+
   /** Moves the pointer onto a target, giving the event the place on the page happy-dom leaves out of a made one. */
   function moveTo(target: Element, clientX: number, clientY: number): void {
+    standAt(target, clientX, clientY);
     const move = new MouseEvent('mousemove', { clientX, clientY, bubbles: true });
     Object.defineProperties(move, { pageX: { value: clientX }, pageY: { value: clientY } });
     target.dispatchEvent(move);
@@ -164,9 +173,12 @@ describe('TooltipDirective', () => {
     // The open, close and follow delays are stepped over rather than sat through. The clock still
     // runs with real time, so waiting for Angular to settle is not left stranded.
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(document, 'elementFromPoint').mockImplementation((x, y) => topmost.get(`${x},${y}`) ?? null);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
+    topmost.clear();
     vi.useRealTimers();
     fixture.destroy();
     for (const character of characters.splice(0)) character.destroy();
@@ -183,26 +195,24 @@ describe('TooltipDirective', () => {
   });
 
   describe('a pointer moving on before the detail opens', () => {
-    it('opens nothing once it has gone off the piece, though the piece never heard it leave', async () => {
+    it('opens nothing where something has come over the piece under a pointer at rest, as a panel opened over it', async () => {
       const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
-      moveTo(piece, 0, 10);
-      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+      enter(piece, 0, 10);
 
-      moveTo(document.body, 400, 300);
+      standAt(document.body, 0, 10);
       await wait(OPEN_WAIT_MS * 3);
 
       expect(panels()).toHaveLength(0);
     });
 
-    it('opens nothing where something has come over the piece under a pointer at rest, as a panel opened over it', async () => {
+    it('opens for a piece that comes under a pointer at rest, told of it by the pointer coming into it alone', async () => {
       const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
-      moveTo(piece, 0, 10);
-      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+      standAt(piece, 30, 40);
+      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 30, clientY: 40 }));
 
-      moveTo(document.body, 0, 10);
       await wait(OPEN_WAIT_MS * 3);
 
-      expect(panels()).toHaveLength(0);
+      expect(panels()).toHaveLength(4);
     });
 
     it('still opens once it comes to rest after moving about on the piece', async () => {
@@ -345,7 +355,10 @@ describe('TooltipDirective', () => {
     it('gives way to the detail of the piece when the pointer leaves the row for the rest of the piece', async () => {
       await hoverRow();
 
-      element('part-row').dispatchEvent(new MouseEvent('mouseleave', { relatedTarget: element('body-picture') }));
+      standAt(element('body-picture'), 0, 30);
+      element('part-row').dispatchEvent(
+        new MouseEvent('mouseleave', { relatedTarget: element('body-picture'), clientX: 0, clientY: 30 })
+      );
       await wait(OPEN_WAIT_MS);
 
       expect(shown()).toEqual([host.body]);
