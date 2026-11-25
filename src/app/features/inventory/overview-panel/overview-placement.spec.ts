@@ -35,4 +35,10 @@ describe('detailPlacement', () => {
     const back = detailPlacement({ x: 300, y: 500 }, size, screen, 270);
     expect({ left: back.left, top: back.top - size.width }).toEqual(seen);
   });
+
+  it('turns a detail turned a quarter round to the left of the pointer by the width it is seen at, where it does not fit to the right', () => {
+    const turned = detailPlacement({ x: 1100, y: 500 }, { width: 600, height: 150 }, screen, 90);
+
+    expect(turned.left - 150).toBe(1100 - 150 - 100);
+  });
 });

@@ -261,6 +261,39 @@ describe('OverviewPanelComponent', () => {
       expect([panel.style.left, panel.style.top]).toEqual([400 + 250 + 'px', 250 + 180 + 'px']);
     });
 
+    it('stays put once the reader has come onto it, however it grows, so what they reach for stays under the pointer', async () => {
+      const panel = await renderBeside();
+      const top = panel.style.top;
+
+      panel.dispatchEvent(new Event('pointerenter'));
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect(panel.style.top).toBe(top);
+    });
+
+    it('places itself again as its size is seen to change', async () => {
+      let resized: () => void = () => undefined;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: () => void) {
+            resized = callback;
+          }
+          observe() {}
+          disconnect() {}
+        }
+      );
+      try {
+        const panel = await renderBeside();
+        sizePanel(panel, 250, 300);
+        resized();
+        expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
     it('stays where the reader moved it, however it grows', async () => {
       const panel = await renderBeside();
       panel.style.left = '20px';

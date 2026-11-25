@@ -8,6 +8,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
@@ -194,10 +195,11 @@ describe('TooltipDirective', () => {
     expect(fixture.nativeElement.querySelectorAll('[data-testid="stub-panel"]')).toHaveLength(4);
   });
 
-  describe('a pointer moving on before the detail opens', () => {
-    it('opens nothing where something has come over the piece under a pointer at rest, as a panel opened over it', async () => {
-      const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
-      enter(piece, 0, 10);
+  describe('where the mouse rests as the detail opens', () => {
+    const piece = () => fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+
+    it('opens nothing where something has come over the piece under a mouse at rest, as a panel opened over it', async () => {
+      enter(piece(), 0, 10);
 
       standAt(document.body, 0, 10);
       await wait(OPEN_WAIT_MS * 3);
@@ -205,25 +207,48 @@ describe('TooltipDirective', () => {
       expect(panels()).toHaveLength(0);
     });
 
-    it('opens for a piece that comes under a pointer at rest, told of it by the pointer coming into it alone', async () => {
-      const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
-      standAt(piece, 30, 40);
-      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 30, clientY: 40 }));
+    it('opens nothing once the mouse has gone off the piece, though the piece never heard it leave', async () => {
+      enter(piece(), 0, 10);
+
+      moveTo(document.body, 400, 300);
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('opens nothing while the mouse keeps moving on the piece, and opens once it rests', async () => {
+      enter(piece(), 0, 10);
+      const body = fixture.nativeElement.querySelector('[data-testid="piece-body"]') as HTMLElement;
+
+      for (let step = 1; step <= 4; step++) {
+        moveTo(body, step * 10, 10);
+        await wait(OPEN_WAIT_MS / 2);
+      }
+      expect(panels()).toHaveLength(0);
+
+      await wait(OPEN_WAIT_MS * 3);
+      expect(panels()).toHaveLength(4);
+    });
+
+    it('opens for a piece that comes under a mouse at rest, told of it by the mouse coming onto it alone', async () => {
+      standAt(piece(), 30, 40);
+      piece().dispatchEvent(new MouseEvent('mouseover', { clientX: 30, clientY: 40, bubbles: true }));
+      piece().dispatchEvent(new MouseEvent('mouseenter', { clientX: 30, clientY: 40 }));
 
       await wait(OPEN_WAIT_MS * 3);
 
       expect(panels()).toHaveLength(4);
     });
 
-    it('still opens once it comes to rest after moving about on the piece', async () => {
-      const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
-      moveTo(piece, 0, 10);
-      piece.dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+    it('opens nothing for a piece in another window than the one the mouse rests in', async () => {
+      enter(piece(), 0, 10);
+      const elsewhere = document.implementation.createHTMLDocument('elsewhere');
+      vi.spyOn(elsewhere, 'elementFromPoint').mockReturnValue(piece());
+      TestBed.inject(PointerDeviceService).mouseAt = { document: elsewhere, x: 0, y: 10 };
 
-      moveTo(fixture.nativeElement.querySelector('[data-testid="piece-body"]'), 8, 14);
       await wait(OPEN_WAIT_MS * 3);
 
-      expect(panels()).toHaveLength(4);
+      expect(panels()).toHaveLength(0);
     });
   });
 

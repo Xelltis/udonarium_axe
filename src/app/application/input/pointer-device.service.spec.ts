@@ -1,6 +1,7 @@
 import { ApplicationRef, effect, Injector, signal } from '@angular/core';
 import { inject, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 
 describe('PointerDeviceService', () => {
   let service: PointerDeviceService;
@@ -186,5 +187,23 @@ describe('PointerDeviceService', () => {
     document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
     expect(service.isDragging).toBe(true);
+  });
+
+  it('hears where the mouse rests in the main window and in a window a panel was taken out into, and no more once it closes', () => {
+    document.body.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 10, clientY: 20 }));
+    expect(service.mouseAt).toEqual({ document, x: 10, y: 20 });
+
+    const abroad = document.implementation.createHTMLDocument('abroad');
+    AttachedDocuments.attach(abroad);
+    try {
+      abroad.body.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 30, clientY: 40 }));
+      expect(service.mouseAt).toEqual({ document: abroad, x: 30, y: 40 });
+    } finally {
+      AttachedDocuments.detach(abroad);
+    }
+
+    abroad.body.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 50, clientY: 60 }));
+    expect(service.mouseAt?.document).toBe(abroad);
+    expect(service.mouseAt?.x).toBe(30);
   });
 });

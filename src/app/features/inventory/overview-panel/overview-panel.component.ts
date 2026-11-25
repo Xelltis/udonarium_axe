@@ -617,6 +617,9 @@ export class OverviewPanelComponent {
       }
       this.placeBesidePointer();
       this.followOwnSize(() => this.placeBesidePointer());
+      const panel: HTMLElement = this.draggablePanel().nativeElement;
+      const touched = () => (this.touched = true);
+      for (const kind of ['pointerenter', 'pointerdown', 'focusin'] as const) panel.addEventListener(kind, touched);
     });
   }
 
@@ -670,80 +673,31 @@ export class OverviewPanelComponent {
   }
 
   /**
-   * Places the detail beside the pointer, clear of it and of the piece under it (see
-   * `detailPlacement`), as it opens and again each time it grows or shrinks, until the reader moves it
-   * somewhere else.
+   * Places the detail beside the pointer, clear of it and of the piece under it and inside the window
+   * it is in, by the box it is seen in (see `detailPlacement`), as it opens and again each time it
+   * grows or shrinks, until the reader has touched it: come onto it, pressed in it, or moved it.
    */
   placeBesidePointer(): void {
+    if (this.touched) return;
     const panel: HTMLElement = this.draggablePanel().nativeElement;
     const placed = this.placedBesidePointer;
     if (placed && (panel.style.left !== placed.left || panel.style.top !== placed.top)) return;
-    this.initPanelPosition();
-    this.adjustPositionRoot();
+    const view = panel.ownerDocument.defaultView ?? window;
+    const { left, top } = detailPlacement(
+      { x: this.left, y: this.top },
+      { width: panel.offsetWidth, height: panel.offsetHeight },
+      { width: view.innerWidth, height: view.innerHeight },
+      this.rotationDegrees
+    );
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
     this.placedBesidePointer = { left: panel.style.left, top: panel.style.top };
   }
 
   /** Where the detail was last placed beside the pointer; null before it has been. */
   private placedBesidePointer: { readonly left: string; readonly top: string } | null = null;
-
-  private initPanelPosition() {
-    const panel: HTMLElement = this.draggablePanel().nativeElement;
-    const { left, top } = detailPlacement(
-      { x: this.left, y: this.top },
-      { width: panel.offsetWidth, height: panel.offsetHeight },
-      { width: window.innerWidth, height: window.innerHeight },
-      this.rotationDegrees
-    );
-    panel.style.left = left + 'px';
-    panel.style.top = top + 'px';
-  }
-
-  private adjustPositionRoot() {
-    const panel: HTMLElement = this.draggablePanel().nativeElement;
-
-    const alias = this.tabletopObject?.aliasName;
-    let width: number = 250;
-
-    if (alias === 'card') {
-      width = this.overViewCardWidth;
-    }
-
-    if (alias === 'card-stack') {
-      width = this.overViewCardWidth;
-    }
-
-    if (alias === 'text-note') {
-      width = this.overViewNoteWidth;
-    }
-
-    if (alias === 'character') {
-      width = this.overViewCharacterWidth;
-    }
-
-    const panelBox = panel.getBoundingClientRect();
-
-    let diffLeft: number = 0;
-    let diffTop: number = 0;
-    const panelLeft: number = Number(panelBox.left);
-    const panelRight: number = Number(panelBox.left) + Number(width);
-
-    if (window.innerWidth < panelRight + diffLeft) {
-      diffLeft += window.innerWidth - (panelRight + diffLeft);
-    }
-    if (panelLeft + diffLeft < 0) {
-      diffLeft += 0 - (panelLeft + diffLeft);
-    }
-
-    if (window.innerHeight < panelBox.bottom + diffTop) {
-      diffTop += window.innerHeight - (panelBox.bottom + diffTop);
-    }
-    if (panelBox.top + diffTop < 0) {
-      diffTop += 0 - (panelBox.top + diffTop);
-    }
-
-    panel.style.left = panel.offsetLeft + diffLeft + 'px';
-    panel.style.top = panel.offsetTop + diffTop + 'px';
-  }
+  /** Whether the reader has come onto the detail, pressed in it, or focused it, after which it stays put. */
+  private touched = false;
 
   /** Opens or closes the enlarged view of the object's picture. */
   chanageImageView(isOpen: boolean) {

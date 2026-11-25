@@ -10,7 +10,7 @@ import {
   Type,
   ViewContainerRef,
 } from '@angular/core';
-import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { type MousePlace, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
@@ -109,11 +109,8 @@ export class TooltipDirective {
   private callbackOnMouseDown = (e: Event) => this.onMouseDown(e as MouseEvent);
   private callbackOnMouseMove = (e: Event) => this.onMouseMove(e as MouseEvent);
   private callbackOnPressWhileWaiting = (e: Event) => this.onPressWhileWaiting(e);
-  private callbackOnPointerOver = (e: Event) => this.notePointer(e as MouseEvent);
 
   private openTooltipTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Where the pointer was last told to be on the host, in the host's own window; null before it came onto it. */
-  private pointerOnHost: { readonly x: number; readonly y: number } | null = null;
   private closeTooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private waitingForPanel = false;
 
@@ -158,12 +155,7 @@ export class TooltipDirective {
     this.outer?.clearTimer();
     this.clearTimer();
     this.tooltipRotationDegrees = this.rotationDegreesAt(e.clientX, e.clientY);
-    this.notePointer(e);
     if (!this.hasTooltip()) this.startOpenTimer();
-  }
-
-  private notePointer(e: MouseEvent) {
-    this.pointerOnHost = { x: e.clientX, y: e.clientY };
   }
 
   private onMouseLeave(e: MouseEvent) {
@@ -225,28 +217,32 @@ export class TooltipDirective {
   }
 
   /**
-   * Waits a moment to open the detail, starting over while the pointer moves about on the host, and
-   * opens it once the pointer rests where the host is the topmost thing under it. The pointer is read
-   * as the host is told of it, in the host's own window, so a host in a window of its own and a host
-   * that came under a pointer at rest, as the table scrolls under it, open alike; and what stands
-   * over the host there, as a panel opened over it, takes the pointer from it, so nothing opens over
-   * what the pointer rests on.
+   * Waits a moment to open the detail, starting over while the mouse moves, and opens it once the
+   * mouse rests where the host is the topmost thing under it, beside the mouse in the window the host
+   * is in. Where the mouse is comes from the one place that hears it in every window of the app (see
+   * `PointerDeviceService.mouseAt`), so the mouse having moved on without the host hearing it leave,
+   * something having come over the host, a host coming under a mouse at rest, and a host in a window
+   * of its own are all one question: what is topmost where the mouse rests now.
    */
   private startOpenTimer() {
-    const from = this.pointerOnHost;
+    const from = this.pointerDeviceService.mouseAt;
     this.openTooltipTimer = setTimeout(() => {
       this.openTooltipTimer = null;
-      const at = this.pointerOnHost;
+      const at = this.pointerDeviceService.mouseAt;
       if (!from || !at) return;
-      if ((from.x - at.x) ** 2 + (from.y - at.y) ** 2 > HOVER_STILL_PX ** 2) this.startOpenTimer();
-      else if (this.isTopmostAt(at)) this.open();
+      if (at.document !== from.document || (from.x - at.x) ** 2 + (from.y - at.y) ** 2 > HOVER_STILL_PX ** 2) {
+        this.startOpenTimer();
+        return;
+      }
+      if (this.isTopmostAt(at)) this.open(at);
     }, OPEN_DELAY_MS);
   }
 
-  /** Whether the host is the topmost thing at a point of its own window, or holds what is. */
-  private isTopmostAt(at: { readonly x: number; readonly y: number }): boolean {
+  /** Whether the host is the topmost thing where the mouse is, in the host's own window, or holds what is. */
+  private isTopmostAt(at: MousePlace): boolean {
     const host = this.viewContainerRef.element.nativeElement as Element;
-    const topmost = host.ownerDocument.elementFromPoint(at.x, at.y);
+    if (at.document !== host.ownerDocument) return false;
+    const topmost = at.document.elementFromPoint(at.x, at.y);
     return topmost !== null && host.contains(topmost);
   }
 
@@ -308,7 +304,11 @@ export class TooltipDirective {
     document.body.removeEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
   }
 
-  private open() {
+  /**
+   * Opens the detail: beside the mouse where it rests, in the window it rests in, or for a tap where
+   * the finger last was in the main window.
+   */
+  private open(at: MousePlace | null = null) {
     this.closeAll();
     const tabletopObject = this.tabletopObject();
     if (this.pointerDeviceService.isDragging || this.off() || !tabletopObject) return;
@@ -319,7 +319,9 @@ export class TooltipDirective {
     }
     this.stopWaitingForPanel();
 
-    const parentViewContainerRef = this.overlays.front();
+    const parentViewContainerRef = at
+      ? (this.overlays.layerFor(at.document) ?? this.overlays.mainLayer())
+      : this.overlays.front();
     const injector = parentViewContainerRef.injector;
     const seats = this.edgeSeats();
     const refs: ComponentRef<TooltipPanelInstance>[] = [];
@@ -340,8 +342,8 @@ export class TooltipDirective {
         componentRef.instance.rotationDegrees = seat.rotationDegrees;
         componentRef.instance.placementListener = () => this.hidePanelUnderPointer(session);
       } else {
-        componentRef.instance.left = this.pointerDeviceService.pointerX;
-        componentRef.instance.top = this.pointerDeviceService.pointerY;
+        componentRef.instance.left = at?.x ?? this.pointerDeviceService.pointerX;
+        componentRef.instance.top = at?.y ?? this.pointerDeviceService.pointerY;
         componentRef.instance.rotationDegrees = this.tooltipRotationDegrees;
         if (this.viewport.isTouch()) element.classList.add('tooltip-passthrough');
         this.addEventListeners(element);
@@ -354,8 +356,9 @@ export class TooltipDirective {
       refs.push(componentRef);
     }
 
-    document.body.addEventListener('touchstart', this.callbackOnMouseDown, true);
-    document.body.addEventListener('mousedown', this.callbackOnMouseDown, true);
+    const pressedIn = (at?.document ?? document).body;
+    pressedIn.addEventListener('touchstart', this.callbackOnMouseDown, true);
+    pressedIn.addEventListener('mousedown', this.callbackOnMouseDown, true);
     session.deleteOff = this.objectChange.objectDeleted$.subscribe((e) => {
       if (this.tabletopObject()?.identifier === e.identifier) this.closeAll();
     });
@@ -374,8 +377,8 @@ export class TooltipDirective {
       host.addEventListener('mousemove', this.callbackOnMouseMove, false);
     }
     session.detach = () => {
-      document.body.removeEventListener('touchstart', this.callbackOnMouseDown, true);
-      document.body.removeEventListener('mousedown', this.callbackOnMouseDown, true);
+      pressedIn.removeEventListener('touchstart', this.callbackOnMouseDown, true);
+      pressedIn.removeEventListener('mousedown', this.callbackOnMouseDown, true);
       if (seats) {
         window.removeEventListener('resize', followViewport, false);
         window.removeEventListener('orientationchange', followViewport, false);
@@ -447,13 +450,11 @@ export class TooltipDirective {
   private addEventListeners(element: Element) {
     element.addEventListener('mouseenter', this.callbackOnMouseEnter, false);
     element.addEventListener('mouseleave', this.callbackOnMouseLeave, false);
-    element.addEventListener('mousemove', this.callbackOnPointerOver, false);
   }
 
   private removeEventListeners(element: Element) {
     element.removeEventListener('mouseenter', this.callbackOnMouseEnter, false);
     element.removeEventListener('mouseleave', this.callbackOnMouseLeave, false);
-    element.removeEventListener('mousemove', this.callbackOnPointerOver, false);
   }
 }
 
