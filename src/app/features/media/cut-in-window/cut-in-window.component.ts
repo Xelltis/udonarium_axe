@@ -13,6 +13,7 @@ import {
 import { YouTubePlayer } from '@angular/youtube-player';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { DEFAULT_PERSONAL_VOLUMES } from '@axe/application/media/personal-volumes';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { VolumeType } from '@axe/core/storage/audio-output';
@@ -60,12 +61,14 @@ export const CUT_IN_VIDEO_START_LIMIT_MS = 30_000;
   selector: 'cut-in-window',
   templateUrl: './cut-in-window.component.html',
   imports: [YouTubePlayer, SafePipe, CutInStageComponent, ModelPreviewComponent],
+  providers: [ShownPictureUrls],
 })
 export class CutInWindowComponent {
   private readonly panelService = inject(PanelService);
   private readonly objectStore = inject(ObjectStore);
   private readonly audioStorage = inject(AudioStorage);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly shownUrls = inject(ShownPictureUrls);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly cutInSound = inject(CutInSoundService);
   private readonly personalVolumes = inject(PersonalVolumeService);
@@ -175,7 +178,7 @@ export class CutInWindowComponent {
     this.objectChange.versionOf(this.cutIn.identifier)();
     if (this.cutIn.videoId) return '';
     const file = this.imageStorage.get(this.cutIn.imageIdentifier);
-    return file?.url ?? ImageFile.Empty.url;
+    return file ? this.shownUrls.urlOf(file) : ImageFile.Empty.url;
   });
 
   /**

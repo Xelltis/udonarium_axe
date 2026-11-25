@@ -8,6 +8,7 @@ import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -51,6 +52,30 @@ describe('CutInWindowComponent', () => {
 
   it('should be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('shows its picture from a URL of this window’s own, for a moving picture to play from its start each time', () => {
+    const picture = ImageStorage.instance.add({
+      identifier: 'apng-once',
+      name: 'once.png',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      url: 'blob:held-once',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const cutIn = new CutIn('apng-cut-in');
+    cutIn.initialize();
+    cutIn.imageIdentifier = picture.identifier;
+    component.cutIn = cutIn;
+    component.startCutIn();
+    fixture.detectChanges();
+
+    const shown = (fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src') ?? '';
+
+    expect(shown).not.toBe('');
+    expect(shown).not.toBe('blob:held-once');
+    cutIn.destroy();
+    ImageStorage.instance.delete('apng-once');
   });
 
   describe('the size of the video player', () => {

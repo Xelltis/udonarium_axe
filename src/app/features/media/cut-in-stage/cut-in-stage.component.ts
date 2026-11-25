@@ -12,6 +12,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -70,6 +71,7 @@ const LETTER_FRAME_BUDGET = 6000;
 export class CutInStageComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly shownUrls = inject(ShownPictureUrls, { optional: true });
   private readonly motion = inject(MotionService);
   private readonly elementRef = inject(ElementRef<HTMLElement>);
   private readonly destroyRef = inject(DestroyRef);
@@ -214,10 +216,19 @@ export class CutInStageComponent {
    */
   protected imageUrl(layer: CutInLayer): string {
     this.objectChange.fileVersion();
-    const own = this.imageStorage.get(layer.imageIdentifier)?.url ?? '';
+    const own = this.urlOf(layer.imageIdentifier);
     if (!layer.portraitSlot) return own;
     const portrait = this.speaker()?.imageIdentifier ?? '';
-    return (portrait ? this.imageStorage.get(portrait)?.url : '') || own || PORTRAIT_SILHOUETTE_URL;
+    return (portrait ? this.urlOf(portrait) : '') || own || PORTRAIT_SILHOUETTE_URL;
+  }
+
+  /**
+   * Where a picture held here is shown from: from a URL of this showing's own where the stage is part
+   * of one, as a cut-in opened (see `ShownPictureUrls`), else from the picture's own.
+   */
+  private urlOf(identifier: string): string {
+    const image = this.imageStorage.get(identifier);
+    return this.shownUrls ? this.shownUrls.urlOf(image) : (image?.url ?? '');
   }
 
   /**
