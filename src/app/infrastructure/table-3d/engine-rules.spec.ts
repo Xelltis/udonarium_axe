@@ -131,8 +131,8 @@ describe('nodeWornPictures', () => {
   });
 
   it('names no backdrop where no sky stands them, and nothing where there is no board to lay them on', () => {
-    expect(nodeWornPictures(world(true), false, pictureOf).has(pictureOf(sharedPictureKey('hills.gif', true))!)).toBe(
-      false
+    expect(nodeWornPictures(world(true), false, pictureOf)).toEqual(
+      new Set([pictureOf(sharedPictureKey('board.gif', false)), pictureOf(sharedPictureKey('clouds.gif', true))])
     );
     expect(nodeWornPictures(world(false), true, pictureOf)).toEqual(new Set());
   });
