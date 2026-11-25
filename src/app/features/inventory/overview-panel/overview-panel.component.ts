@@ -60,6 +60,7 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextNote } from '@axe/domain/tabletop/text-note'; //
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { detailPlacement } from '@axe/features/inventory/overview-panel/overview-placement';
 import { WhiteBoardFaceComponent } from '@axe/features/tabletop/white-board/white-board-face.component';
 import { CardFacePreviewComponent } from '@axe/ui/components/card-face-preview/card-face-preview.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -665,34 +666,16 @@ export class OverviewPanelComponent {
     this.destroyRef.onDestroy(() => observer.disconnect());
   }
 
+  /** Opens the detail beside the pointer, clear of it and of the piece under it (see `detailPlacement`). */
   private initPanelPosition() {
     const panel: HTMLElement = this.draggablePanel().nativeElement;
-    const outerWidth = panel.offsetWidth;
-    const outerHeight = panel.offsetHeight;
-
-    let offsetLeft = this.left + 100;
-    let offsetTop = this.top - outerHeight - 50;
-
-    let isCollideLeft = false;
-
-    if (window.innerWidth < offsetLeft + outerWidth) {
-      offsetLeft = window.innerWidth - outerWidth;
-      isCollideLeft = true;
-    }
-
-    if (offsetTop <= 0) {
-      offsetTop = 0;
-    }
-
-    if (isCollideLeft) {
-      offsetLeft = this.left - outerWidth - 100;
-    }
-
-    if (offsetLeft < 0) offsetLeft = 0;
-    if (offsetTop < 0) offsetTop = 0;
-
-    panel.style.left = offsetLeft + 'px';
-    panel.style.top = offsetTop + 'px';
+    const { left, top } = detailPlacement(
+      { x: this.left, y: this.top },
+      { width: panel.offsetWidth, height: panel.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
   }
 
   private adjustPositionRoot() {
