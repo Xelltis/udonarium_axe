@@ -33,6 +33,10 @@ export function frameStandsMs(toldMs: number): number {
   return toldMs <= 10 ? 100 : toldMs;
 }
 
+/** How many times a picture that could not be read is read, and how long it waits between, in milliseconds. */
+const READ_TRIES = 3;
+const READ_AGAIN_MS = 5000;
+
 /**
  * How a wearer wears a moving picture: where it can be told whether it is in sight, as a piece's
  * board or a coin's face, and whether it throws a shadow cut to the picture, as a piece's board does;
@@ -44,8 +48,11 @@ export interface PictureWearer {
   readonly paint?: (frame: HTMLCanvasElement) => void;
   /** Whether the table can tell if the wearer is in sight (see {@link MovingPictures.see}); always in sight where not. */
   readonly judged?: boolean;
-  /** Whether a shadow is cut to the picture the wearer wears, to be drawn again as its frame changes. */
-  readonly shadows?: boolean;
+  /**
+   * Whether a shadow is cut to the picture the wearer wears, to be drawn again as its frame changes:
+   * asked as each frame is drawn where it changes, as whether a piece stands to throw one.
+   */
+  readonly shadows?: boolean | (() => boolean);
 }
 
 /** A moving picture at a URL, read once for every texture wearing it: the frames and where it has got to. */
@@ -61,6 +68,10 @@ interface Moving {
   standsMs: number;
   /** The moment it went out of sight, its clock stopped there; null while in sight. */
   heldAtMs: number | null;
+  /** Whether it could not be read, to be read again a while later or as the next wearer comes, for every one wearing it. */
+  failed: boolean;
+  /** How many times it has been read. */
+  tries: number;
   drawing: boolean;
   drawn: boolean;
   done: boolean;
@@ -107,8 +118,8 @@ export class MovingPictures {
 
   /**
    * Has a wearer wear the picture at a URL where it moves, and answers what calls the wearing off:
-   * the picture is let go of once nothing wears it. A picture that could not be read is read again
-   * for the next wearer.
+   * the picture is let go of once nothing wears it. A picture that could not be read is read again a
+   * while later, a few times, and as the next wearer comes, for every wearer it had as well.
    */
   wear(url: string, wearer: PictureWearer): () => void {
     if (this.closed) return () => undefined;
@@ -124,11 +135,16 @@ export class MovingPictures {
         nextAtMs: Number.NaN,
         standsMs: 0,
         heldAtMs: null,
+        failed: false,
+        tries: 0,
         drawing: false,
         drawn: false,
         done: false,
       };
       this.moving.set(url, moving);
+      this.readInto(url, moving);
+    } else if (moving.failed) {
+      moving.failed = false;
       this.readInto(url, moving);
     }
     moving.wearers.add(wearer);
@@ -244,6 +260,7 @@ export class MovingPictures {
   }
 
   private readInto(url: string, moving: Moving): void {
+    moving.tries++;
     void this.read(url).then(
       (source) => {
         if (this.moving.get(url) !== moving || this.closed) {
@@ -264,7 +281,14 @@ export class MovingPictures {
         void this.draw(moving, 0, null);
       },
       () => {
-        if (this.moving.get(url) === moving) this.moving.delete(url);
+        if (this.moving.get(url) !== moving || this.closed) return;
+        moving.failed = true;
+        if (moving.tries >= READ_TRIES) return;
+        setTimeout(() => {
+          if (this.moving.get(url) !== moving || !moving.failed || this.closed) return;
+          moving.failed = false;
+          this.readInto(url, moving);
+        }, READ_AGAIN_MS);
       }
     );
   }
@@ -288,7 +312,11 @@ export class MovingPictures {
         moving.nextAtMs = fromMs === null ? Number.NaN : fromMs + moving.standsMs;
         moving.drawn = true;
         for (const wearer of moving.wearers) this.dress(wearer, canvas);
-        this.drawn([...moving.wearers].some((wearer) => wearer.shadows));
+        this.drawn(
+          [...moving.wearers].some((wearer) =>
+            typeof wearer.shadows === 'function' ? wearer.shadows() : !!wearer.shadows
+          )
+        );
       } finally {
         frame.close();
       }

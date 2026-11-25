@@ -49,7 +49,7 @@ import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-laye
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
-import { MovingPictures } from '@axe/infrastructure/table-3d/moving-pictures';
+import { MovingPictures, type PictureWearer } from '@axe/infrastructure/table-3d/moving-pictures';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SolidLayer } from '@axe/infrastructure/table-3d/solid-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
@@ -973,7 +973,8 @@ class ThreeTableEngine implements Table3dEngine {
       if (!worn) return;
       for (const material of Array.isArray(worn) ? worn : [worn]) {
         const picture = (material as { map?: Texture | null }).map;
-        if (picture && judged.has(picture) && !seen.has(picture) && view.intersectsObject(object)) seen.add(picture);
+        if (!picture || !judged.has(picture) || seen.has(picture) || !object.layers.test(this.camera.layers)) continue;
+        if (view.intersectsObject(object)) seen.add(picture);
       }
     };
     this.sprites.group.traverseVisible(look);
@@ -1245,17 +1246,20 @@ class ThreeTableEngine implements Table3dEngine {
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
     return faceMaterialOf(
       face,
-      (url, tiled) => this.sharedPicture(url, tiled),
+      (url, tiled) => this.sharedPicture(url, tiled, true),
       (material, taking) => this.veil.cover(material, taking, true)
     );
   }
 
-  /** A picture shared by every face that wears it the same way, tiled or stretched. */
-  private sharedPicture(url: string, tiled: boolean): Texture {
-    const key = pictureKey(url, String(tiled));
+  /**
+   * A picture shared by everything that wears it the same way, tiled or stretched; a face of a block or
+   * a wall, which throws a shadow cut to it, wears one of its own, whose frames draw the shadows again.
+   */
+  private sharedPicture(url: string, tiled: boolean, castsShadow = false): Texture {
+    const key = pictureKey(url, `${tiled}${castsShadow ? '|shadow' : ''}`);
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url);
+      picture = this.picture(url, undefined, { shadows: castsShadow });
       if (tiled) picture.wrapS = picture.wrapT = RepeatWrapping;
       this.loaded.set(key, picture);
     }
@@ -1271,7 +1275,11 @@ class ThreeTableEngine implements Table3dEngine {
     const key = pictureKey(url, 'sprite');
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url, () => this.sprites.picturesCame(), { judged: true, shadows: true });
+      const worn: Texture = this.picture(url, () => this.sprites.picturesCame(), {
+        judged: true,
+        shadows: () => this.sprites.throwsShadowWith(worn),
+      });
+      picture = worn;
       picture.premultiplyAlpha = true;
       this.loaded.set(key, picture);
     }
@@ -1297,7 +1305,7 @@ class ThreeTableEngine implements Table3dEngine {
   private picture(
     url: string,
     came: () => void = () => undefined,
-    how: { readonly judged?: boolean; readonly shadows?: boolean } = {}
+    how: Omit<PictureWearer, 'texture' | 'paint'> = {}
   ): Texture {
     this.loading++;
     const settle = () => {

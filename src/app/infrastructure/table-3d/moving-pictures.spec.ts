@@ -226,15 +226,64 @@ describe('MovingPictures', () => {
       return moving;
     });
     const pictures = new MovingPictures(() => undefined, read);
-    pictures.follow('blob:apng', new Texture());
+    const first = new Texture();
+    pictures.follow('blob:apng', first);
     await settled();
 
     fail = false;
-    pictures.follow('blob:apng', new Texture());
+    const later = new Texture();
+    pictures.follow('blob:apng', later);
     await settled();
 
     expect(read).toHaveBeenCalledTimes(2);
     expect(pictures.shown).toBe(1);
+    expect(first.image).toBe(later.image);
+    expect(first.image).toBeInstanceOf(HTMLCanvasElement);
+  });
+
+  it('reads a picture that could not be read again a while later, a few times, with nothing new wearing it', async () => {
+    vi.useFakeTimers();
+    try {
+      const read = vi.fn(async () => {
+        throw new Error('offline');
+      });
+      const pictures = new MovingPictures(() => undefined, read);
+      pictures.follow('blob:apng', new Texture());
+
+      for (let wait = 0; wait < 5; wait++) await vi.advanceTimersByTimeAsync(5000);
+
+      expect(read).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks whether a shadow is cut to the picture as each frame is drawn, as a piece may stand up or lie down', async () => {
+    const moving = source(2, Infinity);
+    const drawn = vi.fn();
+    let standing = false;
+    const pictures = new MovingPictures(drawn, async () => moving);
+    pictures.follow('blob:piece', new Texture(), { shadows: () => standing });
+    await settled();
+    standing = true;
+    await advanceThrough(pictures, [0, 100]);
+
+    expect(drawn.mock.calls.map(([shadows]) => shadows)).toEqual([false, true]);
+  });
+
+  it('answers no new sight where what was in sight stays so, and where what was out of it stays out', async () => {
+    const moving = source(2, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const board = new Texture();
+    pictures.follow('blob:apng', board, { judged: true });
+    await settled();
+
+    expect(pictures.see(new Set())).toBe(false);
+    expect(pictures.see(new Set([board]))).toBe(true);
+    expect(pictures.see(new Set([board]))).toBe(false);
   });
 
   it('stands each on its first frame while pictures are not to move, and moves them again once they are', async () => {

@@ -315,6 +315,12 @@ export class SpriteLayer {
     }
   }
 
+  /** Whether a board standing for a picture's shadow wears this texture, so a change of the picture changes a shadow. */
+  throwsShadowWith(picture: Texture): boolean {
+    for (const material of this.casterMaterials.values()) if (material.map === picture) return true;
+    return false;
+  }
+
   private casterMaterial(url: string): MeshBasicNodeMaterial {
     let material = this.casterMaterials.get(url);
     if (!material) {

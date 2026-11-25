@@ -56,4 +56,26 @@ describe('CoinLayer', () => {
     layer.set([]);
     expect(calledOff).toHaveBeenCalledOnce();
   });
+
+  it('has the frame a face stands on put back once its still picture has been painted over it', () => {
+    const redressed: unknown[] = [];
+    const layer = new CoinLayer(
+      () => undefined,
+      () => undefined,
+      () => () => undefined,
+      (texture) => redressed.push(texture)
+    );
+    const loading: HTMLImageElement[] = [];
+    const making = vi.spyOn(window, 'Image').mockImplementation(function () {
+      const picture = document.createElement('img');
+      loading.push(picture);
+      return picture;
+    } as unknown as typeof Image);
+
+    layer.set([coin('blob:apng')]);
+    loading[0].onload?.(new Event('load'));
+
+    expect(redressed).toHaveLength(1);
+    making.mockRestore();
+  });
 });
