@@ -432,7 +432,7 @@ describe('PieceTargetService', () => {
       tall.location = { name: 'table', x: 25, y: -125 };
       tall.battleSide = 'right';
       made.push(tall);
-      const low = on('小さい', 100, 'right');
+      const low = on('小さい', 90, 'right');
 
       expect(service().aimOrderFrom(hero)).toEqual([tall, low]);
     });
