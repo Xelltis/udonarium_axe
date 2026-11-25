@@ -1,6 +1,7 @@
 import type { TableWorldCoin, TableWorldCoinSide } from '@axe/domain/tabletop/world/table-coins';
 import { pointOnFace, turnedAbout, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { paintCoinSide } from '@axe/infrastructure/table-3d/coin-sides';
+import type { PictureWearer } from '@axe/infrastructure/table-3d/moving-pictures';
 import { sceneDirection } from '@axe/infrastructure/three-kit/board-space';
 import { forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import {
@@ -52,7 +53,8 @@ export class CoinLayer {
 
   constructor(
     private readonly needsFrame: () => void,
-    private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined
+    private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined,
+    private readonly wear: (url: string, wearer: PictureWearer) => () => void = () => () => undefined
   ) {
     this.dress(this.rim);
   }
@@ -120,7 +122,10 @@ export class CoinLayer {
     return painted.material;
   }
 
-  /** Has a side painted again with its picture once that has come, and answers what calls the painting off. */
+  /**
+   * Has a side painted again with its picture once that has come, and from each frame of it where it
+   * moves (see `MovingPictures`), and answers what calls the painting off.
+   */
   private paintPicture(
     look: TableWorldCoinSide,
     radius: number,
@@ -135,9 +140,14 @@ export class CoinLayer {
       this.needsFrame();
     };
     picture.src = look.pictureUrl;
+    const callOffMoving = this.wear(look.pictureUrl, {
+      texture,
+      paint: (frame) => paintCoinSide(canvas, look.side, radius * 2, frame),
+    });
     return () => {
       picture.onload = null;
       picture.src = '';
+      callOffMoving();
     };
   }
 

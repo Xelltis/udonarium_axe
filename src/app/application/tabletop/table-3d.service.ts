@@ -84,6 +84,7 @@ import type {
   Table3dStats,
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
  * How the canvas draws the table through three.js: through WebGPU where it can be had, or through
@@ -979,7 +980,9 @@ export class Table3dService {
     this.frame = null;
     const moving = engine.advance(this.sceneHeldAt ?? time);
     engine.renderIfChanged();
-    if (moving && !this.motionHeld) this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : 0);
+    if (moving !== false && !this.motionHeld) {
+      this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : moving === true ? 0 : moving);
+    }
     this.settleIfIdle();
   }
 
@@ -1026,7 +1029,6 @@ export class Table3dService {
 }
 
 /** How far apart frames are drawn while all that moves on the table by itself drifts slowly, in milliseconds. */
-const SLOW_MOTION_FRAME_MS = 1000 / 30;
 
 /** How much sooner than asked a frame may come and still be drawn, against the clock the screen keeps. */
 const FRAME_SLACK_MS = 4;

@@ -19,6 +19,9 @@ import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-q
  */
 export const LONGEST_PICTURE_PX = 8192;
 
+/** How often a table drawn only for what moves slowly is drawn again, in milliseconds: thirty times a second. */
+export const SLOW_MOTION_FRAME_MS = 1000 / 30;
+
 /** Which of the browser's graphics interfaces the table is drawn through. */
 export type Table3dBackend = 'webgpu' | 'webgl2';
 
@@ -268,9 +271,11 @@ export interface Table3dEngine {
    * Moves what moves by itself, as a layer drifting past the board, to where it is at a moment, in
    * milliseconds; answers whether anything moves by itself, so the next frame is to be drawn too:
    * true for what moves fast, as a figure walking or rain falling, `'slowly'` where all that moves
-   * drifts slowly, as water and fog do, which a frame now and then shows as well as every frame.
+   * drifts slowly, as water and fog do, which a frame now and then shows as well as every frame (see
+   * `SLOW_MOTION_FRAME_MS`), and a moment, in the same milliseconds, where the next frame is wanted by
+   * then, as the next frame of a moving picture is due.
    */
-  advance(timeMs: number): boolean | 'slowly';
+  advance(timeMs: number): boolean | 'slowly' | number;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */
   renderIfChanged(): boolean;
   /** Calls back when something the engine was loading, such as a picture, has come and wants drawing. */

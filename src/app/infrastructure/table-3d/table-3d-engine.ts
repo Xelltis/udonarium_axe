@@ -68,6 +68,7 @@ import type {
   Table3dVeil,
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
@@ -100,6 +101,7 @@ import {
   DoubleSide,
   Fog,
   type FogExp2,
+  Frustum,
   Group,
   HemisphereLight,
   Matrix4,
@@ -114,6 +116,7 @@ import {
   Raycaster,
   RepeatWrapping,
   Scene,
+  type Sprite,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -316,6 +319,7 @@ class ThreeTableEngine implements Table3dEngine {
   );
   private readonly movingPictures = new MovingPictures(() => {
     this.changed = true;
+    this.shadowsMoved();
     this.needsFrame();
   });
   private readonly floorCanvases = new FloorCanvasLayer();
@@ -367,7 +371,8 @@ class ThreeTableEngine implements Table3dEngine {
       this.changed = true;
       this.needsFrame();
     },
-    (material) => this.veil.cover(material, 'unlit', false)
+    (material) => this.veil.cover(material, 'unlit', false),
+    (url, wearer) => this.movingPictures.wear(url, wearer)
   );
 
   constructor(
@@ -837,18 +842,57 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
-  advance(timeMs: number): boolean | 'slowly' {
+  advance(timeMs: number): boolean | 'slowly' | number {
     const drifting = this.layers.advance(timeMs);
     const flowing = this.water.advance(timeMs);
     const hanging = this.fogAir.advance(timeMs);
     const passing = this.backdrops.advance(timeMs);
     const modelled = this.models.advance(timeMs);
     const falling = this.weather.advance(timeMs, this.camera);
-    const turning = this.movingPictures.advance(timeMs);
+    const inSight = this.picturesInSight();
+    const pictureDue = this.movingPictures.advance(timeMs, (picture) => inSight().has(picture));
     this.strike(timeMs);
     this.takeChanges();
     if (modelled === true || falling) return true;
-    return drifting || flowing || hanging || passing || turning || modelled === 'slowly' ? 'slowly' : false;
+    const slowly = drifting || flowing || hanging || passing || modelled === 'slowly';
+    if (pictureDue === null) return slowly ? 'slowly' : false;
+    return slowly ? Math.min(pictureDue, timeMs + SLOW_MOTION_FRAME_MS) : pictureDue;
+  }
+
+  /**
+   * Whether a picture is in sight, looked for once where asked for: a picture worn as the map of what
+   * is drawn is in sight where any of what wears it is shown in the camera's view, and out of it where
+   * all of that is hidden or out of the view. A picture worn otherwise, as a node of a material, is
+   * taken as in sight, as where it is drawn is not told.
+   */
+  private picturesInSight(): () => ReadonlySet<Texture> {
+    let found: Set<Texture> | null = null;
+    return () => {
+      if (found) return found;
+      const mapsOf = (object: Object3D): Texture[] => {
+        const worn = (object as Mesh).material;
+        if (!worn) return [];
+        return (Array.isArray(worn) ? worn : [worn])
+          .map((material) => (material as { map?: Texture | null }).map)
+          .filter((picture): picture is Texture => !!picture);
+      };
+      const worn = new Set<Texture>();
+      this.scene.traverse((object) => mapsOf(object).forEach((picture) => worn.add(picture)));
+      const view = new Frustum().setFromProjectionMatrix(
+        new Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+      );
+      const seen = new Set<Texture>();
+      this.scene.traverseVisible((object) => {
+        const maps = mapsOf(object).filter((picture) => !seen.has(picture));
+        if (maps.length < 1) return;
+        const inView = (object as Sprite).isSprite
+          ? view.intersectsSprite(object as Sprite)
+          : view.intersectsObject(object);
+        if (inView) maps.forEach((picture) => seen.add(picture));
+      });
+      found = new Set([...this.movingPictures.worn()].filter((picture) => seen.has(picture) || !worn.has(picture)));
+      return found;
+    };
   }
 
   setSky(sky: SkyDome | null): void {

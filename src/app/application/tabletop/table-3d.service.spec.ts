@@ -82,7 +82,7 @@ class FakeEngine implements Table3dEngine {
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
-  moving: boolean | 'slowly' = false;
+  moving: boolean | 'slowly' | number | ((timeMs: number) => number) = false;
   advanced = 0;
   advancedTo: number[] = [];
   flickeredAt: number[] = [];
@@ -201,10 +201,10 @@ class FakeEngine implements Table3dEngine {
     this.sizes.push([width, height]);
   }
 
-  advance(timeMs: number): boolean | 'slowly' {
+  advance(timeMs: number): boolean | 'slowly' | number {
     this.advancedTo.push(timeMs);
     this.advanced++;
-    return this.moving;
+    return typeof this.moving === 'function' ? this.moving(timeMs) : this.moving;
   }
 
   renderIfChanged(): boolean {
@@ -604,6 +604,14 @@ describe('Table3dService', () => {
       advanced = engine.advanced;
       runFrames(1000 + 1000 / 60, 12);
       expect(engine.advanced - advanced).toBe(6);
+
+      engine.moving = (timeMs) => timeMs + 100;
+      runFrames(1500, 1);
+      advanced = engine.advanced;
+      runFrames(1500 + 1000 / 60, 12);
+      expect(engine.advanced - advanced).toBe(2);
+      engine.moving = 'slowly';
+      runFrames(1800, 2);
 
       advanced = engine.advanced;
       TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 25 });

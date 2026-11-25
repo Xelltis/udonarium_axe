@@ -24,70 +24,103 @@ export interface MovingSource {
 /** Reads the picture at a URL as a moving one, or answers null for one that stands still or cannot be read so. */
 export type MovingReader = (url: string) => Promise<MovingSource | null>;
 
-/** The shortest a frame of a moving picture stands, in milliseconds, as browsers draw a frame told to stand for none. */
-const SHORTEST_FRAME_MS = 20;
+/**
+ * How long a frame of a moving picture stands, in milliseconds, as browsers have it: one told to
+ * stand for ten milliseconds or less stands for a tenth of a second, as GIFs made for old browsers
+ * were drawn.
+ */
+export function frameStandsMs(toldMs: number): number {
+  return toldMs <= 10 ? 100 : toldMs;
+}
 
-/** A picture being moved: the texture that wears it, the canvas it is drawn on, and where it has got to. */
+/** How far behind a moving picture may fall, in milliseconds, before it goes on from now rather than catching up. */
+const CATCH_UP_MS = 1000;
+
+/** What wears a moving picture: a texture wearing it as drawn, or one painted from each frame, as a coin's face. */
+export interface PictureWearer {
+  readonly texture: Texture;
+  /** Paints the texture's own picture from a frame; where absent, the texture wears the frame itself. */
+  readonly paint?: (frame: HTMLCanvasElement) => void;
+}
+
+/** A moving picture at a URL, read once for every texture wearing it: the frames and where it has got to. */
 interface Moving {
-  readonly picture: Texture;
-  readonly source: MovingSource;
-  readonly canvas: HTMLCanvasElement;
-  readonly context: CanvasRenderingContext2D | null;
+  readonly wearers: Set<PictureWearer>;
+  source: MovingSource | null;
+  still: boolean;
+  canvas: HTMLCanvasElement | null;
+  context: CanvasRenderingContext2D | null;
   index: number;
   played: number;
+  /** When the next frame is due, in milliseconds; NaN for one standing its first frame, its time not yet counted. */
   nextAtMs: number;
+  standsMs: number;
   drawing: boolean;
+  drawn: boolean;
   done: boolean;
 }
 
 /**
  * Moves the moving pictures the table wears, APNG, GIF and moving WebP, which a texture read once
- * stands still on the first frame of: each is read frame by frame and drawn on a canvas of its own,
- * no larger than a picture is drawn, which the texture then wears, for every sprite and face wearing
- * it. A picture moves for as long as its texture is worn, and stops with it, after as many plays as
- * it is made for. While pictures are not to move, as for a reader who asks for less motion, each
- * stands on its first frame. A browser that cannot read pictures frame by frame leaves them as they
- * are read, on their first frames.
+ * stands still on the first frame of: each is read once, frame by frame, and drawn on a canvas of its
+ * own, no larger than a picture is drawn, which every texture wearing it wears, or is painted from.
+ * Each frame stands as long as the picture tells, from the moment it was due, and a picture moves only
+ * while something wearing it is in sight; out of sight it waits where it got to. It moves for as long
+ * as anything wears it, after as many plays as it is made for. While pictures are not to move, as for
+ * a reader who asks for less motion, each stands on its first frame. A browser that cannot read
+ * pictures frame by frame leaves them as they are read, on their first frames.
  */
 export class MovingPictures {
-  private readonly moving = new Map<Texture, Moving>();
+  private readonly moving = new Map<string, Moving>();
   private turning = true;
+  private closed = false;
 
   constructor(
     private readonly drawn: () => void,
     private readonly read: MovingReader = readMoving
   ) {}
 
-  /** Moves the picture a texture wears, read from a URL, where it moves; nothing where it stands still. */
+  /**
+   * Moves the picture a texture wears, read from a URL, where it moves, until the texture is let go
+   * of; nothing where it stands still.
+   */
   follow(url: string, picture: Texture): void {
-    void this.read(url).then(
-      (source) => {
-        if (!source) return;
-        if (source.frames < 2 || this.moving.has(picture)) {
-          source.close();
-          return;
-        }
-        const canvas = document.createElement('canvas');
-        const scale = Math.min(1, LONGEST_PICTURE_PX / Math.max(1, source.width, source.height));
-        canvas.width = clamp(Math.round(source.width * scale), 1, LONGEST_PICTURE_PX);
-        canvas.height = clamp(Math.round(source.height * scale), 1, LONGEST_PICTURE_PX);
-        const moving: Moving = {
-          picture,
-          source,
-          canvas,
-          context: canvas.getContext('2d'),
-          index: 0,
-          played: 0,
-          nextAtMs: 0,
-          drawing: false,
-          done: false,
-        };
-        this.moving.set(picture, moving);
-        picture.addEventListener('dispose', () => this.letGo(picture));
-        void this.draw(moving, 0, 0);
-      },
-      () => undefined
-    );
+    const callOff = this.wear(url, { texture: picture });
+    picture.addEventListener('dispose', callOff);
+  }
+
+  /**
+   * Has a wearer wear the picture at a URL where it moves, and answers what calls the wearing off:
+   * the picture is let go of once nothing wears it.
+   */
+  wear(url: string, wearer: PictureWearer): () => void {
+    if (this.closed) return () => undefined;
+    let moving = this.moving.get(url);
+    if (!moving) {
+      moving = {
+        wearers: new Set(),
+        source: null,
+        still: false,
+        canvas: null,
+        context: null,
+        index: 0,
+        played: 0,
+        nextAtMs: Number.NaN,
+        standsMs: 0,
+        drawing: false,
+        drawn: false,
+        done: false,
+      };
+      this.moving.set(url, moving);
+      this.readInto(url, moving);
+    }
+    moving.wearers.add(wearer);
+    if (moving.drawn && moving.canvas) this.dress(wearer, moving.canvas);
+    const worn = moving;
+    return () => {
+      worn.wearers.delete(wearer);
+      if (worn.wearers.size === 0 && this.moving.get(url) === worn) this.letGo(url);
+    };
   }
 
   /** Lets pictures move, or stands each on its first frame where they are not to. */
@@ -95,23 +128,29 @@ export class MovingPictures {
     if (turning === this.turning) return;
     this.turning = turning;
     for (const moving of this.moving.values()) {
+      if (!moving.source) continue;
       moving.played = 0;
       moving.done = false;
-      if (!turning) void this.draw(moving, 0, 0);
+      moving.nextAtMs = Number.NaN;
+      if (!turning) void this.draw(moving, 0, null);
     }
   }
 
   /**
-   * Moves the pictures on to a moment, in milliseconds: each whose frame has stood long enough is
-   * drawn on its next. Answers whether any picture is still moving, and so wants frames.
+   * Moves the pictures something in sight wears on to a moment, in milliseconds: each whose frame
+   * has stood long enough is drawn on its next. Answers the moment the next frame of any of them is
+   * due, or null where none moves in sight, and so none wants frames.
    */
-  advance(timeMs: number): boolean {
-    if (!this.turning) return false;
-    let any = false;
+  advance(timeMs: number, inSight: (picture: Texture) => boolean = () => true): number | null {
+    if (!this.turning) return null;
+    let due: number | null = null;
+    const wants = (atMs: number) => (due = due === null ? atMs : Math.min(due, atMs));
     for (const moving of this.moving.values()) {
-      if (moving.done) continue;
-      if (moving.drawing || timeMs < moving.nextAtMs) {
-        any = true;
+      if (!moving.source || moving.done || moving.drawing) continue;
+      if (![...moving.wearers].some((wearer) => inSight(wearer.texture))) continue;
+      if (Number.isNaN(moving.nextAtMs)) moving.nextAtMs = timeMs + moving.standsMs;
+      if (timeMs < moving.nextAtMs) {
+        wants(moving.nextAtMs);
         continue;
       }
       let next = moving.index + 1;
@@ -123,45 +162,92 @@ export class MovingPictures {
         }
         next = 0;
       }
-      any = true;
-      void this.draw(moving, next, timeMs);
+      const from = timeMs - moving.nextAtMs > CATCH_UP_MS ? timeMs : moving.nextAtMs;
+      void this.draw(moving, next, from);
     }
-    return any;
+    return due;
   }
 
-  /** Lets go of every picture it moves. */
+  /** Lets go of every picture it moves, and reads no more. */
   dispose(): void {
-    for (const picture of [...this.moving.keys()]) this.letGo(picture);
+    this.closed = true;
+    for (const url of [...this.moving.keys()]) this.letGo(url);
   }
 
   /** How many pictures are being moved now, as the table counts what it holds. */
   get shown(): number {
-    return this.moving.size;
+    let count = 0;
+    for (const moving of this.moving.values()) if (moving.source) count++;
+    return count;
+  }
+
+  /** The textures wearing the pictures being moved, or painted from them. */
+  worn(): Texture[] {
+    const worn: Texture[] = [];
+    for (const moving of this.moving.values()) {
+      if (moving.source) for (const wearer of moving.wearers) worn.push(wearer.texture);
+    }
+    return worn;
   }
 
   /** Whether the picture a texture wears is being moved. */
   moves(picture: Texture): boolean {
-    return this.moving.has(picture);
+    for (const moving of this.moving.values()) {
+      if (moving.source && [...moving.wearers].some((wearer) => wearer.texture === picture)) return true;
+    }
+    return false;
   }
 
-  private async draw(moving: Moving, index: number, timeMs: number): Promise<void> {
+  private readInto(url: string, moving: Moving): void {
+    void this.read(url).then(
+      (source) => {
+        if (this.moving.get(url) !== moving || this.closed) {
+          source?.close();
+          return;
+        }
+        if (!source || source.frames < 2) {
+          source?.close();
+          moving.still = true;
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, LONGEST_PICTURE_PX / Math.max(1, source.width, source.height));
+        canvas.width = clamp(Math.round(source.width * scale), 1, LONGEST_PICTURE_PX);
+        canvas.height = clamp(Math.round(source.height * scale), 1, LONGEST_PICTURE_PX);
+        moving.source = source;
+        moving.canvas = canvas;
+        moving.context = canvas.getContext('2d');
+        void this.draw(moving, 0, null);
+      },
+      () => {
+        if (this.moving.get(url) === moving) moving.still = true;
+      }
+    );
+  }
+
+  /** Draws a frame of a picture and has every wearer wear it; its time counted from a moment, or from the next advance for none. */
+  private async draw(moving: Moving, index: number, fromMs: number | null): Promise<void> {
+    const source = moving.source;
+    const canvas = moving.canvas;
+    if (!source || !canvas) return;
     moving.drawing = true;
     try {
-      const frame = await moving.source.frame(index);
-      if (!this.moving.has(moving.picture)) {
+      const frame = await source.frame(index);
+      try {
+        if (moving.source !== source) return;
+        if (moving.context) {
+          moving.context.clearRect(0, 0, canvas.width, canvas.height);
+          frame.draw(moving.context, canvas.width, canvas.height);
+        }
+        moving.index = index;
+        moving.standsMs = frameStandsMs(frame.durationMs);
+        moving.nextAtMs = fromMs === null ? Number.NaN : fromMs + moving.standsMs;
+        moving.drawn = true;
+        for (const wearer of moving.wearers) this.dress(wearer, canvas);
+        this.drawn();
+      } finally {
         frame.close();
-        return;
       }
-      if (moving.context) {
-        moving.context.clearRect(0, 0, moving.canvas.width, moving.canvas.height);
-        frame.draw(moving.context, moving.canvas.width, moving.canvas.height);
-      }
-      frame.close();
-      moving.index = index;
-      moving.nextAtMs = timeMs + Math.max(SHORTEST_FRAME_MS, frame.durationMs);
-      if (moving.picture.image !== moving.canvas) moving.picture.image = moving.canvas;
-      moving.picture.needsUpdate = true;
-      this.drawn();
     } catch {
       moving.done = true;
     } finally {
@@ -169,11 +255,18 @@ export class MovingPictures {
     }
   }
 
-  private letGo(picture: Texture): void {
-    const moving = this.moving.get(picture);
+  private dress(wearer: PictureWearer, canvas: HTMLCanvasElement): void {
+    if (wearer.paint) wearer.paint(canvas);
+    else if (wearer.texture.image !== canvas) wearer.texture.image = canvas;
+    wearer.texture.needsUpdate = true;
+  }
+
+  private letGo(url: string): void {
+    const moving = this.moving.get(url);
     if (!moving) return;
-    this.moving.delete(picture);
-    moving.source.close();
+    this.moving.delete(url);
+    moving.source?.close();
+    moving.source = null;
   }
 }
 
@@ -188,16 +281,12 @@ async function readMoving(url: string): Promise<MovingSource | null> {
   const type = movingTypeOf(bytes);
   if (!type || !(await ImageDecoder.isTypeSupported(type))) return null;
   const decoder = new ImageDecoder({ data: bytes, type });
-  await decoder.tracks.ready;
-  await decoder.completed;
-  const track = decoder.tracks.selectedTrack;
-  if (!track) {
+  const read = await firstOf(decoder).catch(() => null);
+  if (!read) {
     decoder.close();
     return null;
   }
-  const first = (await decoder.decode({ frameIndex: 0 })).image;
-  const [width, height] = [first.displayWidth, first.displayHeight];
-  first.close();
+  const { track, width, height } = read;
   return {
     width,
     height,
@@ -213,6 +302,21 @@ async function readMoving(url: string): Promise<MovingSource | null> {
     },
     close: () => decoder.close(),
   };
+}
+
+/**
+ * The track of a decoder's picture and the size of its first frame, where it has more than one frame;
+ * null for one that stands still.
+ */
+async function firstOf(decoder: ImageDecoder): Promise<{ track: ImageTrack; width: number; height: number } | null> {
+  await decoder.tracks.ready;
+  await decoder.completed;
+  const track = decoder.tracks.selectedTrack;
+  if (!track || track.frameCount < 2) return null;
+  const first = (await decoder.decode({ frameIndex: 0 })).image;
+  const size = { track, width: first.displayWidth, height: first.displayHeight };
+  first.close();
+  return size;
 }
 
 /** How much of a picture is read to tell whether it moves, which each format says before its first pixels. */
