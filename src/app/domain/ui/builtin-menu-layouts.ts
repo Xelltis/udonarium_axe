@@ -112,6 +112,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('npcBar'),
     item('partyList'),
     item('inventory'),
+    item('targetList'),
     item('scene'),
     item('darkness'),
     item('fog'),
