@@ -2209,7 +2209,6 @@
     "keyboard": {
       "tabletop": {
         "targeted": "Aiming at {{count}} characters",
-        "nothingToAim": "No piece of the other side can be targeted.",
         "targetedOne": "Targeted {{name}}",
         "targetsCleared": "Stopped aiming at everything",
         "nothingToTarget": "Pick character pieces, then press T",

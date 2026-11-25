@@ -1,17 +1,22 @@
 import { TestBed } from '@angular/core/testing';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import type { MockInstance } from 'vitest';
+import { type MockInstance, onTestFinished } from 'vitest';
 
 describe('TabletopShortcutEventHandlerService', () => {
   let show: MockInstance<SnackbarService['show']>;
@@ -76,15 +81,93 @@ describe('TabletopShortcutEventHandlerService', () => {
       for (const piece of [hero, near, far, picked]) piece.destroy();
     });
 
-    it('aims from the piece picked last where it is nobody’s turn, and says so where there is nothing to aim at', () => {
+    it('aims from the piece picked last where it is nobody’s turn, and leaves Tab to move the focus where there is nothing to aim at', () => {
       const lone = on('ひとり', 0, 'left');
       selection.selectObject(lone.identifier, lone.aliasName);
 
+      const event = press('Tab');
+
+      expect([lone.targeted, event.defaultPrevented]).toEqual([false, false]);
+      expect(show).not.toHaveBeenCalled();
+      lone.destroy();
+    });
+
+    it('passes over a piece whose turn it is that this seat cannot see, and aims from the piece picked instead', () => {
+      const hidden = on('伏兵', 0, 'right');
+      const picked = on('選', 1000, 'left');
+      const nearHidden = on('近', 100, 'right');
+      const nearPicked = on('遠', 900, 'right');
+      selection.selectObject(picked.identifier, picked.aliasName);
+      vi.spyOn(TestBed.inject(TurnOrderService), 'currentIdentifier', 'get').mockReturnValue(hidden.identifier);
+      vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation((piece) => piece !== hidden);
+
       press('Tab');
 
-      expect(lone.targeted).toBe(false);
-      expect(show).toHaveBeenCalledWith('feature.keyboard.tabletop.nothingToAim');
-      lone.destroy();
+      expect([nearPicked.targeted, nearHidden.targeted]).toEqual([true, false]);
+      for (const piece of [hidden, picked, nearHidden, nearPicked]) piece.destroy();
+    });
+
+    it('aims from the piece this seat plays, and else from a piece of its own, where nothing is picked and it is nobody’s turn', () => {
+      const mine = on('自分', 0, 'left');
+      const played = on('操作', 1000, 'left');
+      const nearMine = on('近', 100, 'right');
+      const nearPlayed = on('遠', 900, 'right');
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.userId = 'me';
+      mine.owner = 'me';
+      const active = TestBed.inject(ActiveCharacterService).identifier;
+      active.set(played.identifier);
+
+      press('Tab');
+      expect([nearPlayed.targeted, nearMine.targeted]).toEqual([true, false]);
+      active.set(null);
+      TestBed.inject(PieceTargetService).setOnly([]);
+      press('Tab');
+      expect([nearPlayed.targeted, nearMine.targeted]).toEqual([false, true]);
+
+      for (const piece of [mine, played, nearMine, nearPlayed]) piece.destroy();
+      PeerCursor.myCursor = null!;
+    });
+
+    it('aims with the focus left on a button the pointer pressed, but not with the focus moved there from the keyboard, nor under a dialog', () => {
+      const hero = on('勇者', 0, 'left');
+      const foe = on('敵', 100, 'right');
+      selection.selectObject(hero.identifier, hero.aliasName);
+      const button = document.createElement('button');
+      document.body.appendChild(button);
+      onTestFinished(() => {
+        button.remove();
+        for (const piece of [hero, foe]) piece.destroy();
+      });
+      button.focus();
+      const ring = vi.spyOn(button, 'matches').mockReturnValue(false);
+
+      expect(press('Tab').defaultPrevented).toBe(true);
+      expect(foe.targeted).toBe(true);
+
+      TestBed.inject(PieceTargetService).setOnly([]);
+      ring.mockReturnValue(true);
+      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+
+      ring.mockReturnValue(false);
+      vi.spyOn(TestBed.inject(ModalService), 'isShow', 'get').mockReturnValue(true);
+      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+    });
+
+    it('picks the piece Tab aims at as the target of an effect held ready, its mark following the pick', () => {
+      const hero = on('勇者', 0, 'left');
+      const foe = on('敵', 100, 'right');
+      selection.selectObject(hero.identifier, hero.aliasName);
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      targeting.begin(preset);
+
+      press('Tab');
+
+      expect([targeting.picks(), foe.targeted]).toEqual([[foe.identifier], true]);
+      targeting.cancel();
+      for (const piece of [hero, foe]) piece.destroy();
     });
   });
 

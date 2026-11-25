@@ -11,6 +11,7 @@ import { PieceTargetService } from '@axe/application/tabletop/piece-target.servi
 import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -24,7 +25,7 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode, switchedDisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
-import { tabletopKeyDown, TabletopShortcutCommand } from '@axe/features/keyboard/tabletop-shortcut';
+import { tabletopKeyDown, TabletopKeyFocus, TabletopShortcutCommand } from '@axe/features/keyboard/tabletop-shortcut';
 
 type DisclosablePiece = GameCharacter | Card | DiceSymbol | TextNote;
 
@@ -67,6 +68,7 @@ export class TabletopShortcutEventHandlerService {
   private readonly turnOrder = inject(TurnOrderService);
   private readonly activeCharacter = inject(ActiveCharacterService);
   private readonly names = inject(PieceNameService);
+  private readonly modal = inject(ModalService);
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
@@ -95,15 +97,21 @@ export class TabletopShortcutEventHandlerService {
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.defaultPrevented || this.blocked()) return;
-    const focused = document.activeElement;
-    if (focused && focused !== document.body) return;
     const command = tabletopKeyDown(event.key, {
+      focus: focusOf(document.activeElement),
+      modal: this.modal.isShow,
       typing: isTypingTarget(event.target),
       composing: event.isComposing,
       chord: event.ctrlKey || event.metaKey || event.altKey,
       shift: event.shiftKey,
     });
     if (!command) return;
+    if (
+      (command === 'nextTarget' || command === 'previousTarget') &&
+      this.targets.aimOrderFrom(this.aimedFrom()).length < 1
+    ) {
+      return;
+    }
     event.preventDefault();
     this.run(command);
   };
@@ -135,31 +143,28 @@ export class TabletopShortcutEventHandlerService {
 
   /**
    * Aims at the next piece of the other side, or the one before, from the piece the aim is taken from:
-   * the piece whose turn it is, else the piece picked last, else the piece this seat plays, else the
-   * first piece of its own it may aim at (see `PieceTargetService.aimNext`).
+   * the first this seat sees of the piece whose turn it is, the piece picked last, the piece this seat
+   * plays and the first piece of its own it may aim at (see `PieceTargetService.aimNext`). The key is
+   * read only where there is a piece to aim at, and moves the focus on as anywhere else where there is
+   * none.
    */
   private aimOnward(step: 1 | -1): void {
     const next = this.targets.aimNext(this.aimedFrom(), step);
-    this.snackbar.show(
-      next
-        ? this.t('feature.keyboard.tabletop.targetedOne', { name: this.names.shown(next) })
-        : this.t('feature.keyboard.tabletop.nothingToAim')
-    );
+    if (next) this.snackbar.show(this.t('feature.keyboard.tabletop.targetedOne', { name: this.names.shown(next) }));
   }
 
   private aimedFrom(): GameCharacter | null {
     const piece = (identifier: string | null | undefined) => {
       const found = identifier ? this.objectStore.get(identifier) : null;
-      return found instanceof GameCharacter && found.isVisibleOnTable ? found : null;
+      return found instanceof GameCharacter ? found : null;
     };
     const me = PeerCursor.myCursor?.userId ?? '';
-    return (
-      piece(this.turnOrder.currentIdentifier) ??
-      piece(this.selection.selectedObject()?.identifier) ??
-      piece(this.activeCharacter.identifier()) ??
-      this.targets.aimable().find((one) => me.length > 0 && one.owner === me) ??
-      null
-    );
+    return this.targets.aimedFromOf([
+      piece(this.turnOrder.currentIdentifier),
+      piece(this.selection.selectedObject()?.identifier),
+      piece(this.activeCharacter.identifier()),
+      this.targets.aimable().find((one) => me.length > 0 && one.owner === me),
+    ]);
   }
 
   private takeAimsAway(): void {
@@ -184,5 +189,19 @@ export class TabletopShortcutEventHandlerService {
     }
     const key = next === DisclosureMode.All ? 'disclosedToAll' : 'disclosedToGm';
     this.snackbar.show(this.t(`feature.keyboard.tabletop.${key}`, { count: pieces.length }));
+  }
+}
+
+/**
+ * Where the focus is, as the keys on the table read it: on nothing where it is on the page itself; on
+ * a control the pointer pressed where the browser shows no ring of focus on it; else on one moved to
+ * from the keyboard, as where the browser cannot tell.
+ */
+function focusOf(focused: Element | null): TabletopKeyFocus {
+  if (!focused || focused === document.body || focused === document.documentElement) return 'none';
+  try {
+    return focused.matches(':focus-visible') ? 'keyboard' : 'pressed';
+  } catch {
+    return 'keyboard';
   }
 }

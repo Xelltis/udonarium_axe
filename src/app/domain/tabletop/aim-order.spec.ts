@@ -1,11 +1,11 @@
 import { type AimCandidate, aimOrder, nextAim } from '@axe/domain/tabletop/aim-order';
 
-const at = (identifier: string, x: number, side: AimCandidate['side'] = null): AimCandidate => ({
-  identifier,
-  x,
-  y: 0,
-  side,
-});
+const at = (
+  identifier: string,
+  x: number,
+  side: AimCandidate['side'] = null,
+  { z = 0, whole = identifier }: { z?: number; whole?: string } = {}
+): AimCandidate => ({ identifier, x, y: 0, z, side, whole });
 
 describe('aimOrder', () => {
   const hero = at('hero', 0, 'left');
@@ -22,6 +22,24 @@ describe('aimOrder', () => {
   it('keeps the order of the room for pieces as near, and with no piece to go from', () => {
     expect(aimOrder(at('me', 0), [at('b', 100), at('a', -100)])).toEqual(['b', 'a']);
     expect(aimOrder(null, pieces)).toEqual(['hero', 'ally', 'far', 'near', 'bystander']);
+  });
+
+  it('measures how high each stands, so a piece flying straight overhead is no nearer than one beside', () => {
+    expect(aimOrder(hero, [at('overhead', 0, 'right', { z: 200 }), at('beside', 100, 'right')])).toEqual([
+      'beside',
+      'overhead',
+    ]);
+  });
+
+  it('passes over the pieces one with the piece it goes from, its body and its other parts, but takes the parts of another', () => {
+    const head = at('head', 0, null, { whole: 'dragon' });
+    const pieces = [
+      at('dragon', 0),
+      at('tail', 10, null, { whole: 'dragon' }),
+      at('goblin', 50),
+      at('arm', 60, null, { whole: 'golem' }),
+    ];
+    expect(aimOrder(head, pieces)).toEqual(['goblin', 'arm']);
   });
 });
 

@@ -256,10 +256,7 @@ export class EffectTargetingService {
         this.beganWithSelection = null;
         return;
       }
-      untracked(() => {
-        if (this._changingCaster()) this.setCaster(selected.identifier);
-        else this.pick(selected.identifier);
-      });
+      untracked(() => this.press(selected.identifier));
     });
     // A seat made a guest while it aimed casts nothing; the aiming is called off.
     effect(() => {
@@ -365,6 +362,39 @@ export class EffectTargetingService {
       this.mirror();
     }
     return true;
+  }
+
+  /**
+   * Takes a piece aimed at while the effect is held ready as a press of it would: as the caster while
+   * one is waited for, else as a target chosen or unchosen (see {@link pick}). Nothing while no effect
+   * is held ready.
+   */
+  press(identifier: string): void {
+    if (!this.isPicking()) return;
+    if (this._changingCaster()) this.setCaster(identifier);
+    else this.pick(identifier);
+  }
+
+  /**
+   * Chooses exactly these targets, as aiming at pieces by a key, a range or a list does while the
+   * effect is held ready, in their order and as many as the effect takes; the caster kept out of them
+   * is passed over. An area is centred on the first of them, and taken away with none. Nothing while
+   * no effect is held ready.
+   */
+  pickOnly(identifiers: readonly string[]): void {
+    const preset = this._preset();
+    if (!preset) return;
+    const wanted = identifiers.filter(
+      (identifier) => !this.isCasterKeptOut(identifier) && this.characterOf(identifier)
+    );
+    if (preset.areaRadiusCells > 0) {
+      const center = wanted.length > 0 ? this.characterOf(wanted[0]) : null;
+      this._epicenter.set(center?.identifier ?? '');
+      this._picks.set(center ? this.areaPicks(preset, center) : []);
+    } else {
+      this._picks.set(wanted.slice(0, Math.max(preset.targetLimit, 1)));
+    }
+    this.mirror();
   }
 
   /**

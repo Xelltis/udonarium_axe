@@ -1,13 +1,16 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { PartyService } from '@axe/application/party/party.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import type { BattleSide } from '@axe/domain/battle/battle-lineup';
 import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type AimCandidate, aimOrder, nextAim } from '@axe/domain/tabletop/aim-order';
@@ -15,6 +18,9 @@ import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
 import { solidTouchesSegment } from '@axe/domain/tabletop/solid/solid-touch';
+import { surfacePointTo3D } from '@axe/domain/tabletop/surface-space';
+import { tableFocusPoint } from '@axe/domain/tabletop/table-focus-point';
+import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 @Injectable({ providedIn: 'root' })
 export class PieceTargetService {
@@ -27,6 +33,8 @@ export class PieceTargetService {
   private readonly solidRanges = inject(SolidRangeService);
   private readonly pieces = inject(TablePiecesService);
   private readonly tabletop = inject(TabletopService);
+  private readonly links = inject(PieceLinksService);
+  private readonly parties = inject(PartyService);
 
   /**
    * The pieces on the table aimed at, read again as an aim is put on or taken off, as a piece
@@ -65,25 +73,96 @@ export class PieceTargetService {
   }
 
   /**
-   * Aims at the next piece of the other side of the fight from a piece, nearest first, a step on (1) or
-   * back (-1) from the one aimed at now, and at it alone, as a key does over and over (see `aimOrder`).
-   * Only pieces this seat may aim at are taken. Answers the piece aimed at, or null where there is none.
+   * The piece aims are taken from, of these in order: the first on the table in view that this seat
+   * sees. A piece kept from its sight, as one in stealth, fog or darkness whose turn it is, is passed
+   * over, for an order measured from it would tell where it stands.
+   */
+  aimedFromOf(candidates: readonly (GameCharacter | null | undefined)[]): GameCharacter | null {
+    return (
+      candidates.find(
+        (piece): piece is GameCharacter => !!piece && piece.isVisibleOnTable && this.vision.isTokenVisible(piece)
+      ) ?? null
+    );
+  }
+
+  /**
+   * The side of the fight a piece is aimed at as standing on: its own, or for a part with none of its
+   * own, its body's. A piece with no side of its own stands on its party's, so read where signals are
+   * followed, the side is read again as a party is put on another side or goes.
+   */
+  sideOf(piece: GameCharacter): BattleSide | null {
+    this.parties.parties();
+    const own = standingBattleSide(piece);
+    if (own) return own;
+    const body = this.links.bodyOf(piece);
+    return body ? standingBattleSide(body) : null;
+  }
+
+  /**
+   * The pieces this seat may aim at, in the order a key aims at them one at a time from a piece (see
+   * `aimOrder`), measured where each stands in the room: a piece on the floor at the height it stands
+   * at, at the centre of an engagement zone it is in; one on a wall where on the wall it hangs; one on
+   * a board where the board stands.
+   */
+  aimOrderFrom(from: GameCharacter | null): GameCharacter[] {
+    const candidateOf = this.aimCandidateReader();
+    const aimable = this.aimable();
+    const byIdentifier = new Map(aimable.map((piece) => [piece.identifier, piece]));
+    return aimOrder(from ? candidateOf(from) : null, aimable.map(candidateOf))
+      .map((identifier) => byIdentifier.get(identifier))
+      .filter((piece): piece is GameCharacter => piece !== undefined);
+  }
+
+  /**
+   * Aims at the next piece of {@link aimOrderFrom} a piece, a step on (1) or back (-1) from the one
+   * aimed at now, and at it alone, as a key does over and over. Answers the piece aimed at, or null
+   * where there is none.
    */
   aimNext(from: GameCharacter | null, step: 1 | -1): GameCharacter | null {
-    const reading = this.zones.reading();
-    const candidateOf = (piece: GameCharacter): AimCandidate => {
-      const at = reading.pointOf(piece);
-      return { identifier: piece.identifier, x: at.x, y: at.y, side: standingBattleSide(piece) };
-    };
-    const aimable = this.aimable();
-    const order = aimOrder(from ? candidateOf(from) : null, aimable.map(candidateOf));
-    const aimed = new Set(aimable.filter((piece) => piece.targeted).map((piece) => piece.identifier));
-    const next = aimable.find((piece) => piece.identifier === nextAim(order, aimed, step)) ?? null;
+    const order = this.aimOrderFrom(from);
+    const aimed = new Set(order.filter((piece) => piece.targeted).map((piece) => piece.identifier));
+    const nextIdentifier = nextAim(
+      order.map((piece) => piece.identifier),
+      aimed,
+      step
+    );
+    const next = order.find((piece) => piece.identifier === nextIdentifier) ?? null;
     if (next) this.setOnly([next]);
     return next;
   }
 
+  private aimCandidateReader(): (piece: GameCharacter) => AimCandidate {
+    const reading = this.zones.reading();
+    const table = this.tabletop.currentTable;
+    const grid = table.gridSize > 0 ? table.gridSize : 50;
+    const dims = { widthPx: table.width * grid, depthPx: table.height * grid, wallHeightPx: table.wallHeight * grid };
+    const standing = (piece: GameCharacter): { x: number; y: number; z: number } => {
+      if (boardSurfaceOf(piece)) {
+        const board = tableFocusPoint(piece, dims, (identifier) => this.objectStore.get<TabletopObject>(identifier));
+        return { ...board, z: 0 };
+      }
+      const surface = surfaceOf(piece);
+      if (surface !== 'floor') return surfacePointTo3D(surface, piece.location.x, piece.location.y, dims);
+      const at = reading.pointOf(piece);
+      return { x: at.x, y: at.y, z: this.pieces.footOf(piece).height + piece.altitude * grid };
+    };
+    return (piece) => ({
+      identifier: piece.identifier,
+      ...standing(piece),
+      side: this.sideOf(piece),
+      whole: this.links.bodyOf(piece)?.identifier ?? piece.identifier,
+    });
+  }
+
+  /**
+   * Aims at a piece or takes the aim off it. While an effect is held ready, the aim is what it is cast
+   * at, so the piece is taken as a press of it would be (see `EffectTargetingService.press`).
+   */
   toggle(piece: GameCharacter): void {
+    if (this.effectTargeting.isPicking()) {
+      this.effectTargeting.press(piece.identifier);
+      return;
+    }
     piece.targeted = !piece.targeted;
     this.uiSignal.notifyTargetChange(piece.identifier, piece.aliasName);
   }
@@ -98,8 +177,15 @@ export class PieceTargetService {
     this.drop(this.objectStore.getObjects<GameCharacter>(GameCharacter));
   }
 
-  /** Aims at exactly these pieces, taking the aim off every other. */
+  /**
+   * Aims at exactly these pieces, taking the aim off every other. While an effect is held ready, they
+   * are what it is cast at instead (see `EffectTargetingService.pickOnly`), for the marks copy its picks.
+   */
   setOnly(pieces: readonly GameCharacter[]): void {
+    if (this.effectTargeting.isPicking()) {
+      this.effectTargeting.pickOnly(pieces.map((piece) => piece.identifier));
+      return;
+    }
     const wanted = new Set(pieces.map((piece) => piece.identifier));
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       const next = wanted.has(piece.identifier);

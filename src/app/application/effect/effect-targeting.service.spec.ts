@@ -169,6 +169,46 @@ describe('EffectTargetingService', () => {
     expect(cast?.origin).not.toBeNull();
   });
 
+  describe('pieces aimed at by a key, a range or a list while held ready', () => {
+    it('takes them as the picks, in their order and as many as the effect takes, the caster kept out', () => {
+      service.begin(preset);
+      service.setCaster(characters[0].identifier);
+
+      service.pickOnly(characters.map((character) => character.identifier));
+
+      expect(service.picks()).toEqual(characters.slice(1).map((character) => character.identifier));
+      expect(characters.map((character) => character.targeted)).toEqual([false, true, true, true]);
+    });
+
+    it('takes a piece aimed at as a press would: as the caster while one is waited for, else as a target', () => {
+      service.begin(preset);
+      service.changeCaster();
+
+      service.press(characters[1].identifier);
+      service.press(characters[2].identifier);
+
+      expect([service.casterIdentifier(), service.picks()]).toEqual([
+        characters[1].identifier,
+        [characters[2].identifier],
+      ]);
+    });
+
+    it('centres an area on the first of them, and takes the area away with none', () => {
+      preset.areaRadius = 5;
+      preset.maxTargets = 5;
+      service.begin(preset);
+
+      service.pickOnly([characters[1].identifier, characters[3].identifier]);
+      expect([service.epicenter(), service.picks()]).toEqual([
+        characters[1].identifier,
+        [characters[1].identifier, characters[0].identifier, characters[2].identifier],
+      ]);
+
+      service.pickOnly([]);
+      expect([service.epicenter(), service.picks()]).toEqual(['', []]);
+    });
+  });
+
   describe('the caster', () => {
     it('stays the piece selected at the start however many targets are pressed', () => {
       selection.selectObject(characters[3].identifier, characters[3].aliasName);

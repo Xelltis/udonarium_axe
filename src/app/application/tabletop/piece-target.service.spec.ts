@@ -6,6 +6,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -229,5 +230,72 @@ describe('PieceTargetService', () => {
     expect(service().aimNext(hero, -1)).toBe(far);
     expect([hero, ally, near, far].filter((piece) => piece.targeted)).toEqual([far]);
     for (const piece of [hero, ally, near, far]) piece.destroy();
+  });
+
+  describe('the order a key aims in', () => {
+    const made: GameCharacter[] = [];
+    const on = (name: string, x: number, side = '', y = 0) => {
+      const one = GameCharacter.create(name, 1, '');
+      one.location = { name: 'table', x, y };
+      one.battleSide = side;
+      made.push(one);
+      return one;
+    };
+    afterEach(() => {
+      for (const piece of made.splice(0)) piece.destroy();
+    });
+
+    it('takes a part with no side of its own as standing on its body’s side, and passes over the parts of the piece it goes from', () => {
+      const hero = on('勇者', 0, 'left');
+      const dragon = on('竜', 300, 'right');
+      const head = on('頭', 300);
+      head.ridingOn = dragon.identifier;
+      head.rideSeat = 'part';
+      const tail = on('尾', 300);
+      tail.ridingOn = dragon.identifier;
+      tail.rideSeat = 'part';
+
+      expect(service().aimOrderFrom(hero)).toEqual([dragon, head, tail]);
+      expect(service().sideOf(head)).toBe('right');
+      expect(service().aimOrderFrom(head)).not.toContain(dragon);
+      expect(service().aimOrderFrom(head)).not.toContain(tail);
+    });
+
+    it('aims from a body on no side at every piece but its own parts, which stand where it stands', () => {
+      const golem = on('ゴーレム', 0);
+      const arm = on('腕', 0);
+      arm.ridingOn = golem.identifier;
+      arm.rideSeat = 'part';
+      const goblin = on('ゴブリン', 100);
+
+      expect(service().aimOrderFrom(golem)).toEqual([goblin]);
+    });
+
+    it('measures a piece on a wall where on the wall it hangs, not where its own x and y would put it on the floor', () => {
+      const hero = on('勇者', 0, 'left', 0);
+      const onFloor = on('床', 300, 'right', 300);
+      const onWall = on('壁', 0, 'right', 0);
+      onWall.location = { name: 'table', x: 0, y: 0, surface: 'south-wall' } as typeof onWall.location;
+
+      expect(service().aimOrderFrom(hero)).toEqual([onFloor, onWall]);
+    });
+
+    it('takes the pieces aimed at while an effect is held ready as its picks, the marks following them', () => {
+      const hero = on('勇者', 0, 'left');
+      const foe = on('敵', 100, 'right');
+      const other = on('他', 200, 'right');
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      targeting.begin(preset);
+
+      service().toggle(foe);
+      expect([targeting.picks(), foe.targeted]).toEqual([[foe.identifier], true]);
+      service().setOnly([other]);
+      expect([targeting.picks(), foe.targeted, other.targeted]).toEqual([[other.identifier], false, true]);
+      expect(service().aimNext(hero, 1)).toBe(foe);
+      expect(targeting.picks()).toEqual([foe.identifier]);
+      targeting.cancel();
+    });
   });
 });
