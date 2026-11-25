@@ -6,6 +6,9 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 /** How much of a file tells whether it is a GIF. */
 const GIF_HEAD_BYTES = 6;
 
+/** The type a GIF is told by, along with its thumbnail, before its bytes come. */
+const GIF_TYPE = 'image/gif';
+
 /**
  * Why a picture read is left without a kept answer, and what is to ask of it again.
  *
@@ -28,7 +31,7 @@ type Unanswered =
  * Every GIF is taken as moving, one image or many: the boards saved so far left every GIF out of the
  * picture they wear and hang it over the board, and a GIF told still now would be drawn nowhere.
  *
- * Only an answer actually read from the whole picture's bytes is kept. A read that keeps none leaves
+ * Only an answer read from the whole picture's bytes, or one a peer told of a GIF, is kept. A read that keeps none leaves
  * the picture with one way to be read again, settled in `leaveUnanswered`: remembering "still" for
  * those would leave a moving picture neither hung nor painted, since the board leaves what moves out
  * of the picture it wears. The service reads such a picture again by itself rather than telling the
@@ -78,30 +81,36 @@ export class AnimatedImageService {
     const asked = this.asking.get(identifier);
     if (asked) return asked;
 
-    const reading: Promise<boolean> = this.read(identifier).finally(() => {
-      if (this.asking.get(identifier) === reading) this.asking.delete(identifier);
-    });
+    const reading = this.read(identifier).finally(() => this.asking.delete(identifier));
     this.asking.set(identifier, reading);
     return reading;
   }
 
+  /**
+   * Reads whether a picture moves. A GIF a peer told of with its thumbnail is answered moving at its
+   * word, as every GIF is, before its bytes come. A picture not held answers false and is asked about
+   * again once it is there, as the board is drawn again for its coming.
+   */
   private async read(identifier: string): Promise<boolean> {
     const fromThumbnail = this.onlyThumbnail(identifier);
+    if (fromThumbnail && this.imageStorage.get(identifier)?.originalType === GIF_TYPE)
+      return this.keep(identifier, true);
     let animated: boolean;
     try {
       const blob = await this.blobOf(identifier);
-      if (!blob || blob.size < 1) return false;
+      if (!blob) return false;
+      if (blob.size < 1) throw new Error('The picture came empty.');
       const head = await blob.slice(0, GIF_HEAD_BYTES).arrayBuffer();
       animated =
         isGifBytes(head) || (await readWhetherMoves((length) => blob.slice(0, length).arrayBuffer(), blob.size));
     } catch {
-      this.leaveUnanswered(identifier, 'unreadable');
-      return false;
+      return this.leaveUnanswered(identifier, 'unreadable') ?? false;
     }
-    if (fromThumbnail) {
-      this.leaveUnanswered(identifier, 'thumbnail');
-      return animated;
-    }
+    if (fromThumbnail) return this.leaveUnanswered(identifier, 'thumbnail') ?? animated;
+    return this.keep(identifier, animated);
+  }
+
+  private keep(identifier: string, animated: boolean): boolean {
     this.forget(identifier);
     this.answers.update((current) => new Map(current).set(identifier, animated));
     return animated;
@@ -116,8 +125,11 @@ export class AnimatedImageService {
    * - Read from its thumbnail: if it came whole while it was read, it is read again at once, as the
    *   board, drawn for its coming while the read was under way, was handed that read; otherwise it
    *   awaits coming whole.
+   *
+   * Returns the read begun again, so that whoever waited on the read that ended hears its answer
+   * rather than the thumbnail's; null where none is begun.
    */
-  private leaveUnanswered(identifier: string, why: 'unreadable' | 'thumbnail'): void {
+  private leaveUnanswered(identifier: string, why: 'unreadable' | 'thumbnail'): Promise<boolean> | null {
     const before = this.unanswered.get(identifier);
     const pending = before?.kind === 'resting' ? before.wake : null;
     if (pending !== null) clearTimeout(pending);
@@ -125,15 +137,15 @@ export class AnimatedImageService {
       const rest: Unanswered = { kind: 'resting', since: Date.now(), wake: null };
       this.unanswered.set(identifier, rest);
       if (before?.kind !== 'resting' || pending !== null) this.wakeAfterRest(identifier, rest);
-      return;
+      return null;
     }
     if (this.onlyThumbnail(identifier)) {
       this.unanswered.set(identifier, { kind: 'awaitingWhole' });
-      return;
+      return null;
     }
     this.unanswered.delete(identifier);
     this.asking.delete(identifier);
-    void this.probe(identifier);
+    return this.probe(identifier);
   }
 
   /** Sets the one clock that reads a resting picture again once its rest is over, unless one is set. */

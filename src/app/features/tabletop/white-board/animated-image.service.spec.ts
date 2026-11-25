@@ -281,12 +281,44 @@ describe('AnimatedImageService', () => {
     const asked = computed(() => animated.isAnimated('picture'));
 
     expect(asked()).toBe(false);
+    const saving = animated.probe('picture');
     state.value = ImageState.COMPLETE;
     expect(asked()).toBe(false);
     deliver();
     await vi.waitFor(() => expect(asked()).toBe(true));
 
+    expect(await saving).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('answers a GIF a peer told of with its thumbnail as moving, without waiting for its bytes', async () => {
+    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({
+      url: 'blob:thumbnail',
+      state: ImageState.THUMBNAIL,
+      originalType: 'image/gif',
+    } as never);
+    const fetcher = vi.fn(async () => ({ ok: true, blob: async () => new Blob([png]) }) as never);
+    vi.stubGlobal('fetch', fetcher);
+    const animated = service();
+
+    expect(await animated.probe('picture')).toBe(true);
+    expect(animated.isAnimated('picture')).toBe(true);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('rests the board on a picture that came empty, as on one that could not be read', async () => {
+    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
+    const fetcher = vi.fn(async () => ({ ok: true, blob: async () => new Blob([]) }) as never);
+    vi.stubGlobal('fetch', fetcher);
+    const animated = service();
+
+    animated.isAnimated('picture');
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    for (let ask = 0; ask < 5; ask++) animated.isAnimated('picture');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it('asks no more of a picture read from its thumbnail while only the thumbnail is held, however often the board is drawn', async () => {
