@@ -42,6 +42,26 @@ export class PieceTargetService {
     return aimed;
   });
 
+  /**
+   * The pieces this seat may aim at without pressing them, as from a list of them or by a key: on the
+   * table in view, in the fight, and seen by this seat. Read again as a piece arrives, goes or
+   * changes, and as what this seat sees does.
+   */
+  readonly aimable = computed<GameCharacter[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const aimable: GameCharacter[] = [];
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      this.objectChange.versionOf(piece.identifier)();
+      if (this.mayAimAt(piece)) aimable.push(piece);
+    }
+    return aimable;
+  });
+
+  /** Whether this seat may aim at a piece: one on the table in view, not taken out of the fight, and seen by this seat. */
+  mayAimAt(piece: GameCharacter): boolean {
+    return piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece);
+  }
+
   toggle(piece: GameCharacter): void {
     piece.targeted = !piece.targeted;
     this.uiSignal.notifyTargetChange(piece.identifier, piece.aliasName);
@@ -90,7 +110,7 @@ export class PieceTargetService {
     const reading = this.zones.reading();
     const inside = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
+      .filter((piece) => this.mayAimAt(piece))
       .filter((piece) => rangeCovers(shape, squarePx, reading.pointOf(piece)) === true);
     this.setOnly(inside);
   }
@@ -106,7 +126,7 @@ export class PieceTargetService {
     const gridSize = table.gridSize > 0 ? table.gridSize : 50;
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
+      .filter((piece) => this.mayAimAt(piece))
       .filter((piece) => {
         const at = reading.pointOf(piece);
         const feet = this.pieces.footOf(piece).height + piece.altitude * gridSize;

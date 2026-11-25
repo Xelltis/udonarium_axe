@@ -67,6 +67,7 @@
       "objectList": "Object list",
       "characterImport": "Import Character",
       "ownedCharacters": "My characters",
+      "targetList": "Targets",
       "roomSnapshot": "Auto Save",
       "replay": "Replay",
       "popOut": "Open in its own window",
@@ -3632,10 +3633,18 @@
         "unstoppable": "Unstoppable move",
         "unstoppableHint": "Nobody can stop this move, by stepping in or by an engagement zone. Switch it before the first corner is set"
       },
+      "targetList": {
+        "side_left": "Left side",
+        "side_right": "Right side",
+        "side_none": "On no side",
+        "empty": "No piece can be targeted."
+      },
       "targetBand": {
         "count": "{{count}} targeted",
         "clear": "Clear all",
         "clearHint": "Takes the aim off every piece (Shift + T does too)",
+        "list": "List",
+        "listHint": "Opens the list of targets",
         "picked": "{{count}} of {{max}} targets picked",
         "fire": "Play",
         "cancel": "Cancel"
@@ -6993,6 +7002,7 @@
       "gmTools": "GM tools",
       "plTools": "PL tools",
       "ownedCharacters": "My characters",
+      "targetList": "Targets",
       "handCards": "Toggle my hand",
       "hand": "Hand",
       "objectList": "Object list (GM)",

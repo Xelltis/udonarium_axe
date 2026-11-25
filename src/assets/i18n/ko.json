@@ -67,6 +67,7 @@
       "objectList": "오브젝트 목록",
       "characterImport": "캐릭터 가져오기",
       "ownedCharacters": "내 캐릭터 목록",
+      "targetList": "타깃 목록",
       "roomSnapshot": "자동 저장",
       "replay": "리플레이",
       "popOut": "별도 창으로 열기",
@@ -3632,10 +3633,18 @@
         "unstoppable": "막을 수 없는 이동",
         "unstoppableHint": "이 이동은 끼어들기로도 교전 구역으로도 막을 수 없습니다. 첫 모퉁이를 정하기 전에 전환합니다"
       },
+      "targetList": {
+        "side_left": "왼쪽 편",
+        "side_right": "오른쪽 편",
+        "side_none": "편에 들지 않음",
+        "empty": "타깃으로 삼을 수 있는 말이 없습니다."
+      },
       "targetBand": {
         "count": "타깃 {{count}}개",
         "clear": "모두 해제",
         "clearHint": "타깃을 모두 해제합니다 (Shift + T 로도 해제할 수 있습니다)",
+        "list": "목록",
+        "listHint": "타깃 목록을 엽니다",
         "picked": "대상 {{count}}/{{max}}",
         "fire": "발동",
         "cancel": "중지"
@@ -7398,6 +7407,7 @@
       "gmTools": "GM 도구",
       "plTools": "PL 도구",
       "ownedCharacters": "내 캐릭터 목록",
+      "targetList": "타깃 목록",
       "handCards": "패 열고 닫기",
       "hand": "패",
       "objectList": "오브젝트 목록(GM)",

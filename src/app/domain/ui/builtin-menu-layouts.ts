@@ -134,6 +134,7 @@ const PL_TOOLBAR: MenuLayout = {
   nodes: [
     item('ownedCharacters'),
     item('inventory'),
+    item('targetList'),
     item('rangeShortcut'),
     item('ruler'),
     item('firstPerson'),

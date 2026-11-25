@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -188,5 +189,25 @@ describe('PieceTargetService', () => {
     onTable.location.name = 'graveyard';
     TestBed.inject(ObjectChangeService).notifyChanged(onTable.identifier);
     expect(service().onTable()).toEqual([]);
+  });
+
+  it('names the pieces it may aim at without pressing them: on the table, in the fight, and seen', () => {
+    const fighting = GameCharacter.create('戦', 1, '');
+    fighting.location = { name: 'table', x: 0, y: 0 };
+    const resting = GameCharacter.create('休', 1, '');
+    resting.location = { name: 'table', x: 50, y: 0 };
+    resting.offField = '1';
+    const away = GameCharacter.create('墓', 1, '');
+    away.location = { name: 'graveyard', x: 0, y: 0 };
+    const unseen = GameCharacter.create('影', 1, '');
+    unseen.location = { name: 'table', x: 100, y: 0 };
+    vi.spyOn(TestBed.inject(VisionService), 'isTokenVisible').mockImplementation((piece) => piece !== unseen);
+
+    expect(service().aimable()).toEqual([fighting]);
+
+    resting.offField = '';
+    TestBed.inject(ObjectChangeService).notifyChanged(resting.identifier);
+    expect(service().aimable()).toEqual([fighting, resting]);
+    for (const piece of [fighting, resting, away, unseen]) piece.destroy();
   });
 });
