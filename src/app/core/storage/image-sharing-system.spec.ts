@@ -132,6 +132,53 @@ describe('ImageSharingSystem', () => {
     });
   });
 
+  describe('makeSendUpdateImages, for a peer that has nothing of a picture', () => {
+    it('sends its thumbnail told with the type of its own bytes, as a thumbnail is drawn as another type', () => {
+      const gif = ImageFile.create({
+        identifier: 'a'.repeat(64),
+        name: '',
+        type: '',
+        blob: new Blob([new Uint8Array([1])], { type: 'image/gif' }),
+        url: 'blob:gif',
+        thumbnail: { type: 'image/png', blob: new Blob([new Uint8Array([2])], { type: 'image/png' }), url: 'blob:t' },
+      });
+      vi.spyOn(ImageStorage.instance, 'get').mockReturnValue(gif);
+
+      const [sent] = (ImageSharingSystem.instance as unknown as ImageSharingSystemPrivate).makeSendUpdateImages(
+        [{ identifier: gif.identifier, state: ImageState.NULL }],
+        1024
+      );
+
+      expect(sent).toEqual(
+        expect.objectContaining({
+          type: 'image/gif',
+          blob: null,
+          thumbnail: expect.objectContaining({ type: 'image/png' }),
+        })
+      );
+    });
+
+    it('passes on the type a peer told with a thumbnail while only the thumbnail has come here', () => {
+      const thumbnail = new Blob([new Uint8Array([2])], { type: 'image/png' });
+      const relayed = ImageFile.create({
+        identifier: 'b'.repeat(64),
+        name: '',
+        type: 'image/gif',
+        blob: null,
+        url: '',
+        thumbnail: { type: 'image/png', blob: thumbnail, url: 'blob:t' },
+      });
+      vi.spyOn(ImageStorage.instance, 'get').mockReturnValue(relayed);
+
+      const [sent] = (ImageSharingSystem.instance as unknown as ImageSharingSystemPrivate).makeSendUpdateImages(
+        [{ identifier: relayed.identifier, state: ImageState.NULL }],
+        1024
+      );
+
+      expect(sent.type).toBe('image/gif');
+    });
+  });
+
   describe('fetching from the asset server', () => {
     const store = AssetHttpStore.instance;
     const sharingStatic = ImageSharingSystem as unknown as {
