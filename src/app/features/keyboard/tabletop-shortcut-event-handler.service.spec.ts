@@ -129,42 +129,78 @@ describe('TabletopShortcutEventHandlerService', () => {
       PeerCursor.myCursor = null!;
     });
 
-    it('aims with the focus where a press left it, or a dialog gave it back after a press, but not once the keyboard moved it, nor under a dialog', () => {
-      const hero = on('勇者', 0, 'left');
-      const foe = on('敵', 100, 'right');
-      selection.selectObject(hero.identifier, hero.aliasName);
-      const button = document.createElement('button');
-      document.body.appendChild(button);
-      onTestFinished(() => {
-        button.remove();
-        for (const piece of [hero, foe]) piece.destroy();
+    describe('with the focus left on a control', () => {
+      let foe: GameCharacter;
+      let button: HTMLButtonElement;
+      let other: HTMLButtonElement;
+      const pressOn = (element: Element) => element.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      const key = (name: string) =>
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
+
+      beforeEach(() => {
+        const hero = on('勇者', 0, 'left');
+        foe = on('敵', 100, 'right');
+        selection.selectObject(hero.identifier, hero.aliasName);
+        button = document.createElement('button');
+        other = document.createElement('button');
+        document.body.append(button, other);
+        onTestFinished(() => {
+          button.remove();
+          other.remove();
+          for (const piece of [hero, foe]) piece.destroy();
+        });
       });
-      const other = document.createElement('button');
-      document.body.appendChild(other);
-      onTestFinished(() => other.remove());
 
-      button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-      button.focus();
-      expect(press('Tab').defaultPrevented).toBe(true);
-      expect(foe.targeted).toBe(true);
+      it('aims where the pointer pressed the control', () => {
+        pressOn(button);
+        button.focus();
 
-      TestBed.inject(PieceTargetService).setOnly([]);
-      other.focus();
-      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
+      });
 
-      TestBed.inject(PieceTargetService).setOnly([]);
-      const field = document.createElement('input');
-      document.body.appendChild(field);
-      onTestFinished(() => field.remove());
-      field.focus();
-      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
-      other.focus();
-      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+      it('aims where a dialog gave the focus back to the control that opened it, after its button was pressed', () => {
+        pressOn(button);
+        button.focus();
+        pressOn(other);
+        button.focus();
 
-      button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-      button.focus();
-      vi.spyOn(TestBed.inject(ModalService), 'isShow', 'get').mockReturnValue(true);
-      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
+      });
+
+      it('moves the focus on where the keyboard moved it there, by an arrow key as by Tab', () => {
+        pressOn(button);
+        button.focus();
+        key('ArrowRight');
+        other.focus();
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+      });
+
+      it('moves the focus on where the keyboard moved it while the table took no keys, as in the first-person view', () => {
+        pressOn(button);
+        vi.spyOn(TestBed.inject(FirstPersonService), 'showing').mockReturnValue(true);
+        key('Tab');
+        other.focus();
+        vi.mocked(TestBed.inject(FirstPersonService).showing).mockReturnValue(false);
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+      });
+
+      it('aims again once the pointer has pressed anything after the keyboard moved the focus', () => {
+        key('ArrowRight');
+        other.focus();
+        pressOn(other);
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
+      });
+
+      it('leaves Tab under a dialog', () => {
+        pressOn(button);
+        button.focus();
+        vi.spyOn(TestBed.inject(ModalService), 'isShow', 'get').mockReturnValue(true);
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+      });
     });
 
     it('leaves Tab to a sheet or a dialog marked as modal that stands over the table', () => {

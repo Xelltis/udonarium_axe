@@ -174,10 +174,7 @@ export class PieceTargetService {
    * cast at too, without centring an area on it.
    */
   letGo(piece: GameCharacter): void {
-    if (this.effectTargeting.isPicking()) {
-      this.effectTargeting.unpick(piece.identifier);
-      return;
-    }
+    if (this.effectTargeting.isPicking()) this.effectTargeting.unpick(piece.identifier);
     this.drop([piece]);
   }
 
@@ -250,14 +247,20 @@ export class PieceTargetService {
   }
 
   /**
-   * Pieces in order of how near each stands to a point on the table, so an effect held ready that
-   * takes fewer than a range holds takes the nearest.
+   * Pieces in order of how near each stands to a point, so an effect held ready that takes fewer than
+   * a range holds takes the nearest: across the table for a range laid on it, and through the room,
+   * each piece's middle and height included, for one standing up with a height of its own.
    */
-  private nearestFirst(pieces: readonly GameCharacter[], from: { x: number; y: number }): GameCharacter[] {
+  private nearestFirst(pieces: readonly GameCharacter[], from: { x: number; y: number; z?: number }): GameCharacter[] {
     const reading = this.zones.reading();
+    const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
     const distance = (piece: GameCharacter) => {
-      const at = reading.pointOf(piece);
-      return Math.hypot(at.x - from.x, at.y - from.y);
+      if (from.z === undefined) {
+        const at = reading.pointOf(piece);
+        return Math.hypot(at.x - from.x, at.y - from.y);
+      }
+      const at = this.middleInRoom(piece, reading.pointOf(piece), grid);
+      return Math.hypot(at.x - from.x, at.y - from.y, at.z - from.z);
     };
     return pieces
       .map((piece, index) => ({ piece, index, away: distance(piece) }))

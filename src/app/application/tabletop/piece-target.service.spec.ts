@@ -145,6 +145,34 @@ describe('PieceTargetService', () => {
       range.destroy();
     });
 
+    it('measures what a range standing up takes in through the room, a piece flying beside it nearer than one far below it', () => {
+      const range = circleAt(0, 0);
+      vi.spyOn(range, 'isSolid', 'get').mockReturnValue(true);
+      const below = GameCharacter.create('真下', 1, '');
+      below.location = { name: 'table', x: 475, y: 475 };
+      const beside = GameCharacter.create('横の空中', 1, '');
+      beside.location = { name: 'table', x: 525, y: 475 };
+      beside.altitude = 3;
+      vi.spyOn(TestBed.inject(SolidRangeService), 'placedOf').mockReturnValue({
+        origin: { x: 500, y: 500, z: 175 },
+      } as never);
+      vi.spyOn(service() as unknown as { takenIntoSolid(): GameCharacter[] }, 'takenIntoSolid').mockReturnValue([
+        below,
+        beside,
+      ]);
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([beside.identifier]);
+      targeting.cancel();
+      range.destroy();
+    });
+
     it('takes in pieces as far off as its length counts squares, in the squares it is given', () => {
       const range = circleAt(300, 300);
       const twoSquaresOff = GameCharacter.create('二マス先', 1, '');
@@ -382,6 +410,20 @@ describe('PieceTargetService', () => {
       expect(targeting.picks()).toContain(near.identifier);
       expect(targeting.picks()).not.toContain(next.identifier);
       expect(next.targeted).toBe(false);
+      targeting.cancel();
+    });
+
+    it('lets go of a piece aimed at while an effect is held ready though it is none of the picks, as one ticked from the remote', () => {
+      const fallen = on('倒れた', 50, 'left');
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      targeting.begin(preset);
+      fallen.targeted = true;
+
+      service().letGo(fallen);
+
+      expect(fallen.targeted).toBe(false);
       targeting.cancel();
     });
 

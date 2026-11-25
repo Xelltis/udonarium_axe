@@ -72,18 +72,34 @@ export class TabletopShortcutEventHandlerService {
 
   /** Whether the keyboard has moved the focus since the pointer last pressed anything. */
   private keyboardMoved = false;
+  /** What the reader last used, the keyboard or the pointer, heard everywhere on the page, whatever is showing. */
+  private lastInput: 'keyboard' | 'pointer' = 'pointer';
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
+    document.addEventListener('keydown', this.onAnyKey, true);
     document.addEventListener('pointerdown', this.onPointerDown, true);
+    document.addEventListener('focusin', this.onFocusIn, true);
     inject(DestroyRef).onDestroy(() => {
       document.removeEventListener('keydown', this.onKeyDown);
+      document.removeEventListener('keydown', this.onAnyKey, true);
       document.removeEventListener('pointerdown', this.onPointerDown, true);
+      document.removeEventListener('focusin', this.onFocusIn, true);
     });
   }
 
+  private readonly onAnyKey = (): void => {
+    this.lastInput = 'keyboard';
+  };
+
   private readonly onPointerDown = (): void => {
+    this.lastInput = 'pointer';
     this.keyboardMoved = false;
+  };
+
+  /** A focus moved while the keyboard was what the reader last used was moved by the keyboard, by Tab or any other key. */
+  private readonly onFocusIn = (): void => {
+    if (this.lastInput === 'keyboard') this.keyboardMoved = true;
   };
 
   /**
@@ -126,15 +142,11 @@ export class TabletopShortcutEventHandlerService {
       chord: event.ctrlKey || event.metaKey || event.altKey,
       shift: event.shiftKey,
     });
-    if (!command) {
-      if (event.key === 'Tab') this.keyboardMoved = true;
-      return;
-    }
+    if (!command) return;
     if (
       (command === 'nextTarget' || command === 'previousTarget') &&
       this.targets.aimOrderFrom(this.aimedFrom()).length < 1
     ) {
-      this.keyboardMoved = true;
       return;
     }
     event.preventDefault();
