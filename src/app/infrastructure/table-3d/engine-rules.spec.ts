@@ -5,6 +5,7 @@ import {
   nodeWornPictures,
   pictureKey,
   shadowCastingPictures,
+  sharedPictureKey,
   unwornPictureKeys,
   urlOfPictureKey,
   wornPictures,
@@ -107,21 +108,32 @@ describe('shadowCastingPictures', () => {
 });
 
 describe('nodeWornPictures', () => {
-  it('names the shared pictures the layers and the backdrops wear tiled, and the board stretched', () => {
-    const shared = new Map<string, Texture>();
-    const pictureOf = (url: string, tiled: boolean) => {
-      const key = `${url}|${tiled}`;
-      if (!shared.has(key)) shared.set(key, new Texture());
-      return shared.get(key);
-    };
-    const world = {
-      board: { pictureUrl: 'board.gif' },
+  const shared = new Map<string, Texture>();
+  const pictureOf = (key: string) => {
+    if (!shared.has(key)) shared.set(key, new Texture());
+    return shared.get(key);
+  };
+  const world = (board: boolean) =>
+    ({
+      board: board ? { pictureUrl: 'board.gif' } : null,
       layers: [{ pictureUrl: 'clouds.gif' }],
       backdrops: [{ pictureUrl: 'hills.gif' }],
-    } as unknown as TableWorld;
+    }) as unknown as TableWorld;
 
-    expect(nodeWornPictures(world, pictureOf)).toEqual(
-      new Set([pictureOf('clouds.gif', true), pictureOf('hills.gif', true), pictureOf('board.gif', false)])
+  it('names the shared pictures the board wears stretched, and the layers and the backdrops under a sky wear tiled', () => {
+    expect(nodeWornPictures(world(true), true, pictureOf)).toEqual(
+      new Set([
+        pictureOf(sharedPictureKey('board.gif', false)),
+        pictureOf(sharedPictureKey('clouds.gif', true)),
+        pictureOf(sharedPictureKey('hills.gif', true)),
+      ])
     );
+  });
+
+  it('names no backdrop where no sky stands them, and nothing where there is no board to lay them on', () => {
+    expect(nodeWornPictures(world(true), false, pictureOf).has(pictureOf(sharedPictureKey('hills.gif', true))!)).toBe(
+      false
+    );
+    expect(nodeWornPictures(world(false), true, pictureOf)).toEqual(new Set());
   });
 });

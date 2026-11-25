@@ -38,9 +38,9 @@ const READ_TRIES = 3;
 const READ_AGAIN_MS = 5000;
 
 /**
- * How a wearer wears a moving picture: where it can be told whether it is in sight, as a piece's
- * board or a coin's face, and whether it throws a shadow cut to the picture, as a piece's board does;
- * a wearer that cannot be told of, as a board laid over the table or a backdrop, is always in sight.
+ * How a wearer wears a moving picture: whether the table tells if it is in sight (see `see`), and
+ * whether it throws a shadow cut to the picture, as a standing piece's board or a face of a block
+ * does. A wearer the table does not tell of, as the painted ground or the water, is always in sight.
  */
 export interface PictureWearer {
   readonly texture: Texture;

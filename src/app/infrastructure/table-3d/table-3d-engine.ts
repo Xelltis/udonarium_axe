@@ -32,6 +32,7 @@ import {
   nodeWornPictures,
   pictureKey,
   shadowCastingPictures,
+  sharedPictureKey,
   unwornPictureKeys,
   wornPictures,
 } from '@axe/infrastructure/table-3d/engine-rules';
@@ -961,9 +962,10 @@ class ThreeTableEngine implements Table3dEngine {
 
   /**
    * Tells the moving pictures which of the textures it can judge are in sight as just drawn: worn as
-   * the map of a piece's board or a coin's face that is shown and in the camera's view. Only those
-   * are looked for, among the pieces and the coins alone, and a picture come into sight has a frame
-   * drawn for it.
+   * the map of a piece's board, a coin's face or a face of a block or a wall that is shown and in the
+   * camera's view, looked for among the pieces, the coins and the faces alone; and worn by the board,
+   * its layers and its backdrops laid now, which are drawn through nodes and taken as always seen
+   * (see `nodeWornPictures`). A picture come into sight has a frame drawn for it.
    */
   private seeMovingPictures(): void {
     const judged = this.movingPictures.judged();
@@ -975,7 +977,7 @@ class ThreeTableEngine implements Table3dEngine {
       new Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
     );
     const seen = this.laidWorld
-      ? nodeWornPictures(this.laidWorld, (url, tiled) => this.loaded.get(pictureKey(url, String(tiled))))
+      ? nodeWornPictures(this.laidWorld, this.laidSky !== null, (key) => this.loaded.get(key))
       : new Set<Texture>();
     const look = (object: Object3D) => {
       const worn = (object as Mesh).material;
@@ -1272,7 +1274,7 @@ class ThreeTableEngine implements Table3dEngine {
    * block or a wall wears it, a shadow is cut to it, and its frames draw the shadows again.
    */
   private sharedPicture(url: string, tiled: boolean): Texture {
-    const key = pictureKey(url, String(tiled));
+    const key = sharedPictureKey(url, tiled);
     let picture = this.loaded.get(key);
     if (!picture) {
       const shared: Texture = this.picture(url, undefined, {

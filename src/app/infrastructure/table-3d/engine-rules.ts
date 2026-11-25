@@ -21,6 +21,11 @@ export function pictureKey(url: string, worn: string): string {
   return `${url}|${worn}`;
 }
 
+/** The key of a picture shared by everything that wears it the same way, tiled or stretched. */
+export function sharedPictureKey(url: string, tiled: boolean): string {
+  return pictureKey(url, String(tiled));
+}
+
 /** The url of a picture known by {@link pictureKey}. */
 export function urlOfPictureKey(key: string): string {
   return key.slice(0, key.lastIndexOf('|'));
@@ -63,17 +68,25 @@ export function shadowCastingPictures(root: Object3D): Set<Texture> {
 }
 
 /**
- * The pictures of a world drawn through the nodes of their materials rather than as a map, the
- * layers, the backdrops and the board, as the engine shares them (`pictureOf`, tiled or stretched):
- * where they are drawn is not told, so a moving one among them is taken as always in sight.
+ * The pictures of a world drawn through the nodes of their materials rather than as a map, as the
+ * engine shares them (see {@link sharedPictureKey}): the board stretched, and tiled the layers laid
+ * over it and the backdrops stood round it under a sky. Where they are drawn is not told, so a
+ * moving one among them is taken as always in sight; what is not laid, for want of a board or a
+ * sky, wears nothing.
  */
 export function nodeWornPictures(
   world: TableWorld,
-  pictureOf: (url: string, tiled: boolean) => Texture | undefined
+  sky: boolean,
+  pictureOf: (key: string) => Texture | undefined
 ): Set<Texture> {
   const pictures = new Set<Texture>();
-  const add = (picture: Texture | undefined) => picture && pictures.add(picture);
-  for (const layer of [...world.layers, ...world.backdrops]) add(pictureOf(layer.pictureUrl, true));
-  if (world.board?.pictureUrl) add(pictureOf(world.board.pictureUrl, false));
+  if (!world.board) return pictures;
+  const add = (url: string, tiled: boolean) => {
+    const picture = url ? pictureOf(sharedPictureKey(url, tiled)) : undefined;
+    if (picture) pictures.add(picture);
+  };
+  add(world.board.pictureUrl, false);
+  for (const layer of world.layers) add(layer.pictureUrl, true);
+  if (sky) for (const backdrop of world.backdrops) add(backdrop.pictureUrl, true);
   return pictures;
 }
