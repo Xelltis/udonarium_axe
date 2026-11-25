@@ -6,14 +6,18 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 /** How much of a file tells whether it is a GIF. */
 const GIF_HEAD_BYTES = 6;
 
-/** The type a GIF is told by, along with its thumbnail, before its bytes come. */
+/**
+ * The type a GIF is told by: its own bytes', or the one a peer tells with its thumbnail before its
+ * bytes come.
+ */
 const GIF_TYPE = 'image/gif';
 
 /**
  * Why a picture read is left without a kept answer, and what is to ask of it again.
  *
- * - `resting`: its bytes could not be read at `since`. The board takes it as still until the rest is
- *   over; `wake` is the one clock, if any, set to read it again once the rest is over.
+ * - `resting`: its bytes could not be read at `since`. The board takes it as its type tells (see
+ *   `toldGif`) until the rest is over; `wake` is the one clock, if any, set to read it again once the
+ *   rest is over.
  * - `awaitingWhole`: it was read while only its thumbnail had come, which is drawn still. It is read
  *   again once it has come whole and the board is drawn for that.
  */
@@ -24,9 +28,9 @@ type Unanswered =
 /**
  * Remembers which pictures move.
  *
- * The answer is in the bytes rather than in anything the storehouse knows, so it is read
- * once per picture and kept. Until it is read a picture is taken as still, and whatever
- * asked is told again when an answer is kept.
+ * The answer is in the bytes, so it is read once per picture and kept. Until it is read a picture
+ * is taken as its type tells, still but for a GIF, and whatever asked is told again when an answer
+ * is kept.
  *
  * Every GIF is taken as moving, one image or many: the boards saved so far left every GIF out of the
  * picture they wear and hang it over the board, and a GIF told still now would be drawn nowhere.
@@ -62,7 +66,6 @@ export class AnimatedImageService {
     const known = this.answers().get(identifier);
     if (known !== undefined) return known;
     const told = this.toldGif(identifier);
-    if (told && this.onlyThumbnail(identifier)) return true;
     const left = this.unanswered.get(identifier);
     if (left?.kind === 'resting' && Date.now() - left.since < READ_AGAIN_AFTER_MS) {
       this.wakeAfterRest(identifier, left);
@@ -101,7 +104,7 @@ export class AnimatedImageService {
     let animated: boolean;
     try {
       const blob = await this.blobOf(identifier);
-      if (!blob) return false;
+      if (!blob) return this.toldGif(identifier);
       if (blob.size < 1) throw new Error('The picture came empty.');
       const head = await blob.slice(0, GIF_HEAD_BYTES).arrayBuffer();
       animated =

@@ -32,7 +32,7 @@ describe('AnimatedImageService', () => {
     vi.unstubAllGlobals();
   });
 
-  it('takes a picture as still until the bytes say otherwise', () => {
+  it('takes a picture not told a GIF as still until the bytes say otherwise', () => {
     serve(gif);
 
     expect(service().isAnimated('picture')).toBe(false);
@@ -364,6 +364,18 @@ describe('AnimatedImageService', () => {
     answers.push(asked());
 
     expect(answers).toEqual([true, true, true]);
+  });
+
+  it('hands the editor a told GIF of which nothing has come yet as moving, as the board hangs it', async () => {
+    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({
+      url: '',
+      originalType: 'image/gif',
+      state: ImageState.NULL,
+    } as never);
+    const animated = service();
+
+    expect(await animated.probe('picture')).toBe(true);
+    expect(animated.isAnimated('picture')).toBe(true);
   });
 
   it('hands the editor a told GIF whose bytes cannot be read as moving, as the board hangs it', async () => {
