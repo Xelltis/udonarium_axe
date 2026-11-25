@@ -2,6 +2,7 @@ import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import {
   fieldOfViewDeg,
   finishingOf,
+  nodeWornPictures,
   pictureKey,
   shadowCastingPictures,
   unwornPictureKeys,
@@ -89,5 +90,38 @@ describe('shadowCastingPictures', () => {
     expect(shadowCastingPictures(root)).toEqual(new Set([shadowed]));
     root.remove(casting);
     expect(shadowCastingPictures(root)).toEqual(new Set());
+  });
+
+  it('names the pictures of every material a mesh wears, where it wears more than one', () => {
+    const root = new Group();
+    const [front, back] = [new Texture(), new Texture()];
+    const mesh = new Mesh(new BufferGeometry(), [
+      new MeshBasicNodeMaterial({ map: front }),
+      new MeshBasicNodeMaterial({ map: back }),
+    ]);
+    mesh.castShadow = true;
+    root.add(mesh);
+
+    expect(shadowCastingPictures(root)).toEqual(new Set([front, back]));
+  });
+});
+
+describe('nodeWornPictures', () => {
+  it('names the shared pictures the layers and the backdrops wear tiled, and the board stretched', () => {
+    const shared = new Map<string, Texture>();
+    const pictureOf = (url: string, tiled: boolean) => {
+      const key = `${url}|${tiled}`;
+      if (!shared.has(key)) shared.set(key, new Texture());
+      return shared.get(key);
+    };
+    const world = {
+      board: { pictureUrl: 'board.gif' },
+      layers: [{ pictureUrl: 'clouds.gif' }],
+      backdrops: [{ pictureUrl: 'hills.gif' }],
+    } as unknown as TableWorld;
+
+    expect(nodeWornPictures(world, pictureOf)).toEqual(
+      new Set([pictureOf('clouds.gif', true), pictureOf('hills.gif', true), pictureOf('board.gif', false)])
+    );
   });
 });

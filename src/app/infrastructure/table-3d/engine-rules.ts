@@ -54,8 +54,26 @@ export function shadowCastingPictures(root: Object3D): Set<Texture> {
   root.traverse((object) => {
     const mesh = object as Mesh;
     if (!mesh.isMesh || !mesh.castShadow) return;
-    const picture = (mesh.material as { map?: Texture | null }).map;
-    if (picture) pictures.add(picture);
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      const picture = (material as { map?: Texture | null }).map;
+      if (picture) pictures.add(picture);
+    }
   });
+  return pictures;
+}
+
+/**
+ * The pictures of a world drawn through the nodes of their materials rather than as a map, the
+ * layers, the backdrops and the board, as the engine shares them (`pictureOf`, tiled or stretched):
+ * where they are drawn is not told, so a moving one among them is taken as always in sight.
+ */
+export function nodeWornPictures(
+  world: TableWorld,
+  pictureOf: (url: string, tiled: boolean) => Texture | undefined
+): Set<Texture> {
+  const pictures = new Set<Texture>();
+  const add = (picture: Texture | undefined) => picture && pictures.add(picture);
+  for (const layer of [...world.layers, ...world.backdrops]) add(pictureOf(layer.pictureUrl, true));
+  if (world.board?.pictureUrl) add(pictureOf(world.board.pictureUrl, false));
   return pictures;
 }

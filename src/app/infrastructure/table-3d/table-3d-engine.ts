@@ -29,6 +29,7 @@ import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
 import {
   fieldOfViewDeg,
   finishingOf,
+  nodeWornPictures,
   pictureKey,
   shadowCastingPictures,
   unwornPictureKeys,
@@ -272,6 +273,8 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly loaded = new Map<string, Texture>();
   /** The shared pictures the faces of blocks and walls laid now wear and throw a shadow cut to. */
   private facePictures = new Set<Texture>();
+  /** The world last laid, for the pictures its layers, backdrops and board wear. */
+  private laidWorld: TableWorld | null = null;
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
   private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
@@ -693,6 +696,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setWorld(world: TableWorld): void {
+    this.laidWorld = world;
     const board = world.board;
     this.placeBoard(board);
     const shape = board ? () => (board.ground ? groundGeometry(board.ground) : boardGeometry(board)) : null;
@@ -730,9 +734,7 @@ class ThreeTableEngine implements Table3dEngine {
   private forgetPictures(world: TableWorld): void {
     const worn = wornPictures(world);
     for (const key of unwornPictureKeys(this.loaded.keys(), worn)) {
-      const picture = this.loaded.get(key)!;
-      this.facePictures.delete(picture);
-      picture.dispose();
+      this.loaded.get(key)!.dispose();
       this.loaded.delete(key);
     }
     for (const [look, material] of this.looks) {
@@ -972,7 +974,9 @@ class ThreeTableEngine implements Table3dEngine {
     const view = new Frustum().setFromProjectionMatrix(
       new Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
     );
-    const seen = new Set<Texture>();
+    const seen = this.laidWorld
+      ? nodeWornPictures(this.laidWorld, (url, tiled) => this.loaded.get(pictureKey(url, String(tiled))))
+      : new Set<Texture>();
     const look = (object: Object3D) => {
       const worn = (object as Mesh).material;
       if (!worn) return;
@@ -984,6 +988,7 @@ class ThreeTableEngine implements Table3dEngine {
     };
     this.sprites.group.traverseVisible(look);
     this.coins.group.traverseVisible(look);
+    this.facesRoot.traverseVisible(look);
     if (this.movingPictures.see(seen)) this.needsFrame();
   }
 
@@ -1270,7 +1275,10 @@ class ThreeTableEngine implements Table3dEngine {
     const key = pictureKey(url, String(tiled));
     let picture = this.loaded.get(key);
     if (!picture) {
-      const shared: Texture = this.picture(url, undefined, { shadows: () => this.facePictures.has(shared) });
+      const shared: Texture = this.picture(url, undefined, {
+        judged: true,
+        shadows: () => this.facePictures.has(shared),
+      });
       picture = shared;
       if (tiled) picture.wrapS = picture.wrapT = RepeatWrapping;
       this.loaded.set(key, picture);
