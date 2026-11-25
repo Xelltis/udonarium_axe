@@ -64,9 +64,10 @@ export class TargetListPanelComponent {
       .map((side) => ({ side, rows: rows[side] }));
   });
 
-  /** Aims at the piece of a row, or lets go of it where it is aimed at. */
+  /** Aims at the piece of a row, or lets go of it where it is aimed at; a piece off the field is only let go of. */
   toggle(row: TargetRow): void {
-    this.pieceTarget.toggle(row.piece);
+    if (row.offField) this.pieceTarget.letGo(row.piece);
+    else this.pieceTarget.toggle(row.piece);
   }
 
   private rowOf(piece: GameCharacter): TargetRow {

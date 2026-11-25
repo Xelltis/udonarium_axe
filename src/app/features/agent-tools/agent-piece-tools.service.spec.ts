@@ -214,6 +214,24 @@ describe('AgentPieceTools', () => {
     targeting.cancel();
   });
 
+  it('answers with every piece an area held ready at the screen takes in about the one it was told to aim at', async () => {
+    pieceAt('ゴブリン', 1, 1);
+    pieceAt('オーク', 2, 1);
+    pieceAt('遠いコボルド', 9, 9);
+    const targeting = TestBed.inject(EffectTargetingService);
+    const preset = new EffectPreset();
+    preset.initialize();
+    preset.targeting = 'multi';
+    preset.areaRadius = 2;
+    preset.maxTargets = 5;
+    targeting.begin(preset);
+
+    const answer = (await call('set_targets', { pieces: ['ゴブリン'] })) as { targets: { name: string }[] };
+
+    expect(answer.targets.map((target) => target.name).sort()).toEqual(['オーク', 'ゴブリン']);
+    targeting.cancel();
+  });
+
   it('moves the round on without asking anybody at the screen', async () => {
     const turns = TestBed.inject(TurnOrderService);
     const advance = vi.spyOn(turns, 'advanceRound').mockResolvedValue();

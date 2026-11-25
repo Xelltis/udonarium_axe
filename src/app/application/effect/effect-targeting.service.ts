@@ -375,6 +375,18 @@ export class EffectTargetingService {
     else this.pick(identifier);
   }
 
+  /** Whether the effect held ready can be cast at a piece: one on the table that is not its caster kept out. */
+  canPick(identifier: string): boolean {
+    return this.isPicking() && !this.isCasterKeptOut(identifier) && this.characterOf(identifier) !== null;
+  }
+
+  /** Takes a piece out of what the effect held ready is cast at, leaving where an area is centred as it is. */
+  unpick(identifier: string): void {
+    if (!this._picks().includes(identifier)) return;
+    this._picks.update((picks) => picks.filter((pick) => pick !== identifier));
+    this.mirror();
+  }
+
   /**
    * Chooses exactly these targets, as aiming at pieces by a key, a range or a list does while the
    * effect is held ready, in their order and as many as the effect takes; the caster kept out of them

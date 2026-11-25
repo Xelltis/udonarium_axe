@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -113,6 +114,33 @@ describe('PieceTargetService', () => {
       service().targetInsideRange(range, 50);
 
       expect(targeting.picks()).toEqual([middle.identifier]);
+      targeting.cancel();
+      range.destroy();
+    });
+
+    it('measures what a range standing up takes in from where it is cast from, not where it was last written down', () => {
+      const range = circleAt(0, 0);
+      vi.spyOn(range, 'isSolid', 'get').mockReturnValue(true);
+      const byOrigin = GameCharacter.create('起点のそば', 1, '');
+      byOrigin.location = { name: 'table', x: 500, y: 500 };
+      const byWritten = GameCharacter.create('保存位置のそば', 1, '');
+      byWritten.location = { name: 'table', x: 25, y: 25 };
+      vi.spyOn(TestBed.inject(SolidRangeService), 'placedOf').mockReturnValue({
+        origin: { x: 525, y: 525, z: 0 },
+      } as never);
+      vi.spyOn(service() as unknown as { takenIntoSolid(): GameCharacter[] }, 'takenIntoSolid').mockReturnValue([
+        byWritten,
+        byOrigin,
+      ]);
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([byOrigin.identifier]);
       targeting.cancel();
       range.destroy();
     });
@@ -319,6 +347,65 @@ describe('PieceTargetService', () => {
       );
 
       expect(service().aimOrderFrom(hero)).toEqual([onFloor, flying, onWall]);
+    });
+
+    it('passes over the caster of an effect held ready, which it cannot be cast at', () => {
+      const hero = on('勇者', 0, 'left');
+      const caster = on('術者', 50, 'right');
+      const foe = on('敵', 100, 'right');
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+      targeting.setCaster(caster.identifier);
+
+      expect(service().aimOrderFrom(hero)).toEqual([foe]);
+      targeting.cancel();
+    });
+
+    it('lets go of a piece from what an effect held ready is cast at, leaving an area where it is centred', () => {
+      const near = on('近', 100, 'right');
+      const next = on('次', 150, 'right');
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'multi';
+      preset.areaRadius = 2;
+      preset.maxTargets = 5;
+      targeting.begin(preset);
+      service().setOnly([near]);
+
+      service().letGo(next);
+
+      expect(targeting.epicenter()).toBe(near.identifier);
+      expect(targeting.picks()).toContain(near.identifier);
+      expect(targeting.picks()).not.toContain(next.identifier);
+      expect(next.targeted).toBe(false);
+      targeting.cancel();
+    });
+
+    it('measures a piece on a board from its middle on the board where the board stands', () => {
+      const hero = on('勇者', 0, 'left', 0);
+      const onFloor = on('床', 200, 'right', 0);
+      const onBoard = on('板', 0, 'right', 0);
+      const pieces = TestBed.inject(TablePiecesService);
+      const footOf = pieces.footOf.bind(pieces);
+      vi.spyOn(pieces, 'footOf').mockImplementation((piece) =>
+        piece === onBoard ? { surface: 'board-1', x: 0, y: 0, height: 0 } : footOf(piece)
+      );
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+        surface === 'board-1'
+          ? {
+              origin: { x: 210, y: 0, z: 0 },
+              u: { x: 1, y: 0, z: 0 },
+              v: { x: 0, y: 1, z: 0 },
+              normal: { x: 0, y: 0, z: 1 },
+            }
+          : null
+      );
+
+      expect(service().aimOrderFrom(hero)).toEqual([onFloor, onBoard]);
     });
 
     it('takes the pieces aimed at while an effect is held ready as its picks, the marks following them', () => {

@@ -70,36 +70,30 @@ export class TabletopShortcutEventHandlerService {
   private readonly names = inject(PieceNameService);
   private readonly modal = inject(ModalService);
 
-  /** What the pointer last pressed, while the focus stays with it; null once the keyboard moved the focus away. */
-  private pressed: Element | null = null;
+  /** Whether the keyboard has moved the focus since the pointer last pressed anything. */
+  private keyboardMoved = false;
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
     document.addEventListener('pointerdown', this.onPointerDown, true);
-    document.addEventListener('focusin', this.onFocusIn, true);
     inject(DestroyRef).onDestroy(() => {
       document.removeEventListener('keydown', this.onKeyDown);
       document.removeEventListener('pointerdown', this.onPointerDown, true);
-      document.removeEventListener('focusin', this.onFocusIn, true);
     });
   }
 
-  private readonly onPointerDown = (event: Event): void => {
-    this.pressed = event.target instanceof Element ? event.target : null;
-  };
-
-  private readonly onFocusIn = (event: Event): void => {
-    if (this.pressed && !(event.target instanceof Element && isAlong(event.target, this.pressed))) this.pressed = null;
+  private readonly onPointerDown = (): void => {
+    this.keyboardMoved = false;
   };
 
   /**
    * Where the focus is, as the keys on the table read it: on nothing where it is on the page itself;
-   * on what the pointer last pressed, or around it, where it has stayed there since; else on what the
-   * keyboard moved it to.
+   * where the pointer left it, or a dialog gave it back after a press, while the keyboard has not
+   * moved it since; else where the keyboard moved it.
    */
   private focusOf(focused: Element | null): TabletopKeyFocus {
     if (!focused || focused === document.body || focused === document.documentElement) return 'none';
-    return this.pressed && isAlong(focused, this.pressed) ? 'pressed' : 'keyboard';
+    return this.keyboardMoved ? 'keyboard' : 'pressed';
   }
 
   /** Does what a command asks of the picked pieces, telling the user how many it touched. */
@@ -132,11 +126,15 @@ export class TabletopShortcutEventHandlerService {
       chord: event.ctrlKey || event.metaKey || event.altKey,
       shift: event.shiftKey,
     });
-    if (!command) return;
+    if (!command) {
+      if (event.key === 'Tab') this.keyboardMoved = true;
+      return;
+    }
     if (
       (command === 'nextTarget' || command === 'previousTarget') &&
       this.targets.aimOrderFrom(this.aimedFrom()).length < 1
     ) {
+      this.keyboardMoved = true;
       return;
     }
     event.preventDefault();
@@ -217,9 +215,4 @@ export class TabletopShortcutEventHandlerService {
     const key = next === DisclosureMode.All ? 'disclosedToAll' : 'disclosedToGm';
     this.snackbar.show(this.t(`feature.keyboard.tabletop.${key}`, { count: pieces.length }));
   }
-}
-
-/** Whether one element holds the other, either way round, as a button holds the icon pressed on it. */
-function isAlong(one: Element, other: Element): boolean {
-  return one.contains(other) || other.contains(one);
 }

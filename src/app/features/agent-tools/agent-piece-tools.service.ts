@@ -63,7 +63,7 @@ export class AgentPieceTools {
       const pieces = ((args['pieces'] as string[] | undefined) ?? []).map((reference) => this.read.piece(reference));
       if (pieces.length === 0) this.targets.clear();
       else this.targets.setOnly(pieces);
-      const aimed = pieces.filter((piece) => piece.targeted);
+      const aimed = this.targets.onTable();
       return { targets: aimed.map((piece) => ({ id: piece.identifier, name: this.views.nameOf(piece) })) };
     },
     advance_turn: (args) => this.advanceTurn(textArg(args, 'action'), textArg(args, 'piece')),

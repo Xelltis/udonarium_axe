@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -115,6 +116,21 @@ describe('TargetListPanelComponent', () => {
       fixture.componentInstance.sections().map((section) => section.rows.map((row) => [row.name, row.offField]))
     ).toEqual([[['倒れた仲間', true]]]);
     expect(element.querySelector('[data-testid="target-list-off-field"]')).not.toBeNull();
+  });
+
+  it('only lets go of a piece off the field at a press of its row, never aiming at it afresh', () => {
+    const fallen = piece('倒れた仲間', 'left');
+    fallen.offField = '1';
+    fallen.targeted = true;
+    const { fixture, element } = render();
+    const target = TestBed.inject(PieceTargetService);
+    const letGo = vi.spyOn(target, 'letGo');
+    const toggle = vi.spyOn(target, 'toggle');
+
+    element.querySelector<HTMLButtonElement>('[data-testid="target-list-row"]')!.click();
+    fixture.detectChanges();
+
+    expect([letGo.mock.calls.length, toggle.mock.calls.length, fallen.targeted]).toEqual([1, 0, false]);
   });
 
   it('aims at the piece of a row pressed, and lets go of it at a second press', () => {

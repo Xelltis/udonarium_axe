@@ -129,7 +129,7 @@ describe('TabletopShortcutEventHandlerService', () => {
       PeerCursor.myCursor = null!;
     });
 
-    it('aims with the focus left on a button the pointer pressed, but not with the focus moved there from the keyboard, nor under a dialog', () => {
+    it('aims with the focus where a press left it, or a dialog gave it back after a press, but not once the keyboard moved it, nor under a dialog', () => {
       const hero = on('勇者', 0, 'left');
       const foe = on('敵', 100, 'right');
       selection.selectObject(hero.identifier, hero.aliasName);
@@ -149,6 +149,15 @@ describe('TabletopShortcutEventHandlerService', () => {
       expect(foe.targeted).toBe(true);
 
       TestBed.inject(PieceTargetService).setOnly([]);
+      other.focus();
+      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
+
+      TestBed.inject(PieceTargetService).setOnly([]);
+      const field = document.createElement('input');
+      document.body.appendChild(field);
+      onTestFinished(() => field.remove());
+      field.focus();
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
       other.focus();
       expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
 

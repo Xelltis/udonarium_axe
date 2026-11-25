@@ -103,10 +103,12 @@ export class PieceTargetService {
   /**
    * The pieces this seat may aim at, in the order a key aims at them one at a time from a piece (see
    * `aimOrder`), measured from the middle of each where it stands in the room (see `middleInRoom`).
+   * While an effect is held ready, only those it can be cast at, its caster kept out.
    */
   aimOrderFrom(from: GameCharacter | null): GameCharacter[] {
     const candidateOf = this.aimCandidateReader();
-    const aimable = this.aimable();
+    const picking = this.effectTargeting.isPicking();
+    const aimable = this.aimable().filter((piece) => !picking || this.effectTargeting.canPick(piece.identifier));
     const byIdentifier = new Map(aimable.map((piece) => [piece.identifier, piece]));
     return aimOrder(from ? candidateOf(from) : null, aimable.map(candidateOf))
       .map((identifier) => byIdentifier.get(identifier))
@@ -168,6 +170,18 @@ export class PieceTargetService {
   }
 
   /**
+   * Takes the aim off a piece, as from the list of pieces to aim at: off what an effect held ready is
+   * cast at too, without centring an area on it.
+   */
+  letGo(piece: GameCharacter): void {
+    if (this.effectTargeting.isPicking()) {
+      this.effectTargeting.unpick(piece.identifier);
+      return;
+    }
+    this.drop([piece]);
+  }
+
+  /**
    * Aims at a piece or takes the aim off it. While an effect is held ready, the aim is what it is cast
    * at, so the piece is taken as a press of it would be (see `EffectTargetingService.press`).
    */
@@ -217,7 +231,7 @@ export class PieceTargetService {
   targetInsideRange(range: RangeArea, squarePx: number): void {
     const placed = range.isSolid ? this.solidRanges.placedOf(range.identifier) : null;
     if (placed) {
-      this.setOnly(this.nearestFirst(this.takenIntoSolid(placed.solid), range.location));
+      this.setOnly(this.nearestFirst(this.takenIntoSolid(placed.solid), placed.origin));
       return;
     }
     const shape = {
