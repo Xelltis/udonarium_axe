@@ -285,6 +285,7 @@ class FakeEngine implements Table3dEngine {
       models: 0,
       modelMeshes: 0,
       dice: 0,
+      movingPictures: 0,
       effects: 0,
       veilRevision: 0,
       lightMapRevision: 0,

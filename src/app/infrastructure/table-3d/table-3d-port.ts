@@ -163,6 +163,8 @@ export interface Table3dStats {
   readonly models: number;
   /** The rolls whose dice are on the table now. */
   readonly dice: number;
+  /** The moving pictures, APNG and GIF, the table wears and moves frame by frame now. */
+  readonly movingPictures: number;
   /** How many particles and marks on the floor the effects draw in the scene now. */
   readonly effects: number;
   /** How many meshes the models are drawn with, the copies of a model that plays no motion sharing theirs. */

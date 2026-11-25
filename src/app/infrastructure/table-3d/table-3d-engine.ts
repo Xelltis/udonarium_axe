@@ -49,6 +49,7 @@ import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-laye
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
+import { MovingPictures } from '@axe/infrastructure/table-3d/moving-pictures';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SolidLayer } from '@axe/infrastructure/table-3d/solid-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
@@ -313,6 +314,10 @@ class ThreeTableEngine implements Table3dEngine {
     (url) => this.spritePicture(url),
     (material) => this.veil.cover(material, 'unlit', false)
   );
+  private readonly movingPictures = new MovingPictures(() => {
+    this.changed = true;
+    this.needsFrame();
+  });
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly solids = new SolidLayer();
   private readonly fogAir = new FogAirLayer();
@@ -655,6 +660,7 @@ class ThreeTableEngine implements Table3dEngine {
       backdrops: this.backdrops.shown,
       models: this.models.shown,
       dice: this.dice.shown,
+      movingPictures: this.movingPictures.shown,
       effects: this.effects.shown,
       modelMeshes: this.models.meshes,
       veilRevision: this.veil.revision,
@@ -838,10 +844,11 @@ class ThreeTableEngine implements Table3dEngine {
     const passing = this.backdrops.advance(timeMs);
     const modelled = this.models.advance(timeMs);
     const falling = this.weather.advance(timeMs, this.camera);
+    const turning = this.movingPictures.advance(timeMs);
     this.strike(timeMs);
     this.takeChanges();
     if (modelled === true || falling) return true;
-    return drifting || flowing || hanging || passing || modelled === 'slowly' ? 'slowly' : false;
+    return drifting || flowing || hanging || passing || turning || modelled === 'slowly' ? 'slowly' : false;
   }
 
   setSky(sky: SkyDome | null): void {
@@ -880,6 +887,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   setModelMotion(moving: boolean): void {
     this.models.setTurning(moving);
+    this.movingPictures.setTurning(moving);
     this.takeChanges();
   }
 
@@ -991,6 +999,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.post.dispose();
     this.sprites.dispose();
     this.coins.dispose();
+    this.movingPictures.dispose();
     this.floorCanvases.dispose();
     this.solids.dispose();
     this.layers.dispose();
@@ -1241,7 +1250,8 @@ class ThreeTableEngine implements Table3dEngine {
 
   /**
    * A picture to draw, which asks for a frame once it has come, and has the shadows drawn again: a
-   * board throwing a piece's shadow is cut to the picture it wears. What wears it is told as well.
+   * board throwing a piece's shadow is cut to the picture it wears. What wears it is told as well. A
+   * moving picture, an APNG or a GIF, is moved frame by frame (see `MovingPictures`).
    */
   private picture(url: string, came: () => void = () => undefined): Texture {
     this.loading++;
@@ -1256,6 +1266,7 @@ class ThreeTableEngine implements Table3dEngine {
     const picture = this.pictures.load(url, settle, undefined, settle);
     picture.colorSpace = SRGBColorSpace;
     picture.anisotropy = Math.min(PICTURE_ANISOTROPY, this.renderer.getMaxAnisotropy());
+    this.movingPictures.follow(url, picture);
     return picture;
   }
 }
