@@ -84,7 +84,7 @@ import type {
   Table3dStats,
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
-import { SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
+import { FRAME_SLACK_MS, SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
  * How the canvas draws the table through three.js: through WebGPU where it can be had, or through
@@ -1027,11 +1027,6 @@ export class Table3dService {
     return busy;
   }
 }
-
-/** How far apart frames are drawn while all that moves on the table by itself drifts slowly, in milliseconds. */
-
-/** How much sooner than asked a frame may come and still be drawn, against the clock the screen keeps. */
-const FRAME_SLACK_MS = 4;
 
 /** How high the weather falls from over a table with lower walls or none, in cells, so that it still has a sky. */
 const WEATHER_CEILING_CELLS = 10;

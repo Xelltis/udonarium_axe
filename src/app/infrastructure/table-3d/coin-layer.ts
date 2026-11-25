@@ -54,7 +54,8 @@ export class CoinLayer {
   constructor(
     private readonly needsFrame: () => void,
     private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined,
-    private readonly wear: (url: string, wearer: PictureWearer) => () => void = () => () => undefined
+    private readonly wear: (url: string, wearer: PictureWearer) => () => void = () => () => undefined,
+    private readonly redress: (texture: CanvasTexture) => void = () => undefined
   ) {
     this.dress(this.rim);
   }
@@ -137,6 +138,7 @@ export class CoinLayer {
       picture.onload = null;
       paintCoinSide(canvas, look.side, radius * 2, picture);
       texture.needsUpdate = true;
+      this.redress(texture);
       this.needsFrame();
     };
     picture.src = look.pictureUrl;

@@ -68,7 +68,7 @@ import type {
   Table3dVeil,
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
-import { SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
+import { FRAME_SLACK_MS, SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
@@ -116,7 +116,6 @@ import {
   Raycaster,
   RepeatWrapping,
   Scene,
-  type Sprite,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -317,11 +316,15 @@ class ThreeTableEngine implements Table3dEngine {
     (url) => this.spritePicture(url),
     (material) => this.veil.cover(material, 'unlit', false)
   );
-  private readonly movingPictures = new MovingPictures(() => {
-    this.changed = true;
-    this.shadowsMoved();
-    this.needsFrame();
-  });
+  private readonly movingPictures = new MovingPictures(
+    (shadows) => {
+      this.changed = true;
+      if (shadows) this.piecesMoved();
+      this.needsFrame();
+    },
+    undefined,
+    FRAME_SLACK_MS
+  );
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly solids = new SolidLayer();
   private readonly fogAir = new FogAirLayer();
@@ -372,7 +375,8 @@ class ThreeTableEngine implements Table3dEngine {
       this.needsFrame();
     },
     (material) => this.veil.cover(material, 'unlit', false),
-    (url, wearer) => this.movingPictures.wear(url, wearer)
+    (url, wearer) => this.movingPictures.wear(url, { ...wearer, judged: true }),
+    (texture) => this.movingPictures.redress(texture)
   );
 
   constructor(
@@ -849,50 +853,13 @@ class ThreeTableEngine implements Table3dEngine {
     const passing = this.backdrops.advance(timeMs);
     const modelled = this.models.advance(timeMs);
     const falling = this.weather.advance(timeMs, this.camera);
-    const inSight = this.picturesInSight();
-    const pictureDue = this.movingPictures.advance(timeMs, (picture) => inSight().has(picture));
+    const pictureDue = this.movingPictures.advance(timeMs);
     this.strike(timeMs);
     this.takeChanges();
     if (modelled === true || falling) return true;
     const slowly = drifting || flowing || hanging || passing || modelled === 'slowly';
     if (pictureDue === null) return slowly ? 'slowly' : false;
     return slowly ? Math.min(pictureDue, timeMs + SLOW_MOTION_FRAME_MS) : pictureDue;
-  }
-
-  /**
-   * Whether a picture is in sight, looked for once where asked for: a picture worn as the map of what
-   * is drawn is in sight where any of what wears it is shown in the camera's view, and out of it where
-   * all of that is hidden or out of the view. A picture worn otherwise, as a node of a material, is
-   * taken as in sight, as where it is drawn is not told.
-   */
-  private picturesInSight(): () => ReadonlySet<Texture> {
-    let found: Set<Texture> | null = null;
-    return () => {
-      if (found) return found;
-      const mapsOf = (object: Object3D): Texture[] => {
-        const worn = (object as Mesh).material;
-        if (!worn) return [];
-        return (Array.isArray(worn) ? worn : [worn])
-          .map((material) => (material as { map?: Texture | null }).map)
-          .filter((picture): picture is Texture => !!picture);
-      };
-      const worn = new Set<Texture>();
-      this.scene.traverse((object) => mapsOf(object).forEach((picture) => worn.add(picture)));
-      const view = new Frustum().setFromProjectionMatrix(
-        new Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
-      );
-      const seen = new Set<Texture>();
-      this.scene.traverseVisible((object) => {
-        const maps = mapsOf(object).filter((picture) => !seen.has(picture));
-        if (maps.length < 1) return;
-        const inView = (object as Sprite).isSprite
-          ? view.intersectsSprite(object as Sprite)
-          : view.intersectsObject(object);
-        if (inView) maps.forEach((picture) => seen.add(picture));
-      });
-      found = new Set([...this.movingPictures.worn()].filter((picture) => seen.has(picture) || !worn.has(picture)));
-      return found;
-    };
   }
 
   setSky(sky: SkyDome | null): void {
@@ -981,7 +948,37 @@ class ThreeTableEngine implements Table3dEngine {
     if (spent > LONG_FRAME_MS) this.held += spent;
     this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
+    this.seeMovingPictures();
     return true;
+  }
+
+  /**
+   * Tells the moving pictures which of the textures it can judge are in sight as just drawn: worn as
+   * the map of a piece's board or a coin's face that is shown and in the camera's view. Only those
+   * are looked for, among the pieces and the coins alone, and a picture come into sight has a frame
+   * drawn for it.
+   */
+  private seeMovingPictures(): void {
+    const judged = this.movingPictures.judged();
+    if (judged.size === 0) {
+      this.movingPictures.see(judged);
+      return;
+    }
+    const view = new Frustum().setFromProjectionMatrix(
+      new Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+    );
+    const seen = new Set<Texture>();
+    const look = (object: Object3D) => {
+      const worn = (object as Mesh).material;
+      if (!worn) return;
+      for (const material of Array.isArray(worn) ? worn : [worn]) {
+        const picture = (material as { map?: Texture | null }).map;
+        if (picture && judged.has(picture) && !seen.has(picture) && view.intersectsObject(object)) seen.add(picture);
+      }
+    };
+    this.sprites.group.traverseVisible(look);
+    this.coins.group.traverseVisible(look);
+    if (this.movingPictures.see(seen)) this.needsFrame();
   }
 
   /**
@@ -1274,7 +1271,7 @@ class ThreeTableEngine implements Table3dEngine {
     const key = pictureKey(url, 'sprite');
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url, () => this.sprites.picturesCame());
+      picture = this.picture(url, () => this.sprites.picturesCame(), { judged: true, shadows: true });
       picture.premultiplyAlpha = true;
       this.loaded.set(key, picture);
     }
@@ -1297,11 +1294,16 @@ class ThreeTableEngine implements Table3dEngine {
    * board throwing a piece's shadow is cut to the picture it wears. What wears it is told as well. A
    * moving picture, an APNG or a GIF, is moved frame by frame (see `MovingPictures`).
    */
-  private picture(url: string, came: () => void = () => undefined): Texture {
+  private picture(
+    url: string,
+    came: () => void = () => undefined,
+    how: { readonly judged?: boolean; readonly shadows?: boolean } = {}
+  ): Texture {
     this.loading++;
     const settle = () => {
       this.loading--;
       fitReadPicture(picture);
+      this.movingPictures.redress(picture);
       came();
       this.changed = true;
       this.shadowsMoved();
@@ -1310,7 +1312,7 @@ class ThreeTableEngine implements Table3dEngine {
     const picture = this.pictures.load(url, settle, undefined, settle);
     picture.colorSpace = SRGBColorSpace;
     picture.anisotropy = Math.min(PICTURE_ANISOTROPY, this.renderer.getMaxAnisotropy());
-    this.movingPictures.follow(url, picture);
+    this.movingPictures.follow(url, picture, how);
     return picture;
   }
 }

@@ -112,8 +112,81 @@ describe('MovingPictures', () => {
     expect(moving.drawn).toEqual([0, 1]);
   });
 
-  it('moves a picture only while something wearing it is in sight, and waits where it got to while none is', async () => {
+  it('moves a picture only while something wearing it is in sight, its clock stopped where it got to while none is', async () => {
     const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const board = new Texture();
+    pictures.follow('blob:apng', board, { judged: true });
+    await settled();
+
+    expect(pictures.judged()).toEqual(new Set([board]));
+    expect(pictures.advance(0)).toBeNull();
+    expect(pictures.see(new Set([board]))).toBe(true);
+    expect(pictures.advance(500)).toBe(600);
+    await advanceThrough(pictures, [550]);
+    pictures.see(new Set());
+    expect(pictures.advance(560)).toBeNull();
+    pictures.see(new Set([board]));
+
+    expect(pictures.advance(2560)).toBe(2600);
+    expect(moving.drawn).toEqual([0]);
+  });
+
+  it('moves a picture worn where the table cannot tell whether it is in sight, as a board laid over it', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:apng', new Texture(), { judged: true });
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    expect(pictures.advance(0)).toBe(100);
+  });
+
+  it('draws a frame due a little after the frame of the screen on it, within the slack it is given', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving,
+      4
+    );
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+    await advanceThrough(pictures, [0, 97]);
+
+    expect(moving.drawn).toEqual([0, 1]);
+  });
+
+  it('goes on from now once it has fallen a whole frame behind, rather than catching up', async () => {
+    const moving = source(4, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    expect(await advanceThrough(pictures, [0, 450, 460])).toEqual([100, null, 550]);
+  });
+
+  it('tells whether a shadow cut to the picture is to be drawn again with each frame', async () => {
+    const moving = source(2, Infinity);
+    const drawn = vi.fn();
+    const pictures = new MovingPictures(drawn, async () => moving);
+    pictures.follow('blob:board', new Texture(), { judged: true, shadows: true });
+    pictures.follow('blob:layer', new Texture());
+    await settled();
+
+    expect(drawn.mock.calls.map(([shadows]) => shadows).sort()).toEqual([false, true]);
+  });
+
+  it('puts the frame it stands on back on a texture its still picture came over', async () => {
+    const moving = source(2, Infinity);
     const pictures = new MovingPictures(
       () => undefined,
       async () => moving
@@ -121,15 +194,47 @@ describe('MovingPictures', () => {
     const picture = new Texture();
     pictures.follow('blob:apng', picture);
     await settled();
-    let seen = false;
-    const inSight = () => seen;
+    const frame = picture.image;
 
-    expect(pictures.advance(0, inSight)).toBeNull();
-    expect(pictures.advance(500, inSight)).toBeNull();
-    expect(moving.drawn).toEqual([0]);
+    picture.image = document.createElement('img');
+    pictures.redress(picture);
 
-    seen = true;
-    expect(pictures.advance(600, inSight)).toBe(700);
+    expect(picture.image).toBe(frame);
+  });
+
+  it('dresses a wearer that comes after the first frame with it at once', async () => {
+    const moving = source(2, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const first = new Texture();
+    pictures.follow('blob:apng', first);
+    await settled();
+
+    const later = new Texture();
+    pictures.follow('blob:apng', later);
+
+    expect(later.image).toBe(first.image);
+  });
+
+  it('reads a picture again for the next wearer where it could not be read', async () => {
+    let fail = true;
+    const moving = source(2, Infinity);
+    const read = vi.fn(async () => {
+      if (fail) throw new Error('offline');
+      return moving;
+    });
+    const pictures = new MovingPictures(() => undefined, read);
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    fail = false;
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(pictures.shown).toBe(1);
   });
 
   it('stands each on its first frame while pictures are not to move, and moves them again once they are', async () => {
@@ -184,10 +289,10 @@ describe('MovingPictures', () => {
     pictures.follow('blob:png', still);
     await settled();
 
-    expect([pictures.moves(worn), pictures.moves(still)]).toEqual([true, false]);
+    expect(pictures.shown).toBe(1);
     worn.dispose();
 
-    expect(pictures.moves(worn)).toBe(false);
+    expect(pictures.shown).toBe(0);
     expect(moving.closed).toBe(true);
     expect(pictures.advance(1000)).toBeNull();
   });

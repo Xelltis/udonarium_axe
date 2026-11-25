@@ -1,6 +1,6 @@
 import { blobMoves, isAnimatedImageBytes } from '@axe/core/storage/animated-image';
 
-function bytesOf(...parts: (number[] | string)[]): ArrayBuffer {
+function bytesOf(...parts: (readonly number[] | string)[]): ArrayBuffer {
   const bytes: number[] = [];
   for (const part of parts) {
     if (typeof part === 'string') for (const char of part) bytes.push(char.charCodeAt(0));

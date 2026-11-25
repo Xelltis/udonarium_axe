@@ -33,21 +33,25 @@ export function frameStandsMs(toldMs: number): number {
   return toldMs <= 10 ? 100 : toldMs;
 }
 
-/** How far behind a moving picture may fall, in milliseconds, before it goes on from now rather than catching up. */
-const CATCH_UP_MS = 1000;
-
-/** What wears a moving picture: a texture wearing it as drawn, or one painted from each frame, as a coin's face. */
+/**
+ * How a wearer wears a moving picture: where it can be told whether it is in sight, as a piece's
+ * board or a coin's face, and whether it throws a shadow cut to the picture, as a piece's board does;
+ * a wearer that cannot be told of, as a board laid over the table or a backdrop, is always in sight.
+ */
 export interface PictureWearer {
   readonly texture: Texture;
   /** Paints the texture's own picture from a frame; where absent, the texture wears the frame itself. */
   readonly paint?: (frame: HTMLCanvasElement) => void;
+  /** Whether the table can tell if the wearer is in sight (see {@link MovingPictures.see}); always in sight where not. */
+  readonly judged?: boolean;
+  /** Whether a shadow is cut to the picture the wearer wears, to be drawn again as its frame changes. */
+  readonly shadows?: boolean;
 }
 
 /** A moving picture at a URL, read once for every texture wearing it: the frames and where it has got to. */
 interface Moving {
   readonly wearers: Set<PictureWearer>;
   source: MovingSource | null;
-  still: boolean;
   canvas: HTMLCanvasElement | null;
   context: CanvasRenderingContext2D | null;
   index: number;
@@ -55,6 +59,8 @@ interface Moving {
   /** When the next frame is due, in milliseconds; NaN for one standing its first frame, its time not yet counted. */
   nextAtMs: number;
   standsMs: number;
+  /** The moment it went out of sight, its clock stopped there; null while in sight. */
+  heldAtMs: number | null;
   drawing: boolean;
   drawn: boolean;
   done: boolean;
@@ -64,34 +70,45 @@ interface Moving {
  * Moves the moving pictures the table wears, APNG, GIF and moving WebP, which a texture read once
  * stands still on the first frame of: each is read once, frame by frame, and drawn on a canvas of its
  * own, no larger than a picture is drawn, which every texture wearing it wears, or is painted from.
- * Each frame stands as long as the picture tells, from the moment it was due, and a picture moves only
- * while something wearing it is in sight; out of sight it waits where it got to. It moves for as long
- * as anything wears it, after as many plays as it is made for. While pictures are not to move, as for
- * a reader who asks for less motion, each stands on its first frame. A browser that cannot read
- * pictures frame by frame leaves them as they are read, on their first frames.
+ *
+ * Each frame stands as long as the picture tells, from the moment it was due, and is drawn on the
+ * frame of the screen that comes within `slackMs` of it; one fallen a whole frame behind goes on
+ * from now rather than catching up. A picture moves only while something wearing
+ * it is in sight, as the table last told after drawing (see {@link see}); out of sight its clock stops
+ * where it got to and goes on from there. It moves for as long as anything wears it, after as many
+ * plays as it is made for. While pictures are not to move, as for a reader who asks for less motion,
+ * each stands on its first frame. A browser that cannot read pictures frame by frame leaves them as
+ * they are read, on their first frames.
  */
 export class MovingPictures {
   private readonly moving = new Map<string, Moving>();
+  private seen: ReadonlySet<Texture> = new Set();
   private turning = true;
   private closed = false;
 
+  /**
+   * @param drawn told each time a frame is drawn, and whether a shadow cut to it is to be drawn again
+   * @param slackMs how early a frame of the screen may draw a frame due a little after it
+   */
   constructor(
-    private readonly drawn: () => void,
-    private readonly read: MovingReader = readMoving
+    private readonly drawn: (shadows: boolean) => void,
+    private readonly read: MovingReader = readMoving,
+    private readonly slackMs = 0
   ) {}
 
   /**
    * Moves the picture a texture wears, read from a URL, where it moves, until the texture is let go
-   * of; nothing where it stands still.
+   * of; nothing where it stands still. How it is worn is told as for {@link wear}.
    */
-  follow(url: string, picture: Texture): void {
-    const callOff = this.wear(url, { texture: picture });
+  follow(url: string, picture: Texture, how: Omit<PictureWearer, 'texture' | 'paint'> = {}): void {
+    const callOff = this.wear(url, { ...how, texture: picture });
     picture.addEventListener('dispose', callOff);
   }
 
   /**
    * Has a wearer wear the picture at a URL where it moves, and answers what calls the wearing off:
-   * the picture is let go of once nothing wears it.
+   * the picture is let go of once nothing wears it. A picture that could not be read is read again
+   * for the next wearer.
    */
   wear(url: string, wearer: PictureWearer): () => void {
     if (this.closed) return () => undefined;
@@ -100,13 +117,13 @@ export class MovingPictures {
       moving = {
         wearers: new Set(),
         source: null,
-        still: false,
         canvas: null,
         context: null,
         index: 0,
         played: 0,
         nextAtMs: Number.NaN,
         standsMs: 0,
+        heldAtMs: null,
         drawing: false,
         drawn: false,
         done: false,
@@ -123,6 +140,37 @@ export class MovingPictures {
     };
   }
 
+  /**
+   * Has a texture wear the frame its moving picture stands on again, as after its still picture has
+   * come and been put on it; nothing for a texture wearing no moving picture.
+   */
+  redress(picture: Texture): void {
+    for (const moving of this.moving.values()) {
+      if (!moving.drawn || !moving.canvas) continue;
+      for (const wearer of moving.wearers) if (wearer.texture === picture) this.dress(wearer, moving.canvas);
+    }
+  }
+
+  /** The textures the table is to tell of whether they are in sight: those wearing a moving picture where it can tell. */
+  judged(): Set<Texture> {
+    const judged = new Set<Texture>();
+    for (const moving of this.moving.values()) {
+      if (!moving.source) continue;
+      for (const wearer of moving.wearers) if (wearer.judged) judged.add(wearer.texture);
+    }
+    return judged;
+  }
+
+  /**
+   * Takes the textures the table found in sight as it drew; answers whether a picture is in sight now
+   * that was not, so the table draws again for it.
+   */
+  see(inSight: ReadonlySet<Texture>): boolean {
+    const before = [...this.moving.values()].map((moving) => this.inSight(moving));
+    this.seen = inSight;
+    return [...this.moving.values()].some((moving, index) => !before[index] && this.inSight(moving));
+  }
+
   /** Lets pictures move, or stands each on its first frame where they are not to. */
   setTurning(turning: boolean): void {
     if (turning === this.turning) return;
@@ -132,24 +180,32 @@ export class MovingPictures {
       moving.played = 0;
       moving.done = false;
       moving.nextAtMs = Number.NaN;
+      moving.heldAtMs = null;
       if (!turning) void this.draw(moving, 0, null);
     }
   }
 
   /**
-   * Moves the pictures something in sight wears on to a moment, in milliseconds: each whose frame
-   * has stood long enough is drawn on its next. Answers the moment the next frame of any of them is
-   * due, or null where none moves in sight, and so none wants frames.
+   * Moves the pictures in sight on to a moment, in milliseconds: each whose frame has stood long
+   * enough is drawn on its next. Answers the moment the next frame of any of them is due, or null
+   * where none moves in sight, and so none wants frames.
    */
-  advance(timeMs: number, inSight: (picture: Texture) => boolean = () => true): number | null {
+  advance(timeMs: number): number | null {
     if (!this.turning) return null;
     let due: number | null = null;
     const wants = (atMs: number) => (due = due === null ? atMs : Math.min(due, atMs));
     for (const moving of this.moving.values()) {
       if (!moving.source || moving.done || moving.drawing) continue;
-      if (![...moving.wearers].some((wearer) => inSight(wearer.texture))) continue;
+      if (!this.inSight(moving)) {
+        moving.heldAtMs ??= timeMs;
+        continue;
+      }
+      if (moving.heldAtMs !== null) {
+        moving.nextAtMs += timeMs - moving.heldAtMs;
+        moving.heldAtMs = null;
+      }
       if (Number.isNaN(moving.nextAtMs)) moving.nextAtMs = timeMs + moving.standsMs;
-      if (timeMs < moving.nextAtMs) {
+      if (timeMs + this.slackMs < moving.nextAtMs) {
         wants(moving.nextAtMs);
         continue;
       }
@@ -162,7 +218,7 @@ export class MovingPictures {
         }
         next = 0;
       }
-      const from = timeMs - moving.nextAtMs > CATCH_UP_MS ? timeMs : moving.nextAtMs;
+      const from = timeMs - moving.nextAtMs > moving.standsMs ? timeMs : moving.nextAtMs;
       void this.draw(moving, next, from);
     }
     return due;
@@ -181,20 +237,9 @@ export class MovingPictures {
     return count;
   }
 
-  /** The textures wearing the pictures being moved, or painted from them. */
-  worn(): Texture[] {
-    const worn: Texture[] = [];
-    for (const moving of this.moving.values()) {
-      if (moving.source) for (const wearer of moving.wearers) worn.push(wearer.texture);
-    }
-    return worn;
-  }
-
-  /** Whether the picture a texture wears is being moved. */
-  moves(picture: Texture): boolean {
-    for (const moving of this.moving.values()) {
-      if (moving.source && [...moving.wearers].some((wearer) => wearer.texture === picture)) return true;
-    }
+  /** Whether anything wearing a picture is in sight: a wearer the table cannot tell of always is. */
+  private inSight(moving: Moving): boolean {
+    for (const wearer of moving.wearers) if (!wearer.judged || this.seen.has(wearer.texture)) return true;
     return false;
   }
 
@@ -207,7 +252,6 @@ export class MovingPictures {
         }
         if (!source || source.frames < 2) {
           source?.close();
-          moving.still = true;
           return;
         }
         const canvas = document.createElement('canvas');
@@ -220,7 +264,7 @@ export class MovingPictures {
         void this.draw(moving, 0, null);
       },
       () => {
-        if (this.moving.get(url) === moving) moving.still = true;
+        if (this.moving.get(url) === moving) this.moving.delete(url);
       }
     );
   }
@@ -244,7 +288,7 @@ export class MovingPictures {
         moving.nextAtMs = fromMs === null ? Number.NaN : fromMs + moving.standsMs;
         moving.drawn = true;
         for (const wearer of moving.wearers) this.dress(wearer, canvas);
-        this.drawn();
+        this.drawn([...moving.wearers].some((wearer) => wearer.shadows));
       } finally {
         frame.close();
       }

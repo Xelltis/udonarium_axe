@@ -190,7 +190,9 @@ describe('TabletopShortcutEventHandlerService', () => {
       preset.areaRadius = 2;
       preset.maxTargets = 5;
       targeting.begin(preset);
-      onTestFinished(() => targeting.cancel());
+      onTestFinished(() => {
+        targeting.cancel();
+      });
 
       const centres = [1, 2, 3].map(() => {
         press('Tab');

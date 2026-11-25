@@ -22,6 +22,9 @@ export const LONGEST_PICTURE_PX = 8192;
 /** How often a table drawn only for what moves slowly is drawn again, in milliseconds: thirty times a second. */
 export const SLOW_MOTION_FRAME_MS = 1000 / 30;
 
+/** How much sooner than asked a frame may come and still be drawn, against the clock the screen keeps, in milliseconds. */
+export const FRAME_SLACK_MS = 4;
+
 /** Which of the browser's graphics interfaces the table is drawn through. */
 export type Table3dBackend = 'webgpu' | 'webgl2';
 

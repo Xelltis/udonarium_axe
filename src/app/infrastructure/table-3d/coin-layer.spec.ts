@@ -42,7 +42,16 @@ describe('CoinLayer', () => {
     layer.set([coin('blob:apng')]);
 
     expect(worn.map(({ url }) => url)).toEqual(['blob:apng']);
-    expect(worn[0].wearer.paint).toBeTypeOf('function');
+    const drawnFrom: unknown[] = [];
+    const painting: object = new Proxy(() => painting, {
+      get: (_target, name) => (name === 'drawImage' ? (picture: unknown) => drawnFrom.push(picture) : painting),
+      apply: () => painting,
+    });
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockReturnValue(painting as CanvasRenderingContext2D);
+    const frame = document.createElement('canvas');
+    frame.width = frame.height = 8;
+    worn[0].wearer.paint!(frame);
+    expect(drawnFrom).toContain(frame);
 
     layer.set([]);
     expect(calledOff).toHaveBeenCalledOnce();

@@ -764,7 +764,9 @@ describe('CutInSceneEditorComponent', () => {
         url: 'blob:preview-apng',
         thumbnail: { type: '', blob: null, url: '' },
       });
-      onTestFinished(() => ImageStorage.instance.delete('preview-apng'));
+      onTestFinished(() => {
+        ImageStorage.instance.delete('preview-apng');
+      });
       editor().addImageLayer();
       component.layers()[0].imageIdentifier = 'preview-apng';
       editor().changed();
