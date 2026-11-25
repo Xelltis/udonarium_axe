@@ -116,7 +116,7 @@ describe('AnimatedImageService', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('rests the board, drawn again and again, on a picture that could not be read, and asks again once the rest is over', async () => {
+  it('rests the board, drawn again and again, on a picture that could not be read, and asks again by itself once only', async () => {
     vi.useFakeTimers();
     try {
       vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
@@ -134,7 +134,12 @@ describe('AnimatedImageService', () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(fetcher).toHaveBeenCalledTimes(1);
 
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(30_001);
+      expect(asked()).toBe(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(120_000);
       expect(asked()).toBe(false);
       expect(fetcher).toHaveBeenCalledTimes(2);
     } finally {
@@ -154,6 +159,54 @@ describe('AnimatedImageService', () => {
     await animated.probe('picture');
 
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps no answer read from the thumbnail though the whole picture came while it was read', async () => {
+    const state = { value: ImageState.THUMBNAIL };
+    vi.spyOn(ImageStorage.prototype, 'get').mockImplementation(
+      () =>
+        ({
+          url: 'blob:picture',
+          get state() {
+            return state.value;
+          },
+        }) as never
+    );
+    let deliver: () => void = () => undefined;
+    const fetcher = vi.fn(() =>
+      fetcher.mock.calls.length > 1
+        ? (Promise.resolve({ blob: async () => new Blob([png]) }) as never)
+        : (new Promise((resolve) => {
+            deliver = () => resolve({ blob: async () => new Blob([png]) });
+          }) as never)
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const animated = service();
+
+    const reading = animated.probe('picture');
+    state.value = ImageState.COMPLETE;
+    deliver();
+    await reading;
+    await animated.probe('picture');
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks no more of a picture read from its thumbnail while only the thumbnail is held, however often the board is drawn', async () => {
+    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({
+      url: 'blob:picture',
+      state: ImageState.THUMBNAIL,
+    } as never);
+    const fetcher = vi.fn(async () => ({ blob: async () => new Blob([png]) }) as never);
+    vi.stubGlobal('fetch', fetcher);
+    const animated = service();
+
+    await animated.probe('picture');
+    animated.isAnimated('picture');
+    animated.isAnimated('picture');
+    await Promise.resolve();
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it('keeps no answer read from a picture of which only its thumbnail has come, and reads it again once it has come whole', async () => {

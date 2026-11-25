@@ -28,6 +28,8 @@ export class AnimatedImageService {
   private readonly asking = new Map<string, Promise<boolean>>();
   /** When each picture that could not be read last failed, so it is not read again before a while has passed. */
   private readonly failedAt = new Map<string, number>();
+  /** The pictures read while only their thumbnail had come, not read again until they come whole. */
+  private readonly readFromThumbnail = new Set<string>();
 
   /**
    * Whether a picture moves, answered at once from what is known.
@@ -40,6 +42,9 @@ export class AnimatedImageService {
     if (known !== undefined) return known;
     const failed = this.failedAt.get(identifier);
     if (failed !== undefined && Date.now() - failed < READ_AGAIN_AFTER_MS) return false;
+    if (this.readFromThumbnail.has(identifier) && this.imageStorage.get(identifier)?.state === ImageState.THUMBNAIL) {
+      return false;
+    }
     void this.probe(identifier);
     return false;
   }
@@ -49,8 +54,11 @@ export class AnimatedImageService {
    *
    * A picture whose bytes cannot be read answers false without that being remembered as its answer;
    * the board, drawn again and again, asks of it again only after a while (see `isAnimated`), while
-   * one that asks to know, as the editor saving the board, reads it every time. Nor is the answer for
-   * a picture of which only its thumbnail has come kept, as a thumbnail is drawn still.
+   * one that asks to know, as the editor saving the board, reads it every time. The board asks again
+   * by itself once, after its first failure; after that, as it is drawn again, so a picture that never
+   * reads, as one a host keeps from other pages, is not asked for on a clock. Nor is the answer read
+   * while only its thumbnail had come kept, as a thumbnail is drawn still: the board asks no more of
+   * it until it has come whole.
    */
   probe(identifier: string): Promise<boolean> {
     const known = this.answers().get(identifier);
@@ -65,6 +73,7 @@ export class AnimatedImageService {
   }
 
   private async read(identifier: string): Promise<boolean> {
+    const fromThumbnail = this.imageStorage.get(identifier)?.state === ImageState.THUMBNAIL;
     let animated: boolean;
     try {
       const blob = await this.blobOf(identifier);
@@ -74,12 +83,17 @@ export class AnimatedImageService {
         isGifBytes(head) || (await readWhetherMoves((length) => blob.slice(0, length).arrayBuffer(), blob.size));
     } catch {
       // Unreadable for now; the picture is drawn as it always was and asked about again after a while.
+      const firstFailure = !this.failedAt.has(identifier);
       this.failedAt.set(identifier, Date.now());
-      setTimeout(() => this.answers.update((current) => new Map(current)), READ_AGAIN_AFTER_MS);
+      if (firstFailure) setTimeout(() => this.answers.update((current) => new Map(current)), READ_AGAIN_AFTER_MS + 1);
       return false;
     }
     this.failedAt.delete(identifier);
-    if (this.imageStorage.get(identifier)?.state === ImageState.THUMBNAIL) return animated;
+    if (fromThumbnail) {
+      this.readFromThumbnail.add(identifier);
+      return animated;
+    }
+    this.readFromThumbnail.delete(identifier);
     this.answers.update((current) => new Map(current).set(identifier, animated));
     return animated;
   }
