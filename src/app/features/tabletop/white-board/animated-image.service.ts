@@ -31,12 +31,13 @@ type Unanswered =
  * Every GIF is taken as moving, one image or many: the boards saved so far left every GIF out of the
  * picture they wear and hang it over the board, and a GIF told still now would be drawn nowhere.
  *
- * Only an answer read from the whole picture's bytes, or one a peer told of a GIF, is kept. A read that keeps none leaves
- * the picture with one way to be read again, settled in `leaveUnanswered`: remembering "still" for
- * those would leave a moving picture neither hung nor painted, since the board leaves what moves out
- * of the picture it wears. The service reads such a picture again by itself rather than telling the
- * board to ask, so a read that fails again tells nobody, and no two unreadable pictures wake each
- * other on a clock.
+ * Only an answer read from the whole picture's bytes is kept; a GIF a peer told of with its thumbnail
+ * is answered moving from what was told while only the thumbnail is held (see `toldMoving`). A read
+ * that keeps none leaves the picture with one way to be read again, settled in `leaveUnanswered`:
+ * remembering "still" for those would leave a moving picture neither hung nor painted, since the
+ * board leaves what moves out of the picture it wears. The service reads such a picture again by
+ * itself rather than telling the board to ask, so a read that fails again tells nobody, and no two
+ * unreadable pictures wake each other on a clock.
  */
 @Injectable({ providedIn: 'root' })
 export class AnimatedImageService {
@@ -59,6 +60,7 @@ export class AnimatedImageService {
   isAnimated(identifier: string): boolean {
     const known = this.answers().get(identifier);
     if (known !== undefined) return known;
+    if (this.toldMoving(identifier)) return true;
     const left = this.unanswered.get(identifier);
     if (left?.kind === 'resting' && Date.now() - left.since < READ_AGAIN_AFTER_MS) {
       this.wakeAfterRest(identifier, left);
@@ -78,6 +80,7 @@ export class AnimatedImageService {
   probe(identifier: string): Promise<boolean> {
     const known = this.answers().get(identifier);
     if (known !== undefined) return Promise.resolve(known);
+    if (this.toldMoving(identifier)) return Promise.resolve(true);
     const asked = this.asking.get(identifier);
     if (asked) return asked;
 
@@ -87,14 +90,11 @@ export class AnimatedImageService {
   }
 
   /**
-   * Reads whether a picture moves. A GIF a peer told of with its thumbnail is answered moving at its
-   * word, as every GIF is, before its bytes come. A picture not held answers false and is asked about
-   * again once it is there, as the board is drawn again for its coming.
+   * Reads whether a picture moves. A picture not held answers false and is asked about again once it
+   * is there, as the board is drawn again for its coming.
    */
   private async read(identifier: string): Promise<boolean> {
     const fromThumbnail = this.onlyThumbnail(identifier);
-    if (fromThumbnail && this.imageStorage.get(identifier)?.originalType === GIF_TYPE)
-      return this.keep(identifier, true);
     let animated: boolean;
     try {
       const blob = await this.blobOf(identifier);
@@ -163,6 +163,16 @@ export class AnimatedImageService {
     const left = this.unanswered.get(identifier);
     if (left?.kind === 'resting' && left.wake !== null) clearTimeout(left.wake);
     this.unanswered.delete(identifier);
+  }
+
+  /**
+   * Whether a picture of which only the thumbnail is held is a GIF, as the peer that sent the thumbnail
+   * told, and so moves, as every GIF does. Only looked at, never kept: once the picture has come whole
+   * its own bytes are read instead, as a picture can be told a GIF by its name alone.
+   */
+  private toldMoving(identifier: string): boolean {
+    const file = this.imageStorage.get(identifier);
+    return file?.state === ImageState.THUMBNAIL && file.originalType === GIF_TYPE;
   }
 
   private onlyThumbnail(identifier: string): boolean {
