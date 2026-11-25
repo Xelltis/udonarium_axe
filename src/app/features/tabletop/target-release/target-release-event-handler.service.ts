@@ -1,19 +1,20 @@
 import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
-import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 
 /**
  * Takes the aim off pieces on the table as the fight moves on without the reader: off a piece the
- * moment this reader loses sight of it, and off every one as the turn passes to the next.
+ * moment this reader may no longer aim at it, as it goes out of sight or is taken out of the fight,
+ * and off every one as the turn passes to the next.
  *
  * An aim is kept in this browser alone and is read wherever aims are, in the chat's lines aimed at
  * targets among them, so an aim left on would strike a piece the reader no longer means to. A piece
  * gone out of sight, into the dark or under the fog, put into stealth or left behind as the reader's
  * own eyes move away, cannot be pressed to take the aim off it; an aim is only ever put on a piece
- * the reader can see, so it is taken off on the same terms. The game master sees everything and
+ * the reader may aim at (see `PieceTargetService.mayAimAt`), so it is taken off on the same terms: a
+ * piece taken out of the fight is no longer listed to be let go of either. The game master sees everything and
  * loses no aim to sight; looking at the table as a player, they lose what that player would, as
  * the look is for seeing what the players see. A turn handed on ends what the aims were for, so
  * they are all taken off, for everyone; the aim that outlived its turn is the one that strikes the
@@ -26,7 +27,6 @@ export class TargetReleaseEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly vision = inject(VisionService);
   private readonly pieceTarget = inject(PieceTargetService);
 
   /** The turn as it stood when the round was last looked at; undefined before it has been looked at. */
@@ -36,8 +36,8 @@ export class TargetReleaseEventHandlerService {
     effect(() => {
       const aimed = this.pieceTarget.onTable();
       if (aimed.length < 1) return;
-      const unseen = aimed.filter((piece) => !this.vision.isTokenVisible(piece));
-      if (unseen.length > 0) untracked(() => this.pieceTarget.drop(unseen));
+      const kept = aimed.filter((piece) => !this.pieceTarget.mayAimAt(piece));
+      if (kept.length > 0) untracked(() => this.pieceTarget.drop(kept));
     });
     this.objectChange.onObjectChangedForIdentifier('TurnState', () => this.turnChanged(), this.destroyRef);
   }

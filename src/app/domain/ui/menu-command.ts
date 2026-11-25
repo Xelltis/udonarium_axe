@@ -263,7 +263,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('objectList', 'category', 'objectList', 'app.fab.objectList', { audience: 'gameMaster' }),
   panel('partyList', 'group_work', 'partyList', 'feature.gmTools.party.title', { audience: 'gameMaster' }),
   panel('ownedCharacters', 'groups', 'ownedCharacters', 'app.fab.ownedCharacters', { audience: 'playing' }),
-  panel('targetList', 'my_location', 'targetList', 'app.fab.targetList', { audience: 'playing' }),
+  panel('targetList', 'my_location', 'targetList', 'app.fab.targetList'),
   panel('characterGenerator', 'person_add_alt', 'characterGenerator', 'common.panel.characterGenerator', {
     audience: 'playing',
   }),

@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TargetListPanelComponent } from '@axe/features/tabletop/target-list/target-list-panel.component';
@@ -60,6 +63,41 @@ describe('TargetListPanelComponent', () => {
       ['none', ['村人']],
     ]);
     expect(sections[0].rows[0].gauge).toMatch(/^HP \d+\/\d+$/);
+  });
+
+  it('moves the rows of a party’s pieces as the party is put on another side, and a part on its body’s side', () => {
+    const party = new Party('party-goblins');
+    party.initialize();
+    const goblin = piece('ゴブリン');
+    goblin.partyIdentifier = party.identifier;
+    const dragon = piece('竜', 'right');
+    const head = piece('頭');
+    head.ridingOn = dragon.identifier;
+    head.rideSeat = 'part';
+    const { fixture } = render();
+    const sides = () =>
+      fixture.componentInstance.sections().map((section) => [section.side, section.rows.map((row) => row.name)]);
+    expect(sides()).toEqual([
+      ['right', ['竜', '頭']],
+      ['none', ['ゴブリン']],
+    ]);
+
+    party.battleSide = 'left';
+    TestBed.inject(ObjectChangeService).notifyChanged(party.identifier);
+
+    expect(sides()).toEqual([
+      ['left', ['ゴブリン']],
+      ['right', ['竜', '頭']],
+    ]);
+    party.destroy();
+  });
+
+  it('shows the name of a bar alone where its numbers are kept from this seat', () => {
+    piece('秘密', 'right');
+    vi.spyOn(TestBed.inject(DisclosureService), 'canView').mockReturnValue(false);
+    const { fixture } = render();
+
+    expect(fixture.componentInstance.sections()[0].rows[0].gauge).toBe('HP');
   });
 
   it('aims at the piece of a row pressed, and lets go of it at a second press', () => {

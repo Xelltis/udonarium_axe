@@ -250,6 +250,8 @@ export class MobileShellComponent {
         return 'effectLibrary';
       case 'inventory':
         return 'inventory';
+      case 'targetList':
+        return 'targetList';
       case 'objectList':
         return 'objectList';
       case 'party':

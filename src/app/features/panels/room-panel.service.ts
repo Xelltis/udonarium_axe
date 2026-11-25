@@ -277,7 +277,7 @@ export class RoomPanelService {
             import('@axe/features/tabletop/target-list/target-list-panel.component').then(
               (m) => m.TargetListPanelComponent
             ),
-          option: { width: 320, height: 480, left: 120, top: 60 },
+          option: { width: 320, height: 480, single: 'target-list' },
         };
       case 'partyList':
         return {

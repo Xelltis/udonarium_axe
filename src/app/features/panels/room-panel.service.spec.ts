@@ -175,6 +175,12 @@ describe('RoomPanelService', () => {
     expect(openLazy.mock.calls.map(([, given]) => (given as PanelOption).top)).toEqual([64, 84]);
   });
 
+  it('opens the list of pieces to aim at as one alone, however often it is asked for', () => {
+    service.open('targetList');
+
+    expect(option().single).toBe('target-list');
+  });
+
   it('opens the table settings again beside one already open, as they keep to no single panel', () => {
     service.open('tableSetting');
     service.open('tableSetting');

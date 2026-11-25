@@ -11,6 +11,7 @@ export type MobileMenuAction =
   | 'cutIn'
   | 'effect'
   | 'inventory'
+  | 'targetList'
   | 'objectList'
   | 'party'
   | 'mapEditor'
@@ -48,6 +49,7 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'cutIn', icon: 'slideshow', labelKey: 'app.fab.cutIn' },
   { action: 'effect', icon: 'auto_awesome', labelKey: 'feature.effect.title', audience: 'playing' },
   { action: 'inventory', icon: 'folder_shared', labelKey: 'app.fab.inventory' },
+  { action: 'targetList', icon: 'my_location', labelKey: 'app.fab.targetList' },
   { action: 'objectList', icon: 'list_alt', labelKey: 'feature.mobile.objectList', gameMasterOnly: true },
   { action: 'party', icon: 'diversity_3', labelKey: 'feature.gmTools.party.title', gameMasterOnly: true },
   { action: 'darkness', icon: 'dark_mode', labelKey: 'feature.mobile.darkness', gameMasterOnly: true },
