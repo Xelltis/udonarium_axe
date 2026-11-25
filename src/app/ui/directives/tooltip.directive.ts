@@ -16,7 +16,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { ReloadNoticeService } from '@axe/application/ui/reload-notice.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { observeTap, TapGestureHandle } from '@axe/core/input/tap-gesture';
+import { observeTap, TapGestureHandle, type TapPoint } from '@axe/core/input/tap-gesture';
 import { Logger } from '@axe/core/logging/logger';
 import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -66,8 +66,10 @@ export class TooltipPanelSource {
 interface TooltipSession {
   readonly refs: ComponentRef<TooltipPanelInstance>[];
   readonly seats: EdgeDetailSeat[] | null;
-  /** Where the mouse rested as the detail opened, or null for a tap. */
-  readonly at: MousePlace | null;
+  /** Where the detail was opened, the mouse resting or a finger tapping, and in which window. */
+  readonly at: MousePlace;
+  /** Whether a tap opened it. */
+  readonly tapped: boolean;
   /** The window the detail opened in, which it is laid out by and closes with. */
   readonly view: Window;
   deleteOff?: () => void;
@@ -117,6 +119,8 @@ export class TooltipDirective {
   private openTooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private closeTooltipTimer: ReturnType<typeof setTimeout> | null = null;
   private waitingForPanel = false;
+  /** The body a press is heard on while the detail is fetched, to give up waiting for it. */
+  private waitingIn: HTMLElement | null = null;
 
   private tooltipSession: TooltipSession | null = null;
   private tooltipRotationDegrees = 0;
@@ -128,7 +132,7 @@ export class TooltipDirective {
     afterNextRender(() => {
       const element = this.viewContainerRef.element.nativeElement as Element;
       this.addEventListeners(element);
-      this.tapGesture = observeTap(element, () => this.onTap());
+      this.tapGesture = observeTap(element, (point) => this.onTap(point));
     });
     this.destroyRef.onDestroy(() => {
       this.removeEventListeners(this.viewContainerRef.element.nativeElement);
@@ -139,7 +143,7 @@ export class TooltipDirective {
     });
   }
 
-  private onTap() {
+  private onTap(point: TapPoint) {
     if (this.tapTaken) {
       this.tapTaken = false;
       return;
@@ -151,7 +155,8 @@ export class TooltipDirective {
       this.closeAll();
       return;
     }
-    this.open();
+    const host = this.viewContainerRef.element.nativeElement as Element;
+    this.open({ document: host.ownerDocument, x: point.x, y: point.y }, true);
   }
 
   private onMouseEnter(e: MouseEvent) {
@@ -284,18 +289,19 @@ export class TooltipDirective {
    * Fetches the detail the first time it is asked for, and opens it once it has come where the mouse
    * still rests on the host, as the mouse then is, or for a tap as a tap does.
    */
-  private fetchPanelThenOpen(at: MousePlace | null) {
+  private fetchPanelThenOpen(at: MousePlace, tapped: boolean) {
     const load = this.panels.load;
     if (!load || this.panels.failed) return;
     this.waitingForPanel = true;
-    document.body.addEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
-    document.body.addEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
+    this.waitingIn = at.document.body;
+    this.waitingIn.addEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
+    this.waitingIn.addEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
     void load()
       .then((panelClass) => {
         this.panels.panel = panelClass;
         if (!this.waitingForPanel) return;
         const now = this.pointerDeviceService.mouseAt;
-        if (!at) this.open();
+        if (tapped) this.open(at, true);
         else if (now && this.isTopmostAt(now)) this.open(now);
         else this.stopWaitingForPanel();
       })
@@ -315,33 +321,32 @@ export class TooltipDirective {
   private stopWaitingForPanel() {
     if (!this.waitingForPanel) return;
     this.waitingForPanel = false;
-    document.body.removeEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
-    document.body.removeEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
+    this.waitingIn?.removeEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
+    this.waitingIn?.removeEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
+    this.waitingIn = null;
   }
 
   /**
-   * Opens the detail: beside the mouse where it rests, in the window it rests in, or for a tap where
-   * the finger last was in the main window.
+   * Opens the detail beside the point it is opened at, the mouse resting or a finger tapping, in the
+   * window of that point: laid out by that window, and closed by a press in it.
    */
-  private open(at: MousePlace | null = null) {
+  private open(at: MousePlace, tapped = false) {
     this.closeAll();
     const tabletopObject = this.tabletopObject();
     if (this.pointerDeviceService.isDragging || this.off() || !tabletopObject) return;
     const panelClass = this.panels.panel;
     if (!panelClass) {
-      this.fetchPanelThenOpen(at);
+      this.fetchPanelThenOpen(at, tapped);
       return;
     }
     this.stopWaitingForPanel();
 
-    const parentViewContainerRef = at
-      ? (this.overlays.layerFor(at.document) ?? this.overlays.mainLayer())
-      : this.overlays.front();
+    const parentViewContainerRef = this.overlays.layerFor(at.document) ?? this.overlays.mainLayer();
     const injector = parentViewContainerRef.injector;
     const view = (parentViewContainerRef.element.nativeElement as Node).ownerDocument?.defaultView ?? window;
     const seats = this.edgeSeats(view);
     const refs: ComponentRef<TooltipPanelInstance>[] = [];
-    const session: TooltipSession = { refs, seats, at, view, detach: () => {} };
+    const session: TooltipSession = { refs, seats, at, tapped, view, detach: () => {} };
     this.tooltipSession = session;
 
     for (const seat of seats ?? [null]) {
@@ -358,8 +363,8 @@ export class TooltipDirective {
         componentRef.instance.rotationDegrees = seat.rotationDegrees;
         componentRef.instance.placementListener = () => this.hidePanelUnderPointer(session);
       } else {
-        componentRef.instance.left = at?.x ?? this.pointerDeviceService.pointerX;
-        componentRef.instance.top = at?.y ?? this.pointerDeviceService.pointerY;
+        componentRef.instance.left = at.x;
+        componentRef.instance.top = at.y;
         componentRef.instance.rotationDegrees = this.tooltipRotationDegrees;
         if (this.viewport.isTouch()) element.classList.add('tooltip-passthrough');
         this.addEventListeners(element);
@@ -373,7 +378,7 @@ export class TooltipDirective {
       refs.push(componentRef);
     }
 
-    const pressedIn = (at?.document ?? document).body;
+    const pressedIn = at.document.body;
     pressedIn.addEventListener('touchstart', this.callbackOnMouseDown, true);
     pressedIn.addEventListener('mousedown', this.callbackOnMouseDown, true);
     session.deleteOff = this.objectChange.objectDeleted$.subscribe((e) => {
@@ -423,7 +428,7 @@ export class TooltipDirective {
     if (!sameEdgeDetailSeats(session.seats, makeEdgeDetailSeats(session.view.innerWidth, session.view.innerHeight))) {
       // Building the seats again clears the timers, so a detail on its way out keeps going.
       const wasClosing = this.closeTooltipTimer !== null;
-      this.open(session.at);
+      this.open(session.at, session.tapped);
       if (wasClosing && this.hasTooltip()) this.startCloseTimer();
       return;
     }

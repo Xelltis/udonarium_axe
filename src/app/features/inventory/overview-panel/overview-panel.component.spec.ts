@@ -272,6 +272,20 @@ describe('OverviewPanelComponent', () => {
       expect(panel.style.top).toBe(top);
     });
 
+    it('lets the mouse stand within two pixels of where it opened, as a move read in whole pixels may, before it counts as moved', async () => {
+      const panel = await renderBeside();
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 302, clientY: 500 }));
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 303, clientY: 500 }));
+      sizePanel(panel, 250, 180);
+      component.placeBesidePointer();
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+    });
+
     it('is not touched by opening under a mouse at rest, and keeps being placed as it grows', async () => {
       const panel = await renderBeside();
 

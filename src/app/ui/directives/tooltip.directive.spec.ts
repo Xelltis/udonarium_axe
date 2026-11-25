@@ -484,6 +484,18 @@ describe('TooltipDirective', () => {
       fixture.detectChanges();
     }
 
+    it('opens a tapped detail beside the tap, in the layer of the window the piece stands in', async () => {
+      table.hoverDetailPlacement = 'piece';
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      const layerFor = vi.spyOn(TestBed.inject(OverlayLayers), 'layerFor');
+
+      await tap('first-piece');
+      fixture.detectChanges();
+
+      expect(panels().map((panel) => [panel.left, panel.top])).toEqual([[5, 5]]);
+      expect(layerFor).toHaveBeenCalledWith(document);
+    });
+
     it('shows the detail of the tapped piece once it arrives', async () => {
       const deliver = await waitForDetail();
 
