@@ -5,7 +5,11 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('AnimatedImageService', () => {
   const gif = new Uint8Array([...[...'GIF89a'].map((char) => char.charCodeAt(0)), 0, 0, 0, 0, 0, 0]).buffer;
-  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]).buffer;
+  const png = new Uint8Array([
+    ...[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+    ...[0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, ...new Array(13 + 4).fill(0)],
+    ...[0, 0, 0, 1, 0x49, 0x44, 0x41, 0x54, 0, 0, 0, 0, 0],
+  ]).buffer;
 
   function serve(bytes: ArrayBuffer): void {
     vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
@@ -40,6 +44,17 @@ describe('AnimatedImageService', () => {
     expect(animated.isAnimated('picture')).toBe(true);
     expect(await animated.probe('picture')).toBe(true);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes every GIF as moving, one of a single image too, as the boards saved so far hang every GIF over themselves', async () => {
+    const single = new Uint8Array([
+      ...[...'GIF89a'].map((char) => char.charCodeAt(0)),
+      ...[4, 0, 4, 0, 0, 0, 0],
+      ...[0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0, 0x3b],
+    ]).buffer;
+    serve(single);
+
+    expect(await service().probe('picture')).toBe(true);
   });
 
   it('calls a still picture still', async () => {

@@ -108,24 +108,30 @@ describe('ShownPictureUrls', () => {
     end();
   });
 
-  it('shows a picture not yet told to move from its own URL, and from one of the showing’s own once it is', async () => {
+  it('takes a picture not yet told of by its kind, so a moving one plays from its start the first time too, and a still one goes back to its own URL once told', async () => {
     const { urls, end } = showing();
-    const blob = movingPngBlob();
-    const picture = ImageFile.create({
-      identifier: 'untold',
-      name: 'untold.png',
-      type: 'image/png',
-      blob,
-      url: 'blob:untold',
-      thumbnail: { type: '', blob: null, url: '' },
-    });
-    const shown = computed(() => urls.urlOf(picture));
-    expect(shown()).toBe('blob:untold');
+    const movingBlob = movingPngBlob();
+    const stillBlob = new Blob([new Uint8Array([1])], { type: 'image/png' });
+    const picture = (identifier: string, blob: Blob) =>
+      ImageFile.create({
+        identifier,
+        name: `${identifier}.png`,
+        type: 'image/png',
+        blob,
+        url: `blob:${identifier}`,
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+    const moving = computed(() => urls.urlOf(picture('untold-moving', movingBlob)));
+    const still = computed(() => urls.urlOf(picture('untold-still', stillBlob)));
+    const first = moving();
+    expect(first).not.toBe('blob:untold-moving');
+    expect(still()).not.toBe('blob:untold-still');
 
-    await blobMoves(blob);
+    await Promise.all([blobMoves(movingBlob), blobMoves(stillBlob)]);
     await Promise.resolve();
 
-    expect(shown()).not.toBe('blob:untold');
+    expect(moving()).toBe(first);
+    expect(still()).toBe('blob:untold-still');
     end();
   });
 

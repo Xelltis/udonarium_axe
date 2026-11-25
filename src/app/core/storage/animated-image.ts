@@ -15,20 +15,60 @@ function ascii(view: DataView, offset: number, length: number): string {
 }
 
 /**
- * Whether a picture moves.
- *
- * Only the head of the file is read, which is where each format says so: png carries an
- * acTL chunk before its first pixels, webp an ANIM chunk in the same place. A gif is taken
- * at its word without counting frames - one that turns out to hold a single frame is drawn
- * exactly as it would have been anyway.
+ * Whether a picture moves, read from the head of its file: an APNG (an acTL chunk before its first
+ * pixels), a WebP that says it is animated (the flag of its VP8X chunk, or an ANIM chunk), an AVIF
+ * of the image-sequence brand, or a GIF with a second image. Where the head ends before it says either
+ * way, the picture is taken as moving, so a reader that only has the head never stills a moving one.
  */
 export function isAnimatedImageBytes(buffer: ArrayBuffer): boolean {
+  return animationOfHead(buffer) !== false;
+}
+
+/** Whether the bytes are of a GIF, which a reader may take as moving at its word (see `AnimatedImageService`). */
+export function isGifBytes(buffer: ArrayBuffer): boolean {
+  return buffer.byteLength >= 3 && ascii(new DataView(buffer), 0, 3) === 'GIF';
+}
+
+/**
+ * Whether the bytes, the head of a picture's file or all of it, say the picture moves: true or false
+ * where they do, null where they end before saying.
+ */
+function animationOfHead(buffer: ArrayBuffer): boolean | null {
   if (buffer.byteLength < 12) return false;
   const view = new DataView(buffer);
+  if (startsWith(view, PNG_SIGNATURE)) return pngAnimation(view);
+  if (ascii(view, 0, 3) === 'GIF') return gifHasSecondFrame(view);
+  if (ascii(view, 0, 4) === 'RIFF' && ascii(view, 8, 4) === 'WEBP') return webpAnimation(view);
+  if (ascii(view, 4, 4) === 'ftyp') return avifAnimation(view);
+  return false;
+}
 
-  if (startsWith(view, PNG_SIGNATURE)) return isAnimatedPng(buffer);
-  if (ascii(view, 0, 3) === 'GIF') return gifHasSecondFrame(view) !== false;
-  if (ascii(view, 0, 4) === 'RIFF' && ascii(view, 8, 4) === 'WEBP') return hasWebPAnimation(view);
+/** An APNG's acTL chunk comes before its first IDAT: true where it does, false where IDAT comes first, null where neither has come. */
+function pngAnimation(view: DataView): boolean | null {
+  if (isAnimatedPng(view.buffer as ArrayBuffer)) return true;
+  let offset = 8;
+  while (offset + 8 <= view.byteLength) {
+    if (ascii(view, offset + 4, 4) === 'IDAT') return false;
+    offset += 12 + view.getUint32(offset);
+  }
+  return null;
+}
+
+/** A WebP says it is animated in the flags of its VP8X chunk, the first, and with an ANIM chunk after; a plain lossy or lossless one stands still. */
+function webpAnimation(view: DataView): boolean | null {
+  const first = ascii(view, 12, 4);
+  if (first === 'VP8 ' || first === 'VP8L') return false;
+  if (first === 'VP8X' && view.byteLength > 20) return (view.getUint8(20) & 0x02) !== 0;
+  return hasWebPAnimation(view) ? true : null;
+}
+
+/** An AVIF of the image-sequence brand, major or compatible, is a moving one. */
+function avifAnimation(view: DataView): boolean {
+  const size = Math.min(view.getUint32(0), view.byteLength);
+  for (let at = 8; at + 4 <= size; at += 4) {
+    if (at === 12) continue;
+    if (ascii(view, at, 4) === 'avis') return true;
+  }
   return false;
 }
 
@@ -71,18 +111,24 @@ export function gifHasSecondFrame(view: DataView): boolean | null {
 }
 
 /**
- * Whether the picture held in a blob moves: an APNG, an animated WebP, a GIF of more than one image,
- * or an SVG, which may carry animation of its own. Read once per blob and kept.
+ * Whether the picture held in a blob moves: an APNG, an animated WebP or AVIF, a GIF of more than one
+ * image, or an SVG, which may carry animation of its own. The head of the file is read, and all of it
+ * only where the head ends before saying. Read once per blob and kept; a blob that cannot be read is
+ * answered still for now and read again when next asked.
  */
 export function blobMoves(blob: Blob): Promise<boolean> {
   let told = toldOfBlobs.get(blob);
   if (!told) {
-    told = readWhetherBlobMoves(blob)
-      .catch(() => false)
-      .then((moves) => {
+    told = readWhetherBlobMoves(blob).then(
+      (moves) => {
         knownOfBlobs.set(blob, moves);
         return moves;
-      });
+      },
+      () => {
+        toldOfBlobs.delete(blob);
+        return false;
+      }
+    );
     toldOfBlobs.set(blob, told);
   }
   return told;
@@ -98,12 +144,14 @@ const knownOfBlobs = new WeakMap<Blob, boolean>();
 
 async function readWhetherBlobMoves(blob: Blob): Promise<boolean> {
   if (blob.type === 'image/svg+xml') return true;
-  const head = await blob.slice(0, 64 * 1024).arrayBuffer();
-  if (ascii(new DataView(head), 0, 3) === 'GIF' && blob.size > head.byteLength) {
-    return gifHasSecondFrame(new DataView(await blob.arrayBuffer())) === true;
-  }
-  return isAnimatedImageBytes(head);
+  const head = await blob.slice(0, HEAD_BYTES).arrayBuffer();
+  const told = animationOfHead(head);
+  if (told !== null || blob.size <= head.byteLength) return told === true;
+  return animationOfHead(await blob.arrayBuffer()) === true;
 }
+
+/** How much of a file is read first to tell whether it moves, which each format says near its start. */
+const HEAD_BYTES = 64 * 1024;
 
 function hasWebPAnimation(view: DataView): boolean {
   let offset = 12;

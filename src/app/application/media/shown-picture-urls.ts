@@ -2,6 +2,9 @@ import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { blobMoves, knownBlobMoves } from '@axe/core/storage/animated-image';
 import type { ImageFile } from '@axe/core/storage/image-file';
 
+/** The kinds a picture not yet told of may move as, an APNG being a PNG: shown from a URL of its own until told. */
+const MAY_MOVE = /^image\/(png|apng|gif|webp|avif|svg\+xml)$/;
+
 /**
  * URLs of their own for the pictures one showing shows, as a cut-in opened: each picture held here in
  * full is shown from a URL made for this showing alone, so that a moving picture that plays a set
@@ -11,8 +14,9 @@ import type { ImageFile } from '@axe/core/storage/image-file';
  * Provided where showings are made, and let go of with it: a cut-in window holds one showing, and a
  * stage that shows one after another names each (see {@link urlOf}) or begins the next (see
  * {@link beginShowing}). Only a picture told to move by its bytes, an APNG, an animated WebP, a GIF of
- * more than one image, or an SVG, is given a URL of its own; a still one, and one not yet told of, is
- * shown from its own URL, so it is not read again for each showing. A picture whose bytes change, as
+ * more than one image, or an SVG, is given a URL of its own; a still one is shown from its own URL, so
+ * it is not read again for each showing. One not yet told of is taken by its kind until it is, so the
+ * first showing of a moving picture plays from its start too. A picture whose bytes change, as
  * its full bytes come after its thumbnail, is told of and given a new URL for them.
  */
 @Injectable()
@@ -55,14 +59,12 @@ export class ShownPictureUrls {
     return url;
   }
 
-  /** Whether a blob's picture moves, as far as told; asks once where not, and reads again once told it does. */
+  /** Whether a blob's picture moves, as told, or by its kind until told; asks once where not told, and reads again once told. */
   private moves(blob: Blob): boolean {
     const known = knownBlobMoves(blob);
     if (known !== undefined) return known;
-    void blobMoves(blob).then((moves) => {
-      if (moves) this.told.update((count) => count + 1);
-    });
-    return false;
+    void blobMoves(blob).then(() => this.told.update((count) => count + 1));
+    return blob.type === '' || MAY_MOVE.test(blob.type);
   }
 
   private letGo(): void {

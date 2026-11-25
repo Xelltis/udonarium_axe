@@ -36,6 +36,17 @@ describe('isAnimatedImageBytes()', () => {
     ).toBe(false);
   });
 
+  it('walks a gif past its colour tables and its extensions, the loop and the frame control among them', () => {
+    const screen = ['GIF89a', [4, 0, 4, 0, 0x81, 0, 0], new Array(12).fill(0)] as const;
+    const loop = [0x21, 0xff, 11, ...'NETSCAPE2.0'.split('').map((c) => c.charCodeAt(0)), 3, 1, 0, 0, 0];
+    const control = [0x21, 0xf9, 4, 0, 10, 0, 0, 0];
+    const comment = [0x21, 0xfe, 3, 0x61, 0x62, 0x63, 0];
+    const image = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0x80, 0, 0, 0, 0, 0, 0, 2, 1, 0, 0];
+    const frames = (count: number) => Array.from({ length: count }, () => [...control, ...image]).flat();
+    expect(isAnimatedImageBytes(bytesOf(...screen, loop, comment, frames(2), [0x3b]))).toBe(true);
+    expect(isAnimatedImageBytes(bytesOf(...screen, loop, comment, frames(1), [0x3b]))).toBe(false);
+  });
+
   it('tells a gif of more than one image from one of a single image, and takes a head that ends too soon as moving', () => {
     const screen = ['GIF89a', [4, 0, 4, 0, 0, 0, 0]] as const;
     const image = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0];
@@ -47,9 +58,91 @@ describe('isAnimatedImageBytes()', () => {
   it('finds the animation chunk of a webp', () => {
     expect(
       isAnimatedImageBytes(
-        bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8X', 10), new Array(10).fill(0), riffChunk('ANIM', 6))
+        bytesOf('RIFF', [0, 0, 0, 0], 'WEBP', riffChunk('VP8X', 10), [0x02], new Array(9).fill(0), riffChunk('ANIM', 6))
       )
     ).toBe(true);
+  });
+
+  it('reads a webp as animated by the flag of its first chunk, though a large colour profile pushes its ANIM chunk past the head', () => {
+    const flagged = (flags: number) =>
+      isAnimatedImageBytes(
+        bytesOf(
+          'RIFF',
+          [0, 0, 0, 0],
+          'WEBP',
+          riffChunk('VP8X', 10),
+          [flags],
+          new Array(9).fill(0),
+          riffChunk('ICCP', 70_000)
+        )
+      );
+    expect([flagged(0x02), flagged(0x00)]).toEqual([true, false]);
+  });
+
+  it('reads an avif of the image-sequence brand as moving, and one of the still brand as still', () => {
+    const avif = (major: string, compatible: string) =>
+      isAnimatedImageBytes(bytesOf([0, 0, 0, 24], 'ftyp', major, [0, 0, 0, 0], compatible, 'mif1'));
+    expect([avif('avis', 'avif'), avif('avif', 'avis'), avif('avif', 'mif1')]).toEqual([true, true, false]);
+  });
+
+  it('takes a png whose head ends before its first pixels as moving, and reads the rest of a blob to tell', async () => {
+    const head = bytesOf(PNG_HEAD, chunk('IHDR', 13), new Array(13 + 4).fill(0), chunk('iTXt', 70_000));
+    expect(isAnimatedImageBytes(head)).toBe(true);
+    const still = new Blob(
+      [
+        bytesOf(
+          PNG_HEAD,
+          chunk('IHDR', 13),
+          new Array(13 + 4).fill(0),
+          chunk('iTXt', 70_000),
+          new Array(70_004).fill(0),
+          chunk('IDAT', 1),
+          [0, 0, 0, 0, 0]
+        ),
+      ],
+      { type: 'image/png' }
+    );
+    expect(await blobMoves(still)).toBe(false);
+    const moving = new Blob(
+      [
+        bytesOf(
+          PNG_HEAD,
+          chunk('IHDR', 13),
+          new Array(13 + 4).fill(0),
+          chunk('iTXt', 70_000),
+          new Array(70_004).fill(0),
+          chunk('acTL', 8),
+          new Array(8 + 4).fill(0)
+        ),
+      ],
+      { type: 'image/png' }
+    );
+    expect(await blobMoves(moving)).toBe(true);
+  });
+
+  it('answers a blob it could not read as still for now, and reads it again when next asked', async () => {
+    const bytes = bytesOf(
+      PNG_HEAD,
+      chunk('IHDR', 13),
+      new Array(13 + 4).fill(0),
+      chunk('acTL', 8),
+      new Array(12).fill(0)
+    );
+    let fail = true;
+    const flaky = {
+      type: 'image/png',
+      size: bytes.byteLength,
+      slice: () => ({
+        arrayBuffer: async () => {
+          if (fail) throw new Error('not readable yet');
+          return bytes;
+        },
+      }),
+    } as unknown as Blob;
+
+    expect(await blobMoves(flaky)).toBe(false);
+    fail = false;
+    expect(await blobMoves(flaky)).toBe(true);
   });
 
   it('calls a still webp still', () => {

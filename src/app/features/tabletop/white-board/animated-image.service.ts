@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { isAnimatedImageBytes } from '@axe/core/storage/animated-image';
+import { isAnimatedImageBytes, isGifBytes } from '@axe/core/storage/animated-image';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 
 /** How much of a file has to be read to find out whether it moves. */
@@ -11,6 +11,9 @@ const HEAD_BYTES = 64 * 1024;
  * The answer is in the bytes rather than in anything the storehouse knows, so it is read
  * once per picture and kept. Until it is read a picture is taken as still, and whatever
  * asked is told again when the bytes come back.
+ *
+ * Every GIF is taken as moving, one image or many: the boards saved so far left every GIF out of the
+ * picture they wear and hang it over the board, and a GIF told still now would be drawn nowhere.
  *
  * Only an answer actually read from bytes is kept. A picture still on its way from another
  * peer, or one whose bytes cannot be fetched, is left unanswered and asked about again:
@@ -64,7 +67,7 @@ export class AnimatedImageService {
     }
     if (head.byteLength < 1) return false;
 
-    const animated = isAnimatedImageBytes(head);
+    const animated = isGifBytes(head) || isAnimatedImageBytes(head);
     this.answers.update((current) => new Map(current).set(identifier, animated));
     return animated;
   }
