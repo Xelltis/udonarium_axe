@@ -56,4 +56,64 @@ describe('ShownPictureUrls', () => {
     expect(urls.urlOf(null)).toBe('');
     end();
   });
+
+  it('gives the full bytes a URL of their own once they come after the thumbnail, letting go of the thumbnail’s', () => {
+    const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    const picture = ImageFile.create({
+      identifier: 'late',
+      name: 'late.png',
+      type: '',
+      blob: null,
+      url: '',
+      thumbnail: { type: 'image/png', blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), url: 'blob:thumb' },
+    });
+    const { urls, end } = showing();
+    const thumbnail = urls.urlOf(picture);
+
+    picture.apply({
+      identifier: 'late',
+      name: 'late.png',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([1, 2])], { type: 'image/png' }),
+      url: 'blob:full',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const full = urls.urlOf(picture);
+
+    expect(full).not.toBe(thumbnail);
+    expect(letGo).toHaveBeenCalledWith(thumbnail);
+    end();
+  });
+
+  it('shows a picture of a kind that never moves from its own URL, as a JPEG', () => {
+    const { urls, end } = showing();
+    const photo = ImageFile.create({
+      identifier: 'photo',
+      name: 'photo.jpg',
+      type: 'image/jpeg',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/jpeg' }),
+      url: 'blob:photo',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+
+    expect(urls.urlOf(photo)).toBe('blob:photo');
+    end();
+  });
+
+  it('gives the pictures URLs of their own again for each showing named, and for each one begun, letting go of the last', () => {
+    const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    const picture = held('hero', 'blob:held');
+    const { urls, end } = showing();
+    const first = urls.urlOf(picture, 1);
+
+    const second = urls.urlOf(picture, 2);
+    expect(second).not.toBe(first);
+    expect(letGo).toHaveBeenCalledWith(first);
+
+    urls.beginShowing();
+    const third = urls.urlOf(picture, 2);
+    expect(third).not.toBe(second);
+    expect(letGo).toHaveBeenCalledWith(second);
+    end();
+  });
 });

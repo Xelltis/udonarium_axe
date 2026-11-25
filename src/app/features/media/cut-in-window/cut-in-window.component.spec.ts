@@ -78,6 +78,39 @@ describe('CutInWindowComponent', () => {
     ImageStorage.instance.delete('apng-once');
   });
 
+  it('shows the same picture from another URL in the next window, and lets go of a window’s own as it closes', () => {
+    const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    const picture = ImageStorage.instance.add({
+      identifier: 'apng-twice',
+      name: 'twice.png',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/png' }),
+      url: 'blob:held-twice',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const cutIn = new CutIn('apng-cut-in-twice');
+    cutIn.initialize();
+    cutIn.imageIdentifier = picture.identifier;
+    const show = () => {
+      const window = TestBed.createComponent(CutInWindowComponent);
+      window.componentInstance.cutIn = cutIn;
+      window.componentInstance.startCutIn();
+      window.detectChanges();
+      const src = (window.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src') ?? '';
+      return { window, src };
+    };
+
+    const first = show();
+    first.window.destroy();
+    const second = show();
+
+    expect(letGo).toHaveBeenCalledWith(first.src);
+    expect(second.src).not.toBe(first.src);
+    second.window.destroy();
+    cutIn.destroy();
+    ImageStorage.instance.delete('apng-twice');
+  });
+
   describe('the size of the video player', () => {
     const borrowed = new BorrowedGlobals();
     let resized: ((entries: { contentRect: { width: number; height: number } }[]) => void) | null;

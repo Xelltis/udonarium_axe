@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
@@ -743,6 +744,27 @@ describe('CutInSceneEditorComponent', () => {
 
       expect(playback().playing()).toBe(true);
       expect(editor().playheadMs()).toBe(0);
+    });
+  });
+
+  describe('the pictures of the preview', () => {
+    type PlaybackApi = { togglePlaying(): void };
+
+    it('gives them URLs of their own each time the preview plays from the start, for a moving picture to play from its start', () => {
+      editor().addImageLayer();
+      fixture.detectChanges();
+      const urls = fixture.debugElement.injector.get(ShownPictureUrls);
+      const begun = vi.spyOn(urls, 'beginShowing');
+      const playback = component as unknown as PlaybackApi;
+
+      playback.togglePlaying();
+      playback.togglePlaying();
+      expect(begun).toHaveBeenCalledTimes(1);
+
+      editor().onSeek(0);
+      playback.togglePlaying();
+      expect(begun).toHaveBeenCalledTimes(2);
+      playback.togglePlaying();
     });
   });
 

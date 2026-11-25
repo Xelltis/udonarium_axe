@@ -440,7 +440,42 @@ describe('CutInStageComponent within a showing of its own', () => {
     });
   });
 
-  afterEach(() => ImageStorage.instance.delete('stand-in'));
+  afterEach(() => {
+    ImageStorage.instance.delete('stand-in');
+    ImageStorage.instance.delete('hero-face');
+  });
+
+  it('shows the speaker’s portrait in a portrait’s place from the showing’s own URL too', () => {
+    ImageStorage.instance.add({
+      identifier: 'hero-face',
+      name: 'hero-face.png',
+      type: 'image/png',
+      blob: new Blob([new Uint8Array([2])], { type: 'image/png' }),
+      url: 'blob:held-hero-face',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const fixture = TestBed.createComponent(CutInStageComponent);
+    const scene = new CutInScene();
+    scene.initialize();
+    scene.cutInIdentifier = 'cut-2';
+    scene.durationMs = 1000;
+    const layer = new CutInLayer();
+    layer.initialize();
+    Object.assign(layer, { kind: 'image', portraitSlot: true, imageIdentifier: 'stand-in' });
+    scene.appendChild(layer);
+    fixture.componentRef.setInput('scene', scene);
+    fixture.componentRef.setInput('sceneWidth', 640);
+    fixture.componentRef.setInput('sceneHeight', 360);
+    fixture.componentRef.setInput('playing', false);
+    fixture.componentRef.setInput('speaker', { characterId: 'hero', imageIdentifier: 'hero-face', name: 'ヒロ' });
+    fixture.detectChanges();
+
+    const shown = (fixture.nativeElement.querySelector('img') as HTMLImageElement | null)?.getAttribute('src') ?? '';
+
+    expect(shown).toBe(TestBed.inject(ShownPictureUrls).urlOf(ImageStorage.instance.get('hero-face')));
+    expect(shown).not.toBe('blob:held-hero-face');
+    scene.destroy();
+  });
 
   it('shows its pictures from the showing’s own URLs, for a moving picture to play from its start', () => {
     const fixture = TestBed.createComponent(CutInStageComponent);

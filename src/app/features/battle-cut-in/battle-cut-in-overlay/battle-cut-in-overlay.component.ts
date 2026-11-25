@@ -17,6 +17,7 @@ import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -271,6 +272,7 @@ export interface PlateFrame {
   templateUrl: './battle-cut-in-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgStyle, NgTemplateOutlet, TranslocoModule],
+  providers: [ShownPictureUrls],
   host: { class: 'contents', '(document:keydown.escape)': 'pressEscape()', '(window:resize)': 'measureScreen()' },
 })
 export class BattleCutInOverlayComponent {
@@ -280,6 +282,7 @@ export class BattleCutInOverlayComponent {
   private readonly images = inject(ImageStorage);
   private readonly models = inject(ModelStorage);
   private readonly mirrors = inject(MirroredPictureService);
+  private readonly shownUrls = inject(ShownPictureUrls);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly disclosure = inject(DisclosureService);
@@ -412,7 +415,7 @@ export class BattleCutInOverlayComponent {
   readonly backgroundUrl = computed(() => {
     this.objectChange.fileVersion();
     const identifier = this.scene()?.background ?? '';
-    return identifier.length > 0 ? (this.images.get(identifier)?.url ?? '') : '';
+    return identifier.length > 0 ? this.shownUrls.urlOf(this.images.get(identifier), this.serial()) : '';
   });
 
   /** How the band and the plates look: plain on the room's own picture, else as the stage has them. */
@@ -964,8 +967,8 @@ export class BattleCutInOverlayComponent {
     reaction: DefeatReaction
   ): FighterView {
     const image = fighter.image.length > 0 ? this.images.get(fighter.image) : null;
-    const imageUrl = image?.url ?? '';
     const mirrored = fighter.facing === side;
+    const imageUrl = mirrored ? (image?.url ?? '') : this.shownUrls.urlOf(image, this.serial());
     const model = pieceModelOfFighter(fighter.model);
     const held = model ? this.models.get(model.identifier) : null;
     return {

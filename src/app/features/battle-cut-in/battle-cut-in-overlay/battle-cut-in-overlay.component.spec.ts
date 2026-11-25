@@ -177,12 +177,40 @@ describe('BattleCutInOverlayComponent', () => {
       const root = play(scene({ theme: 'horror', background: 'arena' }));
 
       const picture = root.querySelector<HTMLImageElement>('[data-testid="battle-cut-in-background"]')!;
-      expect(picture.getAttribute('src')).toBe('blob:arena');
+      expect(picture.getAttribute('src')).toMatch(/^blob:/);
+      expect(picture.getAttribute('src')).not.toBe('blob:arena');
       expect(picture.dataset['theme']).toBeUndefined();
       const plate = root.querySelector<HTMLElement>('[data-testid="battle-plate"]')!;
       expect(plate.style.borderLeft).toMatch(/#4aa3ff|rgb\(74, 163, 255\)/);
     } finally {
       ImageStorage.instance.delete('arena');
+    }
+  });
+
+  it('shows the room’s own picture from another URL for the next scene in the same stage, letting go of the last', () => {
+    ImageStorage.instance.add({
+      identifier: 'arena-again',
+      name: 'arena.png',
+      type: 'image/png',
+      blob: new Blob(['picture'], { type: 'image/png' }),
+      url: 'blob:arena-again',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    try {
+      const root = play(scene({ background: 'arena-again' }));
+      const shown = () =>
+        root.querySelector<HTMLImageElement>('[data-testid="battle-cut-in-background"]')?.getAttribute('src');
+      const first = shown();
+
+      state.show(scene({ background: 'arena-again' }));
+      state.next();
+      fixture.detectChanges();
+
+      expect(shown()).not.toBe(first);
+      expect(letGo).toHaveBeenCalledWith(first);
+    } finally {
+      ImageStorage.instance.delete('arena-again');
     }
   });
 
@@ -203,7 +231,8 @@ describe('BattleCutInOverlayComponent', () => {
       TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
       fixture.detectChanges();
 
-      expect(root.querySelector('img[alt="勇者"]')?.getAttribute('src')).toBe('blob:late-hero');
+      expect(root.querySelector('img[alt="勇者"]')?.getAttribute('src')).toMatch(/^blob:/);
+      expect(root.querySelector('img[alt="勇者"]')?.getAttribute('src')).not.toBe('blob:late-hero');
     } finally {
       ImageStorage.instance.delete('late-hero');
     }
