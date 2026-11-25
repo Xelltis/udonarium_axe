@@ -173,6 +173,54 @@ describe('PieceTargetService', () => {
       range.destroy();
     });
 
+    it('measures what a range laid on the table takes in across the table alone, however high each flies', () => {
+      const range = circleAt(300, 300);
+      const overhead = GameCharacter.create('真上の空', 1, '');
+      overhead.location = { name: 'table', x: 275, y: 275 };
+      overhead.altitude = 5;
+      const aside = GameCharacter.create('横の地面', 1, '');
+      aside.location = { name: 'table', x: 300, y: 275 };
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([overhead.identifier]);
+      targeting.cancel();
+      range.destroy();
+    });
+
+    it('measures a range standing up to the middle of a tall piece, not its feet', () => {
+      const range = circleAt(0, 0);
+      vi.spyOn(range, 'isSolid', 'get').mockReturnValue(true);
+      const giant = GameCharacter.create('巨人', 4, '');
+      giant.location = { name: 'table', x: 400, y: 400 };
+      const flier = GameCharacter.create('飛ぶ', 1, '');
+      flier.location = { name: 'table', x: 525, y: 475 };
+      flier.altitude = 3;
+      vi.spyOn(TestBed.inject(SolidRangeService), 'placedOf').mockReturnValue({
+        origin: { x: 500, y: 500, z: 100 },
+      } as never);
+      vi.spyOn(service() as unknown as { takenIntoSolid(): GameCharacter[] }, 'takenIntoSolid').mockReturnValue([
+        flier,
+        giant,
+      ]);
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([giant.identifier]);
+      targeting.cancel();
+      range.destroy();
+    });
+
     it('takes in pieces as far off as its length counts squares, in the squares it is given', () => {
       const range = circleAt(300, 300);
       const twoSquaresOff = GameCharacter.create('二マス先', 1, '');

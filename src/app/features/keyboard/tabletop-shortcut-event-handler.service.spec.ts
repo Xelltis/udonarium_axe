@@ -186,6 +186,26 @@ describe('TabletopShortcutEventHandlerService', () => {
         expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
       });
 
+      it('aims where the focus came back to the control as the reader came back to the window, by Alt+Tab', () => {
+        pressOn(button);
+        button.focus();
+        key('Alt');
+        button.blur();
+        button.focus();
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([true, true]);
+      });
+
+      it('hears the keys before any control stops them, as tiles moved among by arrow keys do', () => {
+        pressOn(button);
+        button.focus();
+        button.addEventListener('keydown', (event) => event.stopPropagation(), { once: true });
+        button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        other.focus();
+
+        expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+      });
+
       it('aims again once the pointer has pressed anything after the keyboard moved the focus', () => {
         key('ArrowRight');
         other.focus();

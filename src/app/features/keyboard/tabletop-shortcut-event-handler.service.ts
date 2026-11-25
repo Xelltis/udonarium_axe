@@ -74,6 +74,8 @@ export class TabletopShortcutEventHandlerService {
   private keyboardMoved = false;
   /** What the reader last used, the keyboard or the pointer, heard everywhere on the page, whatever is showing. */
   private lastInput: 'keyboard' | 'pointer' = 'pointer';
+  /** What had the focus last, which it comes back to as the reader comes back to the window. */
+  private lastFocused: EventTarget | null = null;
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
@@ -97,9 +99,15 @@ export class TabletopShortcutEventHandlerService {
     this.keyboardMoved = false;
   };
 
-  /** A focus moved while the keyboard was what the reader last used was moved by the keyboard, by Tab or any other key. */
-  private readonly onFocusIn = (): void => {
-    if (this.lastInput === 'keyboard') this.keyboardMoved = true;
+  /**
+   * A focus moved while the keyboard was what the reader last used was moved by the keyboard, by Tab
+   * or any other key; a focus given back to what had it, as the reader comes back to the window from
+   * another, moved nowhere.
+   */
+  private readonly onFocusIn = (event: FocusEvent): void => {
+    const cameBack = event.relatedTarget === null && event.target === this.lastFocused;
+    this.lastFocused = event.target;
+    if (this.lastInput === 'keyboard' && !cameBack) this.keyboardMoved = true;
   };
 
   /**

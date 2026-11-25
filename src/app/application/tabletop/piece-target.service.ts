@@ -150,7 +150,8 @@ export class PieceTargetService {
 
   /**
    * The middle of a piece where it stands in the room, at the height it stands at: on the floor, at
-   * the centre of an engagement zone it is in where it is in one; on a wall or a board, on the face it
+   * the centre of an engagement zone it is in where it is in one, as high as half its height over
+   * where it stands; on a wall or a board, on the face it
    * stands on, worked out from that face as it is drawn, so the pieces on every face are measured
    * alike.
    */
@@ -158,8 +159,8 @@ export class PieceTargetService {
     const foot = this.pieces.footOf(piece);
     const lift = foot.height + piece.altitude * grid;
     const frame = foot.surface === 'floor' ? null : this.surfaces.frameOf(foot.surface);
-    if (!frame) return { x: onFloor.x, y: onFloor.y, z: lift };
     const half = pieceCentreOffsetPx(piece, grid);
+    if (!frame) return { x: onFloor.x, y: onFloor.y, z: lift + half };
     const across = foot.x + half;
     const down = foot.y + half;
     return {
