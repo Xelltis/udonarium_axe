@@ -732,13 +732,26 @@ export async function createCharacter(page: Page) {
   await expect(page.locator('game-character')).toHaveCount(before + 1, { timeout: 10000 });
 }
 
-/** Makes a new dice symbol (D6) on the table. */
-export async function createDiceSymbol(page: Page) {
+/** Makes a new dice symbol (D6) on the table, and gives back that die, the dice already there aside. */
+export async function createDiceSymbol(page: Page): Promise<Locator> {
+  const dice = page.locator('dice-symbol');
+  const before = new Set(await dice.evaluateAll((all) => all.map((die) => die.getAttribute('data-object-id'))));
   const menu = await openTableContextMenu(page);
   await (await revealMenuEntry(page, menu, 'ダイスを作成')).hover();
   await expect(menu.getByText('D6')).toBeVisible({ timeout: 5000 });
   await menu.getByText('D6').click();
-  await expect(page.locator('dice-symbol').first()).toBeAttached({ timeout: 10000 });
+  let made = '';
+  await expect
+    .poll(
+      async () => {
+        const ids = await dice.evaluateAll((all) => all.map((die) => die.getAttribute('data-object-id') ?? ''));
+        made = ids.find((id) => id !== '' && !before.has(id)) ?? '';
+        return made;
+      },
+      { timeout: 10000 }
+    )
+    .not.toBe('');
+  return page.locator(`dice-symbol[data-object-id="${made}"]`);
 }
 
 /** Makes a coin from the table's menu. */
