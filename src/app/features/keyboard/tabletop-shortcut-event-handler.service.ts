@@ -70,9 +70,36 @@ export class TabletopShortcutEventHandlerService {
   private readonly names = inject(PieceNameService);
   private readonly modal = inject(ModalService);
 
+  /** What the pointer last pressed, while the focus stays with it; null once the keyboard moved the focus away. */
+  private pressed: Element | null = null;
+
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
-    inject(DestroyRef).onDestroy(() => document.removeEventListener('keydown', this.onKeyDown));
+    document.addEventListener('pointerdown', this.onPointerDown, true);
+    document.addEventListener('focusin', this.onFocusIn, true);
+    inject(DestroyRef).onDestroy(() => {
+      document.removeEventListener('keydown', this.onKeyDown);
+      document.removeEventListener('pointerdown', this.onPointerDown, true);
+      document.removeEventListener('focusin', this.onFocusIn, true);
+    });
+  }
+
+  private readonly onPointerDown = (event: Event): void => {
+    this.pressed = event.target instanceof Element ? event.target : null;
+  };
+
+  private readonly onFocusIn = (event: Event): void => {
+    if (this.pressed && !(event.target instanceof Element && isAlong(event.target, this.pressed))) this.pressed = null;
+  };
+
+  /**
+   * Where the focus is, as the keys on the table read it: on nothing where it is on the page itself;
+   * on what the pointer last pressed, or around it, where it has stayed there since; else on what the
+   * keyboard moved it to.
+   */
+  private focusOf(focused: Element | null): TabletopKeyFocus {
+    if (!focused || focused === document.body || focused === document.documentElement) return 'none';
+    return this.pressed && isAlong(focused, this.pressed) ? 'pressed' : 'keyboard';
   }
 
   /** Does what a command asks of the picked pieces, telling the user how many it touched. */
@@ -98,8 +125,8 @@ export class TabletopShortcutEventHandlerService {
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.defaultPrevented || this.blocked()) return;
     const command = tabletopKeyDown(event.key, {
-      focus: focusOf(document.activeElement),
-      modal: this.modal.isShow,
+      focus: this.focusOf(document.activeElement),
+      modal: this.modal.isShow || document.querySelector('[aria-modal="true"]') !== null,
       typing: isTypingTarget(event.target),
       composing: event.isComposing,
       chord: event.ctrlKey || event.metaKey || event.altKey,
@@ -192,16 +219,7 @@ export class TabletopShortcutEventHandlerService {
   }
 }
 
-/**
- * Where the focus is, as the keys on the table read it: on nothing where it is on the page itself; on
- * a control the pointer pressed where the browser shows no ring of focus on it; else on one moved to
- * from the keyboard, as where the browser cannot tell.
- */
-function focusOf(focused: Element | null): TabletopKeyFocus {
-  if (!focused || focused === document.body || focused === document.documentElement) return 'none';
-  try {
-    return focused.matches(':focus-visible') ? 'keyboard' : 'pressed';
-  } catch {
-    return 'keyboard';
-  }
+/** Whether one element holds the other, either way round, as a button holds the icon pressed on it. */
+function isAlong(one: Element, other: Element): boolean {
+  return one.contains(other) || other.contains(one);
 }

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -98,6 +99,22 @@ describe('TargetListPanelComponent', () => {
     const { fixture } = render();
 
     expect(fixture.componentInstance.sections()[0].rows[0].gauge).toBe('HP');
+  });
+
+  it('lists a piece taken off the field while it is aimed at, marked, to be let go of, as the band counts it', () => {
+    const fallen = piece('倒れた仲間', 'left');
+    fallen.offField = '1';
+    const { fixture, element } = render();
+    expect(fixture.componentInstance.sections()).toEqual([]);
+
+    fallen.targeted = true;
+    TestBed.inject(UiSignalService).notifyTargetChange(fallen.identifier, fallen.aliasName);
+    fixture.detectChanges();
+
+    expect(
+      fixture.componentInstance.sections().map((section) => section.rows.map((row) => [row.name, row.offField]))
+    ).toEqual([[['倒れた仲間', true]]]);
+    expect(element.querySelector('[data-testid="target-list-off-field"]')).not.toBeNull();
   });
 
   it('aims at the piece of a row pressed, and lets go of it at a second press', () => {

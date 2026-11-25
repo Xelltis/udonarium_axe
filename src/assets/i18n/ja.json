@@ -3639,6 +3639,7 @@
         "side_left": "左の組",
         "side_right": "右の組",
         "side_none": "組に入っていない",
+        "offField": "場から外れている",
         "empty": "ターゲットにできるコマがありません"
       },
       "targetBand": {

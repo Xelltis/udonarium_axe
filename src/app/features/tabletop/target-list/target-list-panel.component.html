@@ -22,6 +22,11 @@
           {{ row.targeted ? 'my_location' : 'location_searching' }}
         </i>
         <span class="text-ui-text min-w-0 flex-1 truncate text-[13px]">{{ row.name }}</span>
+        @if (row.offField) {
+          <span class="text-ui-dim shrink-0 text-[10px] whitespace-nowrap" data-testid="target-list-off-field">{{
+            'feature.tabletop.targetList.offField' | transloco
+          }}</span>
+        }
         @if (row.gauge) {
           <span class="text-ui-muted shrink-0 text-[11px] whitespace-nowrap tabular-nums">{{ row.gauge }}</span>
         }

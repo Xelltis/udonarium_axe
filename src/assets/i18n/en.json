@@ -3639,6 +3639,7 @@
         "side_left": "Left side",
         "side_right": "Right side",
         "side_none": "On no side",
+        "offField": "Off the field",
         "empty": "No piece can be targeted."
       },
       "targetBand": {

@@ -139,19 +139,65 @@ describe('TabletopShortcutEventHandlerService', () => {
         button.remove();
         for (const piece of [hero, foe]) piece.destroy();
       });
-      button.focus();
-      const ring = vi.spyOn(button, 'matches').mockReturnValue(false);
+      const other = document.createElement('button');
+      document.body.appendChild(other);
+      onTestFinished(() => other.remove());
 
+      button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      button.focus();
       expect(press('Tab').defaultPrevented).toBe(true);
       expect(foe.targeted).toBe(true);
 
       TestBed.inject(PieceTargetService).setOnly([]);
-      ring.mockReturnValue(true);
+      other.focus();
       expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
 
-      ring.mockReturnValue(false);
+      button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      button.focus();
       vi.spyOn(TestBed.inject(ModalService), 'isShow', 'get').mockReturnValue(true);
       expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+    });
+
+    it('leaves Tab to a sheet or a dialog marked as modal that stands over the table', () => {
+      const hero = on('勇者', 0, 'left');
+      const foe = on('敵', 100, 'right');
+      selection.selectObject(hero.identifier, hero.aliasName);
+      const sheet = document.createElement('div');
+      sheet.setAttribute('role', 'dialog');
+      sheet.setAttribute('aria-modal', 'true');
+      document.body.appendChild(sheet);
+      onTestFinished(() => {
+        sheet.remove();
+        for (const piece of [hero, foe]) piece.destroy();
+      });
+
+      expect([press('Tab').defaultPrevented, foe.targeted]).toEqual([false, false]);
+    });
+
+    it('steps on from the piece an area held ready is centred on, reaching every piece in turn', () => {
+      const hero = on('勇者', 0, 'left');
+      const near = on('近', 100, 'right');
+      const next = on('次', 150, 'right');
+      const far = on('遠', 600, 'right');
+      onTestFinished(() => {
+        for (const piece of [hero, near, next, far]) piece.destroy();
+      });
+      selection.selectObject(hero.identifier, hero.aliasName);
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'multi';
+      preset.areaRadius = 2;
+      preset.maxTargets = 5;
+      targeting.begin(preset);
+      onTestFinished(() => targeting.cancel());
+
+      const centres = [1, 2, 3].map(() => {
+        press('Tab');
+        return targeting.epicenter();
+      });
+
+      expect(centres).toEqual([near.identifier, next.identifier, far.identifier]);
     });
 
     it('picks the piece Tab aims at as the target of an effect held ready, its mark following the pick', () => {

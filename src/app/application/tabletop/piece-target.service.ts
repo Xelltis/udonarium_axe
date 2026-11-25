@@ -6,21 +6,21 @@ import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import type { BattleSide } from '@axe/domain/battle/battle-lineup';
+import { BATTLE_SIDE_OUT, type BattleSide } from '@axe/domain/battle/battle-lineup';
 import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type AimCandidate, aimOrder, nextAim } from '@axe/domain/tabletop/aim-order';
+import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
 import { solidTouchesSegment } from '@axe/domain/tabletop/solid/solid-touch';
-import { surfacePointTo3D } from '@axe/domain/tabletop/surface-space';
-import { tableFocusPoint } from '@axe/domain/tabletop/table-focus-point';
-import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 
 @Injectable({ providedIn: 'root' })
 export class PieceTargetService {
@@ -34,6 +34,7 @@ export class PieceTargetService {
   private readonly pieces = inject(TablePiecesService);
   private readonly tabletop = inject(TabletopService);
   private readonly links = inject(PieceLinksService);
+  private readonly surfaces = inject(TableSurfaceService);
   private readonly parties = inject(PartyService);
 
   /**
@@ -87,11 +88,12 @@ export class PieceTargetService {
 
   /**
    * The side of the fight a piece is aimed at as standing on: its own, or for a part with none of its
-   * own, its body's. A piece with no side of its own stands on its party's, so read where signals are
+   * own, its body's; none for a piece taken out of the lineup, a part as well. A piece with no side of its own stands on its party's, so read where signals are
    * followed, the side is read again as a party is put on another side or goes.
    */
   sideOf(piece: GameCharacter): BattleSide | null {
     this.parties.parties();
+    if (piece.battleSide === BATTLE_SIDE_OUT) return null;
     const own = standingBattleSide(piece);
     if (own) return own;
     const body = this.links.bodyOf(piece);
@@ -100,9 +102,7 @@ export class PieceTargetService {
 
   /**
    * The pieces this seat may aim at, in the order a key aims at them one at a time from a piece (see
-   * `aimOrder`), measured where each stands in the room: a piece on the floor at the height it stands
-   * at, at the centre of an engagement zone it is in; one on a wall where on the wall it hangs; one on
-   * a board where the board stands.
+   * `aimOrder`), measured from the middle of each where it stands in the room (see `middleInRoom`).
    */
   aimOrderFrom(from: GameCharacter | null): GameCharacter[] {
     const candidateOf = this.aimCandidateReader();
@@ -115,12 +115,16 @@ export class PieceTargetService {
 
   /**
    * Aims at the next piece of {@link aimOrderFrom} a piece, a step on (1) or back (-1) from the one
-   * aimed at now, and at it alone, as a key does over and over. Answers the piece aimed at, or null
+   * aimed at now, and at it alone, as a key does over and over. With an area held ready, the step is
+   * from the piece it is centred on, as every piece it takes in is aimed at. Answers the piece aimed at, or null
    * where there is none.
    */
   aimNext(from: GameCharacter | null, step: 1 | -1): GameCharacter | null {
     const order = this.aimOrderFrom(from);
-    const aimed = new Set(order.filter((piece) => piece.targeted).map((piece) => piece.identifier));
+    const epicenter = this.effectTargeting.isPicking() ? this.effectTargeting.epicenter() : '';
+    const aimed = new Set(
+      epicenter ? [epicenter] : order.filter((piece) => piece.targeted).map((piece) => piece.identifier)
+    );
     const nextIdentifier = nextAim(
       order.map((piece) => piece.identifier),
       aimed,
@@ -133,25 +137,34 @@ export class PieceTargetService {
 
   private aimCandidateReader(): (piece: GameCharacter) => AimCandidate {
     const reading = this.zones.reading();
-    const table = this.tabletop.currentTable;
-    const grid = table.gridSize > 0 ? table.gridSize : 50;
-    const dims = { widthPx: table.width * grid, depthPx: table.height * grid, wallHeightPx: table.wallHeight * grid };
-    const standing = (piece: GameCharacter): { x: number; y: number; z: number } => {
-      if (boardSurfaceOf(piece)) {
-        const board = tableFocusPoint(piece, dims, (identifier) => this.objectStore.get<TabletopObject>(identifier));
-        return { ...board, z: 0 };
-      }
-      const surface = surfaceOf(piece);
-      if (surface !== 'floor') return surfacePointTo3D(surface, piece.location.x, piece.location.y, dims);
-      const at = reading.pointOf(piece);
-      return { x: at.x, y: at.y, z: this.pieces.footOf(piece).height + piece.altitude * grid };
-    };
+    const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
     return (piece) => ({
       identifier: piece.identifier,
-      ...standing(piece),
+      ...this.middleInRoom(piece, reading.pointOf(piece), grid),
       side: this.sideOf(piece),
       whole: this.links.bodyOf(piece)?.identifier ?? piece.identifier,
     });
+  }
+
+  /**
+   * The middle of a piece where it stands in the room, at the height it stands at: on the floor, at
+   * the centre of an engagement zone it is in where it is in one; on a wall or a board, on the face it
+   * stands on, worked out from that face as it is drawn, so the pieces on every face are measured
+   * alike.
+   */
+  private middleInRoom(piece: GameCharacter, onFloor: { x: number; y: number }, grid: number): Vec3 {
+    const foot = this.pieces.footOf(piece);
+    const lift = foot.height + piece.altitude * grid;
+    const frame = foot.surface === 'floor' ? null : this.surfaces.frameOf(foot.surface);
+    if (!frame) return { x: onFloor.x, y: onFloor.y, z: lift };
+    const half = pieceCentreOffsetPx(piece, grid);
+    const across = foot.x + half;
+    const down = foot.y + half;
+    return {
+      x: frame.origin.x + frame.u.x * across + frame.v.x * down + frame.normal.x * lift,
+      y: frame.origin.y + frame.u.y * across + frame.v.y * down + frame.normal.y * lift,
+      z: frame.origin.z + frame.u.z * across + frame.v.z * down + frame.normal.z * lift,
+    };
   }
 
   /**
@@ -204,7 +217,7 @@ export class PieceTargetService {
   targetInsideRange(range: RangeArea, squarePx: number): void {
     const placed = range.isSolid ? this.solidRanges.placedOf(range.identifier) : null;
     if (placed) {
-      this.setOnly(this.takenIntoSolid(placed.solid));
+      this.setOnly(this.nearestFirst(this.takenIntoSolid(placed.solid), range.location));
       return;
     }
     const shape = {
@@ -219,7 +232,23 @@ export class PieceTargetService {
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => this.mayAimAt(piece))
       .filter((piece) => rangeCovers(shape, squarePx, reading.pointOf(piece)) === true);
-    this.setOnly(inside);
+    this.setOnly(this.nearestFirst(inside, shape.origin));
+  }
+
+  /**
+   * Pieces in order of how near each stands to a point on the table, so an effect held ready that
+   * takes fewer than a range holds takes the nearest.
+   */
+  private nearestFirst(pieces: readonly GameCharacter[], from: { x: number; y: number }): GameCharacter[] {
+    const reading = this.zones.reading();
+    const distance = (piece: GameCharacter) => {
+      const at = reading.pointOf(piece);
+      return Math.hypot(at.x - from.x, at.y - from.y);
+    };
+    return pieces
+      .map((piece, index) => ({ piece, index, away: distance(piece) }))
+      .sort((a, b) => a.away - b.away || a.index - b.index)
+      .map(({ piece }) => piece);
   }
 
   /**

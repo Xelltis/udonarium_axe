@@ -149,7 +149,7 @@ describe('TargetReleaseEventHandlerService', () => {
     expect(enemy.targeted).toBe(false);
   });
 
-  it('takes the aim off an enemy taken out of the fight, which the list of pieces to aim at no longer offers to let go of', async () => {
+  it('keeps the aim on a piece taken off the field, as the game master aims at a fallen ally to raise it', async () => {
     makeMyCursor('gm', PeerRole.GameMaster);
     await start();
     targets.toggle(enemy);
@@ -158,7 +158,7 @@ describe('TargetReleaseEventHandlerService', () => {
     enemy.offField = '1';
     await changed(enemy);
 
-    expect(enemy.targeted).toBe(false);
+    expect(enemy.targeted).toBe(true);
   });
 
   it('keeps the aim on an enemy that stays in sight, however it is changed', async () => {

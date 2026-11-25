@@ -3639,6 +3639,7 @@
         "side_left": "왼쪽 편",
         "side_right": "오른쪽 편",
         "side_none": "편에 들지 않음",
+        "offField": "장에서 빠짐",
         "empty": "타깃으로 삼을 수 있는 말이 없습니다."
       },
       "targetBand": {

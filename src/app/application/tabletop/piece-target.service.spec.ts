@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -9,6 +11,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -92,6 +95,25 @@ describe('PieceTargetService', () => {
       service().targetInsideRange(range, 50);
 
       expect([inside.targeted, outside.targeted, resting.targeted]).toEqual([true, false, false]);
+      range.destroy();
+    });
+
+    it('picks the nearest of what it takes in for an effect held ready that takes one, whatever order the room holds them in', () => {
+      const range = circleAt(300, 300);
+      const edge = GameCharacter.create('端', 1, '');
+      edge.location = { name: 'table', x: 340, y: 275 };
+      const middle = GameCharacter.create('中央', 1, '');
+      middle.location = { name: 'table', x: 275, y: 275 };
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([middle.identifier]);
+      targeting.cancel();
       range.destroy();
     });
 
@@ -261,6 +283,15 @@ describe('PieceTargetService', () => {
       expect(service().aimOrderFrom(head)).not.toContain(tail);
     });
 
+    it('leaves a part taken out of the lineup out, whatever side its body stands on', () => {
+      const dragon = on('竜', 300, 'right');
+      const wing = on('翼', 300, 'none');
+      wing.ridingOn = dragon.identifier;
+      wing.rideSeat = 'part';
+
+      expect(service().sideOf(wing)).toBeNull();
+    });
+
     it('aims from a body on no side at every piece but its own parts, which stand where it stands', () => {
       const golem = on('ゴーレム', 0);
       const arm = on('腕', 0);
@@ -271,13 +302,23 @@ describe('PieceTargetService', () => {
       expect(service().aimOrderFrom(golem)).toEqual([goblin]);
     });
 
-    it('measures a piece on a wall where on the wall it hangs, not where its own x and y would put it on the floor', () => {
+    it('measures a piece on a wall or a board from its middle where that face stands in the room, at the height it stands at', () => {
       const hero = on('勇者', 0, 'left', 0);
       const onFloor = on('床', 300, 'right', 300);
       const onWall = on('壁', 0, 'right', 0);
-      onWall.location = { name: 'table', x: 0, y: 0, surface: 'south-wall' } as typeof onWall.location;
+      const flying = on('空', 0, 'right', 0);
+      flying.altitude = 10;
+      const dims = { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 };
+      const pieces = TestBed.inject(TablePiecesService);
+      const footOf = pieces.footOf.bind(pieces);
+      vi.spyOn(pieces, 'footOf').mockImplementation((piece) =>
+        piece === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(piece)
+      );
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+        surface === 'south-wall' ? surfaceFrame('south-wall', dims) : null
+      );
 
-      expect(service().aimOrderFrom(hero)).toEqual([onFloor, onWall]);
+      expect(service().aimOrderFrom(hero)).toEqual([onFloor, flying, onWall]);
     });
 
     it('takes the pieces aimed at while an effect is held ready as its picks, the marks following them', () => {
