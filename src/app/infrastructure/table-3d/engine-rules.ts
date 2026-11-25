@@ -1,5 +1,6 @@
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
+import type { Mesh, Object3D, Texture } from 'three/webgpu';
 
 /** How wide, in degrees, a camera sees that looks through a box `heightPx` tall from `focalPx` in front of it. */
 export function fieldOfViewDeg(heightPx: number, focalPx: number): number {
@@ -42,4 +43,19 @@ export function wornPictures(world: TableWorld): Set<string> {
 /** The keys, of {@link pictureKey}, of the loaded pictures none of the urls given is of. */
 export function unwornPictureKeys(keys: Iterable<string>, worn: ReadonlySet<string>): string[] {
   return [...keys].filter((key) => !worn.has(urlOfPictureKey(key)));
+}
+
+/**
+ * The pictures worn by what is drawn under a group and throws a shadow, as the faces of blocks and
+ * walls: a moving one among them has the shadows drawn again as its frames change.
+ */
+export function shadowCastingPictures(root: Object3D): Set<Texture> {
+  const pictures = new Set<Texture>();
+  root.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh || !mesh.castShadow) return;
+    const picture = (mesh.material as { map?: Texture | null }).map;
+    if (picture) pictures.add(picture);
+  });
+  return pictures;
 }

@@ -68,7 +68,7 @@ interface Moving {
   standsMs: number;
   /** The moment it went out of sight, its clock stopped there; null while in sight. */
   heldAtMs: number | null;
-  /** Whether it could not be read, to be read again a while later or as the next wearer comes, for every one wearing it. */
+  /** Whether it could not be read, to be read again a while later or as the next wearer comes while tries remain, for every one wearing it. */
   failed: boolean;
   /** How many times it has been read. */
   tries: number;
@@ -121,7 +121,8 @@ export class MovingPictures {
   /**
    * Has a wearer wear the picture at a URL where it moves, and answers what calls the wearing off:
    * the picture is let go of once nothing wears it. A picture that could not be read is read again a
-   * while later, a few times, and as the next wearer comes, for every wearer it had as well.
+   * while later, and as the next wearer comes, no more than a few times in all, for every wearer it
+   * had as well.
    */
   wear(url: string, wearer: PictureWearer): () => void {
     if (this.closed) return () => undefined;

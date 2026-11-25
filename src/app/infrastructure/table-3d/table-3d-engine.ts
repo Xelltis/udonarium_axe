@@ -30,6 +30,7 @@ import {
   fieldOfViewDeg,
   finishingOf,
   pictureKey,
+  shadowCastingPictures,
   unwornPictureKeys,
   wornPictures,
 } from '@axe/infrastructure/table-3d/engine-rules';
@@ -269,8 +270,8 @@ class ThreeTableEngine implements Table3dEngine {
   /** The pictures painted ground is drawn with, read the first time any ground is painted. */
   private groundPictures: Texture[] | null = null;
   private readonly loaded = new Map<string, Texture>();
-  /** The shared pictures a face of a block or a wall wears, which throw a shadow cut to them. */
-  private readonly facePictures = new Set<Texture>();
+  /** The shared pictures the faces of blocks and walls laid now wear and throw a shadow cut to. */
+  private facePictures = new Set<Texture>();
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
   private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
@@ -1162,6 +1163,12 @@ class ThreeTableEngine implements Table3dEngine {
     for (const key of changedChunks(before, wanted)) this.buildChunk(key, wanted.get(key) ?? null, owned);
     this.gridded = caps.filter((cap) => cap.gridded);
     this.placeTopsGrid();
+    this.noteFacePictures();
+  }
+
+  /** Takes down which pictures the faces laid now throw a shadow cut to, as the faces are laid. */
+  private noteFacePictures(): void {
+    this.facePictures = shadowCastingPictures(this.facesRoot);
   }
 
   private buildChunk(key: string, owners: Map<string, string> | null, owned: ReadonlyMap<string, OwnedFaces>): void {
@@ -1250,11 +1257,7 @@ class ThreeTableEngine implements Table3dEngine {
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
     return faceMaterialOf(
       face,
-      (url, tiled) => {
-        const picture = this.sharedPicture(url, tiled);
-        this.facePictures.add(picture);
-        return picture;
-      },
+      (url, tiled) => this.sharedPicture(url, tiled),
       (material, taking) => this.veil.cover(material, taking, true)
     );
   }

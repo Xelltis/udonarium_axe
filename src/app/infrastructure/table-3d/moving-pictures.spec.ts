@@ -255,6 +255,9 @@ describe('MovingPictures', () => {
       for (let wait = 0; wait < 5; wait++) await vi.advanceTimersByTimeAsync(5000);
 
       expect(read).toHaveBeenCalledTimes(3);
+      pictures.follow('blob:apng', new Texture());
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(read).toHaveBeenCalledTimes(3);
     } finally {
       vi.useRealTimers();
     }

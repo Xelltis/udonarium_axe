@@ -3,11 +3,13 @@ import {
   fieldOfViewDeg,
   finishingOf,
   pictureKey,
+  shadowCastingPictures,
   unwornPictureKeys,
   urlOfPictureKey,
   wornPictures,
 } from '@axe/infrastructure/table-3d/engine-rules';
 import { TABLE_3D_QUALITY } from '@axe/infrastructure/table-3d/table-3d-quality';
+import { BufferGeometry, Group, Mesh, MeshBasicNodeMaterial, Texture } from 'three/webgpu';
 
 describe('fieldOfViewDeg', () => {
   it('sees a right angle through a box twice as tall as the eye stands off it', () => {
@@ -70,5 +72,22 @@ describe('the pictures a world wears', () => {
 
     expect(unwornPictureKeys(keys, new Set(['wall.webp', 'piece.webp']))).toEqual(['old.webp|false']);
     expect(urlOfPictureKey(pictureKey('a|b.webp', 'sprite'))).toBe('a|b.webp');
+  });
+});
+
+describe('shadowCastingPictures', () => {
+  it('names the pictures worn by what throws a shadow, and none worn by what throws none', () => {
+    const root = new Group();
+    const shadowed = new Texture();
+    const laidOver = new Texture();
+    const casting = new Mesh(new BufferGeometry(), new MeshBasicNodeMaterial({ map: shadowed }));
+    casting.castShadow = true;
+    const flat = new Mesh(new BufferGeometry(), new MeshBasicNodeMaterial({ map: laidOver }));
+    flat.castShadow = false;
+    root.add(casting, flat);
+
+    expect(shadowCastingPictures(root)).toEqual(new Set([shadowed]));
+    root.remove(casting);
+    expect(shadowCastingPictures(root)).toEqual(new Set());
   });
 });
