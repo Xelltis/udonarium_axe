@@ -572,6 +572,27 @@ describe('TooltipDirective', () => {
     expect(instances[0].rotationDegrees).toBe(90);
   });
 
+  it('turns a tapped detail toward the side the piece was tapped from, as one the mouse came onto', async () => {
+    table.hoverDetailPlacement = 'piece';
+    table.multiAngleEnabled = true;
+    vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+    const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+    for (const [type, fingers] of [
+      ['touchstart', 1],
+      ['touchend', 0],
+    ] as const) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      const touch = { clientX: -10, clientY: 0 };
+      Object.defineProperty(event, 'changedTouches', { value: [touch] });
+      Object.defineProperty(event, 'touches', { value: fingers > 0 ? [touch] : [] });
+      piece.dispatchEvent(event);
+    }
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(panels().map((panel) => panel.rotationDegrees)).toEqual([90]);
+  });
+
   it('keeps the single upright detail outside 2D mode', async () => {
     table.mode2d = false;
     await hover('first-piece', -10, 0);

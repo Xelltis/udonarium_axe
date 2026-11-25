@@ -68,8 +68,6 @@ interface TooltipSession {
   readonly seats: EdgeDetailSeat[] | null;
   /** Where the detail was opened, the mouse resting or a finger tapping, and in which window. */
   readonly at: MousePlace;
-  /** Whether a tap opened it. */
-  readonly tapped: boolean;
   /** The window the detail opened in, which it is laid out by and closes with. */
   readonly view: Window;
   deleteOff?: () => void;
@@ -156,6 +154,7 @@ export class TooltipDirective {
       return;
     }
     const host = this.viewContainerRef.element.nativeElement as Element;
+    this.tooltipRotationDegrees = this.rotationDegreesAt(point.x, point.y);
     this.open({ document: host.ownerDocument, x: point.x, y: point.y }, true);
   }
 
@@ -346,7 +345,7 @@ export class TooltipDirective {
     const view = (parentViewContainerRef.element.nativeElement as Node).ownerDocument?.defaultView ?? window;
     const seats = this.edgeSeats(view);
     const refs: ComponentRef<TooltipPanelInstance>[] = [];
-    const session: TooltipSession = { refs, seats, at, tapped, view, detach: () => {} };
+    const session: TooltipSession = { refs, seats, at, view, detach: () => {} };
     this.tooltipSession = session;
 
     for (const seat of seats ?? [null]) {
@@ -428,7 +427,7 @@ export class TooltipDirective {
     if (!sameEdgeDetailSeats(session.seats, makeEdgeDetailSeats(session.view.innerWidth, session.view.innerHeight))) {
       // Building the seats again clears the timers, so a detail on its way out keeps going.
       const wasClosing = this.closeTooltipTimer !== null;
-      this.open(session.at, session.tapped);
+      this.open(session.at);
       if (wasClosing && this.hasTooltip()) this.startCloseTimer();
       return;
     }
