@@ -433,7 +433,7 @@ describe('MovingPictures', () => {
       expect(read.frames).toBe(read.decoded.length);
     });
 
-    it('reads a picture only as far as it says it stands still, and decodes an AVIF that says it moves', async () => {
+    it('decodes no picture that says it stands still past its head, and decodes an AVIF that says it moves', async () => {
       const made: string[] = [];
       vi.stubGlobal(
         'ImageDecoder',

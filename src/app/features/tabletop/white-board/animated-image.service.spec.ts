@@ -1,4 +1,6 @@
+import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -114,8 +116,8 @@ describe('AnimatedImageService', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('asks again after a reading that could not be made only once a while has passed, as the board is drawn again meanwhile', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+  it('rests the board, drawn again and again, on a picture that could not be read, and asks again once the rest is over', async () => {
+    vi.useFakeTimers();
     try {
       vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
       const fetcher = vi.fn(async () => {
@@ -123,17 +125,58 @@ describe('AnimatedImageService', () => {
       });
       vi.stubGlobal('fetch', fetcher);
       const animated = service();
+      const asked = computed(() => animated.isAnimated('picture'));
 
-      expect(await animated.probe('picture')).toBe(false);
-      expect(await animated.probe('picture')).toBe(false);
+      expect(asked()).toBe(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(asked()).toBe(false);
+      expect(animated.isAnimated('picture')).toBe(false);
+      await vi.advanceTimersByTimeAsync(0);
       expect(fetcher).toHaveBeenCalledTimes(1);
 
-      vi.setSystemTime(Date.now() + 30_000);
-      expect(await animated.probe('picture')).toBe(false);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(asked()).toBe(false);
       expect(fetcher).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('reads a picture that could not be read for one that asks to know, as the editor saving the board, rest or no rest', async () => {
+    vi.spyOn(ImageStorage.prototype, 'get').mockReturnValue({ url: 'blob:picture' } as never);
+    const fetcher = vi.fn(async () => {
+      throw new Error('gone');
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const animated = service();
+
+    await animated.probe('picture');
+    await animated.probe('picture');
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps no answer read from a picture of which only its thumbnail has come, and reads it again once it has come whole', async () => {
+    const state = { value: ImageState.THUMBNAIL };
+    vi.spyOn(ImageStorage.prototype, 'get').mockImplementation(
+      () =>
+        ({
+          url: 'blob:picture',
+          get state() {
+            return state.value;
+          },
+        }) as never
+    );
+    const fetcher = vi.fn(async () => ({ blob: async () => new Blob([png]) }) as never);
+    vi.stubGlobal('fetch', fetcher);
+    const animated = service();
+
+    await animated.probe('picture');
+    state.value = ImageState.COMPLETE;
+    await animated.probe('picture');
+    await animated.probe('picture');
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it('says nothing of a picture the storehouse does not have', async () => {

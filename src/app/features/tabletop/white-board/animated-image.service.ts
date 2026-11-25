@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { isGifBytes, READ_AGAIN_AFTER_MS, readWhetherMoves } from '@axe/core/storage/animated-image';
+import { ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 
 /** How much of a file tells whether it is a GIF. */
@@ -37,6 +38,8 @@ export class AnimatedImageService {
   isAnimated(identifier: string): boolean {
     const known = this.answers().get(identifier);
     if (known !== undefined) return known;
+    const failed = this.failedAt.get(identifier);
+    if (failed !== undefined && Date.now() - failed < READ_AGAIN_AFTER_MS) return false;
     void this.probe(identifier);
     return false;
   }
@@ -44,14 +47,14 @@ export class AnimatedImageService {
   /**
    * Finds out whether a picture moves by reading its bytes as far as they say, once however many ask.
    *
-   * A picture whose bytes cannot be read answers false without that being remembered as its answer,
-   * and is read again when asked after a while (see `READ_AGAIN_AFTER_MS`), as a cut-in reads one.
+   * A picture whose bytes cannot be read answers false without that being remembered as its answer;
+   * the board, drawn again and again, asks of it again only after a while (see `isAnimated`), while
+   * one that asks to know, as the editor saving the board, reads it every time. Nor is the answer for
+   * a picture of which only its thumbnail has come kept, as a thumbnail is drawn still.
    */
   probe(identifier: string): Promise<boolean> {
     const known = this.answers().get(identifier);
     if (known !== undefined) return Promise.resolve(known);
-    const failed = this.failedAt.get(identifier);
-    if (failed !== undefined && Date.now() - failed < READ_AGAIN_AFTER_MS) return Promise.resolve(false);
     // One reading is enough; whoever else asks in the meantime waits for the same one.
     const asked = this.asking.get(identifier);
     if (asked) return asked;
@@ -72,9 +75,11 @@ export class AnimatedImageService {
     } catch {
       // Unreadable for now; the picture is drawn as it always was and asked about again after a while.
       this.failedAt.set(identifier, Date.now());
+      setTimeout(() => this.answers.update((current) => new Map(current)), READ_AGAIN_AFTER_MS);
       return false;
     }
     this.failedAt.delete(identifier);
+    if (this.imageStorage.get(identifier)?.state === ImageState.THUMBNAIL) return animated;
     this.answers.update((current) => new Map(current).set(identifier, animated));
     return animated;
   }
