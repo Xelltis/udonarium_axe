@@ -8,7 +8,6 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
-import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { Solid, solidOf } from '@axe/domain/tabletop/solid/solid';
@@ -279,14 +278,14 @@ export class SolidRangeService {
   /**
    * Where a piece stands for a range following it, as the table draws it now: on the floor, upright
    * over its feet; on a wall or a board, at the middle of its body where it stands out from the face
-   * in the room (see `PiecePlaceService.bodyAt`), over the floor of the table.
+   * in the room (see `PiecePlaceService.bodyMiddleOf`, which a range following it is put round too),
+   * over the floor of the table.
    */
   private standingOf(caster: GameCharacter, gridSize: number): SolidCaster {
     const foot = this.pieces.footOf(caster);
     const bodyPx = Math.max(0, caster.size) * gridSize;
     if (foot.surface !== 'floor') {
-      const { feet, head } = this.piecePlace.bodyAt(caster, pieceCentreOf(caster, gridSize));
-      const middle = { x: (feet.x + head.x) / 2, y: (feet.y + head.y) / 2, z: (feet.z + head.z) / 2 };
+      const middle = this.piecePlace.bodyMiddleOf(caster);
       return { x: middle.x, y: middle.y, footZ: middle.z - bodyPx / 2, groundZ: 0, bodyPx };
     }
     return {

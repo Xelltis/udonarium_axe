@@ -64,11 +64,25 @@ export class PiecePlaceService {
   }
 
   /**
-   * Puts a range on the piece it follows, where the piece puts it (see `floorPlaceOf`), as every way a
-   * range comes to follow a piece or is put back on it does.
+   * The middle of a piece's body in the room (see `bodyAt`), standing at `onFloor` on the floor (the
+   * middle of the piece unless given): what a sphere or a column following the piece is put round and
+   * keeps its offset from, and where a cone or a beam following it starts.
+   */
+  bodyMiddleOf(piece: GameCharacter, onFloor?: { x: number; y: number }): Vec3 {
+    const { feet, head } = this.bodyAt(piece, onFloor ?? pieceCentreOf(piece, this.grid()));
+    return { x: (feet.x + head.x) / 2, y: (feet.y + head.y) / 2, z: (feet.z + head.z) / 2 };
+  }
+
+  /**
+   * Puts a range on the piece it follows, as every way a range comes to follow a piece or is put back
+   * on it does: a sphere or a column, which keeps its offset from the middle of the piece's body, round
+   * that middle (see `bodyMiddleOf`); any other range where the piece lays it (see `floorPlaceOf`).
    */
   follow(range: RangeArea): void {
-    range.following(this.grid(), (piece) => this.floorPlaceOf(piece));
+    const placeOf = range.keepsCasterOffset
+      ? (piece: GameCharacter) => this.bodyMiddleOf(piece)
+      : (piece: GameCharacter) => this.floorPlaceOf(piece);
+    range.following(this.grid(), placeOf);
   }
 
   private grid(): number {

@@ -114,6 +114,30 @@ describe('SolidRangeService', () => {
     expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 975, z: 475 });
   });
 
+  it('keeps a sphere let go round a piece on a wall where it was let go as the piece is put back on', () => {
+    const piece = caster(0, 0);
+    const pieces = TestBed.inject(TablePiecesService);
+    const footOf = pieces.footOf.bind(pieces);
+    vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+      one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+    );
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+      surface === 'south-wall' ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 }) : null
+    );
+    const place = TestBed.inject(PiecePlaceService);
+    const range = solidRange('CIRCLE', 'sphere');
+    range.followingCharacterIdentifier = piece.identifier;
+    place.follow(range);
+    expect([range.location.x, range.location.y]).toEqual([975, 975]);
+
+    range.location = { name: 'table', x: 975, y: 900 };
+    changed(range);
+    service.settleRoundCaster(range);
+    place.follow(range);
+
+    expect([range.location.x, range.location.y]).toEqual([975, 900]);
+  });
+
   it('draws a cone held by its tip the way it is pointed, and writes the way only once let go', () => {
     const piece = caster(5, 5);
     const range = solidRange('CORN', 'cone', piece);
