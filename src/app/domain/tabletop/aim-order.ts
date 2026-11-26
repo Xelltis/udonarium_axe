@@ -2,8 +2,8 @@ import type { BattleSide } from '@axe/domain/battle/battle-lineup';
 import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 
 /**
- * A piece's body as the order it is aimed at in reads it: the upright line from its feet to its head,
- * in the room.
+ * A piece's body as the order it is aimed at in reads it: the line from its feet to its head in the
+ * room, upright on the floor, and out from the face on a wall or a board.
  */
 export interface AimBody {
   readonly feet: Vec3;
@@ -23,6 +23,9 @@ export interface AimCandidate extends AimBody {
 
 /** Below this, a length is taken as none. */
 const NONE = 1e-9;
+
+/** How near two gaps may be, in table pixels, and be taken as one (see `compareGaps`). */
+const AS_NEAR_PX = 1e-6;
 
 /**
  * How far apart two bodies are: between the nearest points of the lines from their feet to their
@@ -66,6 +69,15 @@ export function bodyGap(a: AimBody, b: AimBody): number {
   );
 }
 
+/**
+ * How two gaps compare, nearer first: none where they are as near as each other to a millionth of a
+ * pixel, as the sums that reach two equal gaps may differ in their last digits, so that what stands
+ * as near is put in the order of the room.
+ */
+export function compareGaps(a: number, b: number): number {
+  return Math.abs(a - b) > AS_NEAR_PX ? a - b : 0;
+}
+
 function minus(a: Vec3, b: Vec3): Vec3 {
   return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
 }
@@ -82,8 +94,8 @@ function clamp01(value: number): number {
  * The order the pieces are aimed at in, one at a time, from a piece: the pieces of the other side of
  * the fight where the piece stands on one, else every piece but those it is one with (itself, its
  * parts, its body), nearest first in the room by how far their bodies are apart (see `bodyGap`), and
- * of two as near the one first in the room. With no piece to go from, every piece, in the order of
- * the room.
+ * of two as near, to a millionth of a pixel (see `compareGaps`), the one first in the room. With no
+ * piece to go from, every piece, in the order of the room.
  */
 export function aimOrder(from: AimCandidate | null, candidates: readonly AimCandidate[]): string[] {
   if (!from) return candidates.map((candidate) => candidate.identifier);
@@ -93,7 +105,8 @@ export function aimOrder(from: AimCandidate | null, candidates: readonly AimCand
   return candidates
     .map((candidate, index) => ({ candidate, index }))
     .filter(({ candidate }) => opposed(candidate))
-    .sort((a, b) => distance(a.candidate) - distance(b.candidate) || a.index - b.index)
+    .map((entry) => ({ ...entry, gap: distance(entry.candidate) }))
+    .sort((a, b) => compareGaps(a.gap, b.gap) || a.index - b.index)
     .map(({ candidate }) => candidate.identifier);
 }
 

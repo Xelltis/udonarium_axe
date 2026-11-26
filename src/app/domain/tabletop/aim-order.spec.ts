@@ -1,4 +1,4 @@
-import { type AimCandidate, aimOrder, bodyGap, nextAim } from '@axe/domain/tabletop/aim-order';
+import { type AimCandidate, aimOrder, bodyGap, compareGaps, nextAim } from '@axe/domain/tabletop/aim-order';
 
 const at = (
   identifier: string,
@@ -48,6 +48,7 @@ describe('aimOrder', () => {
 
   it('keeps the order of the room for pieces as near, and with no piece to go from', () => {
     expect(aimOrder(at('me', 0), [at('b', 100), at('a', -100)])).toEqual(['b', 'a']);
+    expect(aimOrder(at('me', 0), [at('b', 100 + 1e-9), at('a', -100)])).toEqual(['b', 'a']);
     expect(aimOrder(null, pieces)).toEqual(['hero', 'ally', 'far', 'near', 'bystander']);
   });
 
@@ -74,6 +75,14 @@ describe('aimOrder', () => {
       at('arm', 60, null, { whole: 'golem' }),
     ];
     expect(aimOrder(head, pieces)).toEqual(['goblin', 'arm']);
+  });
+});
+
+describe('compareGaps', () => {
+  it('puts the nearer gap first, and takes gaps as near to a millionth of a pixel as one', () => {
+    expect(compareGaps(1, 2)).toBeLessThan(0);
+    expect(compareGaps(2, 1)).toBeGreaterThan(0);
+    expect(compareGaps(1, 1 + 1e-9)).toBe(0);
   });
 });
 

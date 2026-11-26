@@ -461,9 +461,9 @@ describe('PieceTargetService', () => {
       const hero = on('勇者', 0, 'left');
       const overhead = on('真上', 0, 'right', 0);
       overhead.altitude = 4;
-      const beside = on('隣', 120, 'right');
+      const beside = on('隣', 175, 'right');
 
-      expect(service().aimOrderFrom(hero)).toEqual([beside, overhead]);
+      expect(service().aimOrderFrom(hero)).toEqual([overhead, beside]);
     });
 
     it('passes over the caster of an effect held ready, which it cannot be cast at', () => {

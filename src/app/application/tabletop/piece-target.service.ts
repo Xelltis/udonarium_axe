@@ -14,7 +14,14 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BATTLE_SIDE_OUT, type BattleSide } from '@axe/domain/battle/battle-lineup';
 import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { type AimBody, type AimCandidate, aimOrder, bodyGap, nextAim } from '@axe/domain/tabletop/aim-order';
+import {
+  type AimBody,
+  type AimCandidate,
+  aimOrder,
+  bodyGap,
+  compareGaps,
+  nextAim,
+} from '@axe/domain/tabletop/aim-order';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
@@ -272,7 +279,7 @@ export class PieceTargetService {
     };
     return pieces
       .map((piece, index) => ({ piece, index, away: distance(piece) }))
-      .sort((a, b) => a.away - b.away || a.index - b.index)
+      .sort((a, b) => compareGaps(a.away, b.away) || a.index - b.index)
       .map(({ piece }) => piece);
   }
 
