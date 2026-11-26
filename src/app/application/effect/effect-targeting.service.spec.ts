@@ -484,7 +484,7 @@ describe('EffectTargetingService', () => {
       service.pick(characters[1].identifier);
 
       expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier, characters[2].identifier]);
-      expect(service.areaCenter()).not.toBeNull();
+      expect(service.areaCenter()).toEqual({ x: 225, y: 25, z: 0 });
     });
 
     it('reaches a piece on a wall on the floor under its feet, not at its place on the wall read as a place on the floor', () => {
