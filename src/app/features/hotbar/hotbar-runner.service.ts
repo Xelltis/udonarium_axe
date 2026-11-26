@@ -13,7 +13,6 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -69,7 +68,6 @@ function failed(reason: HotbarFailure): HotbarRunResult {
 export class HotbarRunnerService {
   private readonly objectStore = inject(ObjectStore);
   private readonly piecePlace = inject(PiecePlaceService);
-  private readonly tabletop = inject(TabletopService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly macro = inject(CharacterMacroService);
   private readonly effectLibrary = inject(EffectLibraryService);

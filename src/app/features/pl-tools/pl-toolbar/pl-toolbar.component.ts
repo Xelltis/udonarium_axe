@@ -14,7 +14,6 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems, getSolidRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -58,7 +57,6 @@ export class PlToolbarComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
-  private readonly tabletop = inject(TabletopService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
