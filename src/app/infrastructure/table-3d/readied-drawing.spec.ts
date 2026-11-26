@@ -1,5 +1,5 @@
 import { ReadiedDrawing, type ReadyingRenderer } from '@axe/infrastructure/table-3d/readied-drawing';
-import { readyAhead } from '@axe/infrastructure/table-3d/readying';
+import { readyAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import { BoxGeometry, Mesh, MeshBasicMaterial, type Object3D, PerspectiveCamera, Scene } from 'three/webgpu';
 
 /** A renderer that builds a thing only when told to finish, and keeps what it was asked. */

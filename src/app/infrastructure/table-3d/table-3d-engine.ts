@@ -53,7 +53,7 @@ import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
 import { MovingPictures, type PictureWearer } from '@axe/infrastructure/table-3d/moving-pictures';
-import { readiesAhead } from '@axe/infrastructure/table-3d/readying';
+import { readiesAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SolidLayer } from '@axe/infrastructure/table-3d/solid-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';

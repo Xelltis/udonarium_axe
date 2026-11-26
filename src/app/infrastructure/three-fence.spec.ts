@@ -13,7 +13,7 @@ const LIBRARY = /^(three|three\/.*|cannon-es)$/;
  */
 const FENCED: Readonly<Record<string, ReadonlySet<string>>> = {
   'infrastructure/dice-3d': new Set(['dice-physics-client', 'dice-physics-message', 'dice-geometry']),
-  'infrastructure/table-3d': new Set(['table-3d-port', 'table-3d-quality']),
+  'infrastructure/table-3d': new Set(['table-3d-port', 'table-3d-quality', 'ready-ahead']),
   'infrastructure/model-viewer': new Set(['model-viewer-port']),
 };
 

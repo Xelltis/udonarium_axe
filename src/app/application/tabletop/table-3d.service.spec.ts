@@ -42,7 +42,7 @@ import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld, TableWorldCap } from '@axe/domain/tabletop/world/table-world';
-import { readiesAhead, readyAhead } from '@axe/infrastructure/table-3d/readying';
+import { readiesAhead, readyAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import type {
   Table3dCamera,
   Table3dDiceThrow,

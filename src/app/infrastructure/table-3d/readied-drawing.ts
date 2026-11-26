@@ -1,5 +1,6 @@
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
-import { readiesAhead, readyThings } from '@axe/infrastructure/table-3d/readying';
+import { readiesAhead } from '@axe/infrastructure/table-3d/ready-ahead';
+import { readyThings } from '@axe/infrastructure/table-3d/readying';
 import type { Camera, Object3D, Scene } from 'three/webgpu';
 
 /** What of a renderer a scene is readied and drawn with. */

@@ -74,7 +74,7 @@ import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import { type JoinableBlock, type WallJoinCell, wallJoinsOf } from '@axe/domain/tabletop/world/wall-joins';
 import { weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
-import { readyAhead } from '@axe/infrastructure/table-3d/readying';
+import { readyAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import type {
   Table3dBackend,
   Table3dCamera,
