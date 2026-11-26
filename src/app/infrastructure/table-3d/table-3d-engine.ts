@@ -27,13 +27,14 @@ import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
 import {
+  deepestGroundOf,
   fieldOfViewDeg,
   finishingOf,
   nodeWornPictures,
   pictureKey,
+  seenOrShadowSeen,
   shadowCastingPictures,
-  type ShadowLight,
-  shadowReachBox,
+  shadowLightsOf,
   sharedPictureKey,
   unwornPictureKeys,
   wornPictures,
@@ -99,7 +100,6 @@ import {
   vec4,
 } from 'three/tsl';
 import {
-  Box3,
   BufferGeometry,
   Camera,
   CanvasTexture,
@@ -278,6 +278,8 @@ class ThreeTableEngine implements Table3dEngine {
   private facePictures = new Set<Texture>();
   /** The world last laid, for the pictures its layers, backdrops and board wear. */
   private laidWorld: TableWorld | null = null;
+  /** The deepest the ground of the board laid now goes, which a shadow may fall down to (see `deepestGroundOf`). */
+  private laidFloor = 0;
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
   private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
@@ -696,6 +698,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   setWorld(world: TableWorld): void {
     this.laidWorld = world;
+    this.laidFloor = deepestGroundOf(world);
     const board = world.board;
     this.placeBoard(board);
     const shape = board ? () => (board.ground ? groundGeometry(board.ground) : boardGeometry(board)) : null;
@@ -978,40 +981,25 @@ class ThreeTableEngine implements Table3dEngine {
     const seen = this.laidWorld
       ? nodeWornPictures(this.laidWorld, this.laidSky !== null, (key) => this.loaded.get(key))
       : new Set<Texture>();
-    const lights = this.shadowLights();
     const board = this.laidWorld?.board;
-    const reach = board ? Math.hypot(board.widthPx, board.depthPx) : 0;
-    const inView = (object: Object3D) =>
-      (object.layers.test(this.camera.layers) && view.intersectsObject(object)) ||
-      (object.castShadow &&
-        lights.length > 0 &&
-        view.intersectsBox(shadowReachBox(new Box3().setFromObject(object), lights, reach)));
+    const shadows = {
+      lights: shadowLightsOf(this.sun, this.lamps),
+      reach: board ? Math.hypot(board.widthPx, board.depthPx) : 0,
+      floor: this.laidFloor,
+    };
     const look = (object: Object3D) => {
       const worn = (object as Mesh).material;
       if (!worn) return;
       for (const material of Array.isArray(worn) ? worn : [worn]) {
         const picture = (material as { map?: Texture | null }).map;
         if (!picture || !judged.has(picture) || seen.has(picture)) continue;
-        if (inView(object)) seen.add(picture);
+        if (seenOrShadowSeen(object, this.camera.layers, view, shadows)) seen.add(picture);
       }
     };
     this.sprites.group.traverseVisible(look);
     this.coins.group.traverseVisible(look);
     this.facesRoot.traverseVisible(look);
     if (this.movingPictures.see(seen)) this.needsFrame();
-  }
-
-  /** The lights throwing shadows on the table now: the sun where it throws them, and the lamps lit with theirs. */
-  private shadowLights(): ShadowLight[] {
-    const lights: ShadowLight[] = [];
-    if (this.sun.castShadow && this.sun.intensity > 0) {
-      lights.push({ runs: new Vector3().subVectors(this.sun.target.position, this.sun.position) });
-    }
-    for (const lamp of this.lamps) {
-      if (lamp.visible && lamp.castShadow && lamp.intensity > 0)
-        lights.push({ at: lamp.getWorldPosition(new Vector3()) });
-    }
-    return lights;
   }
 
   /**

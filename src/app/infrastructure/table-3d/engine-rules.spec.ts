@@ -1,10 +1,13 @@
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import {
+  deepestGroundOf,
   fieldOfViewDeg,
   finishingOf,
   nodeWornPictures,
   pictureKey,
+  seenOrShadowSeen,
   shadowCastingPictures,
+  shadowLightsOf,
   shadowReachBox,
   sharedPictureKey,
   unwornPictureKeys,
@@ -12,7 +15,21 @@ import {
   wornPictures,
 } from '@axe/infrastructure/table-3d/engine-rules';
 import { TABLE_3D_QUALITY } from '@axe/infrastructure/table-3d/table-3d-quality';
-import { Box3, BufferGeometry, Group, Mesh, MeshBasicNodeMaterial, Texture, Vector3 } from 'three/webgpu';
+import {
+  Box3,
+  BufferGeometry,
+  DirectionalLight,
+  Frustum,
+  Group,
+  Layers,
+  Mesh,
+  MeshBasicNodeMaterial,
+  Plane,
+  PlaneGeometry,
+  PointLight,
+  Texture,
+  Vector3,
+} from 'three/webgpu';
 
 describe('fieldOfViewDeg', () => {
   it('sees a right angle through a box twice as tall as the eye stands off it', () => {
@@ -151,21 +168,122 @@ describe('shadowReachBox', () => {
   });
 
   it('reaches as far as a lamp over the thing throws it out from under the lamp', () => {
-    const reach = shadowReachBox(standing(), [{ at: new Vector3(0, 100, 0) }], 1000);
+    const reach = shadowReachBox(standing(), [{ at: new Vector3(0, 100, 0), reach: 1000 }], 1000);
 
     expect(reach.max.x).toBeCloseTo(12.5);
     expect(reach.max.z).toBeCloseTo(12.5);
   });
 
-  it('adds nothing for a sun under the horizon or a lamp no higher than the thing', () => {
-    expect(shadowReachBox(standing(), [{ runs: new Vector3(1, 0, 0) }], 1000)).toEqual(standing());
-    expect(shadowReachBox(standing(), [{ at: new Vector3(50, 10, 0) }], 1000).max.x).toBeCloseTo(10);
+  it('throws the shadow of what is under a lamp standing within the thing out across the floor, as far as the lamp reaches', () => {
+    const tall = new Box3(new Vector3(0, 0, 0), new Vector3(10, 50, 10));
+    const atEye = new Vector3(-30, 25, 5);
+
+    const out = (far: number) => 10 + (40 * far) / Math.hypot(40, 5);
+    expect(shadowReachBox(tall, [{ at: atEye, reach: 200 }], 1000).max.x).toBeCloseTo(out(200), 1);
+    expect(shadowReachBox(tall, [{ at: atEye, reach: 200 }], 100).max.x).toBeCloseTo(out(100), 1);
   });
 
-  it('throws a long shadow of a low sun no further than the reach given, and down to the floor of a sunk thing', () => {
+  it('adds nothing for a sun under the horizon or a lamp no higher than the foot of the thing', () => {
+    expect(shadowReachBox(standing(), [{ runs: new Vector3(1, 0, 0) }], 1000)).toEqual(standing());
+    expect(shadowReachBox(standing(), [{ at: new Vector3(50, 0, 0), reach: 1000 }], 1000)).toEqual(standing());
+  });
+
+  it('throws a long shadow of a low sun no further than the reach given', () => {
     expect(shadowReachBox(standing(), [{ runs: new Vector3(1, -0.01, 0) }], 50).max.x).toBeCloseTo(60, 0);
+  });
+
+  it('throws a shadow down into the deepest of the ground, and down to the foot of a thing sunk deeper', () => {
+    expect(shadowReachBox(standing(), [{ runs: new Vector3(1, -1, 0) }], 1000, -40).max.x).toBeCloseTo(70);
     const sunk = new Box3(new Vector3(0, -40, 0), new Vector3(10, -20, 10));
     expect(shadowReachBox(sunk, [{ runs: new Vector3(1, -1, 0) }], 1000).min.y).toBeCloseTo(-40);
     expect(shadowReachBox(sunk, [{ runs: new Vector3(1, -1, 0) }], 1000).max.x).toBeCloseTo(30);
+  });
+});
+
+describe('shadowLightsOf', () => {
+  it('reads the sun throwing shadows by the way its rays run, from where it stands to where it looks', () => {
+    const sun = new DirectionalLight(0xffffff, 1);
+    sun.castShadow = true;
+    sun.position.set(0, 100, 0);
+    sun.target.position.set(50, 0, 0);
+    sun.updateMatrixWorld();
+    sun.target.updateMatrixWorld();
+
+    const [light] = shadowLightsOf(sun, []);
+
+    expect('runs' in light && light.runs.toArray()).toEqual([50, -100, 0]);
+  });
+
+  it('reads each lamp lit with its shadow where it stands, as far as it reaches, and none unlit, hidden or unshadowed', () => {
+    const sun = new DirectionalLight(0xffffff, 0);
+    const lamp = (intensity: number, castShadow: boolean, distance: number) => {
+      const made = new PointLight(0xffffff, intensity, distance);
+      made.castShadow = castShadow;
+      made.position.set(5, 25, 5);
+      made.updateMatrixWorld();
+      return made;
+    };
+    const hidden = lamp(1, true, 0);
+    hidden.visible = false;
+
+    const lights = shadowLightsOf(sun, [
+      lamp(1, true, 120),
+      lamp(1, true, 0),
+      lamp(0, true, 120),
+      lamp(1, false, 120),
+      hidden,
+    ]);
+
+    expect(lights).toEqual([
+      { at: new Vector3(5, 25, 5), reach: 120 },
+      { at: new Vector3(5, 25, 5), reach: Infinity },
+    ]);
+  });
+});
+
+describe('seenOrShadowSeen', () => {
+  const eye = new Layers();
+  const view = new Frustum(
+    ...[
+      [1, 0, 0, 0],
+      [-1, 0, 0, 100],
+      [0, 1, 0, 1000],
+      [0, -1, 0, 1000],
+      [0, 0, 1, 1000],
+      [0, 0, -1, 1000],
+    ].map(([x, y, z, constant]) => new Plane(new Vector3(x, y, z), constant))
+  );
+  const board = (x: number, castShadow: boolean, layer = 0) => {
+    const made = new Mesh(new PlaneGeometry(10, 20), new MeshBasicNodeMaterial());
+    made.position.set(x, 10, 0);
+    made.castShadow = castShadow;
+    made.layers.set(layer);
+    made.updateMatrixWorld();
+    return made;
+  };
+  const sun = { lights: [{ runs: new Vector3(1, -1, 0) }], reach: 1000, floor: 0 };
+
+  it('sees what is drawn for the camera in its view', () => {
+    expect(seenOrShadowSeen(board(50, false), eye, view, sun)).toBe(true);
+  });
+
+  it('sees a board standing for a shadow alone, out of the view, whose shadow falls in it', () => {
+    expect(seenOrShadowSeen(board(-15, true, 1), eye, view, sun)).toBe(true);
+  });
+
+  it('sees neither what throws no shadow out of the view, nor a shadow while no light throws one', () => {
+    expect(seenOrShadowSeen(board(-15, false), eye, view, sun)).toBe(false);
+    expect(seenOrShadowSeen(board(-15, true, 1), eye, view, { ...sun, lights: [] })).toBe(false);
+    expect(seenOrShadowSeen(board(50, true, 1), eye, view, { ...sun, lights: [] })).toBe(false);
+    expect(seenOrShadowSeen(board(-200, true, 1), eye, view, sun)).toBe(false);
+  });
+});
+
+describe('deepestGroundOf', () => {
+  it('reads the deepest of the board’s ground, and the table where the ground is flat or there is no board', () => {
+    const ground = { points: new Float32Array([0, 0, 0, 50, 0, -30, 0, 50, 20]) };
+    expect(deepestGroundOf({ board: { ground } } as unknown as TableWorld)).toBe(-30);
+    expect(deepestGroundOf({ board: { ground: null } } as unknown as TableWorld)).toBe(0);
+    expect(deepestGroundOf({ board: null } as unknown as TableWorld)).toBe(0);
   });
 });

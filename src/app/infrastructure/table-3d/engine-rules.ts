@@ -1,6 +1,16 @@
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
-import { Box3, type Mesh, type Object3D, type Texture, Vector3 } from 'three/webgpu';
+import {
+  Box3,
+  type DirectionalLight,
+  type Frustum,
+  type Layers,
+  type Mesh,
+  type Object3D,
+  type PointLight,
+  type Texture,
+  Vector3,
+} from 'three/webgpu';
 
 /** How wide, in degrees, a camera sees that looks through a box `heightPx` tall from `focalPx` in front of it. */
 export function fieldOfViewDeg(heightPx: number, focalPx: number): number {
@@ -52,39 +62,97 @@ export function unwornPictureKeys(keys: Iterable<string>, worn: ReadonlySet<stri
 
 /**
  * A light that throws shadows on the table, as `shadowReachBox` reads it: the sun, by the way its rays
- * run, or a lamp, by where it stands.
+ * run, or a lamp, by where it stands and how far its light reaches.
  */
-export type ShadowLight = { readonly runs: Vector3 } | { readonly at: Vector3 };
+export type ShadowLight = { readonly runs: Vector3 } | { readonly at: Vector3; readonly reach: number };
+
+/** How far under a lamp, in table pixels, a thing standing past it throws its shadow from. */
+const UNDER_LAMP_PX = 0.5;
 
 /**
  * The box a thing and the shadow it throws may lie in: its own box, and each corner of it carried
- * along the rays of every light down to the floor under it, the floor of the table or lower where
- * the thing stands lower, no further than `reach`. A light that cannot throw the thing's shadow down,
- * the sun under the horizon or a lamp no higher than a corner, adds nothing for that corner.
+ * along the rays of every light down to the floor, the deepest of the board's ground or lower where
+ * the thing stands lower, no further than `reach`, nor than a lamp's own reach. A lamp standing
+ * within the height of the thing throws the shadow of the part under it, taken from just under the
+ * lamp, out across the floor; a sun under the horizon, or a lamp no higher than the foot of the
+ * thing, adds nothing.
  */
-export function shadowReachBox(box: Box3, lights: readonly ShadowLight[], reach: number): Box3 {
+export function shadowReachBox(box: Box3, lights: readonly ShadowLight[], reach: number, floor = 0): Box3 {
   const within = box.clone();
   if (box.isEmpty()) return within;
-  const floor = Math.min(0, box.min.y);
+  const ground = Math.min(floor, box.min.y);
   const corner = new Vector3();
   const ray = new Vector3();
   for (const light of lights) {
+    if ('at' in light && light.at.y <= box.min.y) continue;
+    const furthest = 'at' in light ? Math.min(reach, light.reach) : reach;
     for (let index = 0; index < 8; index++) {
       corner.set(
         index & 1 ? box.max.x : box.min.x,
         index & 2 ? box.max.y : box.min.y,
         index & 4 ? box.max.z : box.min.z
       );
-      if ('runs' in light) ray.copy(light.runs);
-      else ray.subVectors(corner, light.at);
+      if ('at' in light) {
+        corner.y = Math.min(corner.y, light.at.y - UNDER_LAMP_PX);
+        ray.subVectors(corner, light.at);
+      } else {
+        ray.copy(light.runs);
+      }
       if (ray.y >= 0) continue;
       const length = ray.length();
-      if (length === 0) continue;
-      const fall = Math.min(((floor - corner.y) / ray.y) * length, reach);
+      const fall = Math.min(((ground - corner.y) / ray.y) * length, furthest);
       within.expandByPoint(corner.addScaledVector(ray, fall / length));
     }
   }
   return within;
+}
+
+/**
+ * The lights throwing shadows on the table now, as `shadowReachBox` reads them: the sun where it
+ * throws them, its rays running from where it stands to where it looks, and each lamp lit with its
+ * shadow, from where it stands in the room as far as its light reaches.
+ */
+export function shadowLightsOf(sun: DirectionalLight, lamps: readonly PointLight[]): ShadowLight[] {
+  const lights: ShadowLight[] = [];
+  if (sun.castShadow && sun.intensity > 0) {
+    const from = sun.getWorldPosition(new Vector3());
+    lights.push({ runs: sun.target.getWorldPosition(new Vector3()).sub(from) });
+  }
+  for (const lamp of lamps) {
+    if (!lamp.visible || !lamp.castShadow || lamp.intensity <= 0) continue;
+    lights.push({ at: lamp.getWorldPosition(new Vector3()), reach: lamp.distance > 0 ? lamp.distance : Infinity });
+  }
+  return lights;
+}
+
+/**
+ * Whether something wearing a picture is in sight as just drawn: drawn for the camera and in its view,
+ * or throwing a shadow, as a piece's board standing for its shadow alone does, that may fall in the
+ * view (see `shadowReachBox`).
+ */
+export function seenOrShadowSeen(
+  object: Object3D,
+  eye: Layers,
+  view: Frustum,
+  shadows: { readonly lights: readonly ShadowLight[]; readonly reach: number; readonly floor: number }
+): boolean {
+  if (object.layers.test(eye) && view.intersectsObject(object)) return true;
+  if (!object.castShadow || shadows.lights.length === 0) return false;
+  return view.intersectsBox(
+    shadowReachBox(new Box3().setFromObject(object), shadows.lights, shadows.reach, shadows.floor)
+  );
+}
+
+/**
+ * The deepest the board's ground goes, in table pixels: none deeper than the table where the ground is
+ * flat.
+ */
+export function deepestGroundOf(world: TableWorld): number {
+  const points = world.board?.ground?.points;
+  let deepest = 0;
+  if (!points) return deepest;
+  for (let index = 2; index < points.length; index += 3) deepest = Math.min(deepest, points[index]);
+  return deepest;
 }
 
 /**
