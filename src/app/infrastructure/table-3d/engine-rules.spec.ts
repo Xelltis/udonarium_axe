@@ -174,13 +174,26 @@ describe('shadowReachBox', () => {
     expect(reach.max.z).toBeCloseTo(12.5);
   });
 
-  it('throws the shadow of what is under a lamp standing within the thing out across the floor, as far as the lamp reaches', () => {
+  it('takes the whole floor a lamp standing within the thing lights as where its shadow may fall', () => {
     const tall = new Box3(new Vector3(0, 0, 0), new Vector3(10, 50, 10));
     const atEye = new Vector3(-30, 25, 5);
 
-    const out = (far: number) => 10 + (40 * far) / Math.hypot(40, 5);
-    expect(shadowReachBox(tall, [{ at: atEye, reach: 200 }], 1000).max.x).toBeCloseTo(out(200), 1);
-    expect(shadowReachBox(tall, [{ at: atEye, reach: 200 }], 100).max.x).toBeCloseTo(out(100), 1);
+    const lit = shadowReachBox(tall, [{ at: atEye, reach: 200 }], 1000);
+    expect([lit.min.x, lit.max.x, lit.min.z, lit.max.z]).toEqual([-230, 170, -195, 205]);
+    expect(shadowReachBox(tall, [{ at: atEye, reach: 200 }], 100).max.x).toBe(70);
+
+    const thin = new Box3(new Vector3(-10, 0, 2), new Vector3(10, 50, 2.1));
+    expect(
+      shadowReachBox(thin, [{ at: new Vector3(0, 25, 0), reach: 300 }], 1000).containsPoint(new Vector3(0, 0, 50))
+    ).toBe(true);
+  });
+
+  it('keeps the shadow of a thing close under a lamp whole between its corners, cut only to where the lamp reaches', () => {
+    const board = new Box3(new Vector3(24, 0, -50), new Vector3(26, 100, 50));
+    const reach = shadowReachBox(board, [{ at: new Vector3(0, 105, 0), reach: 300 }], 1400);
+
+    expect(reach.containsPoint(new Vector3(250, 0, 0))).toBe(true);
+    expect(reach.max.x).toBe(300);
   });
 
   it('adds nothing for a sun under the horizon or a lamp no higher than the foot of the thing', () => {
@@ -281,7 +294,7 @@ describe('seenOrShadowSeen', () => {
 
 describe('deepestGroundOf', () => {
   it('reads the deepest of the board’s ground, and the table where the ground is flat or there is no board', () => {
-    const ground = { points: new Float32Array([0, 0, 0, 50, 0, -30, 0, 50, 20]) };
+    const ground = { points: new Float32Array([-80, -90, 0, 50, 0, -30, 0, 50, 20]) };
     expect(deepestGroundOf({ board: { ground } } as unknown as TableWorld)).toBe(-30);
     expect(deepestGroundOf({ board: { ground: null } } as unknown as TableWorld)).toBe(0);
     expect(deepestGroundOf({ board: null } as unknown as TableWorld)).toBe(0);

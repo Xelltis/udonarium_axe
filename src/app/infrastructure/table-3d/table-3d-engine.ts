@@ -280,6 +280,8 @@ class ThreeTableEngine implements Table3dEngine {
   private laidWorld: TableWorld | null = null;
   /** The deepest the ground of the board laid now goes, which a shadow may fall down to (see `deepestGroundOf`). */
   private laidFloor = 0;
+  /** The ground `laidFloor` was read from, so that it is read again only once the ground changes. */
+  private floorOf: GroundMesh | null | undefined;
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
   private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
@@ -698,7 +700,10 @@ class ThreeTableEngine implements Table3dEngine {
 
   setWorld(world: TableWorld): void {
     this.laidWorld = world;
-    this.laidFloor = deepestGroundOf(world);
+    if (world.board?.ground !== this.floorOf) {
+      this.floorOf = world.board?.ground;
+      this.laidFloor = deepestGroundOf(world);
+    }
     const board = world.board;
     this.placeBoard(board);
     const shape = board ? () => (board.ground ? groundGeometry(board.ground) : boardGeometry(board)) : null;

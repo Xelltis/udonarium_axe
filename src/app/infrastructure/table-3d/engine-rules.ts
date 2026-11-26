@@ -66,45 +66,57 @@ export function unwornPictureKeys(keys: Iterable<string>, worn: ReadonlySet<stri
  */
 export type ShadowLight = { readonly runs: Vector3 } | { readonly at: Vector3; readonly reach: number };
 
-/** How far under a lamp, in table pixels, a thing standing past it throws its shadow from. */
-const UNDER_LAMP_PX = 0.5;
-
 /**
- * The box a thing and the shadow it throws may lie in: its own box, and each corner of it carried
- * along the rays of every light down to the floor, the deepest of the board's ground or lower where
- * the thing stands lower, no further than `reach`, nor than a lamp's own reach. A lamp standing
- * within the height of the thing throws the shadow of the part under it, taken from just under the
- * lamp, out across the floor; a sun under the horizon, or a lamp no higher than the foot of the
- * thing, adds nothing.
+ * The box a thing and the shadow it throws may lie in: its own box, and the floor round it its
+ * shadow may fall on, down to the deepest of the board's ground or lower where the thing stands lower.
+ *
+ * - The sun: each corner of the box carried along its rays down to the floor, no further than
+ *   `reach`. A sun under the horizon adds nothing.
+ * - A lamp over the thing: the same, from the lamp, kept to the square of the floor the lamp's light
+ *   reaches round it, kept to only once the box is grown, so no part of the shadow between the
+ *   corners is lost.
+ * - A lamp standing within the height of the thing: the whole of that square, as the shadow of the
+ *   part under the lamp may run out to the end of its light every way. A lamp no higher than the foot
+ *   of the thing adds nothing.
  */
 export function shadowReachBox(box: Box3, lights: readonly ShadowLight[], reach: number, floor = 0): Box3 {
   const within = box.clone();
   if (box.isEmpty()) return within;
   const ground = Math.min(floor, box.min.y);
-  const corner = new Vector3();
-  const ray = new Vector3();
   for (const light of lights) {
-    if ('at' in light && light.at.y <= box.min.y) continue;
-    const furthest = 'at' in light ? Math.min(reach, light.reach) : reach;
-    for (let index = 0; index < 8; index++) {
-      corner.set(
-        index & 1 ? box.max.x : box.min.x,
-        index & 2 ? box.max.y : box.min.y,
-        index & 4 ? box.max.z : box.min.z
-      );
-      if ('at' in light) {
-        corner.y = Math.min(corner.y, light.at.y - UNDER_LAMP_PX);
-        ray.subVectors(corner, light.at);
-      } else {
-        ray.copy(light.runs);
-      }
-      if (ray.y >= 0) continue;
-      const length = ray.length();
-      const fall = Math.min(((ground - corner.y) / ray.y) * length, furthest);
-      within.expandByPoint(corner.addScaledVector(ray, fall / length));
+    if ('runs' in light) {
+      within.union(fallenBox(box, () => light.runs, reach, ground));
+      continue;
     }
+    if (light.at.y <= box.min.y) continue;
+    const far = Math.min(reach, light.reach);
+    const lit = new Box3(
+      new Vector3(light.at.x - far, ground, light.at.z - far),
+      new Vector3(light.at.x + far, Math.max(box.max.y, ground), light.at.z + far)
+    );
+    if (light.at.y <= box.max.y) {
+      within.union(lit);
+      continue;
+    }
+    const fallen = fallenBox(box, (corner) => new Vector3().subVectors(corner, light.at), reach, ground);
+    if (fallen.intersectsBox(lit)) within.union(fallen.intersect(lit));
   }
   return within;
+}
+
+/** A box's corners carried along the rays that run through each, down to the floor, no further than `reach`, boxed. */
+function fallenBox(box: Box3, rayAt: (corner: Vector3) => Vector3, reach: number, ground: number): Box3 {
+  const fallen = new Box3();
+  const corner = new Vector3();
+  for (let index = 0; index < 8; index++) {
+    corner.set(index & 1 ? box.max.x : box.min.x, index & 2 ? box.max.y : box.min.y, index & 4 ? box.max.z : box.min.z);
+    const ray = rayAt(corner);
+    if (ray.y >= 0) continue;
+    const length = ray.length();
+    const fall = Math.max(0, Math.min(((ground - corner.y) / ray.y) * length, reach));
+    fallen.expandByPoint(corner.clone().addScaledVector(ray, fall / length));
+  }
+  return fallen;
 }
 
 /**
