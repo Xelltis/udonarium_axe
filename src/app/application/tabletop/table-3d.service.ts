@@ -74,6 +74,7 @@ import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import { type JoinableBlock, type WallJoinCell, wallJoinsOf } from '@axe/domain/tabletop/world/wall-joins';
 import { weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
+import { readyAhead } from '@axe/infrastructure/table-3d/readying';
 import type {
   Table3dBackend,
   Table3dCamera,
@@ -550,8 +551,6 @@ export class Table3dService {
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
   private motionHeld = false;
   private sceneHeldAt: number | null = null;
-  /** Whether the engine readies the graphics card for a new kind of thing before drawing it; see {@link readyBeforeDrawing}. */
-  private readiesFirst = true;
 
   constructor() {
     if (untracked(this.renderer) !== 'none') this.loadSoon();
@@ -607,7 +606,6 @@ export class Table3dService {
       this.engine = made;
       made.setDice(this.diceThrows);
       made.warmDice([...this.diceWarmed]);
-      made.readyBeforeDrawing(this.readiesFirst);
       made.onNeedsFrame(() => this.drawSoon(made));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
@@ -767,13 +765,12 @@ export class Table3dService {
   }
 
   /**
-   * Has the engine ready the graphics card for a new kind of thing before drawing it, as it does unless
+   * Has every scene ready the graphics card for a new kind of thing before drawing it, as it does unless
    * told otherwise, or build it on the frame that draws it: for a page whose clock is held, which holds
-   * the readying up with it.
+   * the readying up with it. The table and the small stages of the previews alike (see `readiesAhead`).
    */
   readyBeforeDrawing(on: boolean): void {
-    this.readiesFirst = on;
-    this.engine?.readyBeforeDrawing(on);
+    readyAhead(on);
   }
 
   /**

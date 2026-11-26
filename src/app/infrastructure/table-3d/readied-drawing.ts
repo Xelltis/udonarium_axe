@@ -1,5 +1,5 @@
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
-import { readyThings } from '@axe/infrastructure/table-3d/readying';
+import { readiesAhead, readyThings } from '@axe/infrastructure/table-3d/readying';
 import type { Camera, Object3D, Scene } from 'three/webgpu';
 
 /** What of a renderer a scene is readied and drawn with. */
@@ -16,7 +16,8 @@ const BUILDS_BEFORE_DRAWING = 3;
  * on the frame that first draws it holds the page up for as long as the building takes, seconds on a
  * machine that draws without a graphics card; built ahead, the page stays free meanwhile, and the
  * scene is drawn as it stands once the building is done. What was asked to be drawn while a kind was
- * being built is drawn then, once.
+ * being built is drawn then, once. With readying ahead turned off (see `readiesAhead`), a scene asked
+ * for is drawn at once, what is new to the card built on that frame.
  */
 export class ReadiedDrawing {
   private readonly kinds = new DrawnKinds();
@@ -58,7 +59,7 @@ export class ReadiedDrawing {
   private go(): void {
     if (this.gone || this.readying) return;
     const fresh = this.kinds.unreadied(this.scene);
-    if (fresh.kinds.length === 0) {
+    if (fresh.kinds.length === 0 || !readiesAhead()) {
       this.builtInARow = 0;
       if (!this.wanted) return;
       this.wanted = false;

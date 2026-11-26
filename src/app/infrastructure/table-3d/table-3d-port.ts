@@ -305,12 +305,6 @@ export interface Table3dEngine {
    * what a frame drawn at once does not wait for, which a picture of the page has to.
    */
   whenDrawn(): Promise<void>;
-  /**
-   * Whether the graphics card is readied for a new kind of thing before the frame that first draws it,
-   * the scene being drawn once that is done, rather than built on that frame. On unless asked otherwise,
-   * as the end-to-end pictures ask, whose clock is held and would hold the readying up with it.
-   */
-  readyBeforeDrawing(on: boolean): void;
   /** What the engine holds, counted, for the end-to-end specs to read. */
   stats(): Table3dStats;
   /**

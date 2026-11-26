@@ -53,6 +53,7 @@ import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
 import { MovingPictures, type PictureWearer } from '@axe/infrastructure/table-3d/moving-pictures';
+import { readiesAhead } from '@axe/infrastructure/table-3d/readying';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SolidLayer } from '@axe/infrastructure/table-3d/solid-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
@@ -265,8 +266,6 @@ class ThreeTableEngine implements Table3dEngine {
   private readyingFrom = 0;
   /** How long the scene stood still on the screen, readying the graphics card or over long frames, until now. */
   private held = 0;
-  /** Whether the graphics card is readied for a new kind of thing before the frame that first draws it. */
-  private readiesFirst = true;
   private needsFrame: () => void = () => undefined;
   private readonly pictures = new TextureLoader();
   /** The pictures painted ground is drawn with, read the first time any ground is painted. */
@@ -641,10 +640,6 @@ class ThreeTableEngine implements Table3dEngine {
     return this.held + (this.readying !== null ? performance.now() - this.readyingFrom : 0);
   }
 
-  readyBeforeDrawing(on: boolean): void {
-    this.readiesFirst = on;
-  }
-
   whenDrawn(): Promise<void> {
     const device = (this.renderer.backend as { device?: { queue: { onSubmittedWorkDone(): Promise<void> } } }).device;
     return device ? device.queue.onSubmittedWorkDone() : Promise.resolve();
@@ -947,7 +942,7 @@ class ThreeTableEngine implements Table3dEngine {
   renderIfChanged(): boolean {
     this.takeChanges();
     if (!this.changed || this.lost || !this.hasRoom()) return false;
-    if (this.readying !== null || (this.readiesFirst && this.readyForNewKinds())) return false;
+    if (this.readying !== null || (readiesAhead() && this.readyForNewKinds())) return false;
     this.changed = false;
     this.renderer.info.reset();
     const began = performance.now();

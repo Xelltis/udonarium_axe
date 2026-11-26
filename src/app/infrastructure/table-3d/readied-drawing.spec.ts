@@ -1,4 +1,5 @@
 import { ReadiedDrawing, type ReadyingRenderer } from '@axe/infrastructure/table-3d/readied-drawing';
+import { readyAhead } from '@axe/infrastructure/table-3d/readying';
 import { BoxGeometry, Mesh, MeshBasicMaterial, type Object3D, PerspectiveCamera, Scene } from 'three/webgpu';
 
 /** A renderer that builds a thing only when told to finish, and keeps what it was asked. */
@@ -36,6 +37,20 @@ describe('ReadiedDrawing', () => {
     scene = new Scene();
     renderer = new SlowRenderer();
     drawing = new ReadiedDrawing(renderer, scene, camera);
+  });
+
+  afterEach(() => readyAhead(true));
+
+  it('draws a scene asked for at once, building nothing ahead, where readying ahead is turned off as for the pictures', () => {
+    scene.add(box());
+    readyAhead(false);
+
+    drawing.ready();
+    drawing.draw();
+
+    expect(renderer.built).toEqual([]);
+    expect(renderer.drawn).toBe(1);
+    expect(drawing.waiting).toBe(false);
   });
 
   it('draws at once a scene with nothing new to the card', () => {

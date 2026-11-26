@@ -42,6 +42,7 @@ import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld, TableWorldCap } from '@axe/domain/tabletop/world/table-world';
+import { readiesAhead, readyAhead } from '@axe/infrastructure/table-3d/readying';
 import type {
   Table3dCamera,
   Table3dDiceThrow,
@@ -243,12 +244,6 @@ class FakeEngine implements Table3dEngine {
     return null;
   }
 
-  readiesFirst: boolean[] = [];
-
-  readyBeforeDrawing(on: boolean): void {
-    this.readiesFirst.push(on);
-  }
-
   /** The waits on the graphics card not yet over, settled by {@link finishDrawing}. */
   drawing: (() => void)[] = [];
 
@@ -343,6 +338,7 @@ describe('Table3dService', () => {
   });
 
   afterEach(() => {
+    readyAhead(true);
     localStorage.removeItem(STORAGE_KEYS.tableRenderer);
     localStorage.removeItem(STORAGE_KEYS.tableQuality);
     refused = () => false;
@@ -373,14 +369,14 @@ describe('Table3dService', () => {
     expect(service().renderer()).toBe('three');
   });
 
-  it('has an engine ready the graphics card before drawing, and tells one made later what it was last told', async () => {
+  it('has every scene ready the graphics card before drawing unless told otherwise, and again once told', () => {
     const scene = service();
-    scene.attach(document.createElement('canvas'));
-    await scene.whenIdle();
-    expect(engines[0].readiesFirst).toEqual([true]);
+    expect(readiesAhead()).toBe(true);
 
     scene.readyBeforeDrawing(false);
-    expect(engines[0].readiesFirst).toEqual([true, false]);
+    expect(readiesAhead()).toBe(false);
+    scene.readyBeforeDrawing(true);
+    expect(readiesAhead()).toBe(true);
   });
 
   it('waits on the graphics card through its engine to have drawn what it was handed, and on nothing with no canvas', async () => {
@@ -397,16 +393,6 @@ describe('Table3dService', () => {
     engines[0].finishDrawing();
     await Promise.resolve();
     expect(drawn).toBe(true);
-  });
-
-  it('tells an engine made after it was asked not to ready the graphics card first', async () => {
-    const scene = service();
-    scene.readyBeforeDrawing(false);
-
-    scene.attach(document.createElement('canvas'));
-    await scene.whenIdle();
-
-    expect(engines[0].readiesFirst).toEqual([false]);
   });
 
   it('draws what moves by itself where it stands at the moment it is held at, and by the clock again once let go', async () => {
