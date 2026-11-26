@@ -66,8 +66,13 @@ describe('RoomPanelService', () => {
 
   it('turns the AI link panel to the game master’s half too when it is opened by that name among the panels opened in turn', () => {
     const view = TestBed.inject(AiLinkViewService);
+    const panelOf = vi
+      .spyOn(service as unknown as { panelOf(name: RoomPanelName): unknown }, 'panelOf')
+      .mockReturnValue({ load: () => Promise.resolve({}), option: {} });
 
     service.openInTurn([['chatWindow'], ['aiGm']]);
+
+    expect(panelOf).toHaveBeenCalledWith('aiLink');
 
     expect(view.tab()).toBe('gm');
   });
