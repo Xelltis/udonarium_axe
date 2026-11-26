@@ -13,6 +13,11 @@ export interface SolidCaster {
   readonly groundZ: number;
   /** How tall its body stands, which is as wide as it is. */
   readonly bodyPx: number;
+  /**
+   * Where across the table a cone or a beam it casts starts, where that is not the middle of its
+   * footprint, as for a piece standing out from a wall: the middle of its body.
+   */
+  readonly tip?: { readonly x: number; readonly y: number };
 }
 
 /** What of a solid range and the piece it follows its place is worked out from, in table pixels. */
@@ -46,7 +51,11 @@ export function solidRangePlace(input: SolidRangePlaceInput): { origin: Vec3; re
   const caster = input.caster;
   if (!caster) return { origin: { x: input.x, y: input.y, z: input.groundZ + lift }, reach: null };
   if (isAimedSolid(input.kind)) {
-    const origin = { x: caster.x, y: caster.y, z: caster.footZ + caster.bodyPx / 2 + lift };
+    const origin = {
+      x: caster.tip?.x ?? caster.x,
+      y: caster.tip?.y ?? caster.y,
+      z: caster.footZ + caster.bodyPx / 2 + lift,
+    };
     return { origin, reach: { centre: origin, radius: input.lengthPx, floorZ: caster.groundZ } };
   }
   const reach: SolidReach = {

@@ -192,8 +192,9 @@ export class SolidRangeService {
 
   /**
    * Writes where a sphere or a column following a piece was let go, brought within its room round the
-   * piece, as how far off the middle of the piece it stands and how high over its feet, so that it keeps
-   * there as the piece moves. Nothing for any other range.
+   * piece, as how far off where the piece lays a range it stands and how high over the foot of the
+   * piece's reach (see `standingOf`), so that it keeps there as the piece moves. Nothing for any other
+   * range.
    */
   settleRoundCaster(range: RangeArea): void {
     if (!range.keepsCasterOffset) return;
@@ -279,7 +280,8 @@ export class SolidRangeService {
    * Where a piece stands for a range following it, as the table draws it now: on the floor, upright
    * over its feet; on a wall or a board, across the table where it lays a range following it (see
    * `PiecePlaceService.floorPlaceOf`), so that a sphere keeps its offset from where it was put on, and
-   * as high as the middle of its body stands, less half its height, over the floor of the table.
+   * as high as the middle of its body stands, less half its height, over the floor of the table, a
+   * cone or a beam it casts starting from the middle of its body.
    */
   private standingOf(caster: GameCharacter, gridSize: number): SolidCaster {
     const foot = this.pieces.footOf(caster);
@@ -287,7 +289,14 @@ export class SolidRangeService {
     if (foot.surface !== 'floor') {
       const laid = this.piecePlace.floorPlaceOf(caster);
       const middle = this.piecePlace.bodyMiddleOf(caster);
-      return { x: laid.x, y: laid.y, footZ: middle.z - bodyPx / 2, groundZ: 0, bodyPx };
+      return {
+        x: laid.x,
+        y: laid.y,
+        footZ: middle.z - bodyPx / 2,
+        groundZ: 0,
+        bodyPx,
+        tip: { x: middle.x, y: middle.y },
+      };
     }
     return {
       x: foot.x + bodyPx / 2,

@@ -96,7 +96,7 @@ describe('SolidRangeService', () => {
     expect([range.location.x, range.location.y]).toEqual([25 + 4 * GRID, 25]);
   });
 
-  it('starts a cone following a piece on a wall over the floor under its feet, as high as the middle of its body', () => {
+  it('starts a cone following a piece on a wall from the middle of its body where it stands out from the wall', () => {
     const piece = caster(0, 0);
     const pieces = TestBed.inject(TablePiecesService);
     const footOf = pieces.footOf.bind(pieces);
@@ -111,7 +111,7 @@ describe('SolidRangeService', () => {
     TestBed.inject(PiecePlaceService).follow(range);
     changed(range);
 
-    expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 1000, z: 475 });
+    expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 975, z: 475 });
   });
 
   it('keeps a sphere let go round a piece on a wall where it was let go as the piece is put back on', () => {
