@@ -100,12 +100,19 @@ describe('PiecePlaceService', () => {
     expect([range.location.x, range.casterOffset.x, range.altitude]).toEqual([125, 2, 1]);
   });
 
-  it('leaves a range following no piece where it is, letting go only an offset it no longer keeps', () => {
+  it('leaves a range following no piece where it is, letting its offset go as it comes to keep one or stops', () => {
+    const place = TestBed.inject(PiecePlaceService);
     const range = sphereOffItsPiece();
     range.followingCharacterIdentifier = '';
 
-    TestBed.inject(PiecePlaceService).reshape(range, () => (range.solidKind = ''));
+    place.reshape(range, () => (range.solidKind = 'column'));
+    expect([range.location.x, range.casterOffset.x, range.altitude]).toEqual([125, 2, 1]);
 
+    place.reshape(range, () => (range.solidKind = ''));
+    expect([range.location.x, range.casterOffset.x, range.altitude]).toEqual([125, 0, 1]);
+
+    range.casterOffset = { x: 3, y: 0 };
+    place.reshape(range, () => (range.solidKind = 'sphere'));
     expect([range.location.x, range.casterOffset.x, range.altitude]).toEqual([125, 0, 1]);
   });
 
