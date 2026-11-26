@@ -277,16 +277,17 @@ export class SolidRangeService {
 
   /**
    * Where a piece stands for a range following it, as the table draws it now: on the floor, upright
-   * over its feet; on a wall or a board, at the middle of its body where it stands out from the face
-   * in the room (see `PiecePlaceService.bodyMiddleOf`, which a range following it is put round too),
-   * over the floor of the table.
+   * over its feet; on a wall or a board, across the table where it lays a range following it (see
+   * `PiecePlaceService.floorPlaceOf`), so that a sphere keeps its offset from where it was put on, and
+   * as high as the middle of its body stands, less half its height, over the floor of the table.
    */
   private standingOf(caster: GameCharacter, gridSize: number): SolidCaster {
     const foot = this.pieces.footOf(caster);
     const bodyPx = Math.max(0, caster.size) * gridSize;
     if (foot.surface !== 'floor') {
+      const laid = this.piecePlace.floorPlaceOf(caster);
       const middle = this.piecePlace.bodyMiddleOf(caster);
-      return { x: middle.x, y: middle.y, footZ: middle.z - bodyPx / 2, groundZ: 0, bodyPx };
+      return { x: laid.x, y: laid.y, footZ: middle.z - bodyPx / 2, groundZ: 0, bodyPx };
     }
     return {
       x: foot.x + bodyPx / 2,

@@ -96,7 +96,7 @@ describe('SolidRangeService', () => {
     expect([range.location.x, range.location.y]).toEqual([25 + 4 * GRID, 25]);
   });
 
-  it('starts a cone following a piece on a wall from the middle of its body where it stands out from the wall', () => {
+  it('starts a cone following a piece on a wall over the floor under its feet, as high as the middle of its body', () => {
     const piece = caster(0, 0);
     const pieces = TestBed.inject(TablePiecesService);
     const footOf = pieces.footOf.bind(pieces);
@@ -111,7 +111,7 @@ describe('SolidRangeService', () => {
     TestBed.inject(PiecePlaceService).follow(range);
     changed(range);
 
-    expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 975, z: 475 });
+    expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 1000, z: 475 });
   });
 
   it('keeps a sphere let go round a piece on a wall where it was let go as the piece is put back on', () => {
@@ -128,14 +128,30 @@ describe('SolidRangeService', () => {
     const range = solidRange('CIRCLE', 'sphere');
     range.followingCharacterIdentifier = piece.identifier;
     place.follow(range);
-    expect([range.location.x, range.location.y]).toEqual([975, 975]);
+    expect([range.location.x, range.location.y]).toEqual([975, 1000]);
 
     range.location = { name: 'table', x: 975, y: 900 };
     changed(range);
     service.settleRoundCaster(range);
     place.follow(range);
-
     expect([range.location.x, range.location.y]).toEqual([975, 900]);
+
+    range.casterOffset = { x: 0, y: 0 };
+    place.follow(range);
+    const asSphere = [range.location.x, range.location.y];
+    range.solidKind = '';
+    place.follow(range);
+    expect([range.location.x, range.location.y]).toEqual(asSphere);
+  });
+
+  it('puts a sphere round a piece on the floor at the middle of the piece, as ever', () => {
+    const piece = caster(5, 5);
+    const range = solidRange('CIRCLE', 'sphere');
+    range.followingCharacterIdentifier = piece.identifier;
+
+    TestBed.inject(PiecePlaceService).follow(range);
+
+    expect([range.location.x, range.location.y]).toEqual([275, 275]);
   });
 
   it('draws a cone held by its tip the way it is pointed, and writes the way only once let go', () => {

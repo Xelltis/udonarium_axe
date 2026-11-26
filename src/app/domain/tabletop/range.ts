@@ -248,7 +248,7 @@ export class RangeArea extends TabletopObject {
    * Moves the range onto where the character it follows puts it, `placeOf` it, on a table whose cells
    * are `gridSize` across, and bumps the follow counter. A sphere or a column is moved as far off that
    * place as it was put round the character. Where a piece puts a range is the page's to say, as a
-   * piece on a wall puts it on the floor under its feet (see `PiecePlaceService.follow`).
+   * piece on a wall puts any range on the floor under its feet (see `PiecePlaceService.follow`).
    *
    * When that character is gone, the range stops following instead.
    */
