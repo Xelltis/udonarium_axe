@@ -93,13 +93,17 @@ export class PiecePlaceService {
    * Changes what a range stands up as or its shape, by `change`, as the seat changing it: a range
    * following a piece that comes to keep an offset from it or stops keeping one, as a sphere made
    * flat or a cone made a column, is put back on the piece (see `putBack`), since the offset of the
-   * one is no offset of the other. Between a sphere and a column the offset is kept. Every way a
-   * range's kind or shape is changed comes here; a range only received or restored is left as it came.
+   * one is no offset of the other; a range following no piece lets its offset go then too, so that
+   * it keeps none into a piece it follows later. Between a sphere and a column the offset is kept.
+   * Every way a range's kind or shape is changed comes here; a range only received or restored is left
+   * as it came.
    */
   reshape(range: RangeArea, change: () => void): void {
     const kept = range.keepsCasterOffset;
     change();
-    if (range.followingCharacterIdentifier && range.keepsCasterOffset !== kept) this.putBack(range);
+    if (range.keepsCasterOffset === kept) return;
+    if (range.followingCharacterIdentifier) this.putBack(range);
+    else range.casterOffset = { x: 0, y: 0 };
   }
 
   private grid(): number {
