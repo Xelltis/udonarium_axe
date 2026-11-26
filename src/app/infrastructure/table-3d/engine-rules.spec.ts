@@ -196,9 +196,10 @@ describe('shadowReachBox', () => {
     expect(reach.max.x).toBe(300);
   });
 
-  it('adds nothing for a sun under the horizon or a lamp no higher than the foot of the thing', () => {
+  it('adds nothing for a sun under the horizon, a lamp no higher than the foot of the thing, or one too far to light it', () => {
     expect(shadowReachBox(standing(), [{ runs: new Vector3(1, 0, 0) }], 1000)).toEqual(standing());
     expect(shadowReachBox(standing(), [{ at: new Vector3(50, 0, 0), reach: 1000 }], 1000)).toEqual(standing());
+    expect(shadowReachBox(standing(), [{ at: new Vector3(1000, 10, 0), reach: 50 }], 1000)).toEqual(standing());
   });
 
   it('throws a long shadow of a low sun no further than the reach given', () => {

@@ -77,7 +77,7 @@ export type ShadowLight = { readonly runs: Vector3 } | { readonly at: Vector3; r
  *   corners is lost.
  * - A lamp standing within the height of the thing: the whole of that square, as the shadow of the
  *   part under the lamp may run out to the end of its light every way. A lamp no higher than the foot
- *   of the thing adds nothing.
+ *   of the thing, or whose light does not reach it, adds nothing.
  */
 export function shadowReachBox(box: Box3, lights: readonly ShadowLight[], reach: number, floor = 0): Box3 {
   const within = box.clone();
@@ -88,7 +88,7 @@ export function shadowReachBox(box: Box3, lights: readonly ShadowLight[], reach:
       within.union(fallenBox(box, () => light.runs, reach, ground));
       continue;
     }
-    if (light.at.y <= box.min.y) continue;
+    if (light.at.y <= box.min.y || box.distanceToPoint(light.at) > light.reach) continue;
     const far = Math.min(reach, light.reach);
     const lit = new Box3(
       new Vector3(light.at.x - far, ground, light.at.z - far),
