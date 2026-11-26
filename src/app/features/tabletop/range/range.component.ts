@@ -16,6 +16,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -90,6 +91,7 @@ const FOLLOW_PANEL: PointerPanelBox = { width: 350, height: 200, reachLeft: 250,
 })
 export class RangeComponent {
   private readonly createMenu = inject(CreateObjectMenuService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly panelService = inject(PanelService);
@@ -345,7 +347,7 @@ export class RangeComponent {
       (e) => {
         if (!this._initialized) return;
         const range = this.range();
-        if (e.identifier === range.followingCharacterIdentifier) range.following(this.gridSize);
+        if (e.identifier === range.followingCharacterIdentifier) this.piecePlace.follow(range);
         this.setRange();
       },
       this.destroyRef
@@ -433,6 +435,7 @@ export class RangeComponent {
       () => this.dockingWindowOpen(),
       (r) => this.showDetail(r),
       this.translateFn,
+      (r) => this.piecePlace.follow(r),
       (r) => this.openCellEditor(r),
       (r) => this.targetInside(r)
     );

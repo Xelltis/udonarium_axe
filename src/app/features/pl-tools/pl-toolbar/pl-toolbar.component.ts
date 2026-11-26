@@ -12,6 +12,7 @@ import { ActiveCharacterService } from '@axe/application/character/active-charac
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -50,6 +51,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class PlToolbarComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly panelService = inject(PanelService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
@@ -249,7 +251,7 @@ export class PlToolbarComponent {
       kind
     );
     range.followingCharacterIdentifier = character.identifier;
-    range.following(this.tabletop.gridSize());
+    this.piecePlace.follow(range);
     SoundEffect.play(PresetSound.dicePut);
   }
 

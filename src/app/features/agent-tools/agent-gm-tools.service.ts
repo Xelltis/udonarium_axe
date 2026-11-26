@@ -8,6 +8,7 @@ import { EffectLibraryService } from '@axe/application/effect/effect-library.ser
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -49,6 +50,7 @@ const SHAPES: Readonly<Record<string, string>> = {
 @Injectable({ providedIn: 'root' })
 export class AgentGmTools {
   private readonly read = inject(AgentReadTools);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly views = inject(AgentViews);
   private readonly effects = inject(EffectLibraryService);
   private readonly casts = inject(EffectCastService);
@@ -268,7 +270,7 @@ export class AgentGmTools {
     }
     if (followed) {
       range.followingCharacterIdentifier = followed.identifier;
-      range.following(this.tabletop.gridSize());
+      this.piecePlace.follow(range);
     }
     range.update();
     return { id: range.identifier, name: range.name, shape: textArg(args, 'shape'), solid: solid || 'flat' };

@@ -10,6 +10,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -67,6 +68,7 @@ function failed(reason: HotbarFailure): HotbarRunResult {
 @Injectable({ providedIn: 'root' })
 export class HotbarRunnerService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly tabletop = inject(TabletopService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly macro = inject(CharacterMacroService);
@@ -248,7 +250,7 @@ export class HotbarRunnerService {
     if (options.kind === 'range') this.dressRange(range, options);
     if (docks) {
       range.followingCharacterIdentifier = character.identifier;
-      range.following(this.tabletop.gridSize());
+      this.piecePlace.follow(range);
     }
     range.laidByHotbarSlot = tag;
     range.update();

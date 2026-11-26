@@ -4,7 +4,6 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { cellPatternBoundingBox, parseCellPattern } from '@axe/domain/tabletop/cell-pattern';
-import { centerFollowerOnCharacter } from '@axe/domain/tabletop/following';
 import { appendPieceDataElements } from '@axe/domain/tabletop/piece-data-elements';
 import {
   asSolidKind,
@@ -246,20 +245,23 @@ export class RangeArea extends TabletopObject {
   }
 
   /**
-   * Moves the range onto the centre of the character it follows, on a table whose cells are
-   * `gridSize` across, and bumps the follow counter. A sphere or a column is moved as far off that
-   * centre as it was put round the character.
+   * Moves the range onto where the character it follows puts it, `placeOf` it, on a table whose cells
+   * are `gridSize` across, and bumps the follow counter. A sphere or a column is moved as far off that
+   * place as it was put round the character. Where a piece puts a range is the page's to say, as a
+   * piece on a wall puts it on the floor under its feet (see `PiecePlaceService.follow`).
    *
    * When that character is gone, the range stops following instead.
    */
-  following(gridSize: number) {
+  following(gridSize: number, placeOf: (piece: GameCharacter) => { x: number; y: number }) {
     const object = ObjectStore.instance.get<GameCharacter>(this.followingCharacterIdentifier);
     if (!object) {
       this.followingCharacterIdentifier = '';
       return;
     }
 
-    centerFollowerOnCharacter(this, object, gridSize);
+    const place = placeOf(object);
+    this.location.x = place.x;
+    this.location.y = place.y;
     if (this.keepsCasterOffset) {
       const offset = this.casterOffset;
       this.location.x += offset.x * gridSize;

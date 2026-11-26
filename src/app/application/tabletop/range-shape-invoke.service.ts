@@ -1,16 +1,17 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeShapeFieldValue } from '@axe/domain/data/range-shape-field';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 
 @Injectable({ providedIn: 'root' })
 export class RangeShapeInvokeService {
   private readonly tabletopService = inject(TabletopService);
+  private readonly place = inject(PiecePlaceService);
   private readonly translateFn = inject(TRANSLATE_FN);
 
   /**
@@ -33,10 +34,11 @@ export class RangeShapeInvokeService {
     return range;
   }
 
-  /** Puts a custom range from a range-shape field onto the current table, centred on a piece. */
+  /**
+   * Puts a custom range from a range-shape field onto the current table, centred where the piece puts
+   * a range (see `PiecePlaceService.floorPlaceOf`).
+   */
   spawnForCharacter(character: GameCharacter, field: RangeShapeFieldValue): RangeArea {
-    const cellPx = this.tabletopService.gridSize();
-    const center: PointerCoordinate = { ...pieceCentreOf(character, cellPx), z: character.posZ };
-    return this.spawnAt(center, field);
+    return this.spawnAt(this.place.floorPlaceOf(character), field);
   }
 }

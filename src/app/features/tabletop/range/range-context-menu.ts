@@ -42,6 +42,7 @@ export function buildRangeContextMenuModel(
   onDockingWindowOpen: () => void,
   onEdit: (r: RangeArea) => void,
   t: TranslateFn,
+  onFollow: (r: RangeArea) => void,
   onEditCells?: (r: RangeArea) => void,
   onTargetInside?: (r: RangeArea) => void
 ): RangeContextMenuModel {
@@ -64,7 +65,7 @@ export function buildRangeContextMenuModel(
         ];
   const followAction = buildFollowAction(range, objectStore, onDockingWindowOpen, t);
   const shapeAction = buildShapeAction(range, t);
-  const solidAction = buildSolidAction(range, gridSize, objectStore, t);
+  const solidAction = buildSolidAction(range, onFollow, objectStore, t);
   const customActions = buildCustomActions(range, onEditCells, t);
   const editAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.rangeEdit'),
@@ -198,7 +199,7 @@ const SOLID_LABELS: Record<SolidKind, string> = {
  */
 function buildSolidAction(
   range: RangeArea,
-  gridSize: number,
+  onFollow: (r: RangeArea) => void,
   objectStore: ObjectStore,
   t: TranslateFn
 ): ContextMenuAction {
@@ -217,7 +218,7 @@ function buildSolidAction(
       action: () => {
         range.casterOffset = { x: 0, y: 0 };
         range.altitude = 0;
-        range.following(gridSize);
+        onFollow(range);
         SoundEffect.play(PresetSound.sweep);
       },
     });

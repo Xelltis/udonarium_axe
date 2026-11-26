@@ -3,12 +3,16 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
+
+/** Puts a range on the middle of the piece it follows, on a table of 50px cells, as the page does for a piece on the floor. */
+const follow = (range: RangeArea) => range.following(50, (piece) => pieceCentreOf(piece, 50));
 
 describe('buildRangeContextMenuModel', () => {
   it('groups every range action for the 2D menu without changing the ordinary menu', () => {
@@ -24,7 +28,8 @@ describe('buildRangeContextMenuModel', () => {
         { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
-        t
+        t,
+        follow
       );
 
       expect(model.radialGroups.map((group) => group.name)).toEqual([
@@ -52,7 +57,8 @@ describe('buildRangeContextMenuModel', () => {
       { menuAt: vi.fn(() => []) } as CreateObjectMenu,
       vi.fn(),
       onEdit,
-      t
+      t,
+      follow
     ).actions;
   }
 
@@ -162,7 +168,8 @@ describe('buildRangeContextMenuModel', () => {
         { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
-        t
+        t,
+        follow
       );
 
       expect(model.actions.map((action) => action.name)).toContain(t('feature.tabletop.contextMenu.followCharacter'));
@@ -185,6 +192,7 @@ describe('buildRangeContextMenuModel', () => {
         vi.fn(),
         vi.fn(),
         t,
+        follow,
         undefined,
         aim
       ).actions;
@@ -222,7 +230,8 @@ describe('standing a range up from its menu', () => {
       { menuAt: vi.fn(() => []) } as CreateObjectMenu,
       vi.fn(),
       vi.fn(),
-      t
+      t,
+      follow
     );
     return model.actions.find((action) => action.name === 'feature.tabletop.contextMenu.solid')!.subActions!;
   }
@@ -294,7 +303,8 @@ describe('letting a range go of the piece it follows', () => {
         { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
-        t
+        t,
+        follow
       ).actions.map((action) => action.name);
 
       expect(names).toContain('feature.tabletop.contextMenu.unfollow');

@@ -11,6 +11,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -152,6 +153,7 @@ function removalKindOf(kind: string): AssetRemovalKind {
 @Injectable({ providedIn: 'root' })
 export class AgentAssetKinds {
   private readonly views = inject(AgentViews);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly tabletop = inject(TabletopService);
   private readonly actions = inject(TabletopActionService);
   private readonly ground = inject(StandingGroundService);
@@ -1443,7 +1445,7 @@ export class AgentAssetKinds {
             },
             (range, value) => {
               range.followingCharacterIdentifier = value === '' ? '' : this.seenPiece(value).identifier;
-              if (value !== '') range.following(this.tabletop.gridSize());
+              if (value !== '') this.piecePlace.follow(range);
             },
             200
           ),

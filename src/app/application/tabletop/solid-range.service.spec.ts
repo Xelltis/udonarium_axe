@@ -1,11 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -44,7 +49,7 @@ describe('SolidRangeService', () => {
     table.appendChild(range);
     if (following) {
       range.followingCharacterIdentifier = following.identifier;
-      range.following(GRID);
+      range.following(GRID, (piece) => pieceCentreOf(piece, GRID));
     }
     return range;
   }
@@ -87,8 +92,26 @@ describe('SolidRangeService', () => {
     expect(range.casterOffset).toEqual({ x: 4, y: 0 });
     expect(range.location.x).toBeCloseTo(275 + 4 * GRID);
     piece.location = { name: 'table', x: 0, y: 0 };
-    range.following(GRID);
+    range.following(GRID, (piece) => pieceCentreOf(piece, GRID));
     expect([range.location.x, range.location.y]).toEqual([25 + 4 * GRID, 25]);
+  });
+
+  it('starts a cone following a piece on a wall from the middle of its body where it stands out from the wall', () => {
+    const piece = caster(0, 0);
+    const pieces = TestBed.inject(TablePiecesService);
+    const footOf = pieces.footOf.bind(pieces);
+    vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+      one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+    );
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+      surface === 'south-wall' ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 }) : null
+    );
+    const range = solidRange('CORN', 'cone');
+    range.followingCharacterIdentifier = piece.identifier;
+    TestBed.inject(PiecePlaceService).follow(range);
+    changed(range);
+
+    expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 975, z: 475 });
   });
 
   it('draws a cone held by its tip the way it is pointed, and writes the way only once let go', () => {

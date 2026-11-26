@@ -4,6 +4,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
@@ -82,6 +83,7 @@ export class EffectTargetingService {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly castService = inject(EffectCastService);
   private readonly zones = inject(EngagementZoneService);
+  private readonly place = inject(PiecePlaceService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly pieceLinks = inject(PieceLinksService);
@@ -227,7 +229,7 @@ export class EffectTargetingService {
       if (body && identifiers.has(body.identifier)) continue;
       marks.push({ identifier: character.identifier, ...this.centerOf(character, gridSize) });
     }
-    return { center: this.centerOf(center, gridSize), radius, marks };
+    return { center: this.place.floorPlaceOf(center), radius, marks };
   });
 
   readonly links = computed<EffectTargetLink[]>(() => {
@@ -497,15 +499,16 @@ export class EffectTargetingService {
   }
 
   /**
-   * Takes everything within the radius of the centre piece, nearest first. A piece in an engagement
-   * zone stands at the zone's centre for this, so a zone the area reaches is reached whole; a piece
-   * taken out of the fight is never reached, and neither is the caster of an effect that needs
-   * somebody else.
+   * Takes everything within the radius of the centre piece, nearest first, each piece read where it
+   * puts what is laid on the table for it (see `PiecePlaceService.floorPlaceOf`), a piece on a wall
+   * or a board on the floor under its feet. A piece in an engagement zone stands at the zone's centre
+   * for this, so a zone the area reaches is reached whole; a piece taken out of the fight is never
+   * reached, and neither is the caster of an effect that needs somebody else.
    */
   private areaPicks(preset: EffectPreset, center: GameCharacter): string[] {
     const gridSize = this.tabletopService.gridSize();
     const reading = this.zones.reading();
-    const origin = { ...this.centerOf(center, gridSize), ...reading.pointOf(center) };
+    const origin = this.place.floorPlaceOf(center, reading.pointOf(center));
     const candidates = this.tabletopService.characters
       .filter(
         (character) =>
@@ -513,8 +516,7 @@ export class EffectTargetingService {
       )
       .map((character) => ({
         identifier: character.identifier,
-        ...this.centerOf(character, gridSize),
-        ...reading.pointOf(character),
+        ...this.place.floorPlaceOf(character, reading.pointOf(character)),
       }));
 
     return effectAreaTargets(origin, candidates, preset.areaRadiusCells * gridSize, preset.targetLimit);

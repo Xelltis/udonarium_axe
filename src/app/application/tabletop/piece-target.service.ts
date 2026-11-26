@@ -4,10 +4,8 @@ import { PartyService } from '@axe/application/party/party.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
-import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
-import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -22,12 +20,10 @@ import {
   compareGaps,
   nextAim,
 } from '@axe/domain/tabletop/aim-order';
-import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
 import { solidTouchesSegment } from '@axe/domain/tabletop/solid/solid-touch';
-import type { Vec3 } from '@axe/domain/tabletop/surface-space';
 
 @Injectable({ providedIn: 'root' })
 export class PieceTargetService {
@@ -38,10 +34,8 @@ export class PieceTargetService {
   private readonly zones = inject(EngagementZoneService);
   private readonly vision = inject(VisionService);
   private readonly solidRanges = inject(SolidRangeService);
-  private readonly pieces = inject(TablePiecesService);
-  private readonly tabletop = inject(TabletopService);
   private readonly links = inject(PieceLinksService);
-  private readonly surfaces = inject(TableSurfaceService);
+  private readonly place = inject(PiecePlaceService);
   private readonly parties = inject(PartyService);
 
   /**
@@ -109,7 +103,7 @@ export class PieceTargetService {
 
   /**
    * The pieces this seat may aim at, in the order a key aims at them one at a time from a piece (see
-   * `aimOrder`), measured between their bodies where they stand in the room (see `bodyInRoom`).
+   * `aimOrder`), measured between their bodies where they stand in the room (see `bodyReader`).
    * While an effect is held ready, only those it can be cast at, its caster kept out.
    */
   aimOrderFrom(from: GameCharacter | null): GameCharacter[] {
@@ -155,40 +149,13 @@ export class PieceTargetService {
   }
 
   /**
-   * Reads the body of each piece where it stands in the room now (see `bodyInRoom`), every way a piece
-   * is aimed at or taken in by a range reading the same body.
+   * Reads the body of each piece where it stands in the room now (see `PiecePlaceService.bodyAt`), a
+   * piece in an engagement zone at the zone's centre, every way a piece is aimed at or taken in by a
+   * range reading the same body.
    */
   private bodyReader(): (piece: GameCharacter) => AimBody {
     const reading = this.zones.reading();
-    const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
-    return (piece) => this.bodyInRoom(piece, reading.pointOf(piece), grid);
-  }
-
-  /**
-   * The body of a piece where it stands in the room: the line through its middle from its feet, at
-   * the height it stands at, its altitude included, as far as it is wide; upright on the floor, at the
-   * centre of an engagement zone it is in where it is in one, and out from the face on a wall or a
-   * board, worked out from that face as it is drawn, so the pieces on every face are measured alike.
-   */
-  private bodyInRoom(piece: GameCharacter, onFloor: { x: number; y: number }, grid: number): AimBody {
-    const foot = this.pieces.footOf(piece);
-    const lift = foot.height + piece.altitude * grid;
-    const frame = foot.surface === 'floor' ? null : this.surfaces.frameOf(foot.surface);
-    const half = pieceCentreOffsetPx(piece, grid);
-    if (!frame) {
-      return {
-        feet: { x: onFloor.x, y: onFloor.y, z: lift },
-        head: { x: onFloor.x, y: onFloor.y, z: lift + half * 2 },
-      };
-    }
-    const across = foot.x + half;
-    const down = foot.y + half;
-    const outAt = (out: number): Vec3 => ({
-      x: frame.origin.x + frame.u.x * across + frame.v.x * down + frame.normal.x * out,
-      y: frame.origin.y + frame.u.y * across + frame.v.y * down + frame.normal.y * out,
-      z: frame.origin.z + frame.u.z * across + frame.v.z * down + frame.normal.z * out,
-    });
-    return { feet: outAt(lift), head: outAt(lift + half * 2) };
+    return (piece) => this.place.bodyAt(piece, reading.pointOf(piece));
   }
 
   /**
@@ -243,7 +210,7 @@ export class PieceTargetService {
 
   /**
    * Aims at every piece a range takes in that the reader can see, counted in squares of `squarePx`,
-   * and at nothing else, each read by its body (see `bodyInRoom`). A range laid on the table takes in
+   * and at nothing else, each read by its body (see `bodyReader`). A range laid on the table takes in
    * a piece whose feet stand over what it covers, a piece on a wall or a board where its feet stand
    * out from the face; a piece in an engagement zone where the range takes in the zone's centre; a
    * piece taken out of the fight not at all. A range standing up off the table takes in a piece any
@@ -293,7 +260,7 @@ export class PieceTargetService {
       .map(({ piece }) => piece);
   }
 
-  /** The pieces the reader can see that any part of the body of reaches into a solid (see `bodyInRoom`). */
+  /** The pieces the reader can see that any part of the body of reaches into a solid (see `bodyReader`). */
   private takenIntoSolid(solid: Solid): GameCharacter[] {
     const bodyOf = this.bodyReader();
     return this.objectStore

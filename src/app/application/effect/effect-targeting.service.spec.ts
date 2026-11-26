@@ -3,6 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -13,6 +15,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { EngagementZone } from '@axe/domain/tabletop/zone/engagement-zone';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { MockInstance } from 'vitest';
@@ -482,6 +485,35 @@ describe('EffectTargetingService', () => {
 
       expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier, characters[2].identifier]);
       expect(service.areaCenter()).not.toBeNull();
+    });
+
+    it('reaches a piece on a wall on the floor under its feet, not at its place on the wall read as a place on the floor', () => {
+      const onWall = makeCharacter('壁', 0);
+      const byTheWall = makeCharacter('壁際', 950);
+      byTheWall.location.y = 975;
+      const pieces = TestBed.inject(TablePiecesService);
+      const footOf = pieces.footOf.bind(pieces);
+      vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+        one === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+      );
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+        surface === 'south-wall'
+          ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
+          : null
+      );
+      try {
+        service.begin(preset);
+        service.pick(characters[0].identifier);
+        expect(service.picks()).not.toContain(onWall.identifier);
+
+        service.cancel();
+        service.begin(preset);
+        service.pick(byTheWall.identifier);
+        expect(service.picks()).toContain(onWall.identifier);
+      } finally {
+        ObjectStore.instance.remove(onWall);
+        ObjectStore.instance.remove(byTheWall);
+      }
     });
 
     it('strikes a piece this reader cannot see without marking it, numbering the marks among those shown', () => {

@@ -134,6 +134,26 @@ describe('PieceTargetService', () => {
       byFace.destroy();
     });
 
+    it('picks the nearest a range laid on the table takes in by where each piece’s feet stand, one on a wall too', () => {
+      const onWall = GameCharacter.create('壁', 1, '');
+      onWall.location = { name: 'table', x: 0, y: 0 };
+      standOnSouthWall(onWall);
+      const onFloor = GameCharacter.create('床', 1, '');
+      onFloor.location = { name: 'table', x: 980, y: 965 };
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+      const range = circleAt(975, 990);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([onWall.identifier]);
+      targeting.cancel();
+      range.destroy();
+    });
+
     it('aims at the pieces a circle takes in, and takes the aim off the rest and off pieces out of the fight', () => {
       const range = circleAt(300, 300);
       const inside = GameCharacter.create('中', 1, '');

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 
 describe('RangeArea', () => {
@@ -202,7 +203,7 @@ describe('a range following a character', () => {
     const range = RangeArea.create('範囲', 3, 5, 1);
     range.followingCharacterIdentifier = character.identifier;
 
-    range.following(80);
+    range.following(80, (piece) => pieceCentreOf(piece, 80));
 
     expect([range.location.x, range.location.y]).toEqual([180, 280]);
     character.destroy();
@@ -213,7 +214,7 @@ describe('a range following a character', () => {
     const range = RangeArea.create('範囲', 3, 5, 1);
     range.followingCharacterIdentifier = 'missing-id';
 
-    range.following(50);
+    range.following(50, (piece) => pieceCentreOf(piece, 50));
 
     expect(range.followingCharacterIdentifier).toBe('');
     range.destroy();
@@ -369,7 +370,7 @@ describe('a solid range following a character', () => {
     range.casterOffset = { x: 1.5, y: -2 };
     range.followingCharacterIdentifier = character.identifier;
 
-    range.following(80);
+    range.following(80, (piece) => pieceCentreOf(piece, 80));
 
     expect([range.location.x, range.location.y]).toEqual([300, 120]);
     character.destroy();
@@ -391,7 +392,7 @@ describe('a solid range following a character', () => {
       range.casterOffset = { x: 3, y: 3 };
       range.followingCharacterIdentifier = character.identifier;
 
-      range.following(50);
+      range.following(50, (piece) => pieceCentreOf(piece, 50));
 
       expect([range.location.x, range.location.y]).toEqual([25, 25]);
       range.destroy();
