@@ -646,6 +646,31 @@ describe('EffectTargetingService', () => {
         canHover.set(false);
       });
 
+      it('centres the area of a piece on a wall on the floor under its feet, before the press as after it', () => {
+        const onWall = makeCharacter('壁', 0);
+        const pieces = TestBed.inject(TablePiecesService);
+        const footOf = pieces.footOf.bind(pieces);
+        vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+          one === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+        );
+        vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+          surface === 'south-wall'
+            ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
+            : null
+        );
+        try {
+          service.begin(preset);
+          service.hoverPiece(onWall.identifier, true);
+          expect(service.areaProspect()?.center).toEqual({ x: 975, y: 1000, z: 0 });
+
+          service.pick(onWall.identifier);
+          expect(service.areaCenter()).toEqual({ x: 975, y: 1000, z: 0 });
+        } finally {
+          service.hoverPiece(onWall.identifier, false);
+          ObjectStore.instance.remove(onWall);
+        }
+      });
+
       it('shows before the centre is pressed how far it would reach and exactly the pieces the press takes', () => {
         service.begin(preset);
         expect(service.areaProspect()).toBeNull();

@@ -129,13 +129,16 @@ export class EffectTargetingService {
     return cells > 0 ? cells * this.tabletopService.gridSize() : 0;
   });
 
-  /** The centre of the area, where the circle is drawn. */
+  /**
+   * The centre of the area, where the circle is drawn: where the piece lays it, as the preview does
+   * (see `PiecePlaceService.floorPlaceOf`).
+   */
   readonly areaCenter = computed<{ x: number; y: number; z: number } | null>(() => {
     if (this.areaRadius() <= 0) return null;
     const character = this.characterOf(this._epicenter());
     if (!character) return null;
     this.objectChange.versionOf(character.identifier)();
-    return this.centerOf(character, this.tabletopService.gridSize());
+    return this.place.floorPlaceOf(character);
   });
   readonly isPicking = computed(() => this._preset() != null);
   /** The colour the numbers of the picks are drawn in: the effect's own first colour. */
