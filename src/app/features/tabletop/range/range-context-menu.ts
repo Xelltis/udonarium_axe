@@ -25,6 +25,15 @@ export interface RangeContextMenuModel {
 }
 
 /**
+ * How the menu changes a range's kind or shape and puts it back on the piece it follows, the page's
+ * to say (see `PiecePlaceService.reshape` and `putBack`).
+ */
+export interface RangePlacing {
+  reshape(range: RangeArea, change: () => void): void;
+  putBack(range: RangeArea): void;
+}
+
+/**
  * A range's right-click menu, as a flat list and as groups for the radial menu.
  *
  * It offers altitude, lock and (for circles and polygons, and for any shape standing up) following a
@@ -42,7 +51,7 @@ export function buildRangeContextMenuModel(
   onDockingWindowOpen: () => void,
   onEdit: (r: RangeArea) => void,
   t: TranslateFn,
-  onFollow: (r: RangeArea) => void,
+  placing: RangePlacing,
   onEditCells?: (r: RangeArea) => void,
   onTargetInside?: (r: RangeArea) => void
 ): RangeContextMenuModel {
@@ -64,8 +73,8 @@ export function buildRangeContextMenuModel(
           },
         ];
   const followAction = buildFollowAction(range, objectStore, onDockingWindowOpen, t);
-  const shapeAction = buildShapeAction(range, t);
-  const solidAction = buildSolidAction(range, onFollow, objectStore, t);
+  const shapeAction = buildShapeAction(range, placing, t);
+  const solidAction = buildSolidAction(range, placing, objectStore, t);
   const customActions = buildCustomActions(range, onEditCells, t);
   const editAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.rangeEdit'),
@@ -153,11 +162,11 @@ function buildFollowAction(
  * The shapes a range can be switched to, the current one ticked. The square opens onto drawing its
  * four corners on the diagonals, as a diamond, or square to the grid.
  */
-function buildShapeAction(range: RangeArea, t: TranslateFn): ContextMenuAction {
+function buildShapeAction(range: RangeArea, placing: RangePlacing, t: TranslateFn): ContextMenuAction {
   const pick = (type: string, label: string): ContextMenuAction => ({
     name: (range.type === type ? '✔ ' : '') + t(`feature.tabletop.contextMenu.${label}`),
     action: () => {
-      range.type = type;
+      placing.reshape(range, () => (range.type = type));
       SoundEffect.play(PresetSound.sweep);
     },
   });
@@ -199,14 +208,14 @@ const SOLID_LABELS: Record<SolidKind, string> = {
  */
 function buildSolidAction(
   range: RangeArea,
-  onFollow: (r: RangeArea) => void,
+  placing: RangePlacing,
   objectStore: ObjectStore,
   t: TranslateFn
 ): ContextMenuAction {
   const pick = (kind: SolidKind): ContextMenuAction => ({
     name: (range.solidKind === kind ? '✔ ' : '') + t(`feature.tabletop.contextMenu.${SOLID_LABELS[kind]}`),
     action: () => {
-      range.solidKind = kind;
+      placing.reshape(range, () => (range.solidKind = kind));
       SoundEffect.play(PresetSound.sweep);
     },
   });
@@ -216,9 +225,7 @@ function buildSolidAction(
     subActions.push({
       name: t('feature.tabletop.contextMenu.solidBackToCaster'),
       action: () => {
-        range.casterOffset = { x: 0, y: 0 };
-        range.altitude = 0;
-        onFollow(range);
+        placing.putBack(range);
         SoundEffect.play(PresetSound.sweep);
       },
     });

@@ -80,19 +80,26 @@ export class PiecePlaceService {
   }
 
   /**
-   * Puts a range following a piece back on it, its offset and altitude let go, once it has become
-   * another kind than `kindBefore`, as from a sphere to a flat range or back: an offset a sphere kept is
-   * no offset of a flat range, and a flat range's place is none of a sphere's. Answers the kind it is
-   * now, for the next time. Every way a range's kind or shape is changed, from any seat, comes here
-   * through the range as it is drawn.
+   * Puts a range following a piece back on it, its offset and altitude let go, as putting a sphere
+   * back on its caster does.
    */
-  reseat(range: RangeArea, kindBefore: string): string {
-    const kind = range.solidKind;
-    if (kind === kindBefore || !range.followingCharacterIdentifier) return kind;
+  putBack(range: RangeArea): void {
     range.casterOffset = { x: 0, y: 0 };
     range.altitude = 0;
     this.follow(range);
-    return kind;
+  }
+
+  /**
+   * Changes what a range stands up as or its shape, by `change`, as the seat changing it: a range
+   * following a piece that comes to keep an offset from it or stops keeping one, as a sphere made
+   * flat or a cone made a column, is put back on the piece (see `putBack`), since the offset of the
+   * one is no offset of the other. Between a sphere and a column the offset is kept. Every way a
+   * range's kind or shape is changed comes here; a range only received or restored is left as it came.
+   */
+  reshape(range: RangeArea, change: () => void): void {
+    const kept = range.keepsCasterOffset;
+    change();
+    if (range.followingCharacterIdentifier && range.keepsCasterOffset !== kept) this.putBack(range);
   }
 
   private grid(): number {

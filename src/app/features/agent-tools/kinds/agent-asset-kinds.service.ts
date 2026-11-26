@@ -1316,7 +1316,7 @@ export class AgentAssetKinds {
           RANGE_SHAPE_NAMES,
           shapeOf,
           (range, value) => {
-            range.type = RANGE_SHAPES[value];
+            this.piecePlace.reshape(range, () => (range.type = RANGE_SHAPES[value]));
           }
         ),
         {
@@ -1327,7 +1327,7 @@ export class AgentAssetKinds {
             SOLIDS,
             (range) => range.solidKind || 'flat',
             (range, value) => {
-              range.solidKind = solidOf(value);
+              this.piecePlace.reshape(range, () => (range.solidKind = solidOf(value)));
             }
           ),
           refuse: (range, value) =>

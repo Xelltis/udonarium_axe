@@ -6,13 +6,20 @@ import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
-import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
+import { buildRangeContextMenuModel, type RangePlacing } from '@axe/features/tabletop/range/range-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
 
-/** Puts a range on the middle of the piece it follows, on a table of 50px cells, as the page does for a piece on the floor. */
-const follow = (range: RangeArea) => range.following(50, (piece) => pieceCentreOf(piece, 50));
+/** Changes a range and puts it back on the piece it follows, on a table of 50px cells, as the page does for a piece on the floor. */
+const follow: RangePlacing = {
+  reshape: (_range, change) => change(),
+  putBack: (range) => {
+    range.casterOffset = { x: 0, y: 0 };
+    range.altitude = 0;
+    range.following(50, (piece) => pieceCentreOf(piece, 50));
+  },
+};
 
 describe('buildRangeContextMenuModel', () => {
   it('groups every range action for the 2D menu without changing the ordinary menu', () => {
@@ -246,8 +253,10 @@ describe('standing a range up from its menu', () => {
         'feature.tabletop.contextMenu.solidColumn',
         'feature.tabletop.contextMenu.solidSphere',
       ]);
+      const reshape = vi.spyOn(follow, 'reshape');
       solidEntries(range)[2].action!();
       expect(range.solidKind).toBe('sphere');
+      expect(reshape).toHaveBeenCalledWith(range, expect.any(Function));
       range.type = 'HEXAGON';
       expect(solidEntries(range).map((entry) => entry.name)).toEqual([
         'feature.tabletop.contextMenu.solidFlat',
