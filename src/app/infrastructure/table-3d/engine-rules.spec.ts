@@ -184,7 +184,7 @@ describe('shadowReachBox', () => {
 
     const thin = new Box3(new Vector3(-10, 0, 2), new Vector3(10, 50, 2.1));
     expect(
-      shadowReachBox(thin, [{ at: new Vector3(0, 25, 0), reach: 300 }], 1000).containsPoint(new Vector3(0, 0, 50))
+      shadowReachBox(thin, [{ at: new Vector3(0, 25, 0), reach: 300 }], 1000).containsPoint(new Vector3(0, 0, 250))
     ).toBe(true);
   });
 
