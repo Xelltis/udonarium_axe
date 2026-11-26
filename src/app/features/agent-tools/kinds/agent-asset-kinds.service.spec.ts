@@ -515,6 +515,24 @@ describe('AgentAssetKinds', () => {
       ]);
     });
 
+    it('puts a cone following a piece back on it as its shape makes it a column', () => {
+      const goblin = pieceAt('ゴブリン', 2, 2);
+      const made = call('create_object', { kind: 'range', options: { shape: 'cone', solid: 'cone' } }) as {
+        id: string;
+      };
+      change('range', made.id, { follow: 'ゴブリン' });
+      const range = ObjectStore.instance.get<RangeArea>(made.id)!;
+      range.location = { name: 'table', x: 400, y: 400 };
+
+      change('range', made.id, { shape: 'circle' });
+
+      expect(range.solidKind).toBe('column');
+      expect([range.location.x, range.location.y]).toEqual([
+        goblin.location.x + GRID / 2,
+        goblin.location.y + GRID / 2,
+      ]);
+    });
+
     it('stands a range up only as a solid its shape can take', () => {
       expect(() => call('create_object', { kind: 'range', options: { shape: 'square', solid: 'sphere' } })).toThrow(
         /square cannot stand up as a sphere/

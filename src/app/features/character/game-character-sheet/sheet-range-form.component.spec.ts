@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SheetRangeFormComponent } from '@axe/features/character/game-character-sheet/sheet-range-form.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -39,6 +40,18 @@ describe('SheetRangeFormComponent', () => {
 
     expect(range.type).toBe('CIRCLE');
     expect(shapeButtons()[7].classList).toContain('font-semibold');
+  });
+
+  it('changes the shape and the kind through the page, which puts a range following a piece back on it', async () => {
+    const reshape = vi.spyOn(TestBed.inject(PiecePlaceService), 'reshape');
+    range.type = 'CIRCLE';
+    await fixture.whenStable();
+
+    shapeButtons()[6].click();
+    root().querySelector<HTMLButtonElement>('[data-solid-kind="column"]')!.click();
+
+    expect(reshape.mock.calls.map(([of]) => of)).toEqual([range, range]);
+    expect([range.type, range.solidKind]).toEqual(['HEXAGON', 'column']);
   });
 
   it('writes the two colours to the range from their fields', () => {

@@ -152,8 +152,11 @@ describe('buildRangeContextMenuModel', () => {
       expect(square?.action).toBeUndefined();
       expect(square?.subActions?.map((action) => action.name)).toEqual(['ダイヤとして出力', '✔ 四角形として出力']);
 
+      const reshape = vi.spyOn(follow, 'reshape');
       square!.subActions![0].action!();
       expect(range.type).toBe('RHOMBUS');
+      expect(reshape).toHaveBeenCalledWith(range, expect.any(Function));
+      reshape.mockRestore();
       const again = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形・ダイヤ'));
       expect(again?.subActions?.map((action) => action.name)).toEqual(['✔ ダイヤとして出力', '四角形として出力']);
     } finally {
