@@ -82,6 +82,58 @@ describe('PieceTargetService', () => {
       return range;
     }
 
+    function standOnSouthWall(piece: GameCharacter): void {
+      const dims = { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 };
+      const pieces = TestBed.inject(TablePiecesService);
+      const footOf = pieces.footOf.bind(pieces);
+      vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+        one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+      );
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+        surface === 'south-wall' ? surfaceFrame('south-wall', dims) : null
+      );
+    }
+
+    it('takes in a piece on a wall where its body stands out from the wall, for a range standing up', () => {
+      const range = circleAt(0, 0);
+      vi.spyOn(range, 'isSolid', 'get').mockReturnValue(true);
+      const onWall = GameCharacter.create('壁', 1, '');
+      onWall.location = { name: 'table', x: 0, y: 0 };
+      standOnSouthWall(onWall);
+      const placed = vi.spyOn(TestBed.inject(SolidRangeService), 'placedOf');
+
+      placed.mockReturnValue({
+        solid: { kind: 'sphere', centre: { x: 975, y: 975, z: 475 }, radius: 40 },
+        origin: { x: 975, y: 975, z: 475 },
+      } as never);
+      service().targetInsideRange(range, 50);
+      expect(onWall.targeted).toBe(true);
+
+      placed.mockReturnValue({
+        solid: { kind: 'sphere', centre: { x: 25, y: 25, z: 25 }, radius: 40 },
+        origin: { x: 25, y: 25, z: 25 },
+      } as never);
+      service().targetInsideRange(range, 50);
+      expect(onWall.targeted).toBe(false);
+      range.destroy();
+    });
+
+    it('takes in a piece on a wall where its feet stand out from the wall, for a range laid on the table', () => {
+      const onWall = GameCharacter.create('壁', 1, '');
+      onWall.location = { name: 'table', x: 0, y: 0 };
+      standOnSouthWall(onWall);
+
+      const byFeet = circleAt(975, 990);
+      service().targetInsideRange(byFeet, 50);
+      expect(onWall.targeted).toBe(true);
+      byFeet.destroy();
+
+      const byFace = circleAt(25, 25);
+      service().targetInsideRange(byFace, 50);
+      expect(onWall.targeted).toBe(false);
+      byFace.destroy();
+    });
+
     it('aims at the pieces a circle takes in, and takes the aim off the rest and off pieces out of the fight', () => {
       const range = circleAt(300, 300);
       const inside = GameCharacter.create('中', 1, '');

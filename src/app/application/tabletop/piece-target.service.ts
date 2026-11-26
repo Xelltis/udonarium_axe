@@ -145,22 +145,30 @@ export class PieceTargetService {
   }
 
   private aimCandidateReader(): (piece: GameCharacter) => AimCandidate {
-    const reading = this.zones.reading();
-    const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
+    const bodyOf = this.bodyReader();
     return (piece) => ({
       identifier: piece.identifier,
-      ...this.bodyInRoom(piece, reading.pointOf(piece), grid),
+      ...bodyOf(piece),
       side: this.sideOf(piece),
       whole: this.links.bodyOf(piece)?.identifier ?? piece.identifier,
     });
   }
 
   /**
-   * The body of a piece where it stands in the room: the upright line through its middle from its
-   * feet, at the height it stands at, its altitude included, up as far as it is wide. On the floor, at
-   * the centre of an engagement zone it is in where it is in one; on a wall or a board, out from the
-   * face it stands on, worked out from that face as it is drawn, so the pieces on every face are
-   * measured alike.
+   * Reads the body of each piece where it stands in the room now (see `bodyInRoom`), every way a piece
+   * is aimed at or taken in by a range reading the same body.
+   */
+  private bodyReader(): (piece: GameCharacter) => AimBody {
+    const reading = this.zones.reading();
+    const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
+    return (piece) => this.bodyInRoom(piece, reading.pointOf(piece), grid);
+  }
+
+  /**
+   * The body of a piece where it stands in the room: the line through its middle from its feet, at
+   * the height it stands at, its altitude included, as far as it is wide; upright on the floor, at the
+   * centre of an engagement zone it is in where it is in one, and out from the face on a wall or a
+   * board, worked out from that face as it is drawn, so the pieces on every face are measured alike.
    */
   private bodyInRoom(piece: GameCharacter, onFloor: { x: number; y: number }, grid: number): AimBody {
     const foot = this.pieces.footOf(piece);
@@ -235,9 +243,11 @@ export class PieceTargetService {
 
   /**
    * Aims at every piece a range takes in that the reader can see, counted in squares of `squarePx`,
-   * and at nothing else. A piece in an engagement zone is taken in where the range takes in the
-   * zone's centre; a piece taken out of the fight is not taken in at all. A range standing up off the
-   * table takes in a piece any part of whose body reaches into it, high or low.
+   * and at nothing else, each read by its body (see `bodyInRoom`). A range laid on the table takes in
+   * a piece whose feet stand over what it covers, a piece on a wall or a board where its feet stand
+   * out from the face; a piece in an engagement zone where the range takes in the zone's centre; a
+   * piece taken out of the fight not at all. A range standing up off the table takes in a piece any
+   * part of whose body reaches into it, high or low.
    */
   targetInsideRange(range: RangeArea, squarePx: number): void {
     const placed = range.isSolid ? this.solidRanges.placedOf(range.identifier) : null;
@@ -252,30 +262,30 @@ export class PieceTargetService {
       rotate: range.rotate,
       origin: { x: range.location.x, y: range.location.y },
     };
-    const reading = this.zones.reading();
+    const bodyOf = this.bodyReader();
     const inside = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => this.mayAimAt(piece))
-      .filter((piece) => rangeCovers(shape, squarePx, reading.pointOf(piece)) === true);
+      .filter((piece) => {
+        const { feet } = bodyOf(piece);
+        return rangeCovers(shape, squarePx, { x: feet.x, y: feet.y }) === true;
+      });
     this.setOnly(this.nearestFirst(inside, shape.origin));
   }
 
   /**
    * Pieces in order of how near each stands to a point, so an effect held ready that takes fewer than
-   * a range holds takes the nearest: across the table for a range laid on it, and through the room
-   * to the nearest point of each piece's body (see `bodyGap`), for one standing up with a height of
-   * its own.
+   * a range holds takes the nearest: across the table to where each piece's feet stand for a range
+   * laid on it, and through the room to the nearest point of each piece's body (see `bodyGap`) for
+   * one standing up with a height of its own.
    */
   private nearestFirst(pieces: readonly GameCharacter[], from: { x: number; y: number; z?: number }): GameCharacter[] {
-    const reading = this.zones.reading();
-    const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
+    const bodyOf = this.bodyReader();
     const distance = (piece: GameCharacter) => {
-      if (from.z === undefined) {
-        const at = reading.pointOf(piece);
-        return Math.hypot(at.x - from.x, at.y - from.y);
-      }
+      const body = bodyOf(piece);
+      if (from.z === undefined) return Math.hypot(body.feet.x - from.x, body.feet.y - from.y);
       const point = { x: from.x, y: from.y, z: from.z };
-      return bodyGap({ feet: point, head: point }, this.bodyInRoom(piece, reading.pointOf(piece), grid));
+      return bodyGap({ feet: point, head: point }, body);
     };
     return pieces
       .map((piece, index) => ({ piece, index, away: distance(piece) }))
@@ -283,23 +293,15 @@ export class PieceTargetService {
       .map(({ piece }) => piece);
   }
 
-  /**
-   * The pieces the reader can see that any part of reaches into a solid: the upright line through the
-   * middle of a piece, from its feet, its altitude included, up as far as it is wide. A piece in an
-   * engagement zone is read across the table at the zone's centre, and up from its own feet.
-   */
+  /** The pieces the reader can see that any part of the body of reaches into a solid (see `bodyInRoom`). */
   private takenIntoSolid(solid: Solid): GameCharacter[] {
-    const reading = this.zones.reading();
-    const table = this.tabletop.currentTable;
-    const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+    const bodyOf = this.bodyReader();
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => this.mayAimAt(piece))
       .filter((piece) => {
-        const at = reading.pointOf(piece);
-        const feet = this.pieces.footOf(piece).height + piece.altitude * gridSize;
-        const tall = Math.max(0, piece.size) * gridSize;
-        return solidTouchesSegment(solid, { x: at.x, y: at.y, z: feet }, { x: at.x, y: at.y, z: feet + tall });
+        const { feet, head } = bodyOf(piece);
+        return solidTouchesSegment(solid, feet, head);
       });
   }
 
