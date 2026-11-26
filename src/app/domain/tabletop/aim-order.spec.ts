@@ -1,11 +1,38 @@
-import { type AimCandidate, aimOrder, nextAim } from '@axe/domain/tabletop/aim-order';
+import { type AimCandidate, aimOrder, bodyGap, nextAim } from '@axe/domain/tabletop/aim-order';
 
 const at = (
   identifier: string,
   x: number,
   side: AimCandidate['side'] = null,
-  { z = 0, whole = identifier }: { z?: number; whole?: string } = {}
-): AimCandidate => ({ identifier, x, y: 0, z, side, whole });
+  { z = 0, tall = 0, whole = identifier }: { z?: number; tall?: number; whole?: string } = {}
+): AimCandidate => ({ identifier, feet: { x, y: 0, z }, head: { x, y: 0, z: z + tall }, side, whole });
+
+describe('bodyGap', () => {
+  const body = (x: number, z: number, tall: number) => ({ feet: { x, y: 0, z }, head: { x, y: 0, z: z + tall } });
+
+  it('takes bodies standing on one floor as far apart as they stand across it, however tall either is', () => {
+    expect(bodyGap(body(0, 0, 50), body(100, 0, 300))).toBeCloseTo(100);
+    expect(bodyGap(body(0, 0, 50), body(100, 0, 50))).toBeCloseTo(100);
+  });
+
+  it('takes a body over another as far as the gap from its feet down to the other’s head', () => {
+    expect(bodyGap(body(0, 200, 50), body(0, 0, 50))).toBeCloseTo(150);
+    expect(bodyGap(body(0, 0, 50), body(0, 200, 50))).toBeCloseTo(150);
+    expect(bodyGap(body(0, 200, 50), body(30, 0, 50))).toBeCloseTo(Math.hypot(30, 150));
+  });
+
+  it('reads a body whose feet and head are one point as that point, as a range’s centre is', () => {
+    const point = { feet: { x: 0, y: 0, z: 100 }, head: { x: 0, y: 0, z: 100 } };
+    expect(bodyGap(point, body(40, 0, 300))).toBeCloseTo(40);
+    expect(bodyGap(point, body(40, 0, 50))).toBeCloseTo(Math.hypot(40, 50));
+    expect(bodyGap(point, point)).toBe(0);
+  });
+
+  it('measures bodies standing out from a wall along the way they stand', () => {
+    const onWall = { feet: { x: 0, y: 0, z: 100 }, head: { x: 0, y: 80, z: 100 } };
+    expect(bodyGap(onWall, { feet: { x: 0, y: 200, z: 100 }, head: { x: 0, y: 200, z: 100 } })).toBeCloseTo(120);
+  });
+});
 
 describe('aimOrder', () => {
   const hero = at('hero', 0, 'left');
@@ -29,6 +56,13 @@ describe('aimOrder', () => {
       'beside',
       'overhead',
     ]);
+  });
+
+  it('takes a tall piece as near as a small one standing as far across, its body reaching down to the floor', () => {
+    const standing = at('hero', 0, 'left', { tall: 50 });
+    expect(
+      aimOrder(standing, [at('giant', 100, 'right', { tall: 300 }), at('imp', -100, 'right', { tall: 20 })])
+    ).toEqual(['giant', 'imp']);
   });
 
   it('passes over the pieces one with the piece it goes from, its body and its other parts, but takes the parts of another', () => {

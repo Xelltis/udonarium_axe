@@ -285,6 +285,27 @@ describe('PieceTargetService', () => {
       expect([grounded.targeted, flying.targeted]).toEqual([true, true]);
     });
 
+    it('picks the piece whose body comes nearest to where it is cast from, a tall one beside as near as it stands across', () => {
+      const column = standing('CIRCLE', 'column', (range) => {
+        range.location = { name: 'table', x: 5.5 * GRID, y: 5.5 * GRID };
+        range.columnHeight = 6;
+      });
+      const giant = GameCharacter.create('巨人', 4, '');
+      giant.location = { name: 'table', x: 5.5 * GRID + 50 - 2 * GRID, y: 5.5 * GRID - 2 * GRID };
+      const imp = GameCharacter.create('小鬼', 1, '');
+      imp.location = { name: 'table', x: 5.5 * GRID - 60 - GRID / 2, y: 5.5 * GRID - GRID / 2 };
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(column, GRID);
+
+      expect(targeting.picks()).toEqual([giant.identifier]);
+      targeting.cancel();
+    });
+
     it('takes in only the pieces a cone pointed up reaches, whatever lies under it on the ground', () => {
       const cone = standing('CORN', 'cone', (range) => {
         range.location = { name: 'table', x: 5 * GRID, y: 5.5 * GRID };
@@ -425,16 +446,24 @@ describe('PieceTargetService', () => {
       expect(service().aimOrderFrom(hero)).toEqual([onFloor, flying, onWall]);
     });
 
-    it('aims first at the piece whose middle is nearest, a tall one beside a flying one', () => {
+    it('takes a tall piece as near as a small one standing as far across the table, measured to the nearest of its body', () => {
       const hero = on('勇者', 0, 'left');
-      hero.altitude = 3;
       const tall = GameCharacter.create('巨人', 6, '');
-      tall.location = { name: 'table', x: 25, y: -125 };
+      tall.location = { name: 'table', x: -100 - 150 + 25, y: -150 + 25 };
       tall.battleSide = 'right';
       made.push(tall);
-      const low = on('小さい', 90, 'right');
+      const small = on('小さい', 100, 'right');
 
-      expect(service().aimOrderFrom(hero)).toEqual([tall, low]);
+      expect(service().aimOrderFrom(hero)).toEqual([tall, small]);
+    });
+
+    it('takes a piece flying over another as far as the gap from its feet down to the other’s head', () => {
+      const hero = on('勇者', 0, 'left');
+      const overhead = on('真上', 0, 'right', 0);
+      overhead.altitude = 4;
+      const beside = on('隣', 120, 'right');
+
+      expect(service().aimOrderFrom(hero)).toEqual([beside, overhead]);
     });
 
     it('passes over the caster of an effect held ready, which it cannot be cast at', () => {

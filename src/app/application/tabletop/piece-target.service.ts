@@ -14,7 +14,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BATTLE_SIDE_OUT, type BattleSide } from '@axe/domain/battle/battle-lineup';
 import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { type AimCandidate, aimOrder, nextAim } from '@axe/domain/tabletop/aim-order';
+import { type AimBody, type AimCandidate, aimOrder, bodyGap, nextAim } from '@axe/domain/tabletop/aim-order';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
@@ -102,7 +102,7 @@ export class PieceTargetService {
 
   /**
    * The pieces this seat may aim at, in the order a key aims at them one at a time from a piece (see
-   * `aimOrder`), measured from the middle of each where it stands in the room (see `middleInRoom`).
+   * `aimOrder`), measured between their bodies where they stand in the room (see `bodyInRoom`).
    * While an effect is held ready, only those it can be cast at, its caster kept out.
    */
   aimOrderFrom(from: GameCharacter | null): GameCharacter[] {
@@ -142,32 +142,38 @@ export class PieceTargetService {
     const grid = this.tabletop.currentTable.gridSize > 0 ? this.tabletop.currentTable.gridSize : 50;
     return (piece) => ({
       identifier: piece.identifier,
-      ...this.middleInRoom(piece, reading.pointOf(piece), grid),
+      ...this.bodyInRoom(piece, reading.pointOf(piece), grid),
       side: this.sideOf(piece),
       whole: this.links.bodyOf(piece)?.identifier ?? piece.identifier,
     });
   }
 
   /**
-   * The middle of a piece where it stands in the room, at the height it stands at: on the floor, at
-   * the centre of an engagement zone it is in where it is in one, as high as half its height over
-   * where it stands; on a wall or a board, on the face it
-   * stands on, worked out from that face as it is drawn, so the pieces on every face are measured
-   * alike.
+   * The body of a piece where it stands in the room: the upright line through its middle from its
+   * feet, at the height it stands at, its altitude included, up as far as it is wide. On the floor, at
+   * the centre of an engagement zone it is in where it is in one; on a wall or a board, out from the
+   * face it stands on, worked out from that face as it is drawn, so the pieces on every face are
+   * measured alike.
    */
-  private middleInRoom(piece: GameCharacter, onFloor: { x: number; y: number }, grid: number): Vec3 {
+  private bodyInRoom(piece: GameCharacter, onFloor: { x: number; y: number }, grid: number): AimBody {
     const foot = this.pieces.footOf(piece);
     const lift = foot.height + piece.altitude * grid;
     const frame = foot.surface === 'floor' ? null : this.surfaces.frameOf(foot.surface);
     const half = pieceCentreOffsetPx(piece, grid);
-    if (!frame) return { x: onFloor.x, y: onFloor.y, z: lift + half };
+    if (!frame) {
+      return {
+        feet: { x: onFloor.x, y: onFloor.y, z: lift },
+        head: { x: onFloor.x, y: onFloor.y, z: lift + half * 2 },
+      };
+    }
     const across = foot.x + half;
     const down = foot.y + half;
-    return {
-      x: frame.origin.x + frame.u.x * across + frame.v.x * down + frame.normal.x * lift,
-      y: frame.origin.y + frame.u.y * across + frame.v.y * down + frame.normal.y * lift,
-      z: frame.origin.z + frame.u.z * across + frame.v.z * down + frame.normal.z * lift,
-    };
+    const outAt = (out: number): Vec3 => ({
+      x: frame.origin.x + frame.u.x * across + frame.v.x * down + frame.normal.x * out,
+      y: frame.origin.y + frame.u.y * across + frame.v.y * down + frame.normal.y * out,
+      z: frame.origin.z + frame.u.z * across + frame.v.z * down + frame.normal.z * out,
+    });
+    return { feet: outAt(lift), head: outAt(lift + half * 2) };
   }
 
   /**
@@ -249,8 +255,9 @@ export class PieceTargetService {
 
   /**
    * Pieces in order of how near each stands to a point, so an effect held ready that takes fewer than
-   * a range holds takes the nearest: across the table for a range laid on it, and through the room,
-   * each piece's middle and height included, for one standing up with a height of its own.
+   * a range holds takes the nearest: across the table for a range laid on it, and through the room
+   * to the nearest point of each piece's body (see `bodyGap`), for one standing up with a height of
+   * its own.
    */
   private nearestFirst(pieces: readonly GameCharacter[], from: { x: number; y: number; z?: number }): GameCharacter[] {
     const reading = this.zones.reading();
@@ -260,8 +267,8 @@ export class PieceTargetService {
         const at = reading.pointOf(piece);
         return Math.hypot(at.x - from.x, at.y - from.y);
       }
-      const at = this.middleInRoom(piece, reading.pointOf(piece), grid);
-      return Math.hypot(at.x - from.x, at.y - from.y, at.z - from.z);
+      const point = { x: from.x, y: from.y, z: from.z };
+      return bodyGap({ feet: point, head: point }, this.bodyInRoom(piece, reading.pointOf(piece), grid));
     };
     return pieces
       .map((piece, index) => ({ piece, index, away: distance(piece) }))
