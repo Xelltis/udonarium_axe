@@ -83,6 +83,7 @@ describe('compareGaps', () => {
     expect(compareGaps(1, 2)).toBeLessThan(0);
     expect(compareGaps(2, 1)).toBeGreaterThan(0);
     expect(compareGaps(1, 1 + 1e-9)).toBe(0);
+    expect(compareGaps(1, 1 + 1e-5)).toBeLessThan(0);
   });
 });
 

@@ -118,6 +118,25 @@ describe('PieceTargetService', () => {
       range.destroy();
     });
 
+    it('takes pieces as near to a millionth of a pixel as one, picking the first in the room', () => {
+      const range = circleAt(300, 300);
+      const first = GameCharacter.create('先', 1, '');
+      first.location = { name: 'table', x: 295 + 1e-9, y: 275 };
+      const second = GameCharacter.create('後', 1, '');
+      second.location = { name: 'table', x: 255, y: 275 };
+      const targeting = TestBed.inject(EffectTargetingService);
+      const preset = new EffectPreset();
+      preset.initialize();
+      preset.targeting = 'single';
+      targeting.begin(preset);
+
+      service().targetInsideRange(range, 50);
+
+      expect(targeting.picks()).toEqual([first.identifier]);
+      targeting.cancel();
+      range.destroy();
+    });
+
     it('measures what a range standing up takes in from where it is cast from, not where it was last written down', () => {
       const range = circleAt(0, 0);
       vi.spyOn(range, 'isSolid', 'get').mockReturnValue(true);
