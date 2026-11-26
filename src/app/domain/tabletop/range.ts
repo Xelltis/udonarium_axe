@@ -77,8 +77,8 @@ export class RangeArea extends TabletopObject {
   /** How steeply a cone or a beam points up, in degrees; read through {@link aimPitch}. */
   @SyncVar() pitch: number = 0;
   /**
-   * How far a sphere or a column stands from the middle of the piece it follows, east and south, in
-   * the table's cells; read through {@link casterOffset}.
+   * How far a sphere or a column stands from where the piece it follows lays a range, east and south,
+   * in the table's cells: the middle of a piece on the floor; read through {@link casterOffset}.
    */
   @SyncVar() casterOffsetX: number = 0;
   @SyncVar() casterOffsetY: number = 0;
@@ -147,8 +147,8 @@ export class RangeArea extends TabletopObject {
   }
 
   /**
-   * How far a sphere or a column stands from the middle of the piece it follows, east and south, in
-   * the table's cells; nought each way where it is not a number.
+   * How far a sphere or a column stands from where the piece it follows lays a range, east and south,
+   * in the table's cells: the middle of a piece on the floor; nought each way where it is not a number.
    */
   get casterOffset(): { x: number; y: number } {
     return { x: numberOr(this.casterOffsetX, 0), y: numberOr(this.casterOffsetY, 0) };
@@ -159,9 +159,9 @@ export class RangeArea extends TabletopObject {
   }
 
   /**
-   * Whether it is put off the middle of the piece it follows: a sphere or a column, which stands where
-   * it was put round the piece, rather than a flat range, a cone or a beam, which start from its
-   * middle.
+   * Whether it is put off where the piece it follows lays a range: a sphere or a column, which stands
+   * where it was put round the piece, rather than a flat range, laid there, or a cone or a beam, which
+   * start from the middle of its body.
    */
   get keepsCasterOffset(): boolean {
     return this.isSolid && !isAimedSolid(this.solidKind);

@@ -330,6 +330,8 @@ export class RangeComponent {
   readonly rotableOption = signal<RotableOption>({});
 
   private _initialized = false;
+  /** The kind the range stood as when last seen, so that a change of kind puts it back on its piece. */
+  private kindSeen = '';
 
   constructor() {
     // input.required<RangeArea> guarded by _initialized to avoid NG0950 during construction.
@@ -348,6 +350,7 @@ export class RangeComponent {
         if (!this._initialized) return;
         const range = this.range();
         if (e.identifier === range.followingCharacterIdentifier) this.piecePlace.follow(range);
+        this.kindSeen = this.piecePlace.reseat(range, this.kindSeen);
         this.setRange();
       },
       this.destroyRef
@@ -385,6 +388,7 @@ export class RangeComponent {
     });
     afterNextRender(() => {
       this._initialized = true;
+      this.kindSeen = this.range().solidKind;
       this.setRange();
     });
     this.destroyRef.onDestroy(() => this.editorSaved?.unsubscribe());

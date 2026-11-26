@@ -70,4 +70,35 @@ describe('PiecePlaceService', () => {
 
     expect([range.location.x, range.location.y]).toEqual([975, 1000]);
   });
+
+  it('puts a range following a piece back on it, its offset and altitude let go, once it has become another kind', () => {
+    const range = RangeArea.create('円', 1, 2, 50);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.followingCharacterIdentifier = made.identifier;
+    range.casterOffset = { x: 2, y: 0 };
+    range.altitude = 1;
+    range.location = { name: 'table', x: 125, y: 25 };
+    const place = TestBed.inject(PiecePlaceService);
+
+    expect(place.reseat(range, 'sphere')).toBe('sphere');
+    expect([range.location.x, range.casterOffset.x, range.altitude]).toEqual([125, 2, 1]);
+
+    range.solidKind = '';
+    expect(place.reseat(range, 'sphere')).toBe('');
+    expect([range.location.x, range.location.y, range.casterOffset.x, range.altitude]).toEqual([25, 25, 0, 0]);
+  });
+
+  it('leaves a range following no piece where it is, whatever kind it becomes', () => {
+    const range = RangeArea.create('円', 1, 2, 50);
+    range.type = 'CIRCLE';
+    range.solidKind = 'sphere';
+    range.casterOffset = { x: 2, y: 0 };
+    range.location = { name: 'table', x: 125, y: 25 };
+    range.solidKind = '';
+
+    TestBed.inject(PiecePlaceService).reseat(range, 'sphere');
+
+    expect([range.location.x, range.casterOffset.x]).toEqual([125, 2]);
+  });
 });

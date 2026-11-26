@@ -79,6 +79,22 @@ export class PiecePlaceService {
     range.following(this.grid(), (piece) => this.floorPlaceOf(piece));
   }
 
+  /**
+   * Puts a range following a piece back on it, its offset and altitude let go, once it has become
+   * another kind than `kindBefore`, as from a sphere to a flat range or back: an offset a sphere kept is
+   * no offset of a flat range, and a flat range's place is none of a sphere's. Answers the kind it is
+   * now, for the next time. Every way a range's kind or shape is changed, from any seat, comes here
+   * through the range as it is drawn.
+   */
+  reseat(range: RangeArea, kindBefore: string): string {
+    const kind = range.solidKind;
+    if (kind === kindBefore || !range.followingCharacterIdentifier) return kind;
+    range.casterOffset = { x: 0, y: 0 };
+    range.altitude = 0;
+    this.follow(range);
+    return kind;
+  }
+
   private grid(): number {
     const size = this.tabletop.currentTable.gridSize;
     return size > 0 ? size : 50;
