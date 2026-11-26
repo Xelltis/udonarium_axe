@@ -32,6 +32,8 @@ import {
   nodeWornPictures,
   pictureKey,
   shadowCastingPictures,
+  type ShadowLight,
+  shadowReachBox,
   sharedPictureKey,
   unwornPictureKeys,
   wornPictures,
@@ -97,6 +99,7 @@ import {
   vec4,
 } from 'three/tsl';
 import {
+  Box3,
   BufferGeometry,
   Camera,
   CanvasTexture,
@@ -958,9 +961,10 @@ class ThreeTableEngine implements Table3dEngine {
   /**
    * Tells the moving pictures which of the textures it can judge are in sight as just drawn: worn as
    * the map of a piece's board, a coin's face or a face of a block or a wall that is shown and in the
-   * camera's view, looked for among the pieces, the coins and the faces alone; and worn by the board,
-   * its layers and its backdrops laid now, which are drawn through nodes and taken as always seen
-   * (see `nodeWornPictures`). A picture come into sight has a frame drawn for it.
+   * camera's view, or that throws a shadow that may fall in it (see `shadowReachBox`), a piece's board
+   * standing for its shadow alone included; looked for among the pieces, the coins and the faces alone;
+   * and worn by the board, its layers and its backdrops laid now, which are drawn through nodes and
+   * taken as always seen (see `nodeWornPictures`). A picture come into sight has a frame drawn for it.
    */
   private seeMovingPictures(): void {
     const judged = this.movingPictures.judged();
@@ -974,19 +978,40 @@ class ThreeTableEngine implements Table3dEngine {
     const seen = this.laidWorld
       ? nodeWornPictures(this.laidWorld, this.laidSky !== null, (key) => this.loaded.get(key))
       : new Set<Texture>();
+    const lights = this.shadowLights();
+    const board = this.laidWorld?.board;
+    const reach = board ? Math.hypot(board.widthPx, board.depthPx) : 0;
+    const inView = (object: Object3D) =>
+      (object.layers.test(this.camera.layers) && view.intersectsObject(object)) ||
+      (object.castShadow &&
+        lights.length > 0 &&
+        view.intersectsBox(shadowReachBox(new Box3().setFromObject(object), lights, reach)));
     const look = (object: Object3D) => {
       const worn = (object as Mesh).material;
       if (!worn) return;
       for (const material of Array.isArray(worn) ? worn : [worn]) {
         const picture = (material as { map?: Texture | null }).map;
-        if (!picture || !judged.has(picture) || seen.has(picture) || !object.layers.test(this.camera.layers)) continue;
-        if (view.intersectsObject(object)) seen.add(picture);
+        if (!picture || !judged.has(picture) || seen.has(picture)) continue;
+        if (inView(object)) seen.add(picture);
       }
     };
     this.sprites.group.traverseVisible(look);
     this.coins.group.traverseVisible(look);
     this.facesRoot.traverseVisible(look);
     if (this.movingPictures.see(seen)) this.needsFrame();
+  }
+
+  /** The lights throwing shadows on the table now: the sun where it throws them, and the lamps lit with theirs. */
+  private shadowLights(): ShadowLight[] {
+    const lights: ShadowLight[] = [];
+    if (this.sun.castShadow && this.sun.intensity > 0) {
+      lights.push({ runs: new Vector3().subVectors(this.sun.target.position, this.sun.position) });
+    }
+    for (const lamp of this.lamps) {
+      if (lamp.visible && lamp.castShadow && lamp.intensity > 0)
+        lights.push({ at: lamp.getWorldPosition(new Vector3()) });
+    }
+    return lights;
   }
 
   /**

@@ -5,13 +5,14 @@ import {
   nodeWornPictures,
   pictureKey,
   shadowCastingPictures,
+  shadowReachBox,
   sharedPictureKey,
   unwornPictureKeys,
   urlOfPictureKey,
   wornPictures,
 } from '@axe/infrastructure/table-3d/engine-rules';
 import { TABLE_3D_QUALITY } from '@axe/infrastructure/table-3d/table-3d-quality';
-import { BufferGeometry, Group, Mesh, MeshBasicNodeMaterial, Texture } from 'three/webgpu';
+import { Box3, BufferGeometry, Group, Mesh, MeshBasicNodeMaterial, Texture, Vector3 } from 'three/webgpu';
 
 describe('fieldOfViewDeg', () => {
   it('sees a right angle through a box twice as tall as the eye stands off it', () => {
@@ -135,5 +136,36 @@ describe('nodeWornPictures', () => {
       new Set([pictureOf(sharedPictureKey('board.gif', false)), pictureOf(sharedPictureKey('clouds.gif', true))])
     );
     expect(nodeWornPictures(world(false), true, pictureOf)).toEqual(new Set());
+  });
+});
+
+describe('shadowReachBox', () => {
+  const standing = () => new Box3(new Vector3(0, 0, 0), new Vector3(10, 20, 10));
+
+  it('reaches as far as the sun throws the shadow down to the floor, along its rays', () => {
+    const reach = shadowReachBox(standing(), [{ runs: new Vector3(1, -1, 0) }], 1000);
+
+    expect(reach.max.x).toBeCloseTo(30);
+    expect(reach.min.y).toBeCloseTo(0);
+    expect(reach.containsBox(standing())).toBe(true);
+  });
+
+  it('reaches as far as a lamp over the thing throws it out from under the lamp', () => {
+    const reach = shadowReachBox(standing(), [{ at: new Vector3(0, 100, 0) }], 1000);
+
+    expect(reach.max.x).toBeCloseTo(12.5);
+    expect(reach.max.z).toBeCloseTo(12.5);
+  });
+
+  it('adds nothing for a sun under the horizon or a lamp no higher than the thing', () => {
+    expect(shadowReachBox(standing(), [{ runs: new Vector3(1, 0, 0) }], 1000)).toEqual(standing());
+    expect(shadowReachBox(standing(), [{ at: new Vector3(50, 10, 0) }], 1000).max.x).toBeCloseTo(10);
+  });
+
+  it('throws a long shadow of a low sun no further than the reach given, and down to the floor of a sunk thing', () => {
+    expect(shadowReachBox(standing(), [{ runs: new Vector3(1, -0.01, 0) }], 50).max.x).toBeCloseTo(60, 0);
+    const sunk = new Box3(new Vector3(0, -40, 0), new Vector3(10, -20, 10));
+    expect(shadowReachBox(sunk, [{ runs: new Vector3(1, -1, 0) }], 1000).min.y).toBeCloseTo(-40);
+    expect(shadowReachBox(sunk, [{ runs: new Vector3(1, -1, 0) }], 1000).max.x).toBeCloseTo(30);
   });
 });

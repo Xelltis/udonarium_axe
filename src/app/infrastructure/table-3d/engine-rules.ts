@@ -1,6 +1,6 @@
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
-import type { Mesh, Object3D, Texture } from 'three/webgpu';
+import { Box3, type Mesh, type Object3D, type Texture, Vector3 } from 'three/webgpu';
 
 /** How wide, in degrees, a camera sees that looks through a box `heightPx` tall from `focalPx` in front of it. */
 export function fieldOfViewDeg(heightPx: number, focalPx: number): number {
@@ -48,6 +48,43 @@ export function wornPictures(world: TableWorld): Set<string> {
 /** The keys, of {@link pictureKey}, of the loaded pictures none of the urls given is of. */
 export function unwornPictureKeys(keys: Iterable<string>, worn: ReadonlySet<string>): string[] {
   return [...keys].filter((key) => !worn.has(urlOfPictureKey(key)));
+}
+
+/**
+ * A light that throws shadows on the table, as `shadowReachBox` reads it: the sun, by the way its rays
+ * run, or a lamp, by where it stands.
+ */
+export type ShadowLight = { readonly runs: Vector3 } | { readonly at: Vector3 };
+
+/**
+ * The box a thing and the shadow it throws may lie in: its own box, and each corner of it carried
+ * along the rays of every light down to the floor under it, the floor of the table or lower where
+ * the thing stands lower, no further than `reach`. A light that cannot throw the thing's shadow down,
+ * the sun under the horizon or a lamp no higher than a corner, adds nothing for that corner.
+ */
+export function shadowReachBox(box: Box3, lights: readonly ShadowLight[], reach: number): Box3 {
+  const within = box.clone();
+  if (box.isEmpty()) return within;
+  const floor = Math.min(0, box.min.y);
+  const corner = new Vector3();
+  const ray = new Vector3();
+  for (const light of lights) {
+    for (let index = 0; index < 8; index++) {
+      corner.set(
+        index & 1 ? box.max.x : box.min.x,
+        index & 2 ? box.max.y : box.min.y,
+        index & 4 ? box.max.z : box.min.z
+      );
+      if ('runs' in light) ray.copy(light.runs);
+      else ray.subVectors(corner, light.at);
+      if (ray.y >= 0) continue;
+      const length = ray.length();
+      if (length === 0) continue;
+      const fall = Math.min(((floor - corner.y) / ray.y) * length, reach);
+      within.expandByPoint(corner.addScaledVector(ray, fall / length));
+    }
+  }
+  return within;
 }
 
 /**
