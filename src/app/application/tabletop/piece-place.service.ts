@@ -17,8 +17,10 @@ export type StandingThing = TabletopObject & { readonly size: number };
  * that measures from it, takes it in or is laid or drawn for it: the order a key aims in, the ranges a
  * piece casts and the ranges that take it in, an effect's area, what is cast at it, the marks over it,
  * a ruler held to it and an arrow pointing at it. Every point is read where the table draws the thing
- * as it is read, on the raised ground or the block under it, where this seat is moving it then; what
- * keeps a point is read again as the thing is written, not at each step of a drag. Where a range is
+ * as it is read, on the raised ground or the block under it, where this seat is moving it then; a mark
+ * or a ring that keeps a point is read again as the thing is written, not at each step of a drag,
+ * while an arrow follows a card or a stack this seat drags at each step (see
+ * `TablePiecesService.lyingMiddleOf`). Where a range is
  * laid for a piece on the floor alone is read from where the piece is kept, at the height over the
  * ground a range keeps (see `floorPlaceOf`). A piece on a wall or a board is read where it stands out
  * from that face in the room, rather than at its place on the face read as a place on the floor, over

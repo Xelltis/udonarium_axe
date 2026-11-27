@@ -143,7 +143,7 @@ describe('surfaceCrossing', () => {
 
     it('reads nothing of a face looking down', () => {
       const under = board(150);
-      expect(faceHeightOver(under, size, 200, 200)).toBeNull();
+      expect(faceHeightOver(under, size, 200, 240)).toBeNull();
     });
 
     it('reads nothing of a face looking no way up', () => {

@@ -69,7 +69,7 @@ import { type TerrainBox, terrainBoxOf } from '@axe/domain/tabletop/terrain-box'
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { characterRollPivot } from '@axe/domain/tabletop/world/character-sprites';
+import { CHARACTER_KIND, characterRollPivot } from '@axe/domain/tabletop/world/character-sprites';
 import { DICE_FRAME_COLOUR } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
@@ -979,8 +979,10 @@ export class TablePiecesService {
   /**
    * The middle of the topmost picture of a thing lying on the face it is drawn on, in the room, as it
    * stands before what it plays moves it: a card as tall as its picture, the top card of a stack of
-   * cards, over the cards under it. Null for a thing drawn with nothing lying on its face. Read inside
-   * a computed, it is read again as what lies on the table moves, and not as it is only posed.
+   * cards, over the cards under it. Null for a thing drawn with nothing lying on its face, and for a
+   * piece, which is read where it stands instead (see `PiecePlaceService.standingCentreOf`). Read
+   * inside a computed, it is read again as what lies on the table moves, a thing this seat drags at
+   * each step, and not as it is only posed or as a piece moves.
    */
   lyingMiddleOf(thing: TabletopObject): { x: number; y: number; z: number } | null {
     return this.lyingMiddles().get(thing.identifier) ?? null;
@@ -990,7 +992,7 @@ export class TablePiecesService {
     () => {
       const topmost = new Map<string, TableWorldSprite>();
       for (const sprite of this.standing()) {
-        if (sprite.order === undefined || sprite.facing === 'eye') continue;
+        if (sprite.order === undefined || sprite.facing === 'eye' || sprite.kind === CHARACTER_KIND) continue;
         const kept = topmost.get(sprite.owner);
         if (!kept || sprite.order > kept.order!) topmost.set(sprite.owner, sprite);
       }

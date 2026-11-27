@@ -535,6 +535,21 @@ describe('TablePiecesService', () => {
     expect(pieces.lyingMiddleOf(TextNote.create('title', 'text'))).toBeNull();
   });
 
+  it('reads no middle for a piece, which is read where it stands, though it lies drawn on the table', () => {
+    const character = GameCharacter.create('騎士', 1, '');
+    character.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(character.identifier, {
+      url: 'blob:pedestal',
+      widthPx: 50,
+      heightPx: 50,
+    });
+
+    expect(pieces.sprites().some((sprite) => sprite.owner === character.identifier && sprite.order !== undefined)).toBe(
+      true
+    );
+    expect(pieces.lyingMiddleOf(character)).toBeNull();
+  });
+
   it('stands a stack of cards on the floor as thick as its cards', () => {
     const stack = CardStack.create('stack');
     stack.location = { name: 'table', x: 100, y: 200 };
