@@ -141,6 +141,6 @@ export class DiceChatEventHandlerService {
   private diceOf(owner: GameCharacter): DiceSymbol[] {
     return this.objectStore
       .getObjects<DiceSymbol>(DiceSymbol)
-      .filter((die) => die.ownerCharacterIdentifier === owner.identifier && this.diceRoll.canTurn(die));
+      .filter((die) => die.ownerCharacterIdentifier === owner.identifier && this.diceRoll.takesToldFace(die));
   }
 }

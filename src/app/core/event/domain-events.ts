@@ -82,6 +82,8 @@ export interface AlarmPopEvent {
 export interface XmlLoadedEvent {
   xmlElement: Element;
   dropPoint?: { x: number; y: number };
+  /** What the save kept beside its data to go with it, as the parts of a piece saved with it. */
+  along?: Element;
 }
 
 export interface ImageDroppedEvent {
@@ -144,6 +146,28 @@ export interface ServerRollUnansweredEvent {
   reason: string;
 }
 
+/**
+ * A motion a piece's model is asked to play once: the piece, and the motion by the word it was asked
+ * for by, the name of one of the model's own motions or a word for a role in a fight.
+ */
+export interface ModelMotionEvent {
+  identifier: string;
+  motion: string;
+  /**
+   * Whether the word is the name of one of the model's own motions outright, as one chosen from a
+   * list of them, which is played though it be a word for a role as well. Left out, a word for a role,
+   * as one written in chat, asks for that role.
+   */
+  named?: boolean;
+}
+
+/**
+ * An event as it came in, with the peer that sent it: what may only be asked by a seat of some role
+ * is acted on only once the seat that asked is found to hold it, as one asking from elsewhere may
+ * not.
+ */
+export type SentEvent<T> = T & { readonly from: string };
+
 export interface EffectCastEvent {
   cast: unknown;
 }
@@ -179,10 +203,20 @@ export const soundEffect$ = new EventChannel<string>();
  */
 export const chatFontWanted$ = new EventChannel<string>();
 
+/** How long the word a motion is asked for by may be. */
+const MAX_MOTION_WORD = 120;
+
 export const effectCast$ = new EventChannel<EffectCastEvent>();
+/** A piece's model is asked to play a motion once, on every screen. */
+export const modelMotion$ = new EventChannel<SentEvent<ModelMotionEvent>>();
 export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
 /** Every screen darkens for a moment, as a scene changes under the dark. */
 export const sceneFade$ = new EventChannel<void>();
+/**
+ * Every seat is asked to show the dice it keeps sealed, whose faces only that seat's browser has: by
+ * the asking, a word each asking is told apart by, as every tab of a seat hears it.
+ */
+export const revealSealedDice$ = new EventChannel<SentEvent<{ asking: string }>>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
@@ -374,6 +408,22 @@ export function callEffectCast(cast: unknown) {
   networkSend('EFFECT_CAST', cast);
 }
 
+/**
+ * Has a piece's model play a motion once on every device, this one included. Nothing of it is kept:
+ * a room loaded later never plays it again.
+ */
+export function callModelMotion(event: ModelMotionEvent) {
+  networkSend('MODEL_MOTION', event);
+}
+
+/**
+ * Asks every device, this one included, to show the dice it keeps sealed, the asking told apart from
+ * any other by a word of its own. Nothing of it is kept.
+ */
+export function callRevealSealedDice() {
+  networkSend('REVEAL_SEALED_DICE', { asking: crypto.randomUUID() });
+}
+
 /** Darkens every screen for a moment, this one included, while a scene is put on under the dark. */
 export function callSceneFade() {
   networkSend('SCENE_FADE', null);
@@ -456,9 +506,25 @@ networkMessage$.subscribe((msg) => {
     case 'BATTLE_CUT_IN':
       battleCutIn$.emit({ scene: msg.data });
       break;
+    case 'MODEL_MOTION': {
+      const data = msg.data as Partial<ModelMotionEvent> | null;
+      if (typeof data?.identifier !== 'string' || typeof data.motion !== 'string') break;
+      modelMotion$.emit({
+        identifier: data.identifier,
+        motion: data.motion.slice(0, MAX_MOTION_WORD),
+        ...(data.named === true ? { named: true } : {}),
+        from: msg.sendFrom,
+      });
+      break;
+    }
     case 'SCENE_FADE':
       sceneFade$.emit();
       break;
+    case 'REVEAL_SEALED_DICE': {
+      const asking = (msg.data as { asking?: unknown } | null)?.asking;
+      revealSealedDice$.emit({ asking: typeof asking === 'string' ? asking.slice(0, 64) : '', from: msg.sendFrom });
+      break;
+    }
     case 'RESOURCE_CHANGE':
       resourceChange$.emit(msg.data as ResourceChangeEvent);
       break;

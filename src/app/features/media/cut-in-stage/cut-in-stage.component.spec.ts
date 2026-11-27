@@ -1,10 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { blobMoves } from '@axe/core/storage/animated-image';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { encodeCutInTracks } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CutInStageComponent', () => {
@@ -420,5 +423,86 @@ describe('CutInStageComponent', () => {
 
     expect(fixture.componentInstance.fit()).toEqual({ scale: 1, offsetX: 0, offsetY: 0 });
     expect(fixture.componentInstance.sceneTransform()).toBe('translate(0px, 0px) scale(1)');
+  });
+});
+
+describe('CutInStageComponent within a showing of its own', () => {
+  beforeEach(async () => {
+    const standIn = movingPngBlob();
+    await blobMoves(standIn);
+    TestBed.configureTestingModule({
+      imports: [CutInStageComponent],
+      providers: [...TEST_PROVIDERS, ShownPictureUrls],
+    }).compileComponents();
+    ImageStorage.instance.add({
+      identifier: 'stand-in',
+      name: 'stand-in.png',
+      type: 'image/png',
+      blob: standIn,
+      url: 'blob:held-stand-in',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+  });
+
+  afterEach(() => {
+    ImageStorage.instance.delete('stand-in');
+    ImageStorage.instance.delete('hero-face');
+  });
+
+  it('shows the speaker’s portrait in a portrait’s place from the showing’s own URL too', async () => {
+    const face = movingPngBlob();
+    await blobMoves(face);
+    ImageStorage.instance.add({
+      identifier: 'hero-face',
+      name: 'hero-face.png',
+      type: 'image/png',
+      blob: face,
+      url: 'blob:held-hero-face',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const fixture = TestBed.createComponent(CutInStageComponent);
+    const scene = new CutInScene();
+    scene.initialize();
+    scene.cutInIdentifier = 'cut-2';
+    scene.durationMs = 1000;
+    const layer = new CutInLayer();
+    layer.initialize();
+    Object.assign(layer, { kind: 'image', portraitSlot: true, imageIdentifier: 'stand-in' });
+    scene.appendChild(layer);
+    fixture.componentRef.setInput('scene', scene);
+    fixture.componentRef.setInput('sceneWidth', 640);
+    fixture.componentRef.setInput('sceneHeight', 360);
+    fixture.componentRef.setInput('playing', false);
+    fixture.componentRef.setInput('speaker', { characterId: 'hero', imageIdentifier: 'hero-face', name: 'ヒロ' });
+    fixture.detectChanges();
+
+    const shown = (fixture.nativeElement.querySelector('img') as HTMLImageElement | null)?.getAttribute('src') ?? '';
+
+    expect(shown).toBe(TestBed.inject(ShownPictureUrls).urlOf(ImageStorage.instance.get('hero-face')));
+    expect(shown).not.toBe('blob:held-hero-face');
+    scene.destroy();
+  });
+
+  it('shows its pictures from the showing’s own URLs, for a moving picture to play from its start', () => {
+    const fixture = TestBed.createComponent(CutInStageComponent);
+    const scene = new CutInScene();
+    scene.initialize();
+    scene.cutInIdentifier = 'cut-1';
+    scene.durationMs = 1000;
+    const layer = new CutInLayer();
+    layer.initialize();
+    Object.assign(layer, { kind: 'image', imageIdentifier: 'stand-in' });
+    scene.appendChild(layer);
+    fixture.componentRef.setInput('scene', scene);
+    fixture.componentRef.setInput('sceneWidth', 640);
+    fixture.componentRef.setInput('sceneHeight', 360);
+    fixture.componentRef.setInput('playing', false);
+    fixture.detectChanges();
+
+    const shown = (fixture.nativeElement.querySelector('img') as HTMLImageElement | null)?.getAttribute('src') ?? '';
+
+    expect(shown).toBe(TestBed.inject(ShownPictureUrls).urlOf(ImageStorage.instance.get('stand-in')));
+    expect(shown).not.toBe('blob:held-stand-in');
+    scene.destroy();
   });
 });

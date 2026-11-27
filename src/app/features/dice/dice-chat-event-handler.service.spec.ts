@@ -6,6 +6,7 @@ import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
+import { forgetSealedFace } from '@axe/core/storage/sealed-faces';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -224,6 +225,20 @@ describe('DiceChatEventHandlerService', () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 5 }]);
     expect([kept.face, shown.face]).toEqual(['1', '5']);
+  });
+
+  it('passes over a die this seat sealed, whose face is to be one nobody else knows, for the next to take the roll', () => {
+    const goblin = makeCharacter('ゴブリンA');
+    const sealed = makeDice(goblin);
+    sealed.owner = PeerCursor.myCursor.userId;
+    sealed.seal();
+    const before = sealed.face;
+    const shown = makeDice(goblin);
+
+    roll('1d6 dice:ゴブリンA', [{ sides: 6, value: 4 }]);
+
+    expect([sealed.face, shown.face]).toEqual([before, '4']);
+    forgetSealedFace(sealed.identifier);
   });
 
   it('turns a die that only lacks its face, which nobody would put back', () => {

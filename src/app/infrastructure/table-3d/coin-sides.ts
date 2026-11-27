@@ -41,7 +41,7 @@ export function paintCoinSide(
   canvas: HTMLCanvasElement,
   side: 'front' | 'back',
   diameter: number,
-  picture: HTMLImageElement | null
+  picture: HTMLImageElement | HTMLCanvasElement | null
 ): void {
   const context = canvas.getContext('2d');
   if (!context) return;
@@ -106,9 +106,14 @@ export function paintCoinSide(
 }
 
 /** Draws a picture over a square, cut to fill it however its own proportions run, as the page fits it. */
-function coverWith(context: CanvasRenderingContext2D, picture: HTMLImageElement, at: number, side: number): void {
-  const width = picture.naturalWidth;
-  const height = picture.naturalHeight;
+function coverWith(
+  context: CanvasRenderingContext2D,
+  picture: HTMLImageElement | HTMLCanvasElement,
+  at: number,
+  side: number
+): void {
+  const width = picture instanceof HTMLImageElement ? picture.naturalWidth : picture.width;
+  const height = picture instanceof HTMLImageElement ? picture.naturalHeight : picture.height;
   if (!(width > 0) || !(height > 0)) return;
   const cut = Math.min(width, height);
   context.drawImage(picture, (width - cut) / 2, (height - cut) / 2, cut, cut, at, at, side, side);

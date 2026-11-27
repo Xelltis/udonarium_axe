@@ -8,6 +8,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
@@ -113,9 +114,31 @@ describe('TooltipDirective', () => {
     return character;
   }
 
+  /** What stands topmost at each point of the page, as the browser would answer; happy-dom lays nothing out. */
+  const topmost = new Map<string, Element>();
+
+  /** Puts a thing topmost at a point of the page, as a panel opened there would stand. */
+  function standAt(target: Element, clientX: number, clientY: number): void {
+    topmost.set(`${clientX},${clientY}`, target);
+  }
+
+  /** Moves the pointer onto a target, giving the event the place on the page happy-dom leaves out of a made one. */
+  function moveTo(target: Element, clientX: number, clientY: number): void {
+    standAt(target, clientX, clientY);
+    const move = new MouseEvent('mousemove', { clientX, clientY, bubbles: true });
+    Object.defineProperties(move, { pageX: { value: clientX }, pageY: { value: clientY } });
+    target.dispatchEvent(move);
+  }
+
+  /** The pointer moving onto a target and coming into it, as a real pointer does. */
+  function enter(target: Element, clientX = 0, clientY = 10): void {
+    moveTo(target, clientX, clientY);
+    target.dispatchEvent(new MouseEvent('mouseenter', { clientX, clientY }));
+  }
+
   async function hover(testId: string, clientX = 0, clientY = 10): Promise<void> {
     const piece = fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
-    piece.dispatchEvent(new MouseEvent('mouseenter', { clientX, clientY }));
+    enter(piece, clientX, clientY);
     await wait(OPEN_WAIT_MS);
     fixture.detectChanges();
   }
@@ -151,9 +174,12 @@ describe('TooltipDirective', () => {
     // The open, close and follow delays are stepped over rather than sat through. The clock still
     // runs with real time, so waiting for Angular to settle is not left stranded.
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(document, 'elementFromPoint').mockImplementation((x, y) => topmost.get(`${x},${y}`) ?? null);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
+    topmost.clear();
     vi.useRealTimers();
     fixture.destroy();
     for (const character of characters.splice(0)) character.destroy();
@@ -167,6 +193,63 @@ describe('TooltipDirective', () => {
 
     expect(panels()).toHaveLength(4);
     expect(fixture.nativeElement.querySelectorAll('[data-testid="stub-panel"]')).toHaveLength(4);
+  });
+
+  describe('where the mouse rests as the detail opens', () => {
+    const piece = () => fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+
+    it('opens nothing where something has come over the piece under a mouse at rest, as a panel opened over it', async () => {
+      enter(piece(), 0, 10);
+
+      standAt(document.body, 0, 10);
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('opens nothing once the mouse has gone off the piece, though the piece never heard it leave', async () => {
+      enter(piece(), 0, 10);
+
+      moveTo(document.body, 400, 300);
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(0);
+    });
+
+    it('opens nothing while the mouse keeps moving on the piece, and opens once it rests', async () => {
+      enter(piece(), 0, 10);
+      const body = fixture.nativeElement.querySelector('[data-testid="piece-body"]') as HTMLElement;
+
+      for (let step = 1; step <= 4; step++) {
+        moveTo(body, step * 10, 10);
+        await wait(OPEN_WAIT_MS / 2);
+      }
+      expect(panels()).toHaveLength(0);
+
+      await wait(OPEN_WAIT_MS * 3);
+      expect(panels()).toHaveLength(4);
+    });
+
+    it('opens for a piece that comes under a mouse at rest, told of it by the mouse coming onto it alone', async () => {
+      standAt(piece(), 30, 40);
+      piece().dispatchEvent(new MouseEvent('mouseover', { clientX: 30, clientY: 40, bubbles: true }));
+      piece().dispatchEvent(new MouseEvent('mouseenter', { clientX: 30, clientY: 40 }));
+
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(4);
+    });
+
+    it('opens nothing for a piece in another window than the one the mouse rests in', async () => {
+      enter(piece(), 0, 10);
+      const elsewhere = document.implementation.createHTMLDocument('elsewhere');
+      vi.spyOn(elsewhere, 'elementFromPoint').mockReturnValue(piece());
+      TestBed.inject(PointerDeviceService).mouseAt = { document: elsewhere, x: 0, y: 10 };
+
+      await wait(OPEN_WAIT_MS * 3);
+
+      expect(panels()).toHaveLength(0);
+    });
   });
 
   it('opens no detail while it is asked to open none, as over a look on the ground locked in place', async () => {
@@ -211,6 +294,33 @@ describe('TooltipDirective', () => {
     expect(panels()).toHaveLength(0);
   });
 
+  it('opens a detail that arrives only where the mouse still rests on the piece, in the window it rests in', async () => {
+    TestBed.inject(TooltipPanelSource).panel = null;
+    let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
+    TestBed.inject(TooltipPanelSource).load = () => new Promise((resolve) => (deliver = resolve));
+    const layerFor = vi.spyOn(TestBed.inject(OverlayLayers), 'layerFor');
+
+    await hover('first-piece');
+    standAt(document.body, 0, 10);
+    deliver(StubTooltipPanelComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(panels()).toHaveLength(0);
+
+    await hover('first-piece');
+    expect(panels()).toHaveLength(4);
+    expect(layerFor).toHaveBeenCalledWith(document);
+  });
+
+  it('lets go of what it listened to once its panels are taken away with the window they stood in', async () => {
+    await hover('first-piece');
+    const letGo = vi.spyOn(document.body, 'removeEventListener');
+
+    host.panelHost().clear();
+
+    expect(letGo.mock.calls.map(([type]) => type)).toContain('mousedown');
+  });
+
   it('asks the reader to reload once when the detail cannot be fetched, and does not ask for it again', async () => {
     const source = TestBed.inject(TooltipPanelSource);
     source.panel = null;
@@ -241,8 +351,8 @@ describe('TooltipDirective', () => {
 
     /** The pointer coming onto the row from outside the piece, which it enters on the way. */
     async function hoverRow(): Promise<void> {
-      element('body-piece').dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
-      element('part-row').dispatchEvent(new MouseEvent('mouseenter', { clientX: 0, clientY: 10 }));
+      enter(element('body-piece'));
+      enter(element('part-row'));
       await wait(OPEN_WAIT_MS);
       fixture.detectChanges();
     }
@@ -297,7 +407,10 @@ describe('TooltipDirective', () => {
     it('gives way to the detail of the piece when the pointer leaves the row for the rest of the piece', async () => {
       await hoverRow();
 
-      element('part-row').dispatchEvent(new MouseEvent('mouseleave', { relatedTarget: element('body-picture') }));
+      standAt(element('body-picture'), 0, 30);
+      element('part-row').dispatchEvent(
+        new MouseEvent('mouseleave', { relatedTarget: element('body-picture'), clientX: 0, clientY: 30 })
+      );
       await wait(OPEN_WAIT_MS);
 
       expect(shown()).toEqual([host.body]);
@@ -370,6 +483,18 @@ describe('TooltipDirective', () => {
       await fixture.whenStable();
       fixture.detectChanges();
     }
+
+    it('opens a tapped detail beside the tap, in the layer of the window the piece stands in', async () => {
+      table.hoverDetailPlacement = 'piece';
+      vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+      const layerFor = vi.spyOn(TestBed.inject(OverlayLayers), 'layerFor');
+
+      await tap('first-piece');
+      fixture.detectChanges();
+
+      expect(panels().map((panel) => [panel.left, panel.top])).toEqual([[5, 5]]);
+      expect(layerFor).toHaveBeenCalledWith(document);
+    });
 
     it('shows the detail of the tapped piece once it arrives', async () => {
       const deliver = await waitForDetail();
@@ -445,6 +570,27 @@ describe('TooltipDirective', () => {
     expect(instances).toHaveLength(1);
     expect(instances[0].edgeSeat).toBeNull();
     expect(instances[0].rotationDegrees).toBe(90);
+  });
+
+  it('turns a tapped detail toward the side the piece was tapped from, as one the mouse came onto', async () => {
+    table.hoverDetailPlacement = 'piece';
+    table.multiAngleEnabled = true;
+    vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
+    const piece = fixture.nativeElement.querySelector('[data-testid="first-piece"]') as HTMLElement;
+    for (const [type, fingers] of [
+      ['touchstart', 1],
+      ['touchend', 0],
+    ] as const) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      const touch = { clientX: -10, clientY: 0 };
+      Object.defineProperty(event, 'changedTouches', { value: [touch] });
+      Object.defineProperty(event, 'touches', { value: fingers > 0 ? [touch] : [] });
+      piece.dispatchEvent(event);
+    }
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    expect(panels().map((panel) => panel.rotationDegrees)).toEqual([90]);
   });
 
   it('keeps the single upright detail outside 2D mode', async () => {
@@ -612,6 +758,21 @@ describe('TooltipDirective', () => {
       bottom.applyEdgePlacement();
 
       expect(bottom.pointerHidden).toBe(true);
+    });
+
+    it('hides none while the mouse is in another window than the details stand in', async () => {
+      await hover('first-piece');
+      const bottom = panels()[0];
+      coverPointerWith(bottom);
+      TestBed.inject(PointerDeviceService).mouseAt = {
+        document: document.implementation.createHTMLDocument('elsewhere'),
+        x: 100,
+        y: 100,
+      };
+
+      bottom.applyEdgePlacement();
+
+      expect(bottom.pointerHidden).toBe(false);
     });
   });
 

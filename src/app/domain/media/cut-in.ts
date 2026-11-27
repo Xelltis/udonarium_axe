@@ -40,6 +40,26 @@ export class CutIn extends GameObject implements InnerXml {
   @SyncVar() videoUrl = '';
   @SyncVar() videoVolume = 50;
 
+  /**
+   * The 3D model the cut-in shows, over its picture where it has one, by the identifier the model is
+   * kept under; empty for none. It is set up as a piece's model is, by the fields after it (see
+   * `pieceModelOf`), each empty for the model as it was made, which a room saved before there were
+   * model cut-ins reads them all as.
+   */
+  @SyncVar() modelIdentifier: string = '';
+  @SyncVar() modelScale: string = '';
+  @SyncVar() modelTurn: string = '';
+  @SyncVar() modelIdle: string = '';
+  @SyncVar() modelWalk: string = '';
+  @SyncVar() modelLook: string = '';
+  @SyncVar() modelMotions: string = '';
+  @SyncVar() modelFace: string = '';
+  /**
+   * What the model does as the cut-in is shown: empty to stand, `walk` to walk for as long as it is
+   * shown, a role in a fight to act it once, or the name of one of the model's own motions.
+   */
+  @SyncVar() modelAct: string = '';
+
   private normalMinSizeWidth = 10;
   private normalMinSizeHeight = 10;
 

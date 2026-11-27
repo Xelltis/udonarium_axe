@@ -29,6 +29,13 @@ import {
 } from '@axe/features/character/game-character/piece-reset-context-menu';
 import { buildDisclosureContextMenu, type DisclosureRules } from '@axe/features/disclosure/disclosure-context-menu';
 
+/** A motion the menu offers a piece's model, as {@link GameCharacterContextMenuCallbacks.modelMotions} has it. */
+export interface ModelMotionEntry {
+  readonly word: string;
+  readonly label: string;
+  readonly named: boolean;
+}
+
 export interface RegisteredRangeShape {
   label: string;
   value: RangeShapeFieldValue;
@@ -47,6 +54,15 @@ export interface GameCharacterContextMenuCallbacks {
   onShowLightSettings: () => void;
   onInvokeRangeShape?: (value: RangeShapeFieldValue) => void;
   onInvokeEffect?: (name: string) => void;
+  /**
+   * The motions the piece's model may be asked to play as a gesture, each by the word it is asked
+   * for by and as the menu names it, and whether the word is the name of one of the model's own
+   * motions, as they are known when asked; left out, or answering none, for a piece drawn as no
+   * model. Asked again when the motions are opened, as the model's own come only once it has been
+   * read.
+   */
+  modelMotions?: () => readonly ModelMotionEntry[];
+  onPlayModelMotion?: (motion: ModelMotionEntry) => void;
   onDeployDice?: () => void;
   /** Opens the battle stage's panel on the piece, to choose what it strikes with. */
   onShowBattle?: () => void;
@@ -350,6 +366,20 @@ export function buildGameCharacterContextMenuModel(
                 callbacks.onInvokeEffect?.(name);
               },
             })),
+          } as ContextMenuAction,
+        ]
+      : []),
+    ...((callbacks.modelMotions?.().length ?? 0) > 0 && callbacks.onPlayModelMotion
+      ? [
+          {
+            name: t('feature.character.contextMenu.modelMotion'),
+            action: undefined,
+            get subActions(): ContextMenuAction[] {
+              return callbacks.modelMotions!().map((motion) => ({
+                name: motion.label,
+                action: () => callbacks.onPlayModelMotion?.(motion),
+              }));
+            },
           } as ContextMenuAction,
         ]
       : []),

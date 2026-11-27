@@ -4,13 +4,16 @@ import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.servic
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { rereadSealedFaces } from '@axe/core/storage/sealed-faces';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -483,6 +486,190 @@ describe('DiceRollService', () => {
       expect(secret.isSecret).toBe(true);
       expect(callOut).toHaveBeenCalledOnce();
       expect(callOut.mock.calls[0][1]).toContain('6');
+    });
+  });
+
+  describe('a die sealed by the seat that keeps it', () => {
+    let notice: ReturnType<typeof vi.fn>;
+
+    function sealedBy(userId: string): DiceSymbol {
+      const dice = makeDice('プロット');
+      dice.face = '3';
+      dice.owner = userId;
+      dice.sealed = true;
+      dice.sentFace = '';
+      return dice;
+    }
+
+    beforeEach(() => {
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+      const mine = { userId: 'me' } as IPeerContext;
+      setPeerContextProvider({ peerContext: mine, peerContexts: [mine], peerIds: ['me'], peerId: 'me' });
+      PeerCursor.myCursor.role = PeerRole.Player;
+      notice = vi
+        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemNotice')
+        .mockReturnValue(null) as unknown as ReturnType<typeof vi.fn>;
+      vi.spyOn(TestBed.inject(ChatLineEditService), 'discloseDieRolls').mockReturnValue(0);
+    });
+
+    afterEach(() => {
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+    });
+
+    it('seals a die nobody keeps or this seat keeps on a face nobody knows, keeping it from the room', () => {
+      const open = makeDice('みんなの');
+      open.face = '4';
+      const theirs = makeDice('ひとの');
+      theirs.owner = 'somebody-else';
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
+
+      expect(service.seal(theirs)).toBe(false);
+      expect(service.seal(open)).toBe(true);
+
+      expect([open.owner, open.isSealed, open.sentFace, open.face]).toEqual(['me', true, '', '6']);
+      expect(service.canSeal(open)).toBe(false);
+      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      expect(sendSystemMessage.mock.calls[0][0] as string).toContain('rolledSealed');
+    });
+
+    it('keeps it from the game master, who may neither read it, show it nor take it', () => {
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const theirs = sealedBy('somebody-else');
+
+      expect(service.readsFace(theirs)).toBe(false);
+      expect(service.canChange(theirs)).toBe(false);
+      expect(service.canReveal(theirs)).toBe(false);
+      expect(service.canKeep(theirs)).toBe(false);
+      expect(service.reveal(theirs)).toBe(false);
+      expect(service.keep(theirs)).toBe(false);
+      expect(theirs.owner).toBe('somebody-else');
+    });
+
+    it('tells the room it was thrown, and not what it showed', () => {
+      const open = makeDice('みんなの');
+      service.seal(open);
+      sendSystemMessage.mockClear();
+
+      const [rolled] = service.roll([open]);
+
+      expect(sendSecret).not.toHaveBeenCalled();
+      expect(sendSystemMessage).toHaveBeenCalledOnce();
+      const text = sendSystemMessage.mock.calls[0][0] as string;
+      expect(text).toContain('rolledSealed');
+      expect(text).not.toContain('プロット');
+      expect(open.sentFace).toBe('');
+      expect(open.face).toBe(rolled.face);
+    });
+
+    it('opens none of what was thrown of it in secret before it was sealed, which told another face', () => {
+      const disclosing = vi.spyOn(TestBed.inject(ChatLineEditService), 'discloseDieRolls').mockReturnValue(1);
+      const open = makeDice('みんなの');
+      open.owner = 'me';
+      service.seal(open);
+
+      service.reveal(open);
+
+      expect(disclosing).not.toHaveBeenCalled();
+      expect(notice).toHaveBeenCalledOnce();
+    });
+
+    it('tells the room the face once its keeper shows it', () => {
+      const open = makeDice('みんなの');
+      service.seal(open);
+      service.setFace(open, '6');
+
+      expect(service.reveal(open)).toBe(true);
+
+      expect([open.owner, open.isSealed, open.sentFace]).toEqual(['', false, '6']);
+      expect(notice).toHaveBeenCalledOnce();
+      expect(notice.mock.calls[0][1] as string).toContain('6');
+    });
+
+    it('lets its keeper turn it only from the browser that holds its face, so that no other keeps a face apart', () => {
+      const elsewhere = sealedBy('me');
+      const here = makeDice('みんなの');
+      service.seal(here);
+
+      expect([service.canTurn(elsewhere), service.canTurn(here)]).toEqual([false, true]);
+      expect(service.setFace(elsewhere, '5')).toBe(false);
+      expect(service.roll([elsewhere])).toEqual([]);
+      expect(JSON.parse(localStorage.getItem('axe-sealed-dice-faces') ?? '{}')).not.toHaveProperty(
+        elsewhere.identifier
+      );
+    });
+
+    it('lets its keeper show it only from the browser that holds its face, and give the seal up from any other', () => {
+      const elsewhere = sealedBy('me');
+      const here = makeDice('みんなの');
+      service.seal(here);
+      const theirs = sealedBy('somebody-else');
+
+      expect(service.canReveal(elsewhere)).toBe(false);
+      expect(service.reveal(elsewhere)).toBe(false);
+      expect([service.canGiveUpSeal(elsewhere), service.canGiveUpSeal(here), service.canGiveUpSeal(theirs)]).toEqual([
+        true,
+        false,
+        false,
+      ]);
+
+      expect(service.giveUpSeal(elsewhere)).toBe(true);
+      expect([elsewhere.isSealed, elsewhere.owner, elsewhere.sentFace]).toEqual([false, '', '1']);
+      expect(service.giveUpSeal(theirs)).toBe(false);
+    });
+
+    it('lets the game master ask every seat to show its sealed dice, only while one is sealed', () => {
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const open = makeDice('みんなの');
+
+      expect(service.askToRevealSealed([open])).toBe(false);
+      service.seal(open);
+      expect(service.askToRevealSealed([open])).toBe(false);
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const asking = send.mock.calls.length;
+      expect(service.askToRevealSealed([open])).toBe(true);
+
+      const asked = send.mock.calls.slice(asking).map(([context]) => (context as { eventName: string }).eventName);
+      expect(asked).toEqual(['REVEAL_SEALED_DICE']);
+    });
+
+    it('shows the dice this seat sealed when asked, and leaves another seat’s alone', () => {
+      const open = makeDice('みんなの');
+      service.seal(open);
+      const theirs = sealedBy('somebody-else');
+
+      expect(service.revealOwnSealed([open, theirs])).toBe(1);
+
+      expect([open.isSealed, theirs.isSealed]).toEqual([false, true]);
+    });
+
+    it('shows none another tab of the same browser has just shown, though it has not been told of it yet', () => {
+      const plotted = makeDice('プロット');
+      service.seal(plotted);
+      localStorage.setItem('axe-sealed-dice-faces', '{}');
+
+      expect(service.revealOwnSealed([plotted])).toBe(0);
+      expect(notice).not.toHaveBeenCalled();
+    });
+
+    it('shows the dice this seat sealed together, with one sound and one notice of every face', () => {
+      const sound = vi.spyOn(SoundEffect, 'play').mockImplementation(() => undefined);
+      const plotted = ['一', '二', '三'].map((name, index) => {
+        const die = makeDice(name);
+        service.seal(die);
+        service.setFace(die, `${index + 2}`);
+        return die;
+      });
+      sound.mockClear();
+
+      expect(service.revealOwnSealed(plotted)).toBe(3);
+
+      expect(sound).toHaveBeenCalledOnce();
+      expect(notice).toHaveBeenCalledOnce();
+      expect(notice.mock.calls[0][1] as string).toContain('一 2 / 二 3 / 三 4');
+      expect(service.revealOwnSealed(plotted)).toBe(0);
+      expect(notice).toHaveBeenCalledOnce();
     });
   });
 });

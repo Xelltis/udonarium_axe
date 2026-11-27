@@ -4,6 +4,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModelActsService } from '@axe/application/tabletop/model-acts.service';
+import { ModelMotionFilesService } from '@axe/application/tabletop/model-motion-files.service';
 import {
   type CardLook,
   drawCard,
@@ -49,6 +51,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import type { EffectJolt } from '@axe/domain/effect/effect-reaction';
+import type { ModelMotionFile } from '@axe/domain/media/model-motion-files';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -66,7 +69,7 @@ import { type TerrainBox, terrainBoxOf } from '@axe/domain/tabletop/terrain-box'
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { characterRollPivot } from '@axe/domain/tabletop/world/character-sprites';
+import { CHARACTER_KIND, characterRollPivot } from '@axe/domain/tabletop/world/character-sprites';
 import { DICE_FRAME_COLOUR } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
@@ -161,19 +164,25 @@ export class TablePiecesService {
   private readonly roomRules = inject(RoomRulesService);
   private readonly motions = inject(PieceMotionsService);
   private readonly reactions = inject(EffectReactionService);
+  private readonly modelActs = inject(ModelActsService);
+  private readonly motionFiles = inject(ModelMotionFilesService);
   private readonly modelStorage = inject(ModelStorage);
 
   /**
    * The characters this seat may see that are drawn as 3D models, held here in full, standing on the
-   * floor: each stood at the middle of its footprint, walking while the seat moves it.
+   * floor: each stood at the middle of its footprint, walking while the seat moves it, thrown as the
+   * effects being played throw it, and acting what they ask its model to act.
    */
   readonly models = computed<readonly TableWorldModel[]>(() => {
     const drawn = this.drawnNow(this.standingModels());
     const jolts = this.reactions.jolts();
-    if (!jolts.size) return drawn;
+    const acts = this.modelActs.acts();
+    if (!jolts.size && !acts.size) return drawn;
     return drawn.map((model) => {
       const jolt = jolts.get(model.owner);
-      return jolt ? { ...model, foot: jolted(model.foot, jolt) } : model;
+      const act = acts.get(model.owner);
+      if (!jolt && !act) return model;
+      return { ...model, ...(jolt ? { foot: jolted(model.foot, jolt) } : {}), ...(act ? { act } : {}) };
     });
   });
 
@@ -190,7 +199,8 @@ export class TablePiecesService {
     },
     shown: (character) => {
       const model = pieceModelOf(character);
-      return !!model && this.modelUrlOf(model.identifier) !== '' && this.characterShown(character);
+      if (!model) return false;
+      return this.modelUrlOf(model.identifier) !== '' && this.characterShown(character);
     },
     draw: (character, place, moving, { gridSize }) => drawModel(character, place, moving, gridSize, this.modelSources),
   });
@@ -198,6 +208,7 @@ export class TablePiecesService {
   /** What this seat holds of the models the characters are drawn as. */
   private readonly modelSources: ModelSources = {
     modelUrlOf: (identifier) => this.modelUrlOf(identifier),
+    motionsOf: (identifier) => this.motionFiles.givenTo(identifier),
     partFacesOf: (character) => {
       const faces = this.partPictures.modelFacesOf(character);
       if (!faces.painted) return {};
@@ -418,6 +429,15 @@ export class TablePiecesService {
   /** Whether this seat is shown a light standing on the table, which is not on ground the fog keeps from it. */
   private lightShown(light: LightSource): boolean {
     return !this.vision.isPieceHiddenByFog(light, 1);
+  }
+
+  /**
+   * The motions for VRM models a model is given, which are part of how it is read: asked in a signal's
+   * reckoning, as whatever lists the models to draw asks, for pieces and blocks alike, it follows them
+   * as they change.
+   */
+  motionsOf(identifier: string): readonly ModelMotionFile[] {
+    return this.motionFiles.givenTo(identifier);
   }
 
   /** Where the bytes of a model held here in full are read from, or nothing for one not held. */
@@ -945,7 +965,8 @@ export class TablePiecesService {
    * Where a piece drawn on the table stands: the point of the face it is drawn on that its place
    * is at, in the face's own pixels, and how far off the face that is, lifted onto the ground under
    * it on the floor and following it while this seat moves it. A piece on no face the table draws
-   * stands where it is kept.
+   * stands where it is kept. Where this seat moves it is read as it is, not followed: a computed that
+   * is to follow each step of a drag reads `TransientPlacementService.version` as well.
    */
   footOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } {
     const moving = this.transient.placementOf(piece.identifier);
@@ -957,14 +978,37 @@ export class TablePiecesService {
   }
 
   /**
+   * The middle of the topmost picture of a thing lying on the face it is drawn on, in the room, as it
+   * stands before what it plays moves it: a card as tall as its picture, the top card of a stack of
+   * cards, over the cards under it. Null for a thing drawn with nothing lying on its face, and for a
+   * character, which is read where it stands instead (see `PiecePlaceService.standingCentreOf`). Read
+   * inside a computed, it is read again as what lies on the table moves, a thing this seat drags at
+   * each step, and not as it is only posed or as a character moves.
+   */
+  lyingMiddleOf(thing: TabletopObject): { x: number; y: number; z: number } | null {
+    return this.lyingMiddles().get(thing.identifier) ?? null;
+  }
+
+  private readonly lyingMiddles = computed<ReadonlyMap<string, { x: number; y: number; z: number }>>(
+    () => {
+      const topmost = new Map<string, TableWorldSprite>();
+      for (const sprite of this.standing()) {
+        if (sprite.order === undefined || sprite.facing === 'eye' || sprite.kind === CHARACTER_KIND) continue;
+        const kept = topmost.get(sprite.owner);
+        if (!kept || sprite.order > kept.order!) topmost.set(sprite.owner, sprite);
+      }
+      return new Map([...topmost].map(([owner, sprite]) => [owner, sprite.centre]));
+    },
+    { equal: sameMiddles }
+  );
+
+  /**
    * Where a piece drawn on the table turns about: the middle of the first of its sprites lying on
    * its face, on the face it is drawn on, in the face's own pixels, and how far off the face that
    * lies. Null for a piece not drawn, or drawn with nothing lying on its face.
    */
   turnAboutOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } | null {
-    const lying = untracked(this.sprites).find(
-      (sprite) => sprite.owner === piece.identifier && sprite.order !== undefined && sprite.facing !== 'eye'
-    );
+    const lying = lyingSpriteOf(untracked(this.sprites), piece);
     const surface = this.surfaceOf(piece);
     const frame = this.surfaces.frameOf(surface);
     if (!lying || !frame) return null;
@@ -991,6 +1035,26 @@ export class TablePiecesService {
       altitudePx: character.altitude * gridSize,
     });
   }
+}
+
+/** The first of a thing's sprites lying on the face it is drawn on, if it has one. */
+function lyingSpriteOf(sprites: readonly TableWorldSprite[], thing: TabletopObject): TableWorldSprite | undefined {
+  return sprites.find(
+    (sprite) => sprite.owner === thing.identifier && sprite.order !== undefined && sprite.facing !== 'eye'
+  );
+}
+
+/** Whether two sets of the middles things lie at name the same things at the same points. */
+function sameMiddles(
+  a: ReadonlyMap<string, { x: number; y: number; z: number }>,
+  b: ReadonlyMap<string, { x: number; y: number; z: number }>
+): boolean {
+  if (a.size !== b.size) return false;
+  for (const [owner, at] of a) {
+    const other = b.get(owner);
+    if (!other || other.x !== at.x || other.y !== at.y || other.z !== at.z) return false;
+  }
+  return true;
 }
 
 /** The column or row of the floor's cells a point lies in. */

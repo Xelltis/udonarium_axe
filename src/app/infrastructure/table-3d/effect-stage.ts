@@ -7,7 +7,7 @@ import {
   stageCameraPlace,
   stageLampOf,
 } from '@axe/infrastructure/table-3d/effect-stage-view';
-import { fieldOfViewDeg } from '@axe/infrastructure/table-3d/engine-rules';
+import { seePageFloor } from '@axe/infrastructure/table-3d/page-floor-camera';
 import { ReadiedDrawing } from '@axe/infrastructure/table-3d/readied-drawing';
 import type {
   EffectOverlay,
@@ -30,7 +30,6 @@ import {
   PointLight,
   RingGeometry,
   Scene,
-  Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
 
@@ -39,7 +38,6 @@ const STAGE_BACKGROUND = 0x0b0d11;
 const BOARD = new Color(0x2a2f38);
 const LINE = new Color(0x4a5260);
 const FIGURE = new Color(0x9fb0c4);
-const ACROSS = new Vector3(1, 0, 0);
 
 /**
  * A small stage an effect is played on, apart from the table: a board with its grid, a stand-in piece
@@ -198,10 +196,7 @@ class OverPage implements EffectOverlay {
     this.renderer.render(this.scene, this.camera);
   }
 
-  /**
-   * Stands the camera in the floor's own measure: where the page's eye is, a perspective's length in
-   * front of the middle of the box, brought into the floor by undoing its growing and its tipping.
-   */
+  /** Fits the canvas to the box the floor is drawn in, and stands the camera to see the floor as the page does. */
   private fit(view: EffectOverlayView): void {
     const width = Math.max(1, view.width);
     const height = Math.max(1, view.height);
@@ -211,19 +206,7 @@ class OverPage implements EffectOverlay {
       this.width = width;
       this.height = height;
     }
-    const scale = Math.max(view.scale, 0.01);
-    const tipped = ((90 - view.tiltDeg) * Math.PI) / 180;
-    this.camera.quaternion.setFromAxisAngle(ACROSS, -tipped);
-    this.camera.position
-      .set(width / 2 - view.originX, view.originY - height / 2, view.perspectivePx)
-      .divideScalar(scale)
-      .applyQuaternion(this.camera.quaternion);
-    this.camera.fov = fieldOfViewDeg(height, view.perspectivePx);
-    this.camera.aspect = width / height;
-    this.camera.near = (view.perspectivePx * 0.02) / scale;
-    this.camera.far = (view.perspectivePx * 20) / scale;
-    this.camera.updateProjectionMatrix();
-    this.camera.updateMatrixWorld();
+    seePageFloor(this.camera, view);
   }
 
   /** Lets go of the effects and of the renderer. */
@@ -265,3 +248,5 @@ export async function createEffectStage(
     return null;
   }
 }
+
+export { createFigureStage } from '@axe/infrastructure/table-3d/figure-stage';

@@ -3,7 +3,11 @@ import { expect, test } from '@playwright/test';
 import { cellSpot, putAwayTutorial, sendMenuEvent } from '../helpers';
 import { chooseMenu, closePanels, freeze, hoverMenu, prepare, rightClickTable, settle, snap } from './fixtures';
 
-/** One die rolled on the table, the starting table's tutorial put away first, with the dice it sets out. */
+/**
+ * One die rolled on the table, the starting table's tutorial put away first, with the dice it sets
+ * out. The pointer is taken off the pieces once the die is rolled, as where the menu left it a piece's
+ * detail would open over the scene.
+ */
 test('a rolling die looks the same a quarter second in', async ({ page }) => {
   await prepare(page);
   await putAwayTutorial(page);
@@ -22,6 +26,7 @@ test('a rolling die looks the same a quarter second in', async ({ page }) => {
     Math.random = () => 0.42;
   });
   await chooseMenu(page, dieMenu, 'ダイスを振る');
+  await page.mouse.move(4, 796);
   await settle(page, 250);
   await snap(page, 'dice-roll', { animationAt: 250 });
 });

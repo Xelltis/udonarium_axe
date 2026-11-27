@@ -16,13 +16,19 @@ export interface GltfFacts {
   readonly fit: string;
 }
 
-interface GltfJson {
+export interface GltfJson {
   scene?: number;
   scenes?: { nodes?: number[]; extras?: { fit?: unknown } }[];
   nodes?: GltfNode[];
-  meshes?: { primitives?: GltfPrimitive[] }[];
+  meshes?: { primitives?: GltfPrimitive[]; extras?: { targetNames?: unknown } }[];
   accessors?: { count?: number }[];
   extensionsUsed?: string[];
+  animations?: { name?: unknown }[];
+  materials?: { name?: unknown }[];
+  extensions?: {
+    VRMC_vrm?: { expressions?: { preset?: Record<string, unknown>; custom?: Record<string, unknown> } };
+    VRM?: { blendShapeMaster?: { blendShapeGroups?: { name?: unknown; presetName?: unknown }[] } };
+  };
 }
 
 interface GltfNode {
@@ -35,6 +41,8 @@ interface GltfPrimitive {
   mode?: number;
   indices?: number;
   attributes?: Record<string, number>;
+  targets?: unknown[];
+  extras?: { targetNames?: unknown };
 }
 
 /** The chunk type of a binary glTF file's JSON, `JSON` read as a little-endian number. */
@@ -46,7 +54,7 @@ const TRIANGLE_STRIP = 5;
 const TRIANGLE_FAN = 6;
 
 /** How many bytes open a binary glTF file before its JSON: its header and the JSON chunk's own. */
-const GLB_HEAD_BYTES = 20;
+export const GLB_HEAD_BYTES = 20;
 
 /**
  * What a binary glTF file held as a blob says of itself, read from its head and its JSON alone rather
@@ -65,12 +73,9 @@ export async function gltfFactsOfBlob(blob: Blob): Promise<GltfFacts | null> {
  * a node placed twice is counted twice, as a loader draws it.
  */
 export function gltfFactsOf(bytes: ArrayBuffer): GltfFacts | null {
-  if (bytes.byteLength < GLB_HEAD_BYTES || !isBinaryGltf(new Uint8Array(bytes, 0, 8))) return null;
-  const view = new DataView(bytes);
-  const length = view.getUint32(12, true);
-  if (view.getUint32(16, true) !== JSON_CHUNK || GLB_HEAD_BYTES + length > bytes.byteLength) return null;
+  const json = gltfJsonOf(bytes);
+  if (!json) return null;
   try {
-    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, GLB_HEAD_BYTES, length))) as GltfJson;
     const scene = json.scenes?.[json.scene ?? 0];
     const counted = new Map<number, number>();
     const counting = new Set<number>();
@@ -93,6 +98,20 @@ export function gltfFactsOf(bytes: ArrayBuffer): GltfFacts | null {
       extensions: Array.isArray(json.extensionsUsed) ? json.extensionsUsed : [],
       fit: typeof fit === 'string' ? fit : '',
     };
+  } catch {
+    return null;
+  }
+}
+
+/** The JSON of a binary glTF file, or null for bytes that are not one or whose JSON cannot be read. */
+export function gltfJsonOf(bytes: ArrayBuffer): GltfJson | null {
+  if (bytes.byteLength < GLB_HEAD_BYTES || !isBinaryGltf(new Uint8Array(bytes, 0, 8))) return null;
+  const view = new DataView(bytes);
+  const length = view.getUint32(12, true);
+  if (view.getUint32(16, true) !== JSON_CHUNK || GLB_HEAD_BYTES + length > bytes.byteLength) return null;
+  try {
+    const json: unknown = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, GLB_HEAD_BYTES, length)));
+    return json && typeof json === 'object' && !Array.isArray(json) ? (json as GltfJson) : null;
   } catch {
     return null;
   }

@@ -22,6 +22,10 @@ describe('mobileMenuItems', () => {
     expect(sharedMobileMenuItems().map((item) => item.action)).toContain('zipLoad');
   });
 
+  it('offers every seat the list of pieces to aim at, the one way to it on a phone with nothing aimed at yet', () => {
+    expect(sharedMobileMenuItems().map((item) => item.action)).toContain('targetList');
+  });
+
   it('puts the room settings straight after the table they belong with', () => {
     const actions = MOBILE_MENU_ITEMS.map((item) => item.action);
     expect(actions.indexOf('roomSettings')).toBe(actions.indexOf('tableSetting') + 1);

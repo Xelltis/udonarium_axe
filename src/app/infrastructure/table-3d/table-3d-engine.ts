@@ -27,9 +27,15 @@ import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
 import { EffectLayer } from '@axe/infrastructure/table-3d/effect-layer';
 import {
+  deepestGroundOf,
   fieldOfViewDeg,
   finishingOf,
+  nodeWornPictures,
   pictureKey,
+  seenOrShadowSeen,
+  shadowCastingPictures,
+  shadowLightsOf,
+  sharedPictureKey,
   unwornPictureKeys,
   wornPictures,
 } from '@axe/infrastructure/table-3d/engine-rules';
@@ -49,6 +55,8 @@ import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-laye
 import { LAID_OVER_FACES } from '@axe/infrastructure/table-3d/floor-order';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
+import { MovingPictures, type PictureWearer } from '@axe/infrastructure/table-3d/moving-pictures';
+import { readiesAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SolidLayer } from '@axe/infrastructure/table-3d/solid-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
@@ -67,6 +75,7 @@ import type {
   Table3dVeil,
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { FRAME_SLACK_MS, SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
@@ -99,6 +108,7 @@ import {
   DoubleSide,
   Fog,
   type FogExp2,
+  Frustum,
   Group,
   HemisphereLight,
   Matrix4,
@@ -259,13 +269,19 @@ class ThreeTableEngine implements Table3dEngine {
   private readyingFrom = 0;
   /** How long the scene stood still on the screen, readying the graphics card or over long frames, until now. */
   private held = 0;
-  /** Whether the graphics card is readied for a new kind of thing before the frame that first draws it. */
-  private readiesFirst = true;
   private needsFrame: () => void = () => undefined;
   private readonly pictures = new TextureLoader();
   /** The pictures painted ground is drawn with, read the first time any ground is painted. */
   private groundPictures: Texture[] | null = null;
   private readonly loaded = new Map<string, Texture>();
+  /** The shared pictures the faces of blocks and walls laid now wear and throw a shadow cut to. */
+  private facePictures = new Set<Texture>();
+  /** The world last laid, for the pictures its layers, backdrops and board wear. */
+  private laidWorld: TableWorld | null = null;
+  /** The deepest the ground of the board laid now goes, which a shadow may fall down to (see `deepestGroundOf`). */
+  private laidFloor = 0;
+  /** The ground `laidFloor` was read from, so that it is read again only once the ground changes. */
+  private floorOf: GroundMesh | null | undefined;
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
   private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
@@ -313,6 +329,15 @@ class ThreeTableEngine implements Table3dEngine {
     (url) => this.spritePicture(url),
     (material) => this.veil.cover(material, 'unlit', false)
   );
+  private readonly movingPictures = new MovingPictures(
+    (shadows) => {
+      this.changed = true;
+      if (shadows) this.piecesMoved();
+      this.needsFrame();
+    },
+    undefined,
+    FRAME_SLACK_MS
+  );
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly solids = new SolidLayer();
   private readonly fogAir = new FogAirLayer();
@@ -321,7 +346,7 @@ class ThreeTableEngine implements Table3dEngine {
   /** How hard lightning lights the scene now, from 0 to 1. */
   private flash = 0;
   private readonly models = new ModelLayer(
-    (material, moonlit) => this.veil.cover(material, 'lit', moonlit),
+    (material, moonlit) => this.veil.cover(material, 'lit', moonlit, true),
     () => {
       this.piecesMoved();
       this.needsFrame();
@@ -362,7 +387,9 @@ class ThreeTableEngine implements Table3dEngine {
       this.changed = true;
       this.needsFrame();
     },
-    (material) => this.veil.cover(material, 'unlit', false)
+    (material) => this.veil.cover(material, 'unlit', false),
+    (url, wearer) => this.movingPictures.wear(url, { ...wearer, judged: true }),
+    (texture) => this.movingPictures.redress(texture)
   );
 
   constructor(
@@ -410,6 +437,8 @@ class ThreeTableEngine implements Table3dEngine {
   setQuality(plan: Table3dQualityPlan): void {
     if (plan !== this.plan) this.changed = true;
     this.plan = plan;
+    this.models.setDetail(plan.modelDetail);
+    this.models.setStanding(plan.standingMotion);
     const slots = Math.min(SHADOW_LIGHTS, plan.shadowedLights);
     if (slots === this.lampSlots && this.sun.castShadow === plan.skyShadows) return;
     this.lampSlots = slots;
@@ -583,6 +612,7 @@ class ThreeTableEngine implements Table3dEngine {
     const struck = 1 + this.flash * FLASH_BOOST;
     this.sun.intensity = this.lastSky.strength * LIGHT_SCALE * ambient * struck;
     this.sky.intensity = (this.lastSky.skyStrength * ambient * struck + this.flash * FLASH_SKY) * LIGHT_SCALE;
+    this.veil.setSkyMirror(this.sky.color, struck + this.flash * FLASH_SKY, GROUND_BOUNCE);
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -617,10 +647,6 @@ class ThreeTableEngine implements Table3dEngine {
     return this.held + (this.readying !== null ? performance.now() - this.readyingFrom : 0);
   }
 
-  readyBeforeDrawing(on: boolean): void {
-    this.readiesFirst = on;
-  }
-
   whenDrawn(): Promise<void> {
     const device = (this.renderer.backend as { device?: { queue: { onSubmittedWorkDone(): Promise<void> } } }).device;
     return device ? device.queue.onSubmittedWorkDone() : Promise.resolve();
@@ -652,6 +678,7 @@ class ThreeTableEngine implements Table3dEngine {
       backdrops: this.backdrops.shown,
       models: this.models.shown,
       dice: this.dice.shown,
+      movingPictures: this.movingPictures.shown,
       effects: this.effects.shown,
       modelMeshes: this.models.meshes,
       veilRevision: this.veil.revision,
@@ -672,6 +699,11 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setWorld(world: TableWorld): void {
+    this.laidWorld = world;
+    if (world.board?.ground !== this.floorOf) {
+      this.floorOf = world.board?.ground;
+      this.laidFloor = deepestGroundOf(world);
+    }
     const board = world.board;
     this.placeBoard(board);
     const shape = board ? () => (board.ground ? groundGeometry(board.ground) : boardGeometry(board)) : null;
@@ -828,17 +860,20 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
-  advance(timeMs: number): boolean | 'slowly' {
+  advance(timeMs: number): boolean | 'slowly' | number {
     const drifting = this.layers.advance(timeMs);
     const flowing = this.water.advance(timeMs);
     const hanging = this.fogAir.advance(timeMs);
     const passing = this.backdrops.advance(timeMs);
     const modelled = this.models.advance(timeMs);
     const falling = this.weather.advance(timeMs, this.camera);
+    const pictureDue = this.movingPictures.advance(timeMs);
     this.strike(timeMs);
     this.takeChanges();
     if (modelled === true || falling) return true;
-    return drifting || flowing || hanging || passing || modelled === 'slowly' ? 'slowly' : false;
+    const slowly = drifting || flowing || hanging || passing || modelled === 'slowly';
+    if (pictureDue === null) return slowly ? 'slowly' : false;
+    return slowly ? Math.min(pictureDue, timeMs + SLOW_MOTION_FRAME_MS) : pictureDue;
   }
 
   setSky(sky: SkyDome | null): void {
@@ -877,6 +912,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   setModelMotion(moving: boolean): void {
     this.models.setTurning(moving);
+    this.movingPictures.setTurning(moving);
     this.takeChanges();
   }
 
@@ -917,7 +953,7 @@ class ThreeTableEngine implements Table3dEngine {
   renderIfChanged(): boolean {
     this.takeChanges();
     if (!this.changed || this.lost || !this.hasRoom()) return false;
-    if (this.readying !== null || (this.readiesFirst && this.readyForNewKinds())) return false;
+    if (this.readying !== null || (readiesAhead() && this.readyForNewKinds())) return false;
     this.changed = false;
     this.renderer.info.reset();
     const began = performance.now();
@@ -926,7 +962,49 @@ class ThreeTableEngine implements Table3dEngine {
     if (spent > LONG_FRAME_MS) this.held += spent;
     this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
+    this.seeMovingPictures();
     return true;
+  }
+
+  /**
+   * Tells the moving pictures which of the textures it can judge are in sight as just drawn: worn as
+   * the map of a piece's board, a coin's face or a face of a block or a wall that is shown and in the
+   * camera's view, or that throws a shadow that may fall in it (see `shadowReachBox`), a piece's board
+   * standing for its shadow alone included; looked for among the pieces, the coins and the faces alone;
+   * and worn by the board, its layers and its backdrops laid now, which are drawn through nodes and
+   * taken as always seen (see `nodeWornPictures`). A picture come into sight has a frame drawn for it.
+   */
+  private seeMovingPictures(): void {
+    const judged = this.movingPictures.judged();
+    if (judged.size === 0) {
+      this.movingPictures.see(judged);
+      return;
+    }
+    const view = new Frustum().setFromProjectionMatrix(
+      new Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+    );
+    const seen = this.laidWorld
+      ? nodeWornPictures(this.laidWorld, this.laidSky !== null, (key) => this.loaded.get(key))
+      : new Set<Texture>();
+    const board = this.laidWorld?.board;
+    const shadows = {
+      lights: shadowLightsOf(this.sun, this.lamps),
+      reach: board ? Math.hypot(board.widthPx, board.depthPx) : 0,
+      floor: this.laidFloor,
+    };
+    const look = (object: Object3D) => {
+      const worn = (object as Mesh).material;
+      if (!worn) return;
+      for (const material of Array.isArray(worn) ? worn : [worn]) {
+        const picture = (material as { map?: Texture | null }).map;
+        if (!picture || !judged.has(picture) || seen.has(picture)) continue;
+        if (seenOrShadowSeen(object, this.camera.layers, view, shadows)) seen.add(picture);
+      }
+    };
+    this.sprites.group.traverseVisible(look);
+    this.coins.group.traverseVisible(look);
+    this.facesRoot.traverseVisible(look);
+    if (this.movingPictures.see(seen)) this.needsFrame();
   }
 
   /**
@@ -988,6 +1066,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.post.dispose();
     this.sprites.dispose();
     this.coins.dispose();
+    this.movingPictures.dispose();
     this.floorCanvases.dispose();
     this.solids.dispose();
     this.layers.dispose();
@@ -1104,6 +1183,12 @@ class ThreeTableEngine implements Table3dEngine {
     for (const key of changedChunks(before, wanted)) this.buildChunk(key, wanted.get(key) ?? null, owned);
     this.gridded = caps.filter((cap) => cap.gridded);
     this.placeTopsGrid();
+    this.noteFacePictures();
+  }
+
+  /** Takes down which pictures the faces laid now throw a shadow cut to, as the faces are laid. */
+  private noteFacePictures(): void {
+    this.facePictures = shadowCastingPictures(this.facesRoot);
   }
 
   private buildChunk(key: string, owners: Map<string, string> | null, owned: ReadonlyMap<string, OwnedFaces>): void {
@@ -1197,12 +1282,19 @@ class ThreeTableEngine implements Table3dEngine {
     );
   }
 
-  /** A picture shared by every face that wears it the same way, tiled or stretched. */
+  /**
+   * A picture shared by everything that wears it the same way, tiled or stretched. Where a face of a
+   * block or a wall wears it, a shadow is cut to it, and its frames draw the shadows again.
+   */
   private sharedPicture(url: string, tiled: boolean): Texture {
-    const key = pictureKey(url, String(tiled));
+    const key = sharedPictureKey(url, tiled);
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url);
+      const shared: Texture = this.picture(url, undefined, {
+        judged: true,
+        shadows: () => this.facePictures.has(shared),
+      });
+      picture = shared;
       if (tiled) picture.wrapS = picture.wrapT = RepeatWrapping;
       this.loaded.set(key, picture);
     }
@@ -1218,7 +1310,11 @@ class ThreeTableEngine implements Table3dEngine {
     const key = pictureKey(url, 'sprite');
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url, () => this.sprites.picturesCame());
+      const worn: Texture = this.picture(url, () => this.sprites.picturesCame(), {
+        judged: true,
+        shadows: () => this.sprites.throwsShadowWith(worn),
+      });
+      picture = worn;
       picture.premultiplyAlpha = true;
       this.loaded.set(key, picture);
     }
@@ -1238,13 +1334,19 @@ class ThreeTableEngine implements Table3dEngine {
 
   /**
    * A picture to draw, which asks for a frame once it has come, and has the shadows drawn again: a
-   * board throwing a piece's shadow is cut to the picture it wears. What wears it is told as well.
+   * board throwing a piece's shadow is cut to the picture it wears. What wears it is told as well. A
+   * moving picture, an APNG or a GIF, is moved frame by frame (see `MovingPictures`).
    */
-  private picture(url: string, came: () => void = () => undefined): Texture {
+  private picture(
+    url: string,
+    came: () => void = () => undefined,
+    how: Omit<PictureWearer, 'texture' | 'paint'> = {}
+  ): Texture {
     this.loading++;
     const settle = () => {
       this.loading--;
       fitReadPicture(picture);
+      this.movingPictures.redress(picture);
       came();
       this.changed = true;
       this.shadowsMoved();
@@ -1253,6 +1355,7 @@ class ThreeTableEngine implements Table3dEngine {
     const picture = this.pictures.load(url, settle, undefined, settle);
     picture.colorSpace = SRGBColorSpace;
     picture.anisotropy = Math.min(PICTURE_ANISOTROPY, this.renderer.getMaxAnisotropy());
+    this.movingPictures.follow(url, picture, how);
     return picture;
   }
 }

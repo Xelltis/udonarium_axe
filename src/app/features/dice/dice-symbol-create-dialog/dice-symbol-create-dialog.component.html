@@ -41,13 +41,21 @@
     }
   </div>
 
-  <div class="flex items-center justify-between gap-3">
-    <label
-      class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[12px] [accent-color:var(--ui-accent)]"
-    >
-      <input name="dice-hidden" type="checkbox" [(ngModel)]="hiddenToOthers" />
-      {{ 'feature.dice.createDialog.hidden' | transloco }}
-    </label>
+  <div class="flex items-end justify-between gap-3">
+    <div class="flex min-w-0 flex-col gap-1">
+      <label
+        class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 text-[12px] [accent-color:var(--ui-accent)]"
+      >
+        <input name="dice-hidden" type="checkbox" [(ngModel)]="hiddenToOthers" />
+        {{ 'feature.dice.createDialog.hidden' | transloco }}
+      </label>
+      <label
+        class="text-ui-muted inline-flex cursor-pointer items-center gap-1.25 pl-4 text-[12px] [accent-color:var(--ui-accent)] has-disabled:cursor-default has-disabled:opacity-50"
+      >
+        <input name="dice-sealed" type="checkbox" [disabled]="!hiddenToOthers" [(ngModel)]="sealed" />
+        {{ 'feature.dice.createDialog.sealed' | transloco }}
+      </label>
+    </div>
 
     <div class="flex shrink-0 gap-1.5">
       <button class="px-2 py-1 text-[12px]" type="button" (click)="cancel()">

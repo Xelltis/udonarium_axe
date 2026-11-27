@@ -17,7 +17,7 @@
           [class.text-ui-accent!]="rangeArea.type === item.type"
           [class.border-ui-accent!]="rangeArea.type === item.type"
           [class.font-semibold]="rangeArea.type === item.type"
-          (click)="rangeArea.type = item.type"
+          (click)="setShape(rangeArea, item.type)"
         >
           <i class="material-icons">{{ item.icon }}</i>
           <span>{{ item.labelKey | transloco }}</span>
@@ -45,7 +45,7 @@
           [class.border-ui-accent!]="rangeArea.solidKind === item.kind"
           [class.font-semibold]="rangeArea.solidKind === item.kind"
           [attr.data-solid-kind]="item.kind || 'flat'"
-          (click)="rangeArea.solidKind = item.kind"
+          (click)="setKind(rangeArea, item.kind)"
         >
           <i class="material-icons">{{ item.icon }}</i>
           <span>{{ item.labelKey | transloco }}</span>

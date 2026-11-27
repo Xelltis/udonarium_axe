@@ -538,6 +538,12 @@ describe('lintChatSyntax', () => {
       expect(codes('《爆炎》《雷》', { hasEffect: () => true })).toEqual(['effect.extra']);
     });
 
+    it('says nothing of a token that asks for a motion, which counts as no effect', () => {
+      expect(codes('《動き:Wave》')).toEqual([]);
+      expect(codes('《動き:Wave》《爆炎》', { hasEffect: () => true })).toEqual([]);
+      expect(codes('《爆炎》《動き:Wave》《雷》', { hasEffect: () => true })).toEqual(['effect.extra']);
+    });
+
     it('finds an effect with no piece targeted or selected to play on, but not in a line aimed at targets', () => {
       const known = { hasEffect: () => true };
       expect(lint('《爆炎》', { ...known, hasEffectTarget: false })).toEqual([

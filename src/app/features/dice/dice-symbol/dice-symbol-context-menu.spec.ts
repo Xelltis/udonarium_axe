@@ -64,10 +64,16 @@ const rules = (overrides: Partial<Record<keyof DiceFaceRules, unknown>> = {}) =>
     canChange: vi.fn(() => true),
     canReveal: vi.fn(() => false),
     canKeep: vi.fn(() => false),
+    canSeal: vi.fn(() => false),
+    canAskToRevealSealed: vi.fn(() => false),
+    canGiveUpSeal: vi.fn(() => false),
     setFace: vi.fn(() => true),
     setNameHidden: vi.fn(() => true),
     reveal: vi.fn(() => true),
     keep: vi.fn(() => true),
+    seal: vi.fn(() => true),
+    askToRevealSealed: vi.fn(() => true),
+    giveUpSeal: vi.fn(() => true),
     ...overrides,
   }) as unknown as DiceFaceRules & Record<keyof DiceFaceRules, ReturnType<typeof vi.fn>>;
 
@@ -114,6 +120,41 @@ describe('buildDiceSymbolContextMenu()', () => {
     const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, dieRules, cb(), t);
     menu.find((m) => m.name === '自分だけ見る')!.action!();
     expect(dieRules.keep).toHaveBeenCalledWith(dice);
+  });
+
+  it('seals a die from the game master too through the dice service where it lets this seat', () => {
+    const dice = makeDice();
+    const shut = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, rules(), cb(), t);
+    expect(names(shut)).not.toContain('自分だけ見る（GMにも隠す）');
+
+    const dieRules = rules({ canSeal: vi.fn(() => true) });
+    const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, dieRules, cb(), t);
+    menu.find((m) => m.name === '自分だけ見る（GMにも隠す）')!.action!();
+    expect(dieRules.seal).toHaveBeenCalledWith(dice);
+  });
+
+  it('gives up the seal of a die through the dice service where it lets this seat', () => {
+    const dice = makeDice();
+    const shut = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, rules(), cb(), t);
+    expect(names(shut)).not.toContain('伏せを解く（目はこの端末になく、失われます）');
+
+    const dieRules = rules({ canGiveUpSeal: vi.fn(() => true) });
+    const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, dieRules, cb(), t);
+    menu.find((m) => m.name === '伏せを解く（目はこの端末になく、失われます）')!.action!();
+    expect(dieRules.giveUpSeal).toHaveBeenCalledWith(dice);
+  });
+
+  it('asks every seat to show its sealed dice, of those on the table, where the dice service lets this seat', () => {
+    const dice = makeDice();
+    const tableDice = [dice as unknown as DiceSymbol];
+    const shut = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, rules(), cb(), t);
+    expect(names(shut)).not.toContain('伏せたダイスを一斉に公開');
+
+    const dieRules = rules({ canAskToRevealSealed: vi.fn(() => true) });
+    const menu = buildDiceSymbolContextMenu(dice as unknown as DiceSymbol, 50, dieRules, { ...cb(), tableDice }, t);
+    menu.find((m) => m.name === '伏せたダイスを一斉に公開')!.action!();
+    expect(dieRules.canAskToRevealSealed).toHaveBeenCalledWith(tableDice);
+    expect(dieRules.askToRevealSealed).toHaveBeenCalledWith(tableDice);
   });
 
   it('offers as many faces as the die has', () => {

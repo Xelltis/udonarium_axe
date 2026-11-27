@@ -1,11 +1,15 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { blobMoves } from '@axe/core/storage/animated-image';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -16,6 +20,7 @@ import {
   CutInWindowComponent,
 } from '@axe/features/media/cut-in-window/cut-in-window.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
+import { movingPngBlob } from '@axe/testing/moving-picture-blob';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeReadyAudio(identifier: string): AudioFile {
@@ -33,7 +38,7 @@ describe('CutInWindowComponent', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [CutInWindowComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     }).compileComponents();
   });
 
@@ -49,6 +54,104 @@ describe('CutInWindowComponent', () => {
 
   it('should be created', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('shows its picture from a URL of this window’s own, for a moving picture to play from its start each time', async () => {
+    const blob = movingPngBlob();
+    await blobMoves(blob);
+    const picture = ImageStorage.instance.add({
+      identifier: 'apng-once',
+      name: 'once.png',
+      type: 'image/png',
+      blob,
+      url: 'blob:held-once',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const cutIn = new CutIn('apng-cut-in');
+    cutIn.initialize();
+    cutIn.imageIdentifier = picture.identifier;
+    component.cutIn = cutIn;
+    component.startCutIn();
+    fixture.detectChanges();
+
+    const shown = (fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src') ?? '';
+
+    expect(shown).not.toBe('');
+    expect(shown).not.toBe('blob:held-once');
+    cutIn.destroy();
+    ImageStorage.instance.delete('apng-once');
+  });
+
+  it('shows the same picture from another URL in the next window, and lets go of a window’s own as it closes', async () => {
+    const letGo = vi.spyOn(URL, 'revokeObjectURL');
+    const blob = movingPngBlob();
+    await blobMoves(blob);
+    const picture = ImageStorage.instance.add({
+      identifier: 'apng-twice',
+      name: 'twice.png',
+      type: 'image/png',
+      blob,
+      url: 'blob:held-twice',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    const cutIn = new CutIn('apng-cut-in-twice');
+    cutIn.initialize();
+    cutIn.imageIdentifier = picture.identifier;
+    const show = () => {
+      const window = TestBed.createComponent(CutInWindowComponent);
+      window.componentInstance.cutIn = cutIn;
+      window.componentInstance.startCutIn();
+      window.detectChanges();
+      const src = (window.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src') ?? '';
+      return { window, src };
+    };
+
+    const first = show();
+    first.window.destroy();
+    const second = show();
+
+    expect(letGo).toHaveBeenCalledWith(first.src);
+    expect(second.src).not.toBe(first.src);
+    second.window.destroy();
+    cutIn.destroy();
+    ImageStorage.instance.delete('apng-twice');
+  });
+
+  it('shows the full picture from a URL of its own once its bytes come after the thumbnail, during the showing', async () => {
+    const [thumbBlob, fullBlob] = [movingPngBlob(), movingPngBlob()];
+    await Promise.all([blobMoves(thumbBlob), blobMoves(fullBlob)]);
+    const picture = ImageStorage.instance.add({
+      identifier: 'apng-late',
+      name: 'late.png',
+      type: '',
+      blob: null,
+      url: '',
+      thumbnail: { type: 'image/png', blob: thumbBlob, url: 'blob:thumb-late' },
+    });
+    const cutIn = new CutIn('apng-cut-in-late');
+    cutIn.initialize();
+    cutIn.imageIdentifier = picture.identifier;
+    component.cutIn = cutIn;
+    component.startCutIn();
+    fixture.detectChanges();
+    const shown = () => (fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src') ?? '';
+    const thumbnail = shown();
+
+    picture.apply({
+      identifier: 'apng-late',
+      name: 'late.png',
+      type: 'image/png',
+      blob: fullBlob,
+      url: 'blob:full-late',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    fixture.detectChanges();
+
+    expect(shown()).not.toBe(thumbnail);
+    expect(shown()).not.toBe('blob:full-late');
+    cutIn.destroy();
+    ImageStorage.instance.delete('apng-late');
   });
 
   describe('the size of the video player', () => {
@@ -398,6 +501,80 @@ describe('CutInWindowComponent', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(priv.cutInTimeOut).toBeNull();
+    });
+  });
+
+  describe('a cut-in that shows a 3D model', () => {
+    function makeCutIn(fields: Partial<CutIn> = {}): CutIn {
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      Object.assign(cutIn, fields);
+      component.cutIn = cutIn;
+      return cutIn;
+    }
+
+    type Shown = {
+      modelShown: () => boolean;
+      modelDoing: () => { act: { role: string; name?: string; atMs: number } | null; walking: boolean };
+    };
+    const shown = () => component as unknown as Shown;
+
+    it('shows the model over the picture, standing until the cut-in is shown and acting what it keeps from then', () => {
+      makeCutIn({ modelIdentifier: 'knight', modelAct: 'attack' });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('model-preview')).not.toBeNull();
+      expect(shown().modelDoing()).toEqual({ act: null, walking: false });
+
+      component.startCutIn();
+      fixture.detectChanges();
+
+      expect(shown().modelDoing()).toMatchObject({ act: { role: 'attack' }, walking: false });
+    });
+
+    it('is as far into its act as the shared start was taken, for a window that joins it late', () => {
+      makeCutIn({ modelIdentifier: 'knight', modelAct: 'attack' });
+      vi.spyOn(performance, 'now').mockReturnValue(50_000);
+
+      component.startCutIn(Date.now() - 3_000);
+
+      const act = shown().modelDoing().act!;
+      expect(50_000 - act.atMs).toBeGreaterThanOrEqual(3_000);
+      expect(50_000 - act.atMs).toBeLessThan(3_500);
+    });
+
+    it('acts anew each time the cut-in is started again', () => {
+      makeCutIn({ modelIdentifier: 'knight', modelAct: 'attack' });
+      const now = vi.spyOn(performance, 'now').mockReturnValue(1_000);
+      component.startCutIn();
+      const first = shown().modelDoing().act!;
+
+      now.mockReturnValue(9_000);
+      component.startCutIn();
+
+      expect(shown().modelDoing().act!.atMs).toBe(9_000);
+      expect(shown().modelDoing().act).not.toBe(first);
+    });
+
+    it('walks for as long as it is shown, or plays one of the model’s own motions, as the cut-in keeps', () => {
+      const cutIn = makeCutIn({ modelIdentifier: 'knight', modelAct: 'walk' });
+      component.startCutIn();
+      expect(shown().modelDoing()).toEqual({ act: null, walking: true });
+
+      cutIn.modelAct = 'Victory';
+      TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
+      expect(shown().modelDoing().act).toMatchObject({ role: 'named', name: 'Victory' });
+    });
+
+    it('shows no model for a cut-in that names none, nor for a video', () => {
+      makeCutIn();
+      fixture.detectChanges();
+      expect(shown().modelShown()).toBe(false);
+      expect(fixture.nativeElement.querySelector('model-preview')).toBeNull();
+
+      const video = makeCutIn({ modelIdentifier: 'knight', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+      video.isVideoCutIn = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(video.identifier);
+      expect(shown().modelShown()).toBe(false);
     });
   });
 

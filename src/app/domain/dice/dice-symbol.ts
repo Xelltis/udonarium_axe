@@ -1,4 +1,5 @@
 import { ImageFile } from '@axe/core/storage/image-file';
+import { forgetSealedFace, keepSealedFace, sealedFaceOf } from '@axe/core/storage/sealed-faces';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { DataElement } from '@axe/domain/data/data-element';
 import { OwnedTabletopObject } from '@axe/domain/tabletop/owned-tabletop-object';
@@ -21,8 +22,25 @@ export class DiceSymbol extends OwnedTabletopObject {
   /** Whether this die has been spent. A die is no less a die for it; it is only marked as done. */
   @SyncVar() isUsed: boolean = false;
 
-  @SyncVar() face: string = '0';
-  @SyncVar() owner: string = '';
+  /**
+   * The face the room is told the die shows: its face, except for a die sealed by its keeper, which
+   * tells the room nothing and keeps its face in the keeper's browser alone.
+   */
+  @SyncVar('face') sentFace: string = '0';
+  /** The user ID of the seat that keeps the die's face to itself; empty while anyone may read it. */
+  @SyncVar('owner') keeper: string = '';
+  /**
+   * Whether the seat that keeps the die keeps its face from the game master too, and from the room
+   * altogether: the face is not sent while it is, so no seat but the keeper's can read it in any way.
+   */
+  @SyncVar() sealed: boolean = false;
+  /**
+   * The user ID of the seat that sealed the die, as it kept it then; empty where it is not told, as in
+   * a room made before it was, where the seat keeping it is taken for the one that sealed it. A die
+   * that has come to be kept by another seat without its seal let go of, as a version that knows
+   * nothing of sealing hands it on, tells nothing, as one kept by nobody does.
+   */
+  @SyncVar() sealedBy: string = '';
   /**
    * The piece this die belongs to. Empty when it belongs to nobody.
    *
@@ -36,6 +54,137 @@ export class DiceSymbol extends OwnedTabletopObject {
 
   @SyncVar() specifyKomaImageFlag: boolean = false;
   @SyncVar('komaImageHeignt') komaImageHeight: number = 100;
+
+  /**
+   * The face the die shows. For the keeper of a sealed die it is the face its browser keeps; for any
+   * other seat it is the face the room was told, which for a sealed die is none. A face given to a
+   * sealed die by its keeper is kept in the keeper's browser and drawn there anew, the room told only
+   * that the die changed. A die left sealed with nobody keeping it, or kept by a seat other than the
+   * one that sealed it, as a version that knows nothing of sealing takes its keeper away or hands it
+   * on, has a face nobody holds, and stands on its first, as one whose seal is let go of does.
+   */
+  get face(): string {
+    if (this.isSealedHere) return sealedFaceOf(this.identifier) ?? this.sentFace;
+    if (this.sealed && !this.isSealed) return this.sentFace || (this.faces[0] ?? '');
+    return this.sentFace;
+  }
+  set face(face: string) {
+    if (!this.isSealedHere) {
+      this.sentFace = face;
+      return;
+    }
+    keepSealedFace(this.identifier, face);
+    this.sentFace = '';
+    this.update();
+  }
+
+  /**
+   * Who keeps the die's face. A die handed to another seat, or to none, as one brought in from a file
+   * is, is unsealed, its face lost to the room: it was kept in the browser of the seat that had it
+   * alone. It then stands on its first face, as a die made anew does.
+   */
+  get owner(): string {
+    return this.keeper;
+  }
+  set owner(owner: string) {
+    if (owner !== this.keeper && this.sealed) this.letSealGo();
+    this.keeper = owner;
+  }
+
+  /**
+   * Hands the die over to another id of the same seat, as when somebody logs in outside a room. A
+   * sealed die stays sealed, its face being in the same browser still, as it is not when the die goes
+   * to another seat.
+   */
+  override handOverWithinSeat(toUserId: string): void {
+    if (this.isSealed) this.sealedBy = toUserId;
+    this.keeper = toUserId;
+  }
+
+  /** Whether this browser holds the face of a die this seat sealed: only one that does can show it. */
+  get holdsSealedFace(): boolean {
+    return this.isSealedHere && sealedFaceOf(this.identifier) !== null;
+  }
+
+  /**
+   * Whether who keeps the die is its keeper's own to change, by showing it or giving its seal up: so
+   * for a sealed die, whose face would be lost to any other seat taking it from its keeper.
+   */
+  override get keepsItsOwner(): boolean {
+    return this.isSealed;
+  }
+
+  /**
+   * Whether the die is sealed by the seat that keeps it: what is sealed and kept by nobody, or by a
+   * seat other than the one that sealed it, tells nothing.
+   */
+  get isSealed(): boolean {
+    return this.sealed && this.hasOwner && (this.sealedBy === '' || this.sealedBy === this.keeper);
+  }
+
+  private get isSealedHere(): boolean {
+    return this.isSealed && this.isMine;
+  }
+
+  /**
+   * Seals the die's face to the seat that keeps it: the face it shows is kept in this browser and the
+   * room is told none. Meant for the keeper's own seat, which is the only one that can open it again.
+   */
+  seal(): void {
+    const face = this.face;
+    keepSealedFace(this.identifier, face);
+    this.sealedBy = this.keeper;
+    this.sealed = true;
+    this.sentFace = '';
+  }
+
+  /**
+   * Seals the die on a face nobody knows: turned to one of its faces at random as it is sealed, since
+   * the face it showed was told to the room, or to the game master, before it was sealed. What a seat
+   * seals is so a face no other seat has seen.
+   */
+  sealUnseen(): void {
+    this.seal();
+    const faces = this.faces;
+    if (faces.length > 0) this.face = faces[Math.floor(Math.random() * faces.length)];
+  }
+
+  /**
+   * Tells the room the face of a sealed die again, as kept in this browser, and lets go of what was
+   * kept. The die stays kept by its seat until it is shown.
+   */
+  unseal(): void {
+    const face = this.face;
+    this.sealed = false;
+    this.sealedBy = '';
+    this.sentFace = face;
+    forgetSealedFace(this.identifier);
+  }
+
+  /**
+   * A copy of the die. A sealed die copied in the browser that holds its face is copied sealed alike,
+   * this browser keeping its face for the copy too; copied anywhere else, as by the game master, the
+   * copy has a face nobody holds, and lets its seal go.
+   */
+  override clone(): this {
+    const copy = super.clone();
+    if (this.holdsSealedFace) keepSealedFace(copy.identifier, this.face);
+    else if (copy.sealed) copy.letSealGo();
+    return copy;
+  }
+
+  /**
+   * Lets go of the seal of a die whose face is lost to the room, as one handed to another seat or a
+   * copy made where its face is not held: it stands unsealed on the face the room was told, or on its
+   * first, as a die made anew does, and the face this browser kept of it, if any, is let go of. No
+   * sealed die is ever left with a face nobody holds.
+   */
+  private letSealGo(): void {
+    this.sealed = false;
+    this.sealedBy = '';
+    forgetSealedFace(this.identifier);
+    if (!this.sentFace) this.sentFace = this.faces[0] ?? '';
+  }
 
   /** How many cells the die spans, kept in its common data. 1 when unset. */
   get size(): number {
@@ -69,9 +218,12 @@ export class DiceSymbol extends OwnedTabletopObject {
   /**
    * Whether a seat may read the die's face and its name, and turn it: roll it, set its face, hide or
    * show its name, and change it on its sheet. Anyone may while nobody keeps the die. Once a seat
-   * keeps it, that seat may, and so may a seat that sees what is kept back.
+   * keeps it, that seat may, and so may a seat that sees what is kept back. A sealed die only the
+   * browser that holds its face may read, as no other has it: not even its keeper's on another
+   * device, or once the browser's site data was cleared.
    */
   isOpenTo(seesHidden: boolean): boolean {
+    if (this.isSealed) return this.holdsSealedFace;
     return seesHidden || this.isVisible;
   }
 

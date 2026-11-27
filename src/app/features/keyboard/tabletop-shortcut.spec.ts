@@ -2,7 +2,14 @@ import { shortcutProbesOf } from '@axe/domain/ui/keyboard-shortcuts';
 import { TabletopKeyContext, tabletopKeyDown } from '@axe/features/keyboard/tabletop-shortcut';
 
 describe('tabletopKeyDown', () => {
-  const idle: TabletopKeyContext = { typing: false, composing: false, chord: false, shift: false };
+  const idle: TabletopKeyContext = {
+    focus: 'none',
+    modal: false,
+    typing: false,
+    composing: false,
+    chord: false,
+    shift: false,
+  };
 
   it('aims at the picked pieces on T', () => {
     expect(tabletopKeyDown('t', idle)).toBe('target');
@@ -22,6 +29,29 @@ describe('tabletopKeyDown', () => {
     expect(tabletopKeyDown('m', idle)).toBe('toggleRuler');
     expect(tabletopKeyDown('Ｍ', idle)).toBe('toggleRuler');
     expect(tabletopKeyDown('M', { ...idle, shift: true })).toBeNull();
+  });
+
+  it('aims at the next piece of the other side on Tab, and the one before on Shift+Tab, but not while typing', () => {
+    expect(tabletopKeyDown('Tab', idle)).toBe('nextTarget');
+    expect(tabletopKeyDown('Tab', { ...idle, shift: true })).toBe('previousTarget');
+    expect(tabletopKeyDown('Tab', { ...idle, typing: true })).toBeNull();
+  });
+
+  it('reads Tab with the focus left on a control the pointer pressed, but moves the focus on where it was moved from the keyboard', () => {
+    expect(tabletopKeyDown('Tab', { ...idle, focus: 'pressed' })).toBe('nextTarget');
+    expect(tabletopKeyDown('Tab', { ...idle, focus: 'pressed', shift: true })).toBe('previousTarget');
+    expect(tabletopKeyDown('Tab', { ...idle, focus: 'keyboard' })).toBeNull();
+    expect(tabletopKeyDown('Tab', { ...idle, focus: 'keyboard', shift: true })).toBeNull();
+  });
+
+  it('reads the letters with the focus on nothing alone', () => {
+    expect(tabletopKeyDown('t', { ...idle, focus: 'pressed' })).toBeNull();
+    expect(tabletopKeyDown('t', { ...idle, focus: 'keyboard' })).toBeNull();
+  });
+
+  it('reads no key under a dialog', () => {
+    expect(tabletopKeyDown('Tab', { ...idle, modal: true })).toBeNull();
+    expect(tabletopKeyDown('t', { ...idle, modal: true })).toBeNull();
   });
 
   it('reads the full-width letters a board left in Japanese input sends', () => {
@@ -44,7 +74,14 @@ describe('tabletopKeyDown', () => {
 describe('the table’s lines on the list of keys', () => {
   for (const { id, probe } of shortcutProbesOf('tabletop')) {
     it(`answers ${id} as listed`, () => {
-      const context = { typing: false, composing: false, chord: !!(probe.ctrl || probe.alt), shift: !!probe.shift };
+      const context: TabletopKeyContext = {
+        focus: 'none',
+        modal: false,
+        typing: false,
+        composing: false,
+        chord: !!(probe.ctrl || probe.alt),
+        shift: !!probe.shift,
+      };
       expect(tabletopKeyDown(probe.key ?? '', context)).toBe(probe.command);
     });
   }

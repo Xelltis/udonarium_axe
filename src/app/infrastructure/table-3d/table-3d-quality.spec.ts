@@ -21,4 +21,11 @@ describe('the qualities the table is drawn at', () => {
     expect(TABLE_3D_QUALITY.high.shadowedLights).toBeGreaterThan(TABLE_3D_QUALITY.standard.shadowedLights);
     expect(TABLE_3D_QUALITY.light.shadowedLights).toBe(0);
   });
+
+  it('draws a model as it was made and plays the motion it stands in, but for a screen that draws lightly', () => {
+    for (const quality of ['high', 'standard'] as const) {
+      expect(TABLE_3D_QUALITY[quality]).toMatchObject({ modelDetail: 'full', standingMotion: true });
+    }
+    expect(TABLE_3D_QUALITY.light).toMatchObject({ modelDetail: 'plain', standingMotion: false });
+  });
 });

@@ -74,6 +74,7 @@ import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import { type JoinableBlock, type WallJoinCell, wallJoinsOf } from '@axe/domain/tabletop/world/wall-joins';
 import { weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
+import { readyAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import type {
   Table3dBackend,
   Table3dCamera,
@@ -84,6 +85,7 @@ import type {
   Table3dStats,
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { FRAME_SLACK_MS, SLOW_MOTION_FRAME_MS } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
  * How the canvas draws the table through three.js: through WebGPU where it can be had, or through
@@ -351,6 +353,7 @@ export class Table3dService {
         kind: Terrain.aliasName,
         url,
         model,
+        motions: this.pieces.motionsOf(model.identifier),
         foot: {
           x: (box.minX + box.maxX) / 2,
           y: (box.minY + box.maxY) / 2,
@@ -548,8 +551,6 @@ export class Table3dService {
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
   private motionHeld = false;
   private sceneHeldAt: number | null = null;
-  /** Whether the engine readies the graphics card for a new kind of thing before drawing it; see {@link readyBeforeDrawing}. */
-  private readiesFirst = true;
 
   constructor() {
     if (untracked(this.renderer) !== 'none') this.loadSoon();
@@ -605,7 +606,6 @@ export class Table3dService {
       this.engine = made;
       made.setDice(this.diceThrows);
       made.warmDice([...this.diceWarmed]);
-      made.readyBeforeDrawing(this.readiesFirst);
       made.onNeedsFrame(() => this.drawSoon(made));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
@@ -765,13 +765,12 @@ export class Table3dService {
   }
 
   /**
-   * Has the engine ready the graphics card for a new kind of thing before drawing it, as it does unless
+   * Has every scene ready the graphics card for a new kind of thing before drawing it, as it does unless
    * told otherwise, or build it on the frame that draws it: for a page whose clock is held, which holds
-   * the readying up with it.
+   * the readying up with it. The table and the small stages of the previews alike (see `readiesAhead`).
    */
   readyBeforeDrawing(on: boolean): void {
-    this.readiesFirst = on;
-    this.engine?.readyBeforeDrawing(on);
+    readyAhead(on);
   }
 
   /**
@@ -978,7 +977,9 @@ export class Table3dService {
     this.frame = null;
     const moving = engine.advance(this.sceneHeldAt ?? time);
     engine.renderIfChanged();
-    if (moving && !this.motionHeld) this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : 0);
+    if (moving !== false && !this.motionHeld) {
+      this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : moving === true ? 0 : moving);
+    }
     this.settleIfIdle();
   }
 
@@ -1023,12 +1024,6 @@ export class Table3dService {
     return busy;
   }
 }
-
-/** How far apart frames are drawn while all that moves on the table by itself drifts slowly, in milliseconds. */
-const SLOW_MOTION_FRAME_MS = 1000 / 30;
-
-/** How much sooner than asked a frame may come and still be drawn, against the clock the screen keeps. */
-const FRAME_SLACK_MS = 4;
 
 /** How high the weather falls from over a table with lower walls or none, in cells, so that it still has a sky. */
 const WEATHER_CEILING_CELLS = 10;

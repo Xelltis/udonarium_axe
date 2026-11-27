@@ -3276,6 +3276,29 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('targets and untargets a character on a modified press of its name tag, and leaves a plain press of it alone', async () => {
+      const char = GameCharacter.create('名札', 1, '');
+      fixture.componentRef.setInput('gameCharacter', char);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const tag = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="piece-name"]')!;
+      const press = (altKey: boolean) =>
+        tag().dispatchEvent(new PointerEvent('pointerdown', { altKey, button: 0, bubbles: true, cancelable: true }));
+
+      try {
+        expect(tag()).not.toBeNull();
+        press(true);
+        expect(char.targeted).toBe(true);
+        press(false);
+        expect(char.targeted).toBe(true);
+        press(true);
+        expect(char.targeted).toBe(false);
+      } finally {
+        char.destroy();
+      }
+    });
+
     it('clears every target with the second modifier and does not target this one again', () => {
       const uiSignalService = TestBed.inject(UiSignalService);
       const notifySpy = vi.spyOn(uiSignalService, 'notifyTargetChange');

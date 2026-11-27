@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -26,6 +27,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class TargetBandComponent {
   private readonly pieceTarget = inject(PieceTargetService);
   private readonly effectTargeting = inject(EffectTargetingService);
+  private readonly roomPanels = inject(RoomPanelService);
 
   protected readonly zIndex = Z_TABLE_BANDS;
 
@@ -53,6 +55,13 @@ export class TargetBandComponent {
     event.preventDefault();
     event.stopPropagation();
     this.effectTargeting.cancel();
+  }
+
+  /** Opens the list of the pieces this seat may aim at, to aim without pressing a piece. The press is kept off the table underneath. */
+  protected openList(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.roomPanels.open('targetList');
   }
 
   /** Takes every aim off. The press is kept off the table underneath. */

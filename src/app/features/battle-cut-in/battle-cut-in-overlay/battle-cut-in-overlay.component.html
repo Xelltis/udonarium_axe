@@ -84,6 +84,7 @@
                 [class.animate-defeat-dissolve]="figure.reaction === 'dissolve'"
                 [class.animate-defeat-bisect]="figure.reaction === 'bisect'"
                 [class.animate-defeat-flinch]="figure.reaction === 'flinch'"
+                [class.invisible]="figure.modelled"
               >
                 @if (figure.imageUrl) {
                   <img
@@ -116,6 +117,8 @@
           }
         </div>
       </div>
+
+      <canvas #modelCanvas class="pointer-events-none absolute inset-0 size-full" data-testid="battle-models"></canvas>
 
       <canvas
         #effectCanvas

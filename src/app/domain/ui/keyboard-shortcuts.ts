@@ -103,6 +103,7 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   ]),
   line('tabletop', 'target', [['T']], { probe: { key: 't', command: 'target' } }),
   line('tabletop', 'clearTargets', [['Shift', 'T']], { probe: { key: 'T', shift: true, command: 'clearTargets' } }),
+  line('tabletop', 'nextTarget', [['Tab'], ['Shift', 'Tab']], { probe: { key: 'Tab', command: 'nextTarget' } }),
   line('tabletop', 'disclosure', [['G']], { audience: 'playing', probe: { key: 'g', command: 'toggleDisclosure' } }),
   line('tabletop', 'ruler', [['M']], { audience: 'playing', probe: { key: 'm', command: 'toggleRuler' } }),
   line('tabletop', 'enter', [['Enter']], { audience: 'playing' }),

@@ -28,6 +28,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { sceneLingerMsOf } from '@axe/domain/effect/scene/effect-frame';
 import type { EffectFrame } from '@axe/domain/effect/scene/effect-scene';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -41,6 +42,7 @@ import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld, TableWorldCap } from '@axe/domain/tabletop/world/table-world';
+import { readiesAhead, readyAhead } from '@axe/infrastructure/table-3d/ready-ahead';
 import type {
   Table3dCamera,
   Table3dDiceThrow,
@@ -81,7 +83,7 @@ class FakeEngine implements Table3dEngine {
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
-  moving: boolean | 'slowly' = false;
+  moving: boolean | 'slowly' | number | ((timeMs: number) => number) = false;
   advanced = 0;
   advancedTo: number[] = [];
   flickeredAt: number[] = [];
@@ -200,10 +202,10 @@ class FakeEngine implements Table3dEngine {
     this.sizes.push([width, height]);
   }
 
-  advance(timeMs: number): boolean | 'slowly' {
+  advance(timeMs: number): boolean | 'slowly' | number {
     this.advancedTo.push(timeMs);
     this.advanced++;
-    return this.moving;
+    return typeof this.moving === 'function' ? this.moving(timeMs) : this.moving;
   }
 
   renderIfChanged(): boolean {
@@ -242,12 +244,6 @@ class FakeEngine implements Table3dEngine {
     return null;
   }
 
-  readiesFirst: boolean[] = [];
-
-  readyBeforeDrawing(on: boolean): void {
-    this.readiesFirst.push(on);
-  }
-
   /** The waits on the graphics card not yet over, settled by {@link finishDrawing}. */
   drawing: (() => void)[] = [];
 
@@ -284,6 +280,7 @@ class FakeEngine implements Table3dEngine {
       models: 0,
       modelMeshes: 0,
       dice: 0,
+      movingPictures: 0,
       effects: 0,
       veilRevision: 0,
       lightMapRevision: 0,
@@ -341,6 +338,7 @@ describe('Table3dService', () => {
   });
 
   afterEach(() => {
+    readyAhead(true);
     localStorage.removeItem(STORAGE_KEYS.tableRenderer);
     localStorage.removeItem(STORAGE_KEYS.tableQuality);
     refused = () => false;
@@ -371,14 +369,14 @@ describe('Table3dService', () => {
     expect(service().renderer()).toBe('three');
   });
 
-  it('has an engine ready the graphics card before drawing, and tells one made later what it was last told', async () => {
+  it('has every scene ready the graphics card before drawing unless told otherwise, and again once told', () => {
     const scene = service();
-    scene.attach(document.createElement('canvas'));
-    await scene.whenIdle();
-    expect(engines[0].readiesFirst).toEqual([true]);
+    expect(readiesAhead()).toBe(true);
 
     scene.readyBeforeDrawing(false);
-    expect(engines[0].readiesFirst).toEqual([true, false]);
+    expect(readiesAhead()).toBe(false);
+    scene.readyBeforeDrawing(true);
+    expect(readiesAhead()).toBe(true);
   });
 
   it('waits on the graphics card through its engine to have drawn what it was handed, and on nothing with no canvas', async () => {
@@ -395,16 +393,6 @@ describe('Table3dService', () => {
     engines[0].finishDrawing();
     await Promise.resolve();
     expect(drawn).toBe(true);
-  });
-
-  it('tells an engine made after it was asked not to ready the graphics card first', async () => {
-    const scene = service();
-    scene.readyBeforeDrawing(false);
-
-    scene.attach(document.createElement('canvas'));
-    await scene.whenIdle();
-
-    expect(engines[0].readiesFirst).toEqual([false]);
   });
 
   it('draws what moves by itself where it stands at the moment it is held at, and by the clock again once let go', async () => {
@@ -602,6 +590,14 @@ describe('Table3dService', () => {
       advanced = engine.advanced;
       runFrames(1000 + 1000 / 60, 12);
       expect(engine.advanced - advanced).toBe(6);
+
+      engine.moving = (timeMs) => timeMs + 100;
+      runFrames(1500, 1);
+      advanced = engine.advanced;
+      runFrames(1500 + 1000 / 60, 12);
+      expect(engine.advanced - advanced).toBe(2);
+      engine.moving = 'slowly';
+      runFrames(1800, 2);
 
       advanced = engine.advanced;
       TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 25 });
@@ -1160,6 +1156,30 @@ describe('Table3dService', () => {
       }),
     ]);
     expect([...world.walls, ...world.caps].filter((face) => face.id.startsWith(block.identifier))).toEqual([]);
+    table.destroy();
+  });
+
+  it('draws a block given a model anew once the model is given motions, which are part of how it is read', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
+      (identifier: string) =>
+        (identifier === 'tree' ? { isReady: true, url: 'blob:tree', name: 'tree.glb' } : null) as never
+    );
+    const table = new GameTable();
+    table.initialize();
+    TableSelecter.instance.viewTableIdentifier = table.identifier;
+    const block = Terrain.create('木', 1, 1, 2, '', '');
+    block.location = { name: 'table', x: 100, y: 150 };
+    block.modelIdentifier = 'tree';
+    table.appendChild(block);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const before = scene.world().models;
+
+    ModelTag.giveMotions('tree', '["wave"]');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(scene.world().models).not.toBe(before);
+    ModelTag.get('tree')?.destroy();
     table.destroy();
   });
 

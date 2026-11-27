@@ -6,6 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { lineAudienceOf } from '@axe/domain/chat/line-audience';
 import { missingDefaultCutInIdentifiers, restoreDefaultCutIns } from '@axe/domain/media/builtin-cut-ins';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
@@ -45,7 +46,8 @@ export class CutInService {
       if (!message.isSendFromSelf) return;
       // A line older than this arrived by sync or by loading a room, and was not just said.
       if (Date.now() - message.timestamp > JUST_SAID_MS) return;
-      this.activateFromChatText(message.text, message.to ?? '', this.speakerOf(message));
+      const sendTo = lineAudienceOf(message) === 'sender' ? message.from : (message.to ?? '');
+      this.activateFromChatText(message.text, sendTo, this.speakerOf(message));
     }, this.destroyRef);
   }
 

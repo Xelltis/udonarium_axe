@@ -17,15 +17,18 @@ import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { HeldClock } from '@axe/core/util/held-clock';
 import { observeSize } from '@axe/core/util/observe-size';
+import { pieceModelOfFighter } from '@axe/domain/battle/battle-fighter-model';
 import { BattleSide, oppositeBattleSide } from '@axe/domain/battle/battle-lineup';
 import { battleChangeLabel, BattleFighter, BattleGauge, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
 import { DEFAULT_BATTLE_THEME } from '@axe/domain/battle/battle-settings';
@@ -59,6 +62,7 @@ import {
 } from '@axe/domain/character/piece-gauge';
 import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { defeatPictureHeight, DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
+import { castRoleOf } from '@axe/domain/effect/effect-model-acts';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectLandingTimes, impactSoundTimes, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
 import { cutPictureSprites, EffectSpriteOptions, Point3 } from '@axe/domain/effect/effect-timeline';
@@ -67,7 +71,9 @@ import type { EffectFooting } from '@axe/domain/effect/scene/effect-frame';
 import { type EffectFrame, EMPTY_EFFECT_FRAME } from '@axe/domain/effect/scene/effect-scene';
 import { drawsOnlyPicturesOver, sceneLingerMsOf } from '@axe/domain/effect/scene/scene-kinds';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import type { PieceModel } from '@axe/domain/tabletop/piece-model';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
+import { figureActing, figureTurnDeg } from '@axe/features/battle-cut-in/battle-figure-acting';
 import {
   attackerPoint,
   bandHeight,
@@ -94,7 +100,12 @@ import {
   EffectViewpoint,
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
-import type { EffectOverlay, EffectOverlayView } from '@axe/infrastructure/table-3d/table-3d-port';
+import type {
+  EffectOverlay,
+  EffectOverlayView,
+  FigureStage,
+  StageFigure,
+} from '@axe/infrastructure/table-3d/table-3d-port';
 import { Z_BATTLE_CUT_IN } from '@axe/ui/z-layers';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -163,7 +174,10 @@ interface FighterView {
   side: BattleSide;
   striking: boolean;
   point: Point3;
+  /** The URL its picture is shown from in this scene (see `ShownPictureUrls`). */
   imageUrl: string;
+  /** The picture's own URL, which its turned copy is cut from and kept by. */
+  pictureUrl: string;
   /**
    * Whether its picture is turned left for right: a picture facing the side it stands on faces
    * away from the one across.
@@ -173,6 +187,9 @@ interface FighterView {
   readable: boolean;
   /** How its body answers going down, as a piece on the table does. */
   reaction: DefeatReaction;
+  /** The model it is drawn as on the table, and where its bytes are read from where this screen holds them. */
+  model: PieceModel | null;
+  modelUrl: string;
 }
 
 export interface FigureFrame {
@@ -187,6 +204,8 @@ export interface FigureFrame {
   filter: string;
   /** How the body answers going down, once it has begun to. */
   reaction: DefeatReaction;
+  /** Whether its model stands on the stage in place of its picture, which is then left undrawn. */
+  modelled: boolean;
 }
 
 export interface PopFrame {
@@ -245,12 +264,18 @@ export interface PlateFrame {
  * A reader may have it drawn in a window instead, in a corner they drag it to: the stage is drawn
  * at a fixed size and shrunk to the window whole, and only its close button moves on, so that the
  * rest of the screen can be worked in, and its Escapes spent elsewhere, while the exchange plays.
+ *
+ * A fighter whose piece is drawn as a 3D model stands as that model where this screen holds it,
+ * drawn and moved as the table draws it: it walks in, strikes its blow or works its spell, takes the
+ * blow as it lands, and goes down. Its picture stands until the model has been read, and throughout
+ * on a screen that does not hold the model.
  */
 @Component({
   selector: 'battle-cut-in-overlay',
   templateUrl: './battle-cut-in-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgStyle, NgTemplateOutlet, TranslocoModule],
+  providers: [ShownPictureUrls],
   host: { class: 'contents', '(document:keydown.escape)': 'pressEscape()', '(window:resize)': 'measureScreen()' },
 })
 export class BattleCutInOverlayComponent {
@@ -258,7 +283,9 @@ export class BattleCutInOverlayComponent {
   private readonly motion = inject(MotionService);
   private readonly library = inject(EffectLibraryService);
   private readonly images = inject(ImageStorage);
+  private readonly models = inject(ModelStorage);
   private readonly mirrors = inject(MirroredPictureService);
+  private readonly shownUrls = inject(ShownPictureUrls);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly disclosure = inject(DisclosureService);
@@ -272,6 +299,12 @@ export class BattleCutInOverlayComponent {
   private readonly root = viewChild<ElementRef<HTMLElement>>('root');
   private readonly floorCanvas = viewChild<ElementRef<HTMLCanvasElement>>('floorCanvas');
   private readonly effectCanvas = viewChild<ElementRef<HTMLCanvasElement>>('effectCanvas');
+  private readonly modelCanvas = viewChild<ElementRef<HTMLCanvasElement>>('modelCanvas');
+  /** The canvas the fighters drawn as their models stand on, made once a scene first has one. */
+  private readonly figureStage = signal<FigureStage | null>(null);
+  private figureStageAsked = false;
+  /** The fighters whose models stand on the stage now, their keys joined, as the stage last said. */
+  private readonly standingKeys = signal('');
   /**
    * The see-through canvases the effects are drawn on as on the table, once they are made: one under
    * the fighters for the marks on the floor, which they stand on, and one over them for the rest.
@@ -385,7 +418,7 @@ export class BattleCutInOverlayComponent {
   readonly backgroundUrl = computed(() => {
     this.objectChange.fileVersion();
     const identifier = this.scene()?.background ?? '';
-    return identifier.length > 0 ? (this.images.get(identifier)?.url ?? '') : '';
+    return identifier.length > 0 ? this.shownUrls.urlOf(this.images.get(identifier), this.serial()) : '';
   });
 
   /** How the band and the plates look: plain on the room's own picture, else as the stage has them. */
@@ -423,6 +456,7 @@ export class BattleCutInOverlayComponent {
       const filters: string[] = [];
       if (struck && flash > 0) filters.push(`brightness(${(1 + 1.6 * flash).toFixed(3)})`);
       if (fallen > 0) filters.push(`grayscale(${fallen.toFixed(3)})`);
+      const modelled = this.modelled().has(view.key);
       return {
         key: view.key,
         imageUrl: view.imageUrl,
@@ -430,12 +464,56 @@ export class BattleCutInOverlayComponent {
         name: view.fighter.name,
         transform: standingTransform(view.point, shift, 0),
         shadowTransform: lyingTransform(view.point, shift),
-        opacity: this.bodyOpacity(fallen, reaction),
+        opacity: modelled ? 1 : this.bodyOpacity(fallen, reaction),
         filter: filters.join(' '),
         reaction,
+        modelled,
       };
     });
   });
+
+  /**
+   * The fighters drawn as their models at this moment: each where it stands, stepped in and forward
+   * as its picture would be, as tall as a fighter stands, turned towards the one across, and walking
+   * and acting as the moment has it, its acts timed from the frame clock now, as each frame of the
+   * stage works them out again.
+   */
+  readonly stageFigures = computed<StageFigure[]>(() => {
+    const timeline = this.timeline();
+    if (!timeline) return [];
+    const elapsed = this.elapsed();
+    const entry = fighterEntry(elapsed);
+    const step = attackerStep(elapsed, timeline);
+    const blow = this.blow();
+    const role = blow ? castRoleOf(blow.effectKind) : 'attack';
+    const nowMs = frameClock();
+    const playing = this.serial();
+    return this.views().flatMap((view) => {
+      if (!view.model || !view.modelUrl) return [];
+      const shift = fighterShift(view.side, entry, view.striking ? step : 0);
+      const fighter = {
+        striking: view.striking,
+        side: view.side,
+        defeated: view.fighter.defeated,
+        hurt: battleGaugeChanges(view.fighter).some((change) => change.hurt),
+      };
+      return [
+        {
+          key: view.key,
+          url: view.modelUrl,
+          model: { ...view.model, scale: 1 },
+          at: { x: view.point.x + shift, y: view.point.y, z: view.point.z },
+          widthPx: BATTLE_FIGURE_PX,
+          heightPx: BATTLE_FIGURE_PX,
+          turnDeg: figureTurnDeg(view.side),
+          ...figureActing(fighter, timeline, elapsed, nowMs, playing, role),
+        },
+      ];
+    });
+  });
+
+  /** The fighters whose models stand on the stage now, by their keys. */
+  private readonly modelled = computed<ReadonlySet<string>>(() => new Set(this.standingKeys().split('\n')));
 
   readonly pops = computed<PopFrame[]>(() => {
     const timeline = this.timeline();
@@ -513,13 +591,14 @@ export class BattleCutInOverlayComponent {
 
   private readonly spriteOptions = computed<EffectSpriteOptions>(() => {
     const views = this.views();
+    const modelled = this.modelled();
     return {
       baseSize: BATTLE_CELL_PX,
       resolvePosition: (identifier) => views.find((view) => view.fighter.identifier === identifier)?.point ?? null,
       resolveImage: (identifier) => {
         const view = views.find((held) => held.fighter.identifier === identifier);
-        if (!view) return '';
-        return view.mirrored ? this.mirrors.of(view.imageUrl) || view.imageUrl : view.imageUrl;
+        if (!view || modelled.has(view.key)) return '';
+        return view.mirrored ? this.mirrors.of(view.pictureUrl) || view.imageUrl : view.imageUrl;
       },
     };
   });
@@ -663,7 +742,21 @@ export class BattleCutInOverlayComponent {
       const overPage = untracked(this.overPage);
       overPage?.floor.dispose();
       overPage?.above.dispose();
+      untracked(this.figureStage)?.dispose();
     });
+    effect(() => {
+      const canvas = this.modelCanvas()?.nativeElement;
+      if (!canvas || this.figureStageAsked || !this.views().some((view) => view.modelUrl)) return;
+      this.figureStageAsked = true;
+      void this.startFigureStage(canvas, destroyRef);
+    });
+    effect(() => {
+      const stage = this.figureStage();
+      if (!stage) return;
+      stage.show(this.stageFigures(), { floor: this.overPageView() });
+      this.noteStanding(stage);
+    });
+    effect(() => this.figureStage()?.setMoving(!this.still()));
     effect(() => this.overPage()?.floor.show(this.floorFrame(), this.overPageView()));
     effect(() => this.overPage()?.above.show(this.aboveFrame(), this.overPageView()));
 
@@ -675,7 +768,7 @@ export class BattleCutInOverlayComponent {
 
     effect(() => {
       for (const view of this.views()) {
-        if (view.mirrored && view.imageUrl.length > 0) untracked(() => this.mirrors.of(view.imageUrl));
+        if (view.mirrored && view.pictureUrl.length > 0) untracked(() => this.mirrors.of(view.pictureUrl));
       }
     });
 
@@ -746,6 +839,32 @@ export class BattleCutInOverlayComponent {
       return;
     }
     this.overPage.set({ floor, above });
+  }
+
+  /**
+   * Loads what stands models on a canvas and makes the stage the fighters drawn as their models
+   * stand on, unless the overlay is gone by then. Where the browser cannot make it, they stand as
+   * their pictures.
+   */
+  private async startFigureStage(canvas: HTMLCanvasElement, destroyRef: DestroyRef): Promise<void> {
+    const module = await this.loadStage();
+    if (destroyRef.destroyed) return;
+    const stage = (await module?.createFigureStage(canvas)) ?? null;
+    if (destroyRef.destroyed || !stage) {
+      stage?.dispose();
+      return;
+    }
+    stage.onArrival(() => this.noteStanding(stage));
+    this.figureStage.set(stage);
+  }
+
+  /** Takes note of which of the fighters' models stand on the stage now, where that has changed. */
+  private noteStanding(stage: FigureStage): void {
+    const standing = untracked(this.stageFigures)
+      .filter((figure) => stage.stands(figure.key))
+      .map((figure) => figure.key)
+      .join('\n');
+    if (standing !== untracked(this.standingKeys)) this.standingKeys.set(standing);
   }
 
   /** Moves on to the next scene, or closes the stage. */
@@ -851,8 +970,10 @@ export class BattleCutInOverlayComponent {
     reaction: DefeatReaction
   ): FighterView {
     const image = fighter.image.length > 0 ? this.images.get(fighter.image) : null;
-    const imageUrl = image?.url ?? '';
     const mirrored = fighter.facing === side;
+    const imageUrl = this.shownUrls.urlOf(image, this.serial());
+    const model = pieceModelOfFighter(fighter.model);
+    const held = model ? this.models.get(model.identifier) : null;
     return {
       key: `${striking ? 'a' : 'd'}-${fighter.identifier}`,
       fighter,
@@ -860,9 +981,12 @@ export class BattleCutInOverlayComponent {
       striking,
       point,
       imageUrl,
+      pictureUrl: image?.url ?? '',
       mirrored,
       readable: this.readable(fighter.identifier),
       reaction,
+      model,
+      modelUrl: held?.isReady ? held.url : '',
     };
   }
 
@@ -878,6 +1002,11 @@ export class BattleCutInOverlayComponent {
   private presetOf(identifier: string): EffectPreset | null {
     return identifier.length > 0 ? this.library.get(identifier) : null;
   }
+}
+
+/** The moment now, on the clock frames are timed by. */
+function frameClock(): number {
+  return typeof performance === 'object' ? performance.now() : Date.now();
 }
 
 /** The size of the screen the stage is drawn on, nothing where there is no window to measure. */

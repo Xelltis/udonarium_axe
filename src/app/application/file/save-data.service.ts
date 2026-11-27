@@ -14,13 +14,13 @@ import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { isBundledModel } from '@axe/core/storage/bundled-models';
-import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { ALONG_DATA_FILE, FileArchiver } from '@axe/core/storage/file-archiver';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { MODEL_TYPE, type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
+import { isModelMotion, MODEL_TYPE, type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { createZipBlob, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -29,6 +29,7 @@ import { downloadBlob } from '@axe/core/util/download-blob';
 import { formatXml } from '@axe/core/util/format-xml';
 import { PromiseQueue } from '@axe/core/util/promise-queue';
 import { xml2element } from '@axe/core/util/xml-util';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import type { ChatLogImages, exportChatLog } from '@axe/domain/chat/chat-log-export';
 import {
@@ -49,6 +50,7 @@ import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageLinkList } from '@axe/domain/media/image-link-list';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
+import { modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
 import { ModelTagList } from '@axe/domain/media/model-tag-list';
 import { PlaylistList } from '@axe/domain/media/playlist-list';
 import { Config } from '@axe/domain/peer/config';
@@ -75,6 +77,9 @@ const ATTACHMENT_IMAGE_ATTRIBUTE = 'attachmentImageIdentifiers';
 const STAMP_ATTRIBUTE = /^stamps?$/;
 
 const CHAT_LOG_IMAGE_DECODE_LIMIT = 4;
+
+/** The root the parts of a piece are saved under, which no version reads as a piece of its own. */
+const PIECE_PARTS_TAG = 'piece-parts';
 
 @Injectable({
   providedIn: 'root',
@@ -258,11 +263,11 @@ export class SaveDataService {
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     if (everything) files.push(...audioArchiveFiles(audios, files));
-    const namedModels = everything ? this.modelStorage.models : this.searchModelFiles(roomXml);
-    const models = namedModels.filter((model) => !isBundledModel(model.identifier));
-    files.push(...modelArchiveFiles(models, files));
-    const modelTagXml = this.convertToXml(ModelTagList.create(namedModels), pretty);
-    files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
+    const models = this.carryModels(
+      everything ? this.modelStorage.models : this.searchModelFiles(roomXml),
+      files,
+      pretty
+    );
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     const playlistXml = this.convertToXml(new PlaylistList(), pretty);
@@ -270,6 +275,27 @@ export class SaveDataService {
     files.push(...this.roomRightsFiles([...images, ...audios, ...models], pretty));
 
     return files;
+  }
+
+  /**
+   * Adds to the files of a save the 3D models it names, and the tags of them, as the motions a VRM
+   * is given: every one but those bundled with the app, which every seat has beside its own page, and
+   * no tags where it names none. The tags of an object saved on its own are written as `adding` to a
+   * room's (see `ModelTag.parseInnerXml`). Answers the models whose files were added.
+   */
+  private carryModels(
+    named: readonly ModelFile[],
+    files: File[],
+    pretty: boolean,
+    { adding = false }: { readonly adding?: boolean } = {}
+  ): ModelFile[] {
+    const models = named.filter((model) => !isBundledModel(model.identifier));
+    files.push(...modelArchiveFiles(models, files));
+    if (named.length > 0) {
+      const modelTagXml = this.convertToXml(ModelTagList.create(named, { adding }), pretty);
+      files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
+    }
+    return models;
   }
 
   /** The pictures named, with every other picture this browser holds in full. */
@@ -283,7 +309,8 @@ export class SaveDataService {
 
   /**
    * Saves one object, such as a character, table or chat tab, as a zip download with the pictures
-   * it refers to.
+   * and the 3D models it refers to. A character is saved with the parts that stand with it, beside it in `parts.xml`,
+   * which a version that knows nothing of parts leaves unread.
    *
    * The file is named with a timestamp and progress is reported as a percentage. Queued with the
    * other saves.
@@ -305,7 +332,10 @@ export class SaveDataService {
     const xml: string = this.convertToXml(gameObject);
 
     files.push(new File([xml], 'data.xml', { type: 'text/plain' }));
-    const images: ImageFile[] = this.withCarried(this.searchImageFiles(xml), [gameObject]);
+    const parts = gameObject instanceof GameCharacter ? gameObject.partsAlong() : [];
+    const partsXml = parts.length > 0 ? this.partsToXml(parts) : '';
+    if (partsXml) files.push(new File([partsXml], ALONG_DATA_FILE, { type: 'text/plain' }));
+    const images: ImageFile[] = this.withCarried(this.searchImageFiles(xml + partsXml), [gameObject, ...parts]);
     for (const image of images) {
       const file = this.createImageArchiveFile(image);
       if (file) files.push(file);
@@ -315,6 +345,7 @@ export class SaveDataService {
     files.push(new File([imageTagXml], 'imagetag.xml', { type: 'text/plain' }));
     const imageLinkXml = this.convertToXml(ImageLinkList.create(images));
     files.push(new File([imageLinkXml], 'imagelink.xml', { type: 'text/plain' }));
+    this.carryModels(this.searchModelFiles(xml + partsXml), files, true, { adding: true });
 
     return this.saveAsync(files, this.appendTimestamp(fileName), updateCallback);
   }
@@ -353,6 +384,12 @@ export class SaveDataService {
     });
   }
 
+  /** The parts of a piece as saved beside it, each as it would be saved on its own, under one root. */
+  private partsToXml(parts: readonly GameObject[]): string {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><${PIECE_PARTS_TAG}>${parts.map((part) => part.toXml()).join('')}</${PIECE_PARTS_TAG}>`;
+    return formatXml(xml, { indentation: '  ', lineSeparator: '\n' });
+  }
+
   private convertToXml(gameObject: GameObject, pretty = true): string {
     const xmlDeclaration = '<?xml version="1.0" encoding="UTF-8"?>';
     const xml = xmlDeclaration + gameObject.toXml();
@@ -371,9 +408,15 @@ export class SaveDataService {
     return [...kept.values()];
   }
 
-  /** The 3D models the pieces and blocks in some room data wear, held here in full. */
+  /**
+   * The 3D models the pieces and blocks in some room data wear, held here in full, and the motions for
+   * VRM models they are given, which go with them.
+   */
   private searchModelFiles(xml: string): ModelFile[] {
     const named = new Set([...xml.matchAll(/\bmodelIdentifier="([^"]+)"/g)].map((match) => match[1]));
+    for (const model of [...named]) {
+      for (const motion of modelMotionFilesOf(model)) named.add(motion.identifier);
+    }
     return this.modelStorage.models.filter((model) => named.has(model.identifier));
   }
 
@@ -645,7 +688,8 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
 
 /**
  * Archive files for the 3D models held here in full, each a `.glb` under the name it was added with,
- * numbered where the name is taken by another model or a file alongside.
+ * or a `.vrma` for a motion for VRM models, which is told by it as it is read back, numbered where the
+ * name is taken by another model or a file alongside.
  */
 function modelArchiveFiles(models: readonly ModelFile[], alongside: readonly File[]): File[] {
   const taken = new Set(alongside.map((file) => file.name.toLowerCase()));
@@ -653,8 +697,9 @@ function modelArchiveFiles(models: readonly ModelFile[], alongside: readonly Fil
   for (const model of models) {
     if (!model.blob) continue;
     const stem = modelNameOf(model.name).trim() || model.identifier;
-    let name = `${stem}.glb`;
-    for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).glb`;
+    const extension = isModelMotion(model) ? 'vrma' : 'glb';
+    let name = `${stem}.${extension}`;
+    for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).${extension}`;
     taken.add(name.toLowerCase());
     files.push(new File([model.blob], name, { type: MODEL_TYPE }));
   }

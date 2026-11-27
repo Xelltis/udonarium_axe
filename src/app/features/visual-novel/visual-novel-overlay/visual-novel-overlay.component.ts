@@ -91,6 +91,7 @@ import {
   VisualNovelSoundBoardComponent,
 } from '@axe/features/visual-novel/visual-novel-sound-board/visual-novel-sound-board.component';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
+import { ModelPreviewComponent } from '@axe/ui/components/piece-model-fields/model-preview.component';
 import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { spotBeside } from '@axe/ui/panel-spot';
@@ -126,6 +127,7 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
     NgSelectWindowDirective,
     RubyTextComponent,
     VisualNovelSoundBoardComponent,
+    ModelPreviewComponent,
     DiceRollStageComponent,
   ],
 })
@@ -298,6 +300,10 @@ export class VisualNovelOverlayComponent {
   readonly portraitEmoteClass = this.stage.portraitEmoteClass;
   readonly emotionMark = this.stage.emotionMark;
   readonly stageCharacters = this.stage.stageCharacters;
+  /** The pieces on the stage that stand as their 3D models, by the piece's identifier. */
+  protected readonly stageModels = this.stage.stageModels;
+  /** How far a model on the stage is turned from facing the reader, in degrees, and the other way once it is flipped. */
+  protected readonly modelTurnDeg = 18;
   readonly activeStageCharacter = this.stage.activeStageCharacter;
   readonly diceCommand = this.stage.diceCommand;
   readonly systemSpeaker = this.stage.systemSpeaker;

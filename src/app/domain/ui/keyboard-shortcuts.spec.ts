@@ -79,6 +79,7 @@ describe('the list of keys', () => {
     expect(shortcutProbesOf('tabletop').map((shortcut) => shortcut.id)).toEqual([
       'target',
       'clearTargets',
+      'nextTarget',
       'disclosure',
       'ruler',
     ]);

@@ -759,7 +759,7 @@ export class AgentCardKinds {
     const kind: AgentKind<DiceSymbol> = {
       kind: DiceSymbol.aliasName,
       description:
-        'A die standing on the table. A die a seat keeps shows its face to that seat alone (and the game master), and its face is left out for any other, its name too, as it is where the name is hidden; only its keeper may roll it or set its face, and those two may hide its name or change it. Roll it, set its face, show it or keep it with its actions.',
+        'A die standing on the table. A die a seat keeps shows its face to that seat alone (and the game master), and its face is left out for any other, its name too, as it is where the name is hidden; only its keeper may roll it or set its face, and those two may hide its name or change it. A die a seat seals, as plot dice are, keeps its face from the game master too: only the browser that sealed it holds the face, nobody may take it from its keeper, and only that browser may show it, or every seat at once where the game master asks. Roll it, set its face, show it, keep it, seal it or ask every seat to show its sealed dice with its actions.',
       list: () =>
         this.objectStore.getObjects<DiceSymbol>(DiceSymbol).filter((die) => this.placedFor(die, Math.max(0, die.size))),
       idOf: (die) => die.identifier,
@@ -900,8 +900,45 @@ export class AgentCardKinds {
             if (!this.diceRoll.reveal(die)) {
               throw new AgentToolError(
                 'not_allowed',
-                'Only the seat that keeps a die, or the game master, may show its face.'
+                die.isSealed
+                  ? 'A seat sealed this die: only the browser that sealed it holds its face and may show it. The game master may ask every seat to show its sealed dice with reveal_sealed.'
+                  : 'Only the seat that keeps a die, or the game master, may show its face.'
               );
+            }
+            return this.shown(kind, die);
+          },
+        },
+        {
+          name: 'seal',
+          description:
+            'Seals its face to this seat alone, the game master included, as plot dice are: the face is kept in this browser and the room is told none. For a die nobody keeps or this seat keeps.',
+          access: 'write',
+          input: objectInput(),
+          run: (die) => {
+            if (die.isSealed && die.isMine) throw new AgentToolError('invalid_input', 'This seat sealed it already.');
+            this.myUserId();
+            if (!this.diceRoll.seal(die)) {
+              throw new AgentToolError(
+                'not_allowed',
+                !this.permission.canEditTabletop()
+                  ? 'This seat may not change the table, as one watching, so it may not seal a die.'
+                  : die.isSealed
+                    ? 'Another seat sealed this die; nobody may take it from its keeper.'
+                    : 'Another seat keeps this die, so this seat may not seal it.'
+              );
+            }
+            return this.shown(kind, die);
+          },
+        },
+        {
+          name: 'reveal_sealed',
+          description:
+            'Asks every seat to show the dice it has sealed, all at once, as plot dice are shown together. For the game master, while a die is sealed; a seat away keeps its dice sealed.',
+          access: 'write',
+          input: objectInput(),
+          run: (die) => {
+            if (!this.diceRoll.askToRevealSealed(this.objectStore.getObjects<DiceSymbol>(DiceSymbol))) {
+              throw new AgentToolError('not_allowed', 'Only the game master may ask, and only while a die is sealed.');
             }
             return this.shown(kind, die);
           },
@@ -916,7 +953,12 @@ export class AgentCardKinds {
             if (die.isMine) throw new AgentToolError('invalid_input', 'This seat already keeps it.');
             this.myUserId();
             if (!this.diceRoll.keep(die)) {
-              throw new AgentToolError('not_allowed', 'Another seat keeps this die; only the game master may take it.');
+              throw new AgentToolError(
+                'not_allowed',
+                die.isSealed
+                  ? 'A seat sealed this die; nobody may take it from its keeper.'
+                  : 'Another seat keeps this die; only the game master may take it.'
+              );
             }
             return this.shown(kind, die);
           },

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RulerService } from '@axe/application/tabletop/ruler.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -74,6 +75,28 @@ describe('RulerService', () => {
     pressed = { id: piece.identifier, layer: 'character' };
 
     expect(ruler.endAt(0, 0, false)).toEqual({ x: 125, y: 175, z: 100, piece: piece.identifier, lift: 0 });
+  });
+
+  it('holds an end laid on a piece on the floor to its feet where it is drawn, as high as it flies', () => {
+    const piece = pieceAt(0, 0);
+    piece.altitude = 1;
+    pressed = { id: piece.identifier, layer: 'character' };
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 325, y: 425, z: 70 });
+
+    expect(ruler.endAt(0, 0, false)).toMatchObject({ x: 325, y: 425, z: 120, piece: piece.identifier });
+  });
+
+  it('holds an end laid on a piece on a wall to the feet of the body standing in for it', () => {
+    const piece = pieceAt(0, 0);
+    pressed = { id: piece.identifier, layer: 'character' };
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({
+      x: 975,
+      y: 975,
+      footZ: 450,
+      groundZ: 0,
+    });
+
+    expect(ruler.endAt(0, 0, false)).toEqual({ x: 975, y: 975, z: 450, piece: piece.identifier, lift: 0 });
   });
 
   it('measures from a piece to where it is drawn out to, and follows the piece as it moves', () => {

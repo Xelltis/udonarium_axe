@@ -101,7 +101,7 @@ describe('AssetRemovalService', () => {
   it('removes a 3D model a person added, and none bundled with the app, for pieces or for the map editor and the generator', () => {
     const modelId = 'd'.repeat(64);
 
-    const oak = bundledMapModels()['tree_oak'];
+    const oak = `${bundledMapModels()['tree_oak']}${'0'.repeat(48)}`;
     const ownWell = 'f'.repeat(64);
     held(oak, 'statue.glb');
     held(ownWell, 'well.glb');
@@ -388,7 +388,7 @@ describe('AssetRemovalService', () => {
 
     it('takes no model of the app’s own out of the store, though a record written before names it', async () => {
       remove.mockResolvedValue('removed');
-      const oak = bundledMapModels()['tree_oak'];
+      const oak = `${bundledMapModels()['tree_oak']}${'0'.repeat(48)}`;
       AssetRemoval.remove(oak, 'model');
 
       service.takeOut([oak]);

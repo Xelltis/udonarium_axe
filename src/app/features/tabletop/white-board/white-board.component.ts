@@ -140,15 +140,14 @@ export class WhiteBoardComponent {
    * Reads the version, then hands back the board.
    *
    * It is the same board every time, so under the default equality a new version never
-   * reaches anything that reads this.
+   * reaches anything that reads this. The picture a board wears arrives after the name of it does,
+   * so the bytes landing (`fileVersion`) moves the view as well; without it a board would stay blank
+   * for everybody else until it is dragged.
    */
   private readonly version = computed(
     () => {
       const board = this.whiteBoard();
       this.objectChange.versionOf(board.identifier)();
-      // The picture a board wears arrives after the name of it does, so the bytes landing has
-      // to move the view as well; without it a board would stay blank for everybody else until
-      // it is dragged.
       this.objectChange.fileVersion();
       return board;
     },

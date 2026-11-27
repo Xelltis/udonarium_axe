@@ -13,7 +13,9 @@ import { TurnState } from '@axe/domain/tabletop/turn-state';
  * targets among them, so an aim left on would strike a piece the reader no longer means to. A piece
  * gone out of sight, into the dark or under the fog, put into stealth or left behind as the reader's
  * own eyes move away, cannot be pressed to take the aim off it; an aim is only ever put on a piece
- * the reader can see, so it is taken off on the same terms. The game master sees everything and
+ * the reader can see, so it is taken off on the same terms. A piece taken off the field keeps its
+ * aim, as the game master aims at a fallen ally to raise it, and the list of pieces to aim at lists
+ * it to be let go of. The game master sees everything and
  * loses no aim to sight; looking at the table as a player, they lose what that player would, as
  * the look is for seeing what the players see. A turn handed on ends what the aims were for, so
  * they are all taken off, for everyone; the aim that outlived its turn is the one that strikes the

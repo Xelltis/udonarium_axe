@@ -8,7 +8,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
-import { type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
+import { isModelMotion, type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { MODEL_TAG_ALIAS, ModelTag } from '@axe/domain/media/model-tag';
@@ -124,6 +124,11 @@ export class ModelLibraryComponent {
 
   protected nameOf(model: ModelFile): string {
     return modelNameOf(model.name);
+  }
+
+  /** Whether a model held here is a motion for VRM models, which is given to a VRM rather than drawn. */
+  protected isMotion(model: ModelFile): boolean {
+    return isModelMotion(model);
   }
 
   /** Shows a model turning, ticking nothing. */

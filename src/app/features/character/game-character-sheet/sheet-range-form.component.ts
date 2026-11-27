@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SolidKind, solidKindsFor } from '@axe/domain/tabletop/solid/solid-kind';
 import { SheetBasicsCardComponent } from '@axe/features/character/game-character-sheet/sheet-basics-card.component';
@@ -31,6 +32,7 @@ const SOLID_ITEMS: Record<SolidKind, { kind: SolidKind; labelKey: string; icon: 
 })
 export class SheetRangeFormComponent {
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly piecePlace = inject(PiecePlaceService);
 
   /** The range the form edits. */
   readonly range = input.required<RangeArea>();
@@ -46,6 +48,16 @@ export class SheetRangeFormComponent {
     { type: 'HEXAGON', labelKey: 'feature.inventory.sheet.rangeShapeHexagon', icon: 'hexagon' },
     { type: 'CIRCLE', labelKey: 'feature.inventory.sheet.rangeShapeCircle', icon: 'radio_button_unchecked' },
   ];
+
+  /** Turns the range to a shape, as every change of a range's shape does (see `PiecePlaceService.reshape`). */
+  protected setShape(range: RangeArea, type: string): void {
+    this.piecePlace.reshape(range, () => (range.type = type));
+  }
+
+  /** Stands the range up as a kind, as every change of a range's kind does (see `PiecePlaceService.reshape`). */
+  protected setKind(range: RangeArea, kind: SolidKind): void {
+    this.piecePlace.reshape(range, () => (range.solidKind = kind));
+  }
 
   /** The kinds a range of a shape can stand up as, in the order their buttons stand. */
   protected solidItems(type: string): readonly { kind: SolidKind; labelKey: string; icon: string }[] {

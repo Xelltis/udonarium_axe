@@ -4,6 +4,7 @@ import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.servic
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { NO_SYSTEM_AVATAR, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
+import { EFFECT_STAGE_LOADER } from '@axe/application/effect/effect-stage-loader';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -13,6 +14,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -102,7 +104,7 @@ describe('VisualNovelOverlayComponent', () => {
     PeerCursor.createMyCursor();
     TestBed.configureTestingModule({
       imports: [VisualNovelOverlayComponent],
-      providers: [...TEST_PROVIDERS],
+      providers: [...TEST_PROVIDERS, { provide: EFFECT_STAGE_LOADER, useValue: () => Promise.resolve(null) }],
     }).compileComponents();
   });
 
@@ -382,6 +384,23 @@ describe('VisualNovelOverlayComponent', () => {
     expect(stage.map((chara) => chara.name)).toContain('アリス');
     expect(stage.find((chara) => chara.isActive)?.name).toBe('ボブ');
     expect(stage.every((chara) => chara.url.length > 0)).toBe(true);
+  });
+
+  it('stands a speaker whose piece is drawn as a 3D model held here as that model, and the rest as their pictures', () => {
+    addMessage('こんにちは', 'アリス', addImage());
+    addMessage('やあ', 'ボブ', addImage());
+    characterFor('アリス').modelIdentifier = 'knight';
+    characterFor('ボブ').modelIdentifier = 'not-held';
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
+      (identifier) => (identifier === 'knight' ? { isReady: true, url: 'blob:knight' } : null) as never
+    );
+    createComponent();
+    fixture.detectChanges();
+
+    const stage = fixture.nativeElement as HTMLElement;
+    expect(stage.querySelectorAll('[data-testid="vn-stage-model"]')).toHaveLength(1);
+    expect(stage.querySelectorAll('img[alt="アリス"]')).toHaveLength(0);
+    expect(stage.querySelectorAll('img[alt="ボブ"]')).toHaveLength(1);
   });
 
   it('keeps a player off it', () => {

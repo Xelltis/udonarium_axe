@@ -3,12 +3,23 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
-import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
+import { buildRangeContextMenuModel, type RangePlacing } from '@axe/features/tabletop/range/range-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
 const t = createSyncTranslate('ja');
+
+/** Changes a range and puts it back on the piece it follows, on a table of 50px cells, as the page does for a piece on the floor. */
+const follow: RangePlacing = {
+  reshape: (_range, change) => change(),
+  putBack: (range) => {
+    range.casterOffset = { x: 0, y: 0 };
+    range.altitude = 0;
+    range.following(50, (piece) => pieceCentreOf(piece, 50));
+  },
+};
 
 describe('buildRangeContextMenuModel', () => {
   it('groups every range action for the 2D menu without changing the ordinary menu', () => {
@@ -24,7 +35,8 @@ describe('buildRangeContextMenuModel', () => {
         { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
-        t
+        t,
+        follow
       );
 
       expect(model.radialGroups.map((group) => group.name)).toEqual([
@@ -52,7 +64,8 @@ describe('buildRangeContextMenuModel', () => {
       { menuAt: vi.fn(() => []) } as CreateObjectMenu,
       vi.fn(),
       onEdit,
-      t
+      t,
+      follow
     ).actions;
   }
 
@@ -139,8 +152,11 @@ describe('buildRangeContextMenuModel', () => {
       expect(square?.action).toBeUndefined();
       expect(square?.subActions?.map((action) => action.name)).toEqual(['ダイヤとして出力', '✔ 四角形として出力']);
 
+      const reshape = vi.spyOn(follow, 'reshape');
       square!.subActions![0].action!();
       expect(range.type).toBe('RHOMBUS');
+      expect(reshape).toHaveBeenCalledWith(range, expect.any(Function));
+      reshape.mockRestore();
       const again = shapeMenuOf(range)?.subActions?.find((action) => action.name.endsWith('四角形・ダイヤ'));
       expect(again?.subActions?.map((action) => action.name)).toEqual(['✔ ダイヤとして出力', '四角形として出力']);
     } finally {
@@ -162,7 +178,8 @@ describe('buildRangeContextMenuModel', () => {
         { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
-        t
+        t,
+        follow
       );
 
       expect(model.actions.map((action) => action.name)).toContain(t('feature.tabletop.contextMenu.followCharacter'));
@@ -185,6 +202,7 @@ describe('buildRangeContextMenuModel', () => {
         vi.fn(),
         vi.fn(),
         t,
+        follow,
         undefined,
         aim
       ).actions;
@@ -222,7 +240,8 @@ describe('standing a range up from its menu', () => {
       { menuAt: vi.fn(() => []) } as CreateObjectMenu,
       vi.fn(),
       vi.fn(),
-      t
+      t,
+      follow
     );
     return model.actions.find((action) => action.name === 'feature.tabletop.contextMenu.solid')!.subActions!;
   }
@@ -237,8 +256,10 @@ describe('standing a range up from its menu', () => {
         'feature.tabletop.contextMenu.solidColumn',
         'feature.tabletop.contextMenu.solidSphere',
       ]);
+      const reshape = vi.spyOn(follow, 'reshape');
       solidEntries(range)[2].action!();
       expect(range.solidKind).toBe('sphere');
+      expect(reshape).toHaveBeenCalledWith(range, expect.any(Function));
       range.type = 'HEXAGON';
       expect(solidEntries(range).map((entry) => entry.name)).toEqual([
         'feature.tabletop.contextMenu.solidFlat',
@@ -294,7 +315,8 @@ describe('letting a range go of the piece it follows', () => {
         { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
-        t
+        t,
+        follow
       ).actions.map((action) => action.name);
 
       expect(names).toContain('feature.tabletop.contextMenu.unfollow');

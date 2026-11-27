@@ -112,6 +112,8 @@ export interface DiceCreateRequest {
   ownerCharacterIdentifier: string;
   /** Whether the face is the maker's alone to read. */
   hiddenToOthers: boolean;
+  /** Whether the face kept to the maker is kept from the game master too, and never sent. Only with `hiddenToOthers`. */
+  sealed: boolean;
 }
 
 /**

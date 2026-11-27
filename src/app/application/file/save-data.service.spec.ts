@@ -164,6 +164,60 @@ describe('SaveDataService', () => {
       expect(saved).not.toContain('tree.glb');
     });
 
+    it('carries a motion for VRM models as a .vrma, and the motions a model the room names is given along with it', () => {
+      const avatar = { identifier: 'a'.repeat(64), name: 'avatar.vrm', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      const wave = { identifier: 'b'.repeat(64), name: 'Wave.vrma', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, avatar, wave] as never);
+      ModelTag.giveMotions(avatar.identifier, JSON.stringify([wave.identifier]));
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+        searchModelFiles: (xml: string) => { identifier: string }[];
+      };
+
+      const whole = privateApi.buildRoomFiles(false, true).filter((file) => file.type === MODEL_TYPE);
+      const named = privateApi.searchModelFiles(`<character modelIdentifier="${avatar.identifier}"></character>`);
+
+      expect(whole.map((file) => file.name)).toEqual(['tree.glb', 'avatar.glb', 'Wave.vrma']);
+      expect(named.map((model) => model.identifier)).toEqual([avatar.identifier, wave.identifier]);
+      ModelTag.get(avatar.identifier)?.destroy();
+    });
+
+    it('carries the model a cut-in saved on its own shows, with the motions it is given, and no model it does not name', async () => {
+      const avatar = { identifier: 'a'.repeat(64), name: 'avatar.vrm', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      const wave = { identifier: 'b'.repeat(64), name: 'Wave.vrma', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, avatar, wave] as never);
+      ModelTag.giveMotions(avatar.identifier, JSON.stringify([wave.identifier]));
+      const cutIn = new CutIn();
+      cutIn.initialize();
+      cutIn.modelIdentifier = avatar.identifier;
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saving = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveGameObjectAsync(cutIn, 'cut');
+
+      const files = saving.mock.calls[0][0] as File[];
+      expect(files.filter((file) => file.type === MODEL_TYPE).map((file) => file.name)).toEqual([
+        'avatar.glb',
+        'Wave.vrma',
+      ]);
+      const tags = (await files.find((file) => file.name === 'modeltag.xml')?.text()) ?? '';
+      expect(tags).toContain(wave.identifier);
+      expect(tags).toContain('adding="true"');
+      cutIn.destroy();
+      ModelTag.get(avatar.identifier)?.destroy();
+    });
+
+    it('writes no tags of models for an object saved on its own that names none', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saving = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+      const piece = GameCharacter.create('一人', 1, '');
+
+      await privateApi._saveGameObjectAsync(piece, 'one');
+
+      expect((saving.mock.calls[0][0] as File[]).map((file) => file.name)).not.toContain('modeltag.xml');
+      piece.destroy();
+    });
+
     it('writes the tags of the models it carries and who added them, for the room to read back', async () => {
       const privateApi = TestBed.inject(SaveDataService) as unknown as {
         buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
@@ -596,6 +650,71 @@ describe('SaveDataService', () => {
 
       expect((saved.mock.calls[0][0] as File[]).map((file) => file.name)).not.toContain('playlist.xml');
       vi.restoreAllMocks();
+    });
+  });
+
+  describe('a piece of many parts', () => {
+    const made: GameCharacter[] = [];
+
+    function piece(name: string, bodyOf?: GameCharacter): GameCharacter {
+      const one = GameCharacter.create(name, 1, '');
+      one.location.name = 'table';
+      if (bodyOf) {
+        one.ridingOn = bodyOf.identifier;
+        one.rideSeat = 'part';
+      }
+      made.push(one);
+      return one;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      for (const one of made.splice(0)) one.destroy();
+    });
+
+    async function filesOf(saved: GameCharacter): Promise<Record<string, string>> {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saving = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+      await privateApi._saveGameObjectAsync(saved, 'piece');
+      const files = saving.mock.calls[0][0] as File[];
+      return Object.fromEntries(await Promise.all(files.map(async (file) => [file.name, await file.text()])));
+    }
+
+    it('is saved whole, its parts beside it under a root no version reads as a piece', async () => {
+      const body = piece('竜');
+      piece('右腕', body);
+      piece('左腕', body);
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const searched = vi.spyOn(privateApi, 'searchImageFiles');
+
+      const files = await filesOf(body);
+
+      expect(files['data.xml']).toContain('<data name="name">竜</data>');
+      expect(files['data.xml']).not.toContain('<data name="name">右腕</data>');
+      expect(files['parts.xml']).toMatch(/<piece-parts>/);
+      expect(files['parts.xml'].match(/<character /g)).toHaveLength(2);
+      expect(files['parts.xml']).toContain('<data name="name">右腕</data>');
+      expect(files['parts.xml']).toContain('<data name="name">左腕</data>');
+      expect(searched.mock.calls[0][0]).toContain('右腕');
+    });
+
+    it('leaves out a part standing elsewhere, and saves a part on its own as it is', async () => {
+      const body = piece('竜');
+      const arm = piece('右腕', body);
+      piece('尾', body).location.name = 'graveyard';
+
+      const whole = await filesOf(body);
+      vi.restoreAllMocks();
+      const alone = await filesOf(arm);
+
+      expect(whole['parts.xml'].match(/<character /g)).toHaveLength(1);
+      expect(whole['parts.xml']).not.toContain('<data name="name">尾</data>');
+      expect(Object.keys(alone)).not.toContain('parts.xml');
+      expect(alone['data.xml']).toContain('<data name="name">右腕</data>');
+    });
+
+    it('is saved as it always was where it has no parts', async () => {
+      expect(Object.keys(await filesOf(piece('一人')))).not.toContain('parts.xml');
     });
   });
 

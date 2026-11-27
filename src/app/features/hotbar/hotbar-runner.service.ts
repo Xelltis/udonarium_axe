@@ -10,9 +10,9 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -67,7 +67,7 @@ function failed(reason: HotbarFailure): HotbarRunResult {
 @Injectable({ providedIn: 'root' })
 export class HotbarRunnerService {
   private readonly objectStore = inject(ObjectStore);
-  private readonly tabletop = inject(TabletopService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly macro = inject(CharacterMacroService);
   private readonly effectLibrary = inject(EffectLibraryService);
@@ -214,7 +214,8 @@ export class HotbarRunnerService {
     const tag = hotbarSlotTag(Hotbar.ownerId, cell, character.identifier);
     if (this.takeAwayField(tag)) return OK;
 
-    const field = this.effectField.place(preset, character.location.x, character.location.y, character.posZ);
+    const corner = this.piecePlace.fieldCornerOf(character);
+    const field = this.effectField.place(preset, corner.x, corner.y, corner.z);
     field.laidByHotbarSlot = tag;
     field.update();
     return OK;
@@ -248,7 +249,7 @@ export class HotbarRunnerService {
     if (options.kind === 'range') this.dressRange(range, options);
     if (docks) {
       range.followingCharacterIdentifier = character.identifier;
-      range.following(this.tabletop.gridSize());
+      this.piecePlace.follow(range);
     }
     range.laidByHotbarSlot = tag;
     range.update();
@@ -280,10 +281,7 @@ export class HotbarRunnerService {
 
   private namedRange(typeName: string, character: GameCharacter): RangeArea | null {
     if (!typeName) return null;
-    return this.tabletopAction.createRangeArea(
-      { x: character.location.x, y: character.location.y, z: character.posZ },
-      typeName
-    );
+    return this.tabletopAction.createRangeArea(this.piecePlace.floorCornerOf(character), typeName);
   }
 
   /**

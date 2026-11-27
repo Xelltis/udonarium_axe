@@ -1,29 +1,39 @@
 import { isAppModel } from '@axe/core/storage/bundled-models';
 import { partFacesOf } from '@axe/domain/character/part-look';
+import { type ModelMotionFile, modelMotionFilesOf } from '@axe/domain/media/model-motion-files';
+import { materialLookIn, MODEL_AS_MADE, type ModelLook } from '@axe/domain/tabletop/model-look';
+import { actHolds, samePose } from '@axe/domain/tabletop/model-motion-poses';
+import { lookKeyOf, lookOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WaterSpout } from '@axe/domain/tabletop/water/water-falls';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
+import { type ActorPace, ModelActor, posedPlacement } from '@axe/infrastructure/table-3d/model-actor';
+import {
+  drawnPicturesOf,
+  type MadeMaterial,
+  madeMaterialOf,
+  type ModelDetail,
+  type ModelSceneMaterial,
+  sceneMaterialFor,
+} from '@axe/infrastructure/table-3d/model-materials';
 import { UnusedSince } from '@axe/infrastructure/table-3d/unused-since';
 import { disposeObject, forgetDrawn } from '@axe/infrastructure/three-kit/dispose';
 import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
 import { cutGeometry, meshesOf, releaseCutShapes } from '@axe/infrastructure/three-kit/model-faces';
-import { picturesOf, releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
+import { releaseReadPictures } from '@axe/infrastructure/three-kit/read-pictures';
+import type { VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
-  AnimationAction,
-  AnimationClip,
-  AnimationMixer,
+  type AnimationClip,
   Box3,
   Group,
   InstancedMesh,
   type Material,
   Matrix4,
   Mesh,
-  MeshLambertNodeMaterial,
-  type MeshStandardMaterial,
   type Object3D,
   type Texture,
   Vector3,
@@ -41,6 +51,18 @@ interface LoadedModel {
   readonly foot: Vector3;
   /** Whether it plays any motion, which its every copy is then stood on its own to play. */
   readonly animated: boolean;
+  /** Whether any of its meshes can be blended towards shapes, each copy as far as its own piece has it. */
+  readonly shaped?: boolean;
+  /**
+   * What the materials of its meshes were made of, by the meshes' order in the model (see `meshesOf`):
+   * what a copy drawn another way has its own materials made from. Shared by every copy read of the
+   * same bytes, with the pictures they name.
+   */
+  readonly made: readonly MadeOfMesh[];
+  /** Whether it keeps the glow it was made with, as only one of the app's own models does. */
+  readonly ownGlow: boolean;
+  /** For a VRM, the shapes it names and the parts of it that swing, made again for each copy. */
+  readonly rig?: VrmRig;
   /**
    * Whether it is made to be stretched to the box it stands in, each way on its own, as a door or a
    * stair of any size is, rather than fitted inside it keeping its shape. Its scene says so in its
@@ -109,6 +131,9 @@ interface ModelPart {
   readonly hub?: boolean;
 }
 
+/** What the material of a mesh was made of, or of each of its materials where it wears several. */
+type MadeOfMesh = MadeMaterial | readonly MadeMaterial[];
+
 /** The parts of a building's kit: its wall, its roof and its parapet. */
 type KitRole = 'wall' | 'roof' | 'cap';
 
@@ -139,17 +164,23 @@ interface Herd {
 
 interface StoodModel {
   readonly owner: string;
-  readonly url: string;
+  /** What the model read it is a copy of is kept by (see `modelReadKeyOf`). */
+  readonly key: string;
   /** The faces the copy leaves out, as written on what it was laid for. */
   readonly cut: string;
   readonly root: Group;
-  readonly mixer: AnimationMixer;
-  idle: AnimationAction | null;
-  walk: AnimationAction | null;
-  /** The names of the motions the piece asked for when they were chosen, empty for the model's own. */
-  idleName: string;
-  walkName: string;
-  walking: boolean;
+  /** What plays its motions, moves its face, and says where a hand moves the whole of it. */
+  readonly actor: ModelActor;
+  /** Where it is placed for its piece, before a hand moves it. */
+  readonly placed: Matrix4;
+  /** Its piece's foot in the scene, which a hand moves it about. */
+  readonly foot: Vector3;
+  /** The way across the floor to the other in its act, or the way it faces, of unit length in the scene. */
+  readonly toward: Vector3;
+  /** How wide its piece is, in table pixels, which a hand moves it by. */
+  widthPx: number;
+  /** How fast it wanted drawing when it was last moved on. */
+  pace: ActorPace;
 }
 
 /** How many radians a degree is. */
@@ -167,10 +198,14 @@ export const UNUSED_MODEL_KEEP_MS = 120_000;
 
 /**
  * The pieces and blocks drawn as 3D models: each a binary glTF file read from bytes held here, its
- * materials made over to be lit and veiled as the rest of the scene is, stood with its foot at the
- * piece's, fitted inside the piece's box, and turned as the piece is. A model that plays a walk
- * plays it while its piece is moved, and stands in the first pose of its idle otherwise, so a table
- * standing still is not drawn again. A part its model says turns, as the sails of a windmill do, is
+ * materials made over to be lit and veiled as the rest of the scene is, as its piece has them drawn
+ * (see `sceneMaterialFor`), stood with its foot at the
+ * piece's, fitted inside the piece's box, and turned as the piece is. A piece's model walks while its
+ * piece is moved, acts what its piece is asked to act, and otherwise stands in its idle, blinking and
+ * breathing with the shapes it has (see `ModelActor`); one with no motion of its own for any of these
+ * is moved whole, as a figure in the hand, and is drawn with the copies of its model while it only
+ * stands. A standing motion is drawn a frame now and then, and held in its first pose where standing
+ * motions are not played, so that table is not drawn again while nothing else moves. A part its model says turns, as the sails of a windmill do, is
  * turned to where it stands at each moment drawn, where the copies of the model are drawn together
  * and things may move; it throws no shadow, as the shadows are not drawn again as it turns. Nothing a model names outside its own bytes is ever fetched,
  * and one that draws more triangles than a model may, or cannot be read, is left drawn as its
@@ -194,19 +229,33 @@ export class ModelLayer {
   private readonly herds = new Map<string, Herd>();
   private laid: readonly TableWorldModel[] = [];
   private changed = false;
-  private lastTimeMs: number | null = null;
+  /** The moment the models were last moved on to, in milliseconds; none before the first. */
+  private movedToMs: number | null = null;
+  /** Whether a model standing still plays the motion it stands in and moves its face. */
+  private standing = true;
+  /** The acts played through by a hand moving a copy alone, by piece, after which the copy is drawn with the others again. */
+  private readonly actsOver = new Map<string, string>();
+  private readonly posedPlace = new Matrix4();
   /** The spouts last told of, as one text, so that the same spouts are not told of twice. */
   private toldSpouts = '[]';
-  /** Whether the parts made to turn do turn: not for a reader who asks for less motion, for whom they stand as they were made. */
+  /**
+   * Whether anything of a model moves of itself, the parts made to turn and the motions of the pieces'
+   * models: not for a reader who asks for less motion, for whom each stands as it was made, or as its
+   * act leaves it.
+   */
   private turns = false;
   /** The moment the turning parts were last turned to, in milliseconds, which a herd laid again is turned to as well. */
   private turnedToMs = 0;
   private readonly turnedPlace = new Matrix4();
   /** Whether the layer has been let go of, after which a model still being read is let go of as it comes. */
   private disposed = false;
+  /** How much of what the models' materials were made of is drawn. */
+  private detail: ModelDetail = 'full';
+  /** Which reading of the models this is: one more each time all read are let go of, so one read for an earlier is told. */
+  private reading = 0;
 
   constructor(
-    private readonly dress: (material: Material, moonlit: boolean) => void,
+    private readonly dress: (material: ModelSceneMaterial, moonlit: boolean) => void,
     private readonly arrived: () => void,
     private readonly renderer: () => WebGPURenderer,
     private readonly spoutsMoved: (spouts: readonly WaterSpout[]) => void = () => undefined
@@ -230,9 +279,27 @@ export class ModelLayer {
     return meshes;
   }
 
+  /** Whether the model laid for a piece or block has been read, and so is drawn. */
+  draws(owner: string): boolean {
+    const model = this.laid.find((one) => one.owner === owner);
+    return model !== undefined && !!this.loaded.get(modelReadKeyOf(model));
+  }
+
   /** Whether any model is still being read. */
   get isLoading(): boolean {
     return this.loading.size > 0;
+  }
+
+  /**
+   * Sets how much of what the models' materials were made of is drawn. Every model read is let go of
+   * and read afresh where that changes, as the pictures a model is not drawn with are let go of once
+   * it is read.
+   */
+  setDetail(detail: ModelDetail): void {
+    if (detail === this.detail) return;
+    this.detail = detail;
+    this.letGoOfAll();
+    this.lay();
   }
 
   /** The pieces and blocks drawn as models now, which a frame of their shadows follows. */
@@ -244,42 +311,77 @@ export class ModelLayer {
 
   /** The name of the motion the model of a piece plays now, or null where it plays none or stands in no copy of its own. */
   motionOf(owner: string): string | null {
-    const stood = this.stood.get(owner);
-    if (!stood) return null;
-    const action = stood.walking ? (stood.walk ?? stood.idle) : stood.idle;
-    return action?.getClip().name ?? null;
+    return this.stood.get(owner)?.actor.motion ?? null;
   }
 
   /**
-   * Moves the walks on to a moment, in milliseconds, and turns the parts made to turn to where they
-   * stand at it; answers whether any model is walking, or `'slowly'` where parts only turn, which a
-   * frame every so often draws well enough.
+   * Moves the models on to a moment, in milliseconds: their motions, their faces and what a hand
+   * moves of them, and the parts made to turn to where they stand at it. Answers whether any model
+   * is walking or acting, or `'slowly'` where models only stand in their motions or parts only turn,
+   * which a frame every so often draws well enough.
    */
   advance(timeMs: number): boolean | 'slowly' {
-    const step = this.lastTimeMs === null ? 0 : Math.min(0.1, (timeMs - this.lastTimeMs) / 1000);
-    this.lastTimeMs = timeMs;
-    let walking = false;
+    this.movedToMs = timeMs;
+    const moment = this.moment();
+    let fastest: ActorPace = 'still';
+    let through = false;
     for (const stood of this.stood.values()) {
-      if (!stood.walking) continue;
-      stood.mixer.update(step);
-      walking = true;
-      this.changed = true;
+      const before = stood.pace;
+      const posed = stood.actor.pose;
+      stood.pace = stood.actor.advance(moment);
+      if (!samePose(stood.actor.pose, posed)) this.place(stood);
+      if (stood.pace !== 'still' || before !== 'still') this.changed = true;
+      if (stood.pace === 'fast' || (stood.pace === 'slow' && fastest === 'still')) fastest = stood.pace;
+      const over = stood.actor.finishedAct;
+      if (over && this.actsOver.get(stood.owner) !== over.key) {
+        this.actsOver.set(stood.owner, over.key);
+        through = true;
+      }
     }
-    if (!walking) this.lastTimeMs = null;
+    if (through) this.lay();
     const turning = this.turns && this.turnHerdsTo(timeMs);
-    if (walking) return true;
-    return turning ? 'slowly' : false;
+    if (fastest === 'fast') return true;
+    return fastest === 'slow' || turning ? 'slowly' : false;
+  }
+
+  /** Sets whether a model standing still plays the motion it stands in and moves its face, or holds its first pose. */
+  setStanding(standing: boolean): void {
+    if (standing === this.standing) return;
+    this.standing = standing;
+    this.settleStood();
   }
 
   /**
-   * Lets the parts made to turn turn, or stands them as they were made, as for a reader who asks for
-   * less motion.
+   * Lets the models move of themselves, the parts made to turn and the motions of the pieces' models,
+   * or stands them as they were made, as for a reader who asks for less motion.
    */
   setTurning(turns: boolean): void {
     if (turns === this.turns) return;
     this.turns = turns;
     this.turnHerdsTo(turns ? this.turnedToMs : 0);
     if (!turns) this.turnedToMs = 0;
+    this.settleStood();
+    this.lay();
+  }
+
+  /** What the models are asked to do at the moment they were last moved on to, or now where they never were. */
+  private moment(): { timeMs: number; moving: boolean; standing: boolean } {
+    return { timeMs: this.movedToMs ?? performance.now(), moving: this.turns, standing: this.standing };
+  }
+
+  /**
+   * Moves every model stood on to the moment again, as what it is asked to do there has changed,
+   * whether it is moved on at all among it: what each plays is taken up again, from its first pose
+   * where it stands still.
+   */
+  private settleStood(): void {
+    const moment = this.moment();
+    for (const stood of this.stood.values()) {
+      stood.actor.resettle();
+      stood.pace = stood.actor.advance(moment);
+      this.place(stood);
+    }
+    this.changed = true;
   }
 
   /** Turns every part made to turn to where it stands at a moment; answers whether there is any. */
@@ -318,43 +420,56 @@ export class ModelLayer {
   /** Lets go of every model stood or herded, of the models read, and of the reader; nothing is drawn after. */
   dispose(): void {
     this.disposed = true;
+    this.letGoOfAll();
+    this.reader.dispose();
+  }
+
+  /** Takes every model stood or herded out of the scene, and lets go of every model read. */
+  private letGoOfAll(): void {
     for (const stood of this.stood.values()) {
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
       releaseCutShapes(stood.root);
+      stood.actor.dispose();
     }
     this.stood.clear();
     for (const herd of this.herds.values()) this.unherd(herd);
     this.herds.clear();
-    for (const loaded of this.loaded.values()) if (loaded) disposeObject(loaded.gltf.scene);
+    for (const loaded of this.loaded.values()) if (loaded) letGoOfWhole(loaded);
     this.loaded.clear();
     this.readUrls.clear();
+    this.loading.clear();
+    this.reading++;
     this.unused.clear();
     if (this.sweepTimer !== null) clearTimeout(this.sweepTimer);
     this.sweepTimer = null;
-    this.reader.dispose();
   }
 
   /**
-   * Stands every model laid where its piece is, reading first any not read yet: a model that plays a
-   * motion as a copy of its own, and the copies of one that plays none together in its herd.
+   * Stands every model laid where its piece is, reading first any not read yet: a model that moves
+   * as a copy of its own (see {@link standsApart}), and the copies of one that does not together in
+   * its herd.
    */
   private lay(): void {
     const wanted = new Map(this.laid.map((model) => [model.owner, model]));
+    for (const owner of this.actsOver.keys())
+      if (wanted.get(owner)?.act?.key !== this.actsOver.get(owner)) this.actsOver.delete(owner);
     for (const [owner, stood] of this.stood) {
       const one = wanted.get(owner);
+      const loaded = this.loaded.get(stood.key);
       if (
         one &&
-        one.url === stood.url &&
+        loaded &&
+        modelReadKeyOf(one) === stood.key &&
         (one.cutFaces ?? '') === stood.cut &&
-        (one.ownCopy || this.loaded.get(modelReadKeyOf(one))?.animated)
+        this.standsApart(one, loaded)
       ) {
         continue;
       }
       this.group.remove(stood.root);
       forgetDrawn(stood.root);
       releaseCutShapes(stood.root);
-      stood.mixer.stopAllAction();
+      stood.actor.dispose();
       this.stood.delete(owner);
     }
     const flocks = new Map<string, TableWorldModel[]>();
@@ -362,11 +477,17 @@ export class ModelLayer {
       const key = modelReadKeyOf(model);
       let loaded = this.loaded.get(key);
       if (loaded === undefined) {
-        this.read(key, model.url, isAppModel(model.model.identifier), moonlitFor(model));
+        this.read(
+          key,
+          { url: model.url, motions: motionsOfModel(model) },
+          isAppModel(model.model.identifier),
+          moonlitFor(model),
+          lookOf(model.model)
+        );
         loaded = this.loaded.get(key);
       }
       if (!loaded) continue;
-      if (loaded.animated || model.ownCopy) this.stand(model, loaded);
+      if (this.standsApart(model, loaded)) this.stand(model, loaded);
       else flocks.set(key, [...(flocks.get(key) ?? []), model]);
     }
     for (const [url, herd] of this.herds) {
@@ -378,6 +499,21 @@ export class ModelLayer {
     this.noteUnused();
     this.tellSpouts();
     this.changed = true;
+  }
+
+  /**
+   * Whether a model is stood as a copy of its own rather than drawn with the other copies of it: one
+   * that plays a motion or can be blended towards shapes, one a part of its piece is painted over,
+   * one down, which stays as its going down left it, and one a hand is moving now, walking or
+   * acting, until the act is through, whether or not it is still asked for.
+   */
+  private standsApart(model: TableWorldModel, loaded: LoadedModel): boolean {
+    if (loaded.animated || loaded.shaped || model.ownCopy) return true;
+    if (!motionsOf(model.model).made) return false;
+    if (model.act && actHolds(model.act)) return true;
+    if (!this.turns) return false;
+    if (model.walking || this.stood.get(model.owner)?.actor.acting) return true;
+    return model.act !== undefined && this.actsOver.get(model.owner) !== model.act.key;
   }
 
   /** Tells where the spouts of the models laid stand on the table, whenever they are not where they were last told. */
@@ -429,7 +565,7 @@ export class ModelLayer {
    */
   private letGoOf(key: string, loaded: LoadedModel): void {
     if (this.twinOf(key, 'loaded')) disposeMaterialsOf(loaded.gltf.scene);
-    else disposeObject(loaded.gltf.scene);
+    else letGoOfWhole(loaded);
   }
 
   /** The key of another copy held, or being read, of the same bytes as the one kept by `key`. */
@@ -442,23 +578,35 @@ export class ModelLayer {
     return null;
   }
 
-  /** Stands a model that plays a motion where its piece is, as a copy of its own. */
+  /** Stands a model that moves where its piece is, as a copy of its own, doing what its piece asks of it. */
   private stand(model: TableWorldModel, loaded: LoadedModel): void {
     let stood = this.stood.get(model.owner);
-    let rechosen = false;
     if (!stood) {
       stood = this.instanceOf(model, loaded);
       this.stood.set(model.owner, stood);
       this.group.add(stood.root);
-    } else if (stood.idleName !== model.model.idle || stood.walkName !== model.model.walk) {
-      chooseMotions(stood, model, loaded);
-      rechosen = true;
     }
     const inner = stood.root.children[0];
     inner.position.set(-loaded.foot.x, -loaded.foot.y, -loaded.foot.z);
-    placementOf(model, loaded).decompose(stood.root.position, stood.root.quaternion, stood.root.scale);
+    stood.placed.copy(placementOf(model, loaded));
+    stood.foot.set(model.foot.x, model.foot.z + model.altitudePx, model.foot.y);
+    towardOf(model, stood.placed, stood.toward);
+    stood.widthPx = Math.max(1, model.footprintPx);
+    const moment = this.moment();
+    stood.actor.cast(model.model);
+    stood.actor.walk(model.walking, moment.timeMs);
+    stood.actor.perform(model.act ?? null);
+    stood.actor.speak(model.speaking === true);
+    stood.pace = stood.actor.advance(moment);
+    this.place(stood);
+  }
+
+  /** Puts a model stood where it is placed for its piece, moved from there as a hand moves it now. */
+  private place(stood: StoodModel): void {
+    stood.root.matrix.copy(
+      posedPlacement(stood.placed, stood.foot, stood.toward, stood.actor.pose, stood.widthPx, this.posedPlace)
+    );
     stood.root.updateMatrixWorld(true);
-    this.walk(stood, model.walking, rechosen);
   }
 
   /** Stands the copies of a model that plays no motion where their pieces are, its herd grown where it is too small. */
@@ -473,6 +621,7 @@ export class ModelLayer {
       herd = {
         parts: loaded.parts.map(({ mesh, spin }, index) => {
           const part = new InstancedMesh(mesh.geometry, mesh.material, capacities[index]);
+          part.visible = mesh.visible;
           part.castShadow = !spin;
           part.receiveShadow = true;
           part.matrixAutoUpdate = false;
@@ -513,22 +662,10 @@ export class ModelLayer {
     }
   }
 
-  /**
-   * Plays a model's walk while its piece is moved, and holds it in the first pose of its idle
-   * otherwise; a motion already playing is left alone unless its motions were chosen afresh.
-   */
-  private walk(stood: StoodModel, walking: boolean, rechosen = false): void {
-    if (stood.walking === walking && !rechosen) return;
-    stood.walking = walking;
-    stood.mixer.stopAllAction();
-    const action = walking ? (stood.walk ?? stood.idle) : stood.idle;
-    action?.reset().play();
-    stood.mixer.update(0);
-  }
-
   private instanceOf(model: TableWorldModel, loaded: LoadedModel): StoodModel {
     const inner = cloneSkinned(loaded.gltf.scene) as Object3D;
     const root = new Group();
+    root.matrixAutoUpdate = false;
     root.add(inner);
     root.userData['owner'] = model.owner;
     const cut = partFacesOf(model.cutFaces ?? '');
@@ -537,52 +674,52 @@ export class ModelLayer {
       const triangles = cut.get(index);
       if (triangles) mesh.geometry = cutGeometry(mesh.geometry, triangles);
     });
-    const stood: StoodModel = {
+    return {
       owner: model.owner,
-      url: model.url,
+      key: modelReadKeyOf(model),
       cut: model.cutFaces ?? '',
       root,
-      mixer: new AnimationMixer(inner),
-      idle: null,
-      walk: null,
-      idleName: '',
-      walkName: '',
-      walking: false,
+      actor: new ModelActor(inner, loaded.gltf.animations, model.owner, loaded.rig ?? null),
+      placed: new Matrix4(),
+      foot: new Vector3(),
+      toward: new Vector3(0, 0, 1),
+      widthPx: 1,
+      pace: 'still',
     };
-    chooseMotions(stood, model, loaded);
-    this.walk(stood, false, true);
-    return stood;
   }
 
   /**
-   * Reads a model from bytes held here, its materials made over for the scene, and asks for a frame
-   * once it is read, kept by `key` (see `modelReadKeyOf`). The glow it was made with is kept only for one of
-   * the app's own (`ownGlow`), and it is greyed by the world's moonlight only as a block (`moonlit`).
-   * Bytes another copy is held of, for a piece where this is for a block or the other way round, are
-   * not read again: the copy is made of the other (see {@link variantOf}), and one waits for the other
-   * being read.
+   * Reads a model from bytes held here, its materials made over for the scene as its piece has them
+   * drawn (`look`), and asks for a frame once it is read, kept by `key` (see `modelReadKeyOf`). The
+   * glow it was made with is kept only for one of the app's own (`ownGlow`), and it is greyed by the
+   * world's moonlight only as a block (`moonlit`). Bytes another copy is held of, for a piece where
+   * this is for a block or drawn another way, are not read again: the copy is made of the other (see
+   * {@link variantOf}), and one waits for the other being read. A model that comes after all read were
+   * let go of is let go of as it comes.
    */
-  private read(key: string, url: string, ownGlow: boolean, moonlit: boolean): void {
+  private read(key: string, source: ModelSource, ownGlow: boolean, moonlit: boolean, look: ModelLook): void {
     if (this.loading.has(key)) return;
-    this.readUrls.set(key, url);
+    this.readUrls.set(key, `${source.url}${motionsReadOf(source.motions)}`);
     const twin = this.twinOf(key, 'loaded');
     if (twin) {
-      this.loaded.set(key, this.variantOf(this.loaded.get(twin)!, moonlit));
+      this.loaded.set(key, this.variantOf(this.loaded.get(twin)!, moonlit, look));
       return;
     }
     if (this.twinOf(key, 'loading')) return;
     this.loading.add(key);
-    this.parse(url, ownGlow, moonlit).then(
+    const reading = this.reading;
+    const stale = () => this.disposed || reading !== this.reading;
+    this.parse(source, ownGlow, moonlit, look, this.detail).then(
       (loaded) => {
-        if (this.disposed) {
-          if (loaded) disposeObject(loaded.gltf.scene);
+        if (stale()) {
+          if (loaded) letGoOfWhole(loaded);
           return;
         }
         this.loaded.set(key, loaded);
         this.settle(key);
       },
       () => {
-        if (this.disposed) return;
+        if (stale()) return;
         this.loaded.set(key, null);
         this.settle(key);
       }
@@ -590,37 +727,63 @@ export class ModelLayer {
   }
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
-  private async parse(url: string, ownGlow: boolean, moonlit: boolean): Promise<LoadedModel | null> {
-    const read = await this.reader.read(url);
+  private async parse(
+    source: ModelSource,
+    ownGlow: boolean,
+    moonlit: boolean,
+    look: ModelLook,
+    detail: ModelDetail
+  ): Promise<LoadedModel | null> {
+    const read = await this.reader.read(source.url);
     if (!read) return null;
-    const gltf = { scene: read.scene, animations: read.animations };
+    const gltf = {
+      scene: read.scene,
+      animations: [...read.animations, ...(await this.givenMotions(read.rig, source))],
+    };
+    const { made, worn } = madeOf(gltf.scene, materialIndexIn(read));
     const drawn = new Set<Texture>();
     const undrawn = new Set<Texture>();
-    gltf.scene.traverse((object) => this.makeOver(object, drawn, undrawn, ownGlow, moonlit));
+    for (const one of made.flat()) {
+      for (const picture of drawnPicturesOf(one, detail, ownGlow)) drawn.add(picture);
+      for (const picture of one.pictures) undrawn.add(picture);
+    }
     for (const picture of drawn) undrawn.delete(picture);
     releaseReadPictures(drawn, undrawn);
     for (const picture of undrawn) picture.dispose();
-    return measured(gltf);
+    for (const material of worn) material.dispose();
+    this.wear(gltf.scene, made, look, moonlit, ownGlow, detail);
+    return { ...measured(gltf), made, ownGlow, ...(read.rig ? { rig: read.rig } : {}) };
   }
 
   /**
-   * A copy of a model read for a piece made of the one read for a block, or the other way round: its
-   * meshes' shapes, its pictures and its motions shared with the other, its materials its own, covered
-   * for the moonlight as this copy is drawn (`moonlit`), and its measure the other's (see
-   * {@link measuredAs}).
+   * The motions for VRM models given to a model, made into motions of its own bones, each under the
+   * name it is given by; none for a model that is no VRM, and none of those not held here yet, nor of
+   * those that cannot be read, which the model goes without.
    */
-  private variantOf(other: LoadedModel, moonlit: boolean): LoadedModel {
+  private async givenMotions(rig: VrmRig | undefined, source: ModelSource): Promise<AnimationClip[]> {
+    if (!rig) return [];
+    const made: AnimationClip[] = [];
+    for (const motion of source.motions) {
+      if (!motion.url) continue;
+      const read = await this.reader.readMotion(motion.url).catch(() => null);
+      const clip = read ? rig.motionOf(read, motion.name) : null;
+      if (clip) made.push(clip);
+    }
+    return made;
+  }
+
+  /**
+   * A copy of a model read made of another read of the same bytes, for a piece where the other is for
+   * a block or drawn another way: its meshes' shapes, its pictures and its motions shared with the
+   * other, its materials its own, made as this copy has them drawn (`look`) and covered for the
+   * moonlight as it is drawn (`moonlit`), and its measure the other's (see {@link measuredAs}). What
+   * a VRM is rigged with goes with every copy, however the copy is measured.
+   */
+  private variantOf(other: LoadedModel, moonlit: boolean, look: ModelLook = MODEL_AS_MADE): LoadedModel {
     const scene = cloneSkinned(other.gltf.scene) as Group;
-    scene.traverse((object) => {
-      if (!(object instanceof Mesh)) return;
-      const ownCopy = (material: Material) => {
-        const copy = material.clone();
-        this.dress(copy, moonlit);
-        return copy;
-      };
-      object.material = Array.isArray(object.material) ? object.material.map(ownCopy) : ownCopy(object.material);
-    });
-    return measuredAs(other, scene);
+    this.wear(scene, other.made, look, moonlit, other.ownGlow, this.detail);
+    const variant = measuredAs(other, scene);
+    return other.rig ? { ...variant, rig: other.rig } : variant;
   }
 
   private settle(key: string): void {
@@ -630,27 +793,93 @@ export class ModelLayer {
   }
 
   /**
-   * Makes a mesh's material over as the scene's own, as `sceneMaterialOf` makes it: lit as the board
-   * is, veiled and darkened with it, throwing shadows.
+   * Gives the meshes of a model's scene the scene's own materials, made of what theirs were made of as
+   * the model's piece has them drawn: lit as the board is, veiled and darkened with it, throwing
+   * shadows. Meshes made of the same material share the one made for it, and a mesh whose one
+   * material is left undrawn is not drawn at all.
    */
-  private makeOver(
-    object: Object3D,
-    drawn: Set<Texture>,
-    undrawn: Set<Texture>,
+  private wear(
+    scene: Object3D,
+    made: readonly MadeOfMesh[],
+    look: ModelLook,
+    moonlit: boolean,
     ownGlow: boolean,
-    moonlit: boolean
+    detail: ModelDetail
   ): void {
-    if (!(object instanceof Mesh)) return;
-    object.castShadow = true;
-    object.receiveShadow = true;
-    const madeOver = (material: Material) => {
-      const lit = sceneMaterialOf(material, drawn, undrawn, ownGlow);
-      this.dress(lit, moonlit);
-      material.dispose();
-      return lit;
+    const dressed = new Map<MadeMaterial, ModelSceneMaterial>();
+    const wornFor = (one: MadeMaterial) => {
+      let material = dressed.get(one);
+      if (!material) {
+        material = sceneMaterialFor(one, materialLookIn(look, one.key), look.finish, detail, ownGlow);
+        this.dress(material, moonlit);
+        dressed.set(one, material);
+      }
+      return material;
     };
-    object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
+    meshesOf(scene).forEach((found, index) => {
+      const of = made[index];
+      if (!of) return;
+      const mesh = found as unknown as Mesh;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.material = isSeveral(of) ? of.map(wornFor) : wornFor(of);
+      mesh.visible = isSeveral(of) || !materialLookIn(look, of.key).hidden;
+    });
   }
+}
+
+function isSeveral(of: MadeOfMesh): of is readonly MadeMaterial[] {
+  return Array.isArray(of);
+}
+
+/**
+ * What the materials of a model's meshes were made of, by the meshes' order in the model, with the
+ * materials they were read off, which are let go of once the scene's own take their place. A material
+ * is told by where the file says it stands among the model's (`indexOf`), or where the file does not
+ * say, by where it was first met walking the model.
+ */
+function madeOf(scene: Object3D, indexOf: (material: Material) => number): { made: MadeOfMesh[]; worn: Material[] } {
+  const known = new Map<Material, MadeMaterial>();
+  const one = (material: Material) => {
+    let made = known.get(material);
+    if (!made) {
+      made = madeMaterialOf(material, indexOf(material));
+      known.set(material, made);
+    }
+    return made;
+  };
+  const made = meshesOf(scene).map((found) => {
+    const worn = (found as unknown as Mesh).material;
+    return Array.isArray(worn) ? worn.map(one) : one(worn);
+  });
+  return { made, worn: [...known.keys()] };
+}
+
+/**
+ * Where each material of a model read stands among the model's, as the file it was read from says,
+ * which its key is made of. One the reader made of its own, as for an outline, is numbered past every
+ * material of the file, so it never goes by the key of one of them.
+ */
+export function materialIndexIn(read: Partial<Pick<GLTF, 'parser'>>): (material: Material) => number {
+  const told = read.parser?.associations as ReadonlyMap<unknown, { materials?: number } | undefined> | undefined;
+  const inFile = (read.parser?.json as { materials?: unknown[] } | undefined)?.materials?.length ?? 0;
+  const ownMade = new Map<Material, number>();
+  return (material) => {
+    const index = told?.get(material)?.materials ?? ownMade.get(material);
+    if (index !== undefined) return index;
+    const made = inFile + ownMade.size;
+    ownMade.set(material, made);
+    return made;
+  };
+}
+
+/**
+ * Lets go of all a model read holds: its meshes' shapes, its materials, and every picture its
+ * materials were made of, those none of its materials is drawn with now among them.
+ */
+function letGoOfWhole(loaded: LoadedModel): void {
+  disposeObject(loaded.gltf.scene);
+  for (const one of loaded.made.flat()) for (const picture of one.pictures) picture.dispose();
 }
 
 /** Lets go of the materials of a model's meshes alone, leaving their shapes and pictures to a copy that shares them. */
@@ -673,13 +902,13 @@ function measuredAs(other: LoadedModel, scene: Group): LoadedModel {
   const placeOf = new Map<Object3D, number>(meshesOf(other.gltf.scene).map((mesh, index) => [mesh, index]));
   const parts = other.parts.map((part) => ({ ...part, mesh: copies[placeOf.get(part.mesh) ?? -1] }));
   if (copies.length !== placeOf.size || !parts.every((part) => part.mesh instanceof Mesh)) {
-    return measured({ scene, animations: other.gltf.animations });
+    return { ...measured({ scene, animations: other.gltf.animations }), made: other.made, ownGlow: other.ownGlow };
   }
   return { ...other, gltf: { scene, animations: other.gltf.animations }, parts: parts as ModelPart[] };
 }
 
-/** A model read and made over for the scene as the layer keeps it: its size and foot as it stands, and its parts as made. */
-function measured(gltf: Pick<GLTF, 'scene' | 'animations'>): LoadedModel {
+/** A model read and made over for the scene, measured: its size and foot as it stands, and its parts as made. */
+function measured(gltf: Pick<GLTF, 'scene' | 'animations'>): Omit<LoadedModel, 'made' | 'ownGlow'> {
   gltf.scene.updateMatrixWorld(true);
   const box = standingBoxOf(gltf.scene);
   const size = box.getSize(new Vector3());
@@ -699,6 +928,7 @@ function measured(gltf: Pick<GLTF, 'scene' | 'animations'>): LoadedModel {
     size,
     foot,
     animated: gltf.animations.length > 0,
+    shaped: meshesOf(gltf.scene).some((mesh) => ((mesh as unknown as Mesh).morphTargetInfluences?.length ?? 0) > 0),
     parts,
     stretch,
     facade,
@@ -718,66 +948,56 @@ function moonlitFor(model: TableWorldModel): boolean {
 }
 
 /**
- * What a read model is kept by: where its bytes are, and for a piece apart from a block, since the two
- * are made over differently for the moonlight (see `moonlitFor`) and one model may be drawn as both.
+ * The motions for VRM models a model laid is given: as the list of models carries them, or, for one
+ * that carries none, as a figure on a stage, as they are now.
+ */
+function motionsOfModel(model: TableWorldModel): readonly ModelMotionFile[] {
+  return model.motions ?? modelMotionFilesOf(model.model.identifier);
+}
+
+/**
+ * What a read model is kept by: where its bytes are, for a piece apart from a block, since the two
+ * are made over differently for the moonlight (see `moonlitFor`) and one model may be drawn as both,
+ * and by how its piece has its materials drawn, where that is not as it was made.
  */
 export function modelReadKeyOf(model: TableWorldModel): string {
-  return moonlitFor(model) ? model.url : `${model.url}${PIECE_READ}`;
+  const look = lookKeyOf(model.model);
+  const motions = motionsReadOf(motionsOfModel(model));
+  return `${model.url}${moonlitFor(model) ? '' : PIECE_READ}${look ? `${LOOK_READ}${look}` : ''}${motions}`;
+}
+
+/** Where a model's bytes are read from, and the motions for VRM models it is given. */
+interface ModelSource {
+  readonly url: string;
+  readonly motions: readonly ModelMotionFile[];
+}
+
+/**
+ * What is added to the key a model is kept by for the motions it is given, each by its identifier, its
+ * name and whether its bytes are held here, so the model is read again as they change or come in.
+ */
+function motionsReadOf(motions: readonly ModelMotionFile[]): string {
+  if (motions.length === 0) return '';
+  return `${MOTIONS_READ}${motions.map((motion) => `${motion.identifier}:${motion.name}:${motion.url ? 1 : 0}`).join(',')}`;
 }
 
 /** What is added to the key a model drawn for a piece is kept by. */
 const PIECE_READ = '#piece';
 
-/**
- * A material of a model made over as the scene's own, lit as the board is: its colour, its picture
- * and how it lets light through kept. The glow it gives off, a neon tube's or a potion's, is kept as
- * strong as it was made, with the picture of that glow, for one of the app's own models (`ownGlow`),
- * made to glow on purpose; one brought in is drawn without, as it always was, since its glow may be
- * no more than a way to look unlit, which would stand out of the dark of a table. The pictures it is
- * drawn with are noted as drawn, and the rest it wore, as its bumps and its shine, as not drawn.
- */
-export function sceneMaterialOf(
-  material: Material,
-  drawn: Set<Texture>,
-  undrawn: Set<Texture>,
-  ownGlow = false
-): MeshLambertNodeMaterial {
-  const was = material as MeshStandardMaterial;
-  const glows = ownGlow && was.emissive !== undefined && was.emissive.getHex() !== 0;
-  const glowMap = glows ? (was.emissiveMap ?? null) : null;
-  for (const picture of picturesOf(material)) {
-    (picture === was.map || picture === glowMap ? drawn : undrawn).add(picture);
-  }
-  return new MeshLambertNodeMaterial({
-    color: was.color,
-    map: was.map ?? null,
-    transparent: was.transparent,
-    opacity: was.opacity,
-    alphaTest: was.alphaTest,
-    side: was.side,
-    vertexColors: was.vertexColors,
-    ...(glows ? { emissive: was.emissive, emissiveMap: glowMap, emissiveIntensity: was.emissiveIntensity ?? 1 } : {}),
-  });
-}
+/** What is added to the key a model is kept by before the motions it is given. */
+const MOTIONS_READ = '#motions=';
+/** What is added, before the look itself, to the key a model drawn another way than it was made is kept by. */
+const LOOK_READ = '#look=';
 
 /**
- * Chooses the motions a copy of a model plays standing and walking, by the names its piece asks for
- * or, where it names none or one the model lacks, by the model's own idle and walk; the idle falls
- * back to its first motion. Chosen again whenever the piece names others, so a name changed once the
- * piece is on the table takes at once.
+ * The way across the floor a model acts, of unit length in the scene, written into `into`: towards
+ * the other in its act where its piece is told of one, else the way it faces as it is placed.
  */
-function chooseMotions(stood: StoodModel, model: TableWorldModel, loaded: LoadedModel): void {
-  const clip = (name: string, pattern: RegExp) =>
-    (name ? AnimationClip.findByName(loaded.gltf.animations, name) : null) ??
-    loaded.gltf.animations.find((candidate) => pattern.test(candidate.name)) ??
-    null;
-  const idleClip = clip(model.model.idle, /idle|stand|wait/i) ?? loaded.gltf.animations[0] ?? null;
-  const walkClip = clip(model.model.walk, /walk|run|move/i);
-  stood.mixer.stopAllAction();
-  stood.idle = idleClip ? stood.mixer.clipAction(idleClip) : null;
-  stood.walk = walkClip ? stood.mixer.clipAction(walkClip) : null;
-  stood.idleName = model.model.idle;
-  stood.walkName = model.model.walk;
+function towardOf(model: TableWorldModel, placed: Matrix4, into: Vector3): Vector3 {
+  const other = model.act?.toward;
+  if (other) into.set(other.x, 0, other.y);
+  else into.set(0, 0, 1).transformDirection(placed).setY(0);
+  return into.lengthSq() > 1e-9 ? into.normalize() : into.set(0, 0, 1);
 }
 
 /**

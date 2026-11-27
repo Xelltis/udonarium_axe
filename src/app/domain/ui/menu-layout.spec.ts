@@ -122,12 +122,18 @@ describe('how a menu is arranged', () => {
       ]);
     });
 
-    it('puts the inventory on both toolbars, next to the lists each already leads with', () => {
+    it('puts the inventory and then the list of pieces to aim at on both toolbars, next to the lists each already leads with', () => {
       const commands = (surface: 'gmToolbar' | 'plToolbar') =>
         DEFAULT_MENU_LAYOUTS[surface].nodes.map((node) => (node as MenuItem).command);
 
-      expect(commands('gmToolbar').slice(0, 4)).toEqual(['objectList', 'npcBar', 'partyList', 'inventory']);
-      expect(commands('plToolbar').slice(0, 2)).toEqual(['ownedCharacters', 'inventory']);
+      expect(commands('gmToolbar').slice(0, 5)).toEqual([
+        'objectList',
+        'npcBar',
+        'partyList',
+        'inventory',
+        'targetList',
+      ]);
+      expect(commands('plToolbar').slice(0, 3)).toEqual(['ownedCharacters', 'inventory', 'targetList']);
     });
 
     it('holds the table tools in the order it held them, the scenes after the settings, then the first-person view and the ruler', () => {

@@ -8,6 +8,7 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -147,6 +148,16 @@ describe('HotbarRunnerService', () => {
       expect(create.mock.calls[0][1]).toBe('LINE');
       expect(range.followingCharacterIdentifier).toBe(character.identifier);
       expect(following).toHaveBeenCalled();
+    });
+
+    it('lays a range out by the corner the page lays things at for the piece, on the floor under one on a wall', () => {
+      const range = RangeArea.create('射程範囲', 1, 4, 100);
+      const create = vi.spyOn(TestBed.inject(TabletopActionService), 'createRangeArea').mockReturnValue(range);
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'floorCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+
+      run(slotOf('range', 'LINE'), character);
+
+      expect(create.mock.calls[0][0]).toEqual({ x: 950, y: 975, z: 0 });
     });
 
     it('paints the range the way the slot asks for', () => {
@@ -705,6 +716,18 @@ describe('HotbarRunnerService', () => {
 
       expect(run(slot, character, cell)).toEqual({ ok: true });
       expect(fields()).toHaveLength(0);
+    });
+
+    it('puts it by the corner the page stands effects at for the piece, in the room', () => {
+      fieldPreset();
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'fieldCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+
+      run(slotOf('effect', '毒沼', { kind: 'effect', mode: 'field', onSelf: false }), character, {
+        page: 0,
+        slotIndex: 3,
+      });
+
+      expect([fields()[0].location.x, fields()[0].location.y, fields()[0].posZ]).toEqual([950, 975, 0]);
     });
 
     it('takes away only what its own slot put there', () => {

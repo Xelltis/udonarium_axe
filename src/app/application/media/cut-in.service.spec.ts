@@ -274,6 +274,16 @@ describe('what a line arriving sets off', () => {
     hero.destroy();
   });
 
+  it('plays it for the one who said it alone, for a line in a tab players may not read', () => {
+    const cutIn = makeCutIn('炎の剣');
+    const spy = vi.spyOn(launcher, 'startCutIn').mockImplementation(() => {});
+    tab.plCanView = false;
+
+    tab.addMessage({ from: 'me', name: '術者', text: '斬る 炎の剣', timestamp: Date.now() });
+
+    expect(spy).toHaveBeenCalledWith(cutIn, 'me', expect.anything());
+  });
+
   it('leaves the backlog alone when somebody walks into the room', () => {
     // Joining hands every line ever said to the same event a new line arrives on. Replaying
     // them would set the whole room's cut-ins off again, one after another.

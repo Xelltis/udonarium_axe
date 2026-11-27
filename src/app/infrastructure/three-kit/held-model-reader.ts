@@ -1,5 +1,6 @@
-import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
+import { type GltfFacts, gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import { isHeldModelUrl } from '@axe/core/storage/model-file';
+import type { VrmRig } from '@axe/infrastructure/three-kit/vrm-rig';
 import { LoadingManager } from 'three';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -13,6 +14,13 @@ const DRACO_DECODER = {
   wasm: `${DECODERS}draco/draco_decoder.wasm`,
 };
 const BASIS_TRANSCODER = `${DECODERS}basis/`;
+/** The extensions a VRM file says it uses: `VRMC_vrm` from version 1, `VRM` before it. */
+const VRM_READ: ReadonlySet<string> = new Set(['VRMC_vrm', 'VRM']);
+/** The extension a motion for VRM models (`.vrma`) says it uses. */
+const VRM_MOTION = 'VRMC_vrm_animation';
+
+/** A model read: its scene and motions, and for a VRM what it is rigged with beyond them. */
+export type ReadModel = GLTF & { readonly rig?: VrmRig };
 
 /** The renderer a compressed texture's support is told by. */
 export type TextureSupport = Parameters<KTX2Loader['detectSupport']>[0];
@@ -21,13 +29,16 @@ export type TextureSupport = Parameters<KTX2Loader['detectSupport']>[0];
  * Reads 3D models from bytes held here, a binary glTF file each: nothing a model names outside its
  * own bytes is ever fetched, and one that draws more triangles than a model may, or is no binary
  * glTF, is not read. The decoders for compressed meshes and textures are fetched, from the app's own
- * assets, only once a model that needs them comes.
+ * assets, only once a model that needs them comes, and so is what reads a VRM (a binary glTF file
+ * with the VRM extensions, `.vrm`): its expressions, the parts of it that swing and its MToon
+ * materials.
  */
 export class HeldModelReader {
   private readonly manager = new LoadingManager();
   private readonly loader: GLTFLoader;
   private draco: Promise<DRACOLoader> | null = null;
   private ktx2: Promise<KTX2Loader> | null = null;
+  private vrm: Promise<typeof import('@axe/infrastructure/three-kit/vrm-reading')> | null = null;
 
   constructor(private readonly renderer: () => TextureSupport) {
     this.manager.setURLModifier((url) => (isHeldModelUrl(url) || url.startsWith(DECODERS) ? url : 'data:,'));
@@ -36,20 +47,56 @@ export class HeldModelReader {
   }
 
   /** The model held at a URL of bytes held here, or null for one that is not to be drawn. */
-  async read(url: string): Promise<GLTF | null> {
+  async read(url: string): Promise<ReadModel | null> {
+    const held = await this.heldBytes(url);
+    if (!held) return null;
+    const { bytes, facts } = held;
+    if (facts.extensions.includes('KHR_draco_mesh_compression')) this.loader.setDRACOLoader(await this.dracoLoader());
+    if (facts.extensions.includes('KHR_texture_basisu')) this.loader.setKTX2Loader(await this.ktx2Loader());
+    const vrm = facts.extensions.some((extension) => VRM_READ.has(extension)) ? await this.vrmReading() : null;
+    const gltf = await this.loader.parseAsync(bytes, '');
+    const rig = vrm?.readiedVrm(gltf) ?? null;
+    return rig ? Object.assign(gltf, { rig }) : gltf;
+  }
+
+  /**
+   * The motion for VRM models (`.vrma`) held at a URL of bytes held here, as what reads VRMs reads
+   * it, for a VRM's rig to make over into a motion of its own bones (`VrmRig.motionOf`); null for one
+   * that is not held here or holds no such motion.
+   */
+  async readMotion(url: string): Promise<unknown> {
+    const held = await this.heldBytes(url);
+    if (!held?.facts.extensions.includes(VRM_MOTION)) return null;
+    const reading = await this.vrmReading();
+    return reading.vrmMotionIn(await this.loader.parseAsync(held.bytes, ''));
+  }
+
+  /**
+   * The bytes held at a URL of bytes held here, with what they are found to be, for any of them to be
+   * read: null for a URL of anything else, or bytes that are no binary glTF or that draw more
+   * triangles than a model may, which are never read, whatever they are read as.
+   */
+  private async heldBytes(url: string): Promise<{ bytes: ArrayBuffer; facts: GltfFacts } | null> {
     if (!isHeldModelUrl(url)) return null;
     const bytes = await (await fetch(url)).arrayBuffer();
     const facts = gltfFactsOf(bytes);
     if (!facts || facts.triangles > MAX_MODEL_TRIANGLES) return null;
-    if (facts.extensions.includes('KHR_draco_mesh_compression')) this.loader.setDRACOLoader(await this.dracoLoader());
-    if (facts.extensions.includes('KHR_texture_basisu')) this.loader.setKTX2Loader(await this.ktx2Loader());
-    return this.loader.parseAsync(bytes, '');
+    return { bytes, facts };
   }
 
   /** Lets go of the decoders it fetched. */
   dispose(): void {
     void this.draco?.then((loader) => loader.dispose());
     void this.ktx2?.then((loader) => loader.dispose());
+  }
+
+  /** What reads a VRM, fetched and given to the loader the first time a VRM comes. */
+  private vrmReading(): Promise<typeof import('@axe/infrastructure/three-kit/vrm-reading')> {
+    this.vrm ??= import('@axe/infrastructure/three-kit/vrm-reading').then((reading) => {
+      reading.readVrmWith(this.loader);
+      return reading;
+    });
+    return this.vrm;
   }
 
   private dracoLoader(): Promise<DRACOLoader> {

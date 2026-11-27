@@ -179,8 +179,9 @@ export class ImageSharingSystem extends SharedAssetSharingSystem<ImageFile, Imag
 
   /**
    * The pictures to send out of those asked for, as many as fit a transfer: in a random order, those
-   * the peer has nothing of first, each as its thumbnail where the peer has nothing of it, as its bytes
-   * where it has the thumbnail, and as its link where it is held by one.
+   * the peer has nothing of first, each as its thumbnail, told with the type of its own bytes, where
+   * the peer has nothing of it, as its bytes where it has the thumbnail, and as its link where it is
+   * held by one.
    */
   private makeSendUpdateImages(catalog: CatalogItem[], maxSize: number = SEND_BATCH_BYTES): ImageContext[] {
     const updateImages: ImageContext[] = [];
@@ -211,6 +212,7 @@ export class ImageSharingSystem extends SharedAssetSharingSystem<ImageFile, Imag
       if (image.state === ImageState.URL) {
         context.url = image.url;
       } else if (item.state === ImageState.NULL) {
+        context.type = image.originalType;
         context.thumbnail.blob = image.thumbnail.blob;
         context.thumbnail.type = image.thumbnail.type;
       } else if (image.blob) {

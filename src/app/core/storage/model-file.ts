@@ -115,9 +115,18 @@ export class ModelFile {
   }
 }
 
-/** The name a model is shown by: the file name it was added with, without its `.glb`. */
+/** The name a model is shown by: the file name it was added with, without its `.glb`, `.vrm` or `.vrma`. */
 export function modelNameOf(fileName: string): string {
-  return fileName.replace(/\.glb$/i, '');
+  return fileName.replace(/\.(glb|vrm|vrma)$/i, '');
+}
+
+/**
+ * Whether a model held here is a motion for VRM models, a VRM Animation (`.vrma`), rather than a
+ * model to draw: told by the name it was added with, which goes with it to every seat and into a
+ * saved room.
+ */
+export function isModelMotion(model: { readonly name: string }): boolean {
+  return /\.vrma$/i.test(model.name);
 }
 
 /**

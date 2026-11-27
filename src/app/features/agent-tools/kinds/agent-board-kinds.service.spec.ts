@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { DoorService } from '@axe/application/tabletop/door.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import type { IPeerContext } from '@axe/core/network/peer-context';
@@ -448,6 +449,17 @@ describe('AgentBoardKinds', () => {
   });
 
   describe('effect-field', () => {
+    it('stands an effect for a piece by the corner the page stands effects at for it, in the room', () => {
+      presetNamed('毒沼');
+      const goblin = pieceAt('ゴブリン', 6, 4);
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'fieldCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+
+      const made = make('effect-field', { options: { preset: '毒沼', piece: goblin.identifier } });
+      const field = ObjectStore.instance.get<EffectField>(made.id)!;
+
+      expect([field.location.x, field.location.y, field.posZ]).toEqual([950, 975, 0]);
+    });
+
     it('stands an effect this seat is shown in a square or where a piece stands, and leaves out the name of one kept for the master', () => {
       presetNamed('毒沼');
       presetNamed('隠し罠', true);

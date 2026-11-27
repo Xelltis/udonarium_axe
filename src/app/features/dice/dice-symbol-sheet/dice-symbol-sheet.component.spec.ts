@@ -90,6 +90,18 @@ describe('DiceSymbolSheetComponent', () => {
       expect([die.face, die.hideName]).toEqual(['3', false]);
     });
 
+    it('saves nothing of a die its own seat sealed, whose face is in this browser alone, and says so', async () => {
+      die.owner = 'me';
+      die.seal();
+      const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync').mockResolvedValue();
+      const shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => {});
+
+      await sheetOf(die).componentInstance.saveToXML();
+
+      expect(save).not.toHaveBeenCalled();
+      expect(shown).toHaveBeenCalledWith(expect.stringContaining('伏せたダイス'));
+    });
+
     it('saves nothing of it, and says so', async () => {
       die.owner = 'somebody-else';
       const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync').mockResolvedValue();

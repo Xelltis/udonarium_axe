@@ -66,8 +66,13 @@ describe('RoomPanelService', () => {
 
   it('turns the AI link panel to the game master’s half too when it is opened by that name among the panels opened in turn', () => {
     const view = TestBed.inject(AiLinkViewService);
+    const panelOf = vi
+      .spyOn(service as unknown as { panelOf(name: RoomPanelName): unknown }, 'panelOf')
+      .mockReturnValue({ load: () => Promise.resolve({}), option: {} });
 
     service.openInTurn([['chatWindow'], ['aiGm']]);
+
+    expect(panelOf).toHaveBeenCalledWith('aiLink');
 
     expect(view.tab()).toBe('gm');
   });
@@ -173,6 +178,12 @@ describe('RoomPanelService', () => {
     service.open('statusAilment');
 
     expect(openLazy.mock.calls.map(([, given]) => (given as PanelOption).top)).toEqual([64, 84]);
+  });
+
+  it('opens the list of pieces to aim at as one alone, however often it is asked for', () => {
+    service.open('targetList');
+
+    expect(option().single).toBe('target-list');
   });
 
   it('opens the table settings again beside one already open, as they keep to no single panel', () => {

@@ -214,6 +214,135 @@ describe('OverviewPanelComponent', () => {
     });
   });
 
+  describe('a detail opened beside the pointer', () => {
+    /** Gives the panel a size, and lays it out where its style puts it, as happy-dom lays nothing out. */
+    function sizePanel(panel: HTMLElement, width: number, height: number): void {
+      const at = (side: 'left' | 'top') => parseFloat(panel.style[side]) || 0;
+      Object.defineProperty(panel, 'offsetWidth', { value: width, configurable: true });
+      Object.defineProperty(panel, 'offsetHeight', { value: height, configurable: true });
+      Object.defineProperty(panel, 'offsetLeft', { get: () => at('left'), configurable: true });
+      Object.defineProperty(panel, 'offsetTop', { get: () => at('top'), configurable: true });
+      panel.getBoundingClientRect = () => new DOMRect(at('left'), at('top'), width, height);
+    }
+
+    async function renderBeside(): Promise<HTMLElement> {
+      component.tabletopObject = GameCharacter.create('pointer-detail-test', 1, '');
+      component.left = 300;
+      component.top = 500;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
+      sizePanel(panel, 250, 180);
+      component.placeBesidePointer();
+      return panel;
+    }
+
+    it('places itself again as it grows, its foot kept above the pointer', async () => {
+      const panel = await renderBeside();
+      expect(panel.style.top).toBe(500 - 180 - 50 + 'px');
+
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+    });
+
+    it('places a detail turned half round by the box it is seen in, below a pointer near the top', async () => {
+      component.tabletopObject = GameCharacter.create('turned-detail-test', 1, '');
+      component.rotationDegrees = 180;
+      component.left = 300;
+      component.top = 200;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const panel = fixture.nativeElement.querySelector('[data-tooltip-rotation]') as HTMLElement;
+      sizePanel(panel, 250, 180);
+      component.placeBesidePointer();
+
+      expect([panel.style.left, panel.style.top]).toEqual([400 + 250 + 'px', 250 + 180 + 'px']);
+    });
+
+    it('stays put once the reader has moved the mouse over it, however it grows, so what they reach for stays under the pointer', async () => {
+      const panel = await renderBeside();
+      const top = panel.style.top;
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 320, clientY: 500 }));
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect(panel.style.top).toBe(top);
+    });
+
+    it('lets the mouse stand within two pixels of where it opened, as a move read in whole pixels may, before it counts as moved', async () => {
+      const panel = await renderBeside();
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 302, clientY: 500 }));
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 303, clientY: 500 }));
+      sizePanel(panel, 250, 180);
+      component.placeBesidePointer();
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+    });
+
+    it('is not touched by opening under a mouse at rest, and keeps being placed as it grows', async () => {
+      const panel = await renderBeside();
+
+      panel.dispatchEvent(new PointerEvent('pointermove', { clientX: 300, clientY: 500, movementX: 4 }));
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+    });
+
+    it('stays put once the reader has pressed in it, scrolled it or focused it', async () => {
+      for (const touch of [new Event('pointerdown'), new Event('wheel'), new Event('focusin')]) {
+        const panel = await renderBeside();
+        const top = panel.style.top;
+        panel.dispatchEvent(touch);
+        sizePanel(panel, 250, 300);
+        component.placeBesidePointer();
+        expect(panel.style.top).toBe(top);
+        fixture = TestBed.createComponent(OverviewPanelComponent);
+        component = fixture.componentInstance;
+      }
+    });
+
+    it('places itself again as its size is seen to change', async () => {
+      let resized: () => void = () => undefined;
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: () => void) {
+            resized = callback;
+          }
+          observe() {}
+          disconnect() {}
+        }
+      );
+      try {
+        const panel = await renderBeside();
+        sizePanel(panel, 250, 300);
+        resized();
+        expect(panel.style.top).toBe(500 - 300 - 50 + 'px');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('stays where the reader moved it, however it grows', async () => {
+      const panel = await renderBeside();
+      panel.style.left = '20px';
+      panel.style.top = '30px';
+
+      sizePanel(panel, 250, 300);
+      component.placeBesidePointer();
+
+      expect([panel.style.left, panel.style.top]).toEqual(['20px', '30px']);
+    });
+  });
+
   describe('a detail pinned to a screen edge', () => {
     const bottomSeat = { edge: 'bottom', rotationDegrees: 0, alongEdgeRatio: 0.5 } as const;
 

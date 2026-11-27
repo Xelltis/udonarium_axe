@@ -12,8 +12,8 @@ import { ActiveCharacterService } from '@axe/application/character/active-charac
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getRangeMenuItems, getSolidRangeMenuItems } from '@axe/application/tabletop/tabletop-action-helpers';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -50,13 +50,13 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class PlToolbarComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   private readonly panelService = inject(PanelService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly roomPanels = inject(RoomPanelService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly tabletopAction = inject(TabletopActionService);
-  private readonly tabletop = inject(TabletopService);
   protected readonly active = inject(ActiveCharacterService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly t = inject(TRANSLATE_FN);
@@ -243,13 +243,9 @@ export class PlToolbarComponent {
     const character = this.activeCharacter();
     this.rangeOpen.set(false);
     if (!character) return;
-    const range = this.tabletopAction.createSolidRangeArea(
-      { x: character.location.x, y: character.location.y, z: character.posZ },
-      typeName,
-      kind
-    );
+    const range = this.tabletopAction.createSolidRangeArea(this.piecePlace.floorCornerOf(character), typeName, kind);
     range.followingCharacterIdentifier = character.identifier;
-    range.following(this.tabletop.gridSize());
+    this.piecePlace.follow(range);
     SoundEffect.play(PresetSound.dicePut);
   }
 

@@ -239,6 +239,8 @@ test.describe('the list of effects', () => {
 
     // Katakana typed in hiragana: every breath, with what was typed marked and the count beside the field.
     await field.fill('ぶれす');
+    // The list is narrowed a moment after the field changes; it is read once it has been.
+    await expect.poll(() => panel.locator('[data-effect-tile]').count()).toBeLessThan(all);
     const breaths = await names();
     expect(breaths.length).toBeGreaterThanOrEqual(5);
     expect(breaths.every((name) => name.includes('ブレス') || name.length > 0)).toBe(true);

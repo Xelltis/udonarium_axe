@@ -6,6 +6,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PiecePartPicturesService } from '@axe/application/tabletop/piece-part-pictures.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -51,6 +52,7 @@ type Renderable = Pick<EffectFieldRenderable, 'key' | 'preset' | 'cast' | 'elaps
 })
 export class TableEffectOverlayComponent {
   private readonly playback = inject(EffectPlaybackService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly fieldService = inject(EffectFieldService);
   private readonly tabletopService = inject(TabletopService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -205,9 +207,10 @@ export class TableEffectOverlayComponent {
   private centerOf(identifier: string, gridSize: number): { x: number; y: number; z: number } | null {
     const object = this.drawnAs(identifier);
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
-    const size = (object as { size?: number }).size;
-    const half = (gridSize * (typeof size === 'number' && size > 0 ? size : 1)) / 2;
+    const standIn = object instanceof GameCharacter ? this.piecePlace.standInOf(object) : null;
+    if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
+    const at = this.piecePlace.standingCentreOf(object);
     const raised = this.eye() ? object.altitude * gridSize : 0;
-    return { x: object.location.x + half, y: object.location.y + half, z: object.posZ + raised };
+    return { x: at.x, y: at.y, z: at.z + raised };
   }
 }

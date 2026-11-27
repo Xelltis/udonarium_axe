@@ -4,6 +4,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
@@ -82,6 +83,7 @@ export class EffectTargetingService {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly castService = inject(EffectCastService);
   private readonly zones = inject(EngagementZoneService);
+  private readonly place = inject(PiecePlaceService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly pieceLinks = inject(PieceLinksService);
@@ -127,13 +129,16 @@ export class EffectTargetingService {
     return cells > 0 ? cells * this.tabletopService.gridSize() : 0;
   });
 
-  /** The centre of the area, where the circle is drawn. */
+  /**
+   * The centre of the area, where the circle is drawn: where the piece lays it, as the preview does
+   * (see `PiecePlaceService.floorPointOf`).
+   */
   readonly areaCenter = computed<{ x: number; y: number; z: number } | null>(() => {
     if (this.areaRadius() <= 0) return null;
     const character = this.characterOf(this._epicenter());
     if (!character) return null;
     this.objectChange.versionOf(character.identifier)();
-    return this.centerOf(character, this.tabletopService.gridSize());
+    return this.place.floorPointOf(character);
   });
   readonly isPicking = computed(() => this._preset() != null);
   /** The colour the numbers of the picks are drawn in: the effect's own first colour. */
@@ -172,13 +177,12 @@ export class EffectTargetingService {
   readonly marks = computed<EffectTargetMark[]>(() => {
     const order = this.pickOrder();
     if (order.size < 1) return [];
-    const gridSize = this.tabletopService.gridSize();
     const marks: EffectTargetMark[] = [];
     for (const [identifier, number] of order) {
       const character = this.characterOf(identifier)!;
       const body = this.pieceLinks.bodyOf(character);
       if (body && order.has(body.identifier)) continue;
-      marks.push({ identifier, order: number, ...this.centerOf(character, gridSize) });
+      marks.push({ identifier, order: number, ...this.place.standingCentreOf(character) });
     }
     return marks;
   });
@@ -194,7 +198,7 @@ export class EffectTargetingService {
     if (!caster) return null;
     this.objectChange.versionOf(caster.identifier)();
     if (!this.vision.isTokenVisible(caster)) return null;
-    return { identifier: caster.identifier, ...this.centerOf(caster, this.tabletopService.gridSize()) };
+    return { identifier: caster.identifier, ...this.place.standingCentreOf(caster) };
   });
 
   /**
@@ -216,7 +220,6 @@ export class EffectTargetingService {
     if (!center) return null;
     for (const character of this.tabletopService.characters) this.objectChange.versionOf(character.identifier)();
 
-    const gridSize = this.tabletopService.gridSize();
     const shown = this.areaPicks(preset, center)
       .map((identifier) => this.characterOf(identifier))
       .filter((character): character is GameCharacter => character != null && this.vision.isTokenVisible(character));
@@ -225,9 +228,9 @@ export class EffectTargetingService {
     for (const character of shown) {
       const body = this.pieceLinks.bodyOf(character);
       if (body && identifiers.has(body.identifier)) continue;
-      marks.push({ identifier: character.identifier, ...this.centerOf(character, gridSize) });
+      marks.push({ identifier: character.identifier, ...this.place.standingCentreOf(character) });
     }
-    return { center: this.centerOf(center, gridSize), radius, marks };
+    return { center: this.place.floorPointOf(center), radius, marks };
   });
 
   readonly links = computed<EffectTargetLink[]>(() => {
@@ -235,9 +238,8 @@ export class EffectTargetingService {
     const caster = this.characterOf(this._casterIdentifier());
     if (!caster) return [];
 
-    const gridSize = this.tabletopService.gridSize();
     this.objectChange.versionOf(caster.identifier)();
-    const from = this.centerOf(caster, gridSize);
+    const from = this.place.standingCentreOf(caster);
 
     const links: EffectTargetLink[] = [];
     for (const mark of this.marks()) {
@@ -256,10 +258,7 @@ export class EffectTargetingService {
         this.beganWithSelection = null;
         return;
       }
-      untracked(() => {
-        if (this._changingCaster()) this.setCaster(selected.identifier);
-        else this.pick(selected.identifier);
-      });
+      untracked(() => this.press(selected.identifier));
     });
     // A seat made a guest while it aimed casts nothing; the aiming is called off.
     effect(() => {
@@ -368,6 +367,51 @@ export class EffectTargetingService {
   }
 
   /**
+   * Takes a piece aimed at while the effect is held ready as a press of it would: as the caster while
+   * one is waited for, else as a target chosen or unchosen (see {@link pick}). Nothing while no effect
+   * is held ready.
+   */
+  press(identifier: string): void {
+    if (!this.isPicking()) return;
+    if (this._changingCaster()) this.setCaster(identifier);
+    else this.pick(identifier);
+  }
+
+  /** Whether the effect held ready can be cast at a piece: one on the table that is not its caster kept out. */
+  canPick(identifier: string): boolean {
+    return this.isPicking() && !this.isCasterKeptOut(identifier) && this.characterOf(identifier) !== null;
+  }
+
+  /** Takes a piece out of what the effect held ready is cast at, leaving where an area is centred as it is. */
+  unpick(identifier: string): void {
+    if (!this._picks().includes(identifier)) return;
+    this._picks.update((picks) => picks.filter((pick) => pick !== identifier));
+    this.mirror();
+  }
+
+  /**
+   * Chooses exactly these targets, as aiming at pieces by a key, a range or a list does while the
+   * effect is held ready, in their order and as many as the effect takes; the caster kept out of them
+   * is passed over. An area is centred on the first of them, and taken away with none. Nothing while
+   * no effect is held ready.
+   */
+  pickOnly(identifiers: readonly string[]): void {
+    const preset = this._preset();
+    if (!preset) return;
+    const wanted = identifiers.filter(
+      (identifier) => !this.isCasterKeptOut(identifier) && this.characterOf(identifier)
+    );
+    if (preset.areaRadiusCells > 0) {
+      const center = wanted.length > 0 ? this.characterOf(wanted[0]) : null;
+      this._epicenter.set(center?.identifier ?? '');
+      this._picks.set(center ? this.areaPicks(preset, center) : []);
+    } else {
+      this._picks.set(wanted.slice(0, Math.max(preset.targetLimit, 1)));
+    }
+    this.mirror();
+  }
+
+  /**
    * Chooses a target, or unchooses it. Filling the limit casts nothing. The caster of an effect that
    * needs somebody else is not chosen, as the centre of an area either.
    */
@@ -455,15 +499,16 @@ export class EffectTargetingService {
   }
 
   /**
-   * Takes everything within the radius of the centre piece, nearest first. A piece in an engagement
-   * zone stands at the zone's centre for this, so a zone the area reaches is reached whole; a piece
-   * taken out of the fight is never reached, and neither is the caster of an effect that needs
-   * somebody else.
+   * Takes everything within the radius of the centre piece, nearest first, each piece read where it
+   * puts what is laid on the table for it (see `PiecePlaceService.floorPlaceOf`), a piece on a wall
+   * or a board on the floor under its feet. A piece in an engagement zone stands at the zone's centre
+   * for this, so a zone the area reaches is reached whole; a piece taken out of the fight is never
+   * reached, and neither is the caster of an effect that needs somebody else.
    */
   private areaPicks(preset: EffectPreset, center: GameCharacter): string[] {
     const gridSize = this.tabletopService.gridSize();
     const reading = this.zones.reading();
-    const origin = { ...this.centerOf(center, gridSize), ...reading.pointOf(center) };
+    const origin = this.place.floorPlaceOf(center, reading.pointOf(center));
     const candidates = this.tabletopService.characters
       .filter(
         (character) =>
@@ -471,8 +516,7 @@ export class EffectTargetingService {
       )
       .map((character) => ({
         identifier: character.identifier,
-        ...this.centerOf(character, gridSize),
-        ...reading.pointOf(character),
+        ...this.place.floorPlaceOf(character, reading.pointOf(character)),
       }));
 
     return effectAreaTargets(origin, candidates, preset.areaRadiusCells * gridSize, preset.targetLimit);
@@ -514,10 +558,5 @@ export class EffectTargetingService {
     const character = this.objectStore.get<GameCharacter>(identifier);
     if (!(character instanceof GameCharacter) || !character.isVisibleOnTable) return null;
     return character;
-  }
-
-  private centerOf(character: GameCharacter, gridSize: number): { x: number; y: number; z: number } {
-    const half = (gridSize * (character.size > 0 ? character.size : 1)) / 2;
-    return { x: character.location.x + half, y: character.location.y + half, z: character.posZ };
   }
 }

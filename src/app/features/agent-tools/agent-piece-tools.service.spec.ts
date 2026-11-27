@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { AgentEventLog } from '@axe/application/agent/agent-event-log.service';
 import { AgentViews } from '@axe/application/agent/agent-views.service';
+import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { AgentToolError } from '@axe/core/agent/agent-error';
@@ -9,6 +10,7 @@ import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/netw
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -195,6 +197,39 @@ describe('AgentPieceTools', () => {
     expect([goblin.targeted, orc.targeted]).toEqual([false, true]);
     await call('set_targets', { pieces: [] });
     expect(targets.anything()).toBe(false);
+  });
+
+  it('answers with the targets it set, which an effect held ready at the screen narrows to as many as it takes', async () => {
+    pieceAt('ゴブリン', 1, 1);
+    pieceAt('オーク', 2, 1);
+    const targeting = TestBed.inject(EffectTargetingService);
+    const preset = new EffectPreset();
+    preset.initialize();
+    preset.targeting = 'single';
+    targeting.begin(preset);
+
+    const answer = (await call('set_targets', { pieces: ['ゴブリン', 'オーク'] })) as { targets: { name: string }[] };
+
+    expect(answer.targets.map((target) => target.name)).toEqual(['ゴブリン']);
+    targeting.cancel();
+  });
+
+  it('answers with every piece an area held ready at the screen takes in about the one it was told to aim at', async () => {
+    pieceAt('ゴブリン', 1, 1);
+    pieceAt('オーク', 2, 1);
+    pieceAt('遠いコボルド', 9, 9);
+    const targeting = TestBed.inject(EffectTargetingService);
+    const preset = new EffectPreset();
+    preset.initialize();
+    preset.targeting = 'multi';
+    preset.areaRadius = 2;
+    preset.maxTargets = 5;
+    targeting.begin(preset);
+
+    const answer = (await call('set_targets', { pieces: ['ゴブリン'] })) as { targets: { name: string }[] };
+
+    expect(answer.targets.map((target) => target.name).sort()).toEqual(['オーク', 'ゴブリン']);
+    targeting.cancel();
   });
 
   it('moves the round on without asking anybody at the screen', async () => {

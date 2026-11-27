@@ -1,6 +1,7 @@
 import { clamp } from '@axe/core/util/clamp';
 import { retakeCanvasPicture } from '@axe/infrastructure/table-3d/canvas-picture';
 import { litByLamps } from '@axe/infrastructure/table-3d/lamp-lighting';
+import { SkyMirror } from '@axe/infrastructure/table-3d/sky-mirror';
 import type {
   Table3dEffectLight,
   Table3dLightMap,
@@ -33,6 +34,7 @@ import {
   type Material,
   MeshLambertNodeMaterial,
   MeshStandardNodeMaterial,
+  MeshToonNodeMaterial,
   NoColorSpace,
   type Node,
   type NodeMaterial,
@@ -73,10 +75,13 @@ export class SceneVeil {
   private readonly darkness = uniform(0);
   /** How far what the moon lights is drawn as by moonlight, from 0 by day to 1. */
   private readonly moonlit = uniform(0);
+  /** The sky as what keeps its metal and its roughness mirrors it. */
+  private readonly mirror = new SkyMirror();
   private readonly lamps: readonly ShadowLamp[];
   private readonly fogged = this.foggedOutput();
   private readonly lifted = this.liftedOut();
   private readonly glowing = this.glowLight();
+  private readonly mirrored = colourNode(this.mirror.node.mul(this.lifted));
 
   /**
    * As many lamps as the scene has slots for lights of its own, and then as many as effects may throw
@@ -166,15 +171,24 @@ export class SceneVeil {
    * by its colour, a piece's picture or model, a die or a coin, is covered with `moonlit` false, and
    * keeps its colour, only darkened. Every layer says which it draws, as no default would say it for
    * a layer added later.
+   *
+   * A lit material that keeps its metal and its roughness mirrors the sky where `mirrors` says so
+   * (see {@link setSkyMirror}), as a model drawn as it was made does: metal takes little light of its
+   * own, and with nothing to mirror would stand dark.
    */
-  cover(material: Material, taking: DarknessTaking, moonlit: boolean): void {
+  cover(material: Material, taking: DarknessTaking, moonlit: boolean, mirrors = false): void {
     const node = material as NodeMaterial;
     const night = (colour: Node<'vec3'>) => (moonlit ? this.byMoonlight(colour) : colour);
     if (taking === 'lit') {
       litByLamps(material);
-      if (material instanceof MeshLambertNodeMaterial || material instanceof MeshStandardNodeMaterial) {
+      if (
+        material instanceof MeshLambertNodeMaterial ||
+        material instanceof MeshStandardNodeMaterial ||
+        material instanceof MeshToonNodeMaterial
+      ) {
         const lifted = diffuseColor.rgb.mul(this.lifted.sub(this.ambientNode()));
-        material.emissiveNode = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
+        const own = material.emissive.getHex() === 0 ? lifted : lifted.add(materialEmissive);
+        material.emissiveNode = mirrors && material instanceof MeshStandardNodeMaterial ? own.add(this.mirrored) : own;
       }
       node.outputNode = this.fogged(vec4(night(output.rgb).add(this.glowing), output.a));
     } else {
@@ -193,6 +207,15 @@ export class SceneVeil {
     if (next === this.moonlit.value) return false;
     this.moonlit.value = next;
     return true;
+  }
+
+  /**
+   * Sets the sky that what mirrors it shows, as dark as the table is where it is mirrored: the light
+   * of the sky in its colour and as strong as it falls on a level surface, and the ground under it as
+   * much dimmer as `ground` says; answers whether anything changed.
+   */
+  setSkyMirror(colour: { r: number; g: number; b: number }, strength: number, ground: number): boolean {
+    return this.mirror.set(colour, strength, ground);
   }
 
   /** A lit colour as moonlight leaves it: towards the bluish grey of its brightness, the more the dimmer it is. */

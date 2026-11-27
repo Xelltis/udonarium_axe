@@ -4,11 +4,13 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { clamp } from '@axe/core/util/clamp';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
 import { toPortraitSlot, toStageResetAt } from '@axe/domain/visual-novel/vn-portrait-position';
 import {
@@ -43,6 +45,7 @@ const EMOTION_MARK_COLORS: Record<Exclude<VnEmotionMark, 'none'>, string> = {
 @Injectable()
 export class VnStageViewService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly modelStorage = inject(ModelStorage);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageService = inject(ImageService);
   private readonly systemAvatar = inject(SystemAvatarService);
@@ -193,6 +196,23 @@ export class VnStageViewService {
     if (identifier.length < 1) return false;
     return this.objectStore.get(identifier) instanceof GameCharacter;
   }
+
+  /**
+   * The pieces on the stage that stand as their 3D models rather than as their pictures, by the
+   * piece's identifier: those drawn as a model on the table whose model is held here in full.
+   */
+  readonly stageModels = computed<ReadonlyMap<string, GameCharacter>>(() => {
+    this.objectChange.fileVersion();
+    const modelled = new Map<string, GameCharacter>();
+    for (const character of this.stageCharacters()) {
+      const piece = this.objectStore.get(character.id);
+      if (!(piece instanceof GameCharacter)) continue;
+      this.objectChange.versionOf(piece.identifier)();
+      const model = pieceModelOf(piece);
+      if (model && this.modelStorage.get(model.identifier)?.isReady) modelled.set(character.id, piece);
+    }
+    return modelled;
+  });
 
   readonly activeStageCharacter = computed(
     () => this.stageCharacters().find((character) => character.isActive) ?? null

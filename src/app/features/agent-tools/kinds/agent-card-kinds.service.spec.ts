@@ -8,6 +8,7 @@ import { AgentToolError } from '@axe/core/agent/agent-error';
 import { Network } from '@axe/core/network/network';
 import type { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { rereadSealedFaces } from '@axe/core/storage/sealed-faces';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -517,6 +518,41 @@ describe('AgentCardKinds', () => {
       act('dice-symbol', kept.identifier, 'reveal');
       expect(kept.owner).toBe('');
       expect(notice).toHaveBeenCalledWith('diceReveal', expect.any(String));
+    });
+
+    it('seals a die to this seat, says why nobody else may show or take it, and lets the master ask every seat to show theirs', () => {
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
+      const send = vi.spyOn(Network.instance, 'send').mockImplementation(() => undefined);
+      const chat = TestBed.inject(ChatMessageService);
+      vi.spyOn(chat, 'sendSystemMessage').mockReturnValue(null as never);
+      vi.spyOn(chat, 'sendSystemMessageToTab').mockReturnValue(null as never);
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const plot = dieOf('プロット');
+      asPlayer();
+
+      expect(act('dice-symbol', plot.identifier, 'seal')).toMatchObject({ kept_by: 'AI', face: '1' });
+      expect([plot.isSealed, plot.sentFace]).toEqual([true, '']);
+      expect(() => act('dice-symbol', plot.identifier, 'seal')).toThrow(/sealed it already/);
+      const free = dieOf('見学');
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      expect(() => act('dice-symbol', free.identifier, 'seal')).toThrow(/may not change the table/);
+      asPlayer();
+      expect(() => act('dice-symbol', plot.identifier, 'reveal_sealed')).toThrow(/Only the game master may ask/);
+
+      plot.owner = 'someone-else';
+      plot.keeper = 'someone-else';
+      plot.sealed = true;
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      expect(() => act('dice-symbol', plot.identifier, 'reveal')).toThrow(/only the browser that sealed it/);
+      expect(() => act('dice-symbol', plot.identifier, 'keep')).toThrow(/nobody may take it from its keeper/);
+      expect(() => act('dice-symbol', plot.identifier, 'seal')).toThrow(/Another seat sealed this die/);
+      act('dice-symbol', plot.identifier, 'reveal_sealed');
+      expect(send.mock.calls.map(([context]) => (context as { eventName: string }).eventName)).toContain(
+        'REVEAL_SEALED_DICE'
+      );
+      localStorage.removeItem('axe-sealed-dice-faces');
+      rereadSealedFaces();
     });
 
     it('stands a die kept to this seat, and changes it as its sheet lets this seat', () => {

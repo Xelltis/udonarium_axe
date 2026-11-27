@@ -85,7 +85,11 @@ async function spotOfCell(page: Page, cell: Point): Promise<{ onPage: Point; spo
   return { onPage, spot: { x: onPage.x - layer.x, y: onPage.y - layer.y } };
 }
 
-/** Sets a block down at each spot that is bare table, and answers how many were set down. */
+/**
+ * Sets a block down at each spot that is bare table, and answers how many were set down. The pointer
+ * is taken off the table after each, as a piece's detail that came up where the menu entry was pressed
+ * would otherwise lie over the next spot and hold, with the pointer on it, the press meant for the table.
+ */
 async function setBlocksDown(page: Page): Promise<number> {
   let placed = 0;
   for (const cell of BLOCK_CELLS) {
@@ -96,6 +100,8 @@ async function setBlocksDown(page: Page): Promise<number> {
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
     placed++;
     await expect(page.locator('terrain')).toHaveCount(placed, { timeout: 10000 });
+    await page.mouse.move(5, 400);
+    await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
   }
   return placed;
 }

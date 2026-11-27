@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -8,6 +9,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -87,6 +89,32 @@ describe('DiceSymbolComponent', () => {
     expect(play).toHaveBeenCalledWith(die.identifier, 'bounce-in');
     vi.restoreAllMocks();
     die.destroy();
+  });
+
+  it('offers to put the die onto its piece’s sheet only where this seat may take it', () => {
+    const character = GameCharacter.create('NPC', 1, '');
+    const die = DiceSymbol.create('D6', 0, 1);
+    die.ownerCharacterIdentifier = character.identifier;
+    fixture.componentRef.setInput('diceSymbol', die);
+    fixture.detectChanges();
+    vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const may = vi.spyOn(TestBed.inject(CharacterDiceService), 'canStore').mockReturnValue(true);
+    TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+    const offered = () =>
+      (open.mock.calls.at(-1)![1] as ContextMenuAction[]).some((entry) => /しまう/.test(String(entry.name)));
+
+    try {
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      expect(offered()).toBe(true);
+      may.mockReturnValue(false);
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      expect(offered()).toBe(false);
+    } finally {
+      vi.restoreAllMocks();
+      die.destroy();
+      character.destroy();
+    }
   });
 
   it('opens the die’s own sheet from “show details” in its menu', async () => {

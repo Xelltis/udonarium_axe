@@ -101,6 +101,7 @@ export class CreateObjectMenuService implements CreateObjectMenu {
     const made = this.actions.createDiceSymbols(position, item, request.count, {
       ownerCharacterIdentifier: request.ownerCharacterIdentifier,
       hiddenToOthers: request.hiddenToOthers,
+      sealed: request.sealed,
     });
     if (made.length > 0) SoundEffect.play(PresetSound.dicePut);
   }

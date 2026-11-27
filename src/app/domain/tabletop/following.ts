@@ -1,21 +1,4 @@
 import { pieceCentreOf, PlacedPiece } from '@axe/domain/tabletop/move/piece-on-grid';
-import { TabletopLocation } from '@axe/domain/tabletop/tabletop-object';
-
-/**
- * Moves a follower placed by its middle, such as a range, onto the middle of the piece it follows, on
- * cells `gridSize` across.
- *
- * It writes the follower's location directly, so on a synced object the move reaches every peer.
- */
-export function centerFollowerOnCharacter(
-  follower: { location: TabletopLocation },
-  character: PlacedPiece,
-  gridSize: number
-): void {
-  const centre = pieceCentreOf(character, gridSize);
-  follower.location.x = centre.x;
-  follower.location.y = centre.y;
-}
 
 /**
  * The corner a light following a piece is placed by, on cells `gridSize` across: half a cell up and to

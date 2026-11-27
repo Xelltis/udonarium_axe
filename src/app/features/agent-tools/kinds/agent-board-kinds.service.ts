@@ -5,6 +5,7 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { DoorService } from '@axe/application/tabletop/door.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
 import { RulerReadingService } from '@axe/application/tabletop/ruler-reading.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -77,6 +78,7 @@ import {
   objectInput,
   textField,
 } from '@axe/features/agent-tools/kinds/agent-kind';
+import { type ModelSetup, modelSetupFields } from '@axe/features/agent-tools/kinds/agent-model-setup-fields';
 import { AgentSquares, SQUARE_SCHEMA } from '@axe/features/agent-tools/kinds/agent-squares.service';
 
 /** The square a new thing is laid in, as the options of making one take it. */
@@ -149,12 +151,10 @@ interface Lit {
 }
 
 /** The 3D model settings a block holds. */
-interface Modelled {
+interface Modelled extends ModelSetup {
   modelIdentifier: string;
   modelScale: string;
   modelTurn: string;
-  modelIdle: string;
-  modelWalk: string;
 }
 
 /**
@@ -194,6 +194,7 @@ function percentOf(share: number): number {
 @Injectable({ providedIn: 'root' })
 export class AgentBoardKinds {
   private readonly views = inject(AgentViews);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly squares = inject(AgentSquares);
   private readonly tabletop = inject(TabletopService);
   private readonly actions = inject(TabletopActionService);
@@ -283,7 +284,7 @@ export class AgentBoardKinds {
     const wanted = reference.trim();
     if (!wanted) return '';
     return findOne(
-      this.modelStorage.models.filter((model) => model.isReady),
+      this.modelStorage.drawableModels,
       wanted,
       (model) => model.identifier,
       (model) => model.name,
@@ -514,26 +515,7 @@ export class AgentBoardKinds {
           object.modelTurn = `${modelTurnOf(value)}`;
         }
       ),
-      textField<T>(
-        'model_idle',
-        "The motion its model plays standing still, by name; empty for the model's own.",
-        'write',
-        (object) => object.modelIdle,
-        (object, value) => {
-          object.modelIdle = value.trim();
-        },
-        200
-      ),
-      textField<T>(
-        'model_walk',
-        "The motion its model plays walking, by name; empty for the model's own.",
-        'write',
-        (object) => object.modelWalk,
-        (object, value) => {
-          object.modelWalk = value.trim();
-        },
-        200
-      ),
+      ...modelSetupFields<T>(),
     ];
   }
 
@@ -1707,8 +1689,8 @@ export class AgentBoardKinds {
           );
           const piece = typeof args['piece'] === 'string' ? args['piece'] : '';
           if (piece) {
-            const anchor = this.pieceNamed(piece);
-            return this.effectFields.place(preset, anchor.location.x, anchor.location.y, anchor.posZ);
+            const corner = this.piecePlace.fieldCornerOf(this.pieceNamed(piece));
+            return this.effectFields.place(preset, corner.x, corner.y, corner.z);
           }
           if (!args['at'])
             throw new AgentToolError('invalid_input', 'Give a piece or a square to stand the effect in.');

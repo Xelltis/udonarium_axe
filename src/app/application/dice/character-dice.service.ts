@@ -86,15 +86,24 @@ export class CharacterDiceService {
    * The die itself goes: what is kept is its name, its faces and how many there are, and
    * leaving the object behind as well would put the same die in two places. One the sheet
    * could not keep stays where it stands, rather than being lost between the two, and so does one
-   * whose name and face a room server keeps from this user, which would go onto the sheet as
-   * another die.
+   * this seat may not take, as {@link canStore} says.
    */
   store(character: GameCharacter, symbol: DiceSymbol): void {
     if (this.take(character, symbol)) SoundEffect.play(PresetSound.sweep);
   }
 
-  private take(character: GameCharacter, symbol: DiceSymbol): boolean {
+  /**
+   * Whether this seat may take a die off the table onto a sheet: not one whose name and face a room
+   * server keeps from this user, which would go onto the sheet as another die, nor one whose keeper
+   * alone may say who keeps it, as a sealed die, but for its keeper's own seat.
+   */
+  canStore(symbol: DiceSymbol): boolean {
     if (isWithheldHere(symbol)) return false;
+    return !symbol.keepsItsOwner || symbol.isMine;
+  }
+
+  private take(character: GameCharacter, symbol: DiceSymbol): boolean {
+    if (!this.canStore(symbol)) return false;
     if (!storeHeldDie(character, heldDieOfSymbol(symbol))) return false;
     symbol.destroy();
     return true;

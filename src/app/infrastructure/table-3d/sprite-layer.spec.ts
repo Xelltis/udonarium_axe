@@ -141,6 +141,26 @@ describe('SpriteLayer', () => {
     expect(partsOf(layer)).toEqual({ shown: 2, casters: 4, standing: 2 });
   });
 
+  it('tells a picture a standing piece throws its shadow with from one a piece lying down wears', () => {
+    const pictures = new Map<string, Texture>();
+    const layer = new SpriteLayer((url) => {
+      let picture = pictures.get(url);
+      if (!picture) pictures.set(url, (picture = new Texture()));
+      return picture;
+    });
+    const lying: TableWorldSprite = {
+      ...standing('card.webp'),
+      facing: { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 1, z: 0 } },
+    };
+
+    layer.set([standing('knight.webp'), lying]);
+    for (const picture of pictures.values()) picture.image = { width: 2, height: 2 };
+    layer.picturesCame();
+
+    expect(layer.throwsShadowWith(pictures.get('knight.webp')!)).toBe(true);
+    expect(layer.throwsShadowWith(pictures.get('card.webp')!)).toBe(false);
+  });
+
   it('shows nothing again once it is let go of, as pictures still coming arrive', () => {
     const picture = new Texture();
     const layer = new SpriteLayer(() => picture);

@@ -1,0 +1,22 @@
+<div
+  class="relative overflow-hidden"
+  [class]="bare() ? 'size-full' : 'bg-ui-input border-ui-border-input h-44 w-full rounded-sm border border-solid'"
+  data-testid="model-preview"
+  [attr.data-state]="state()"
+>
+  <canvas
+    #canvas
+    class="block size-full touch-none"
+    [class]="turnable() ? 'cursor-grab active:cursor-grabbing' : 'pointer-events-none'"
+    [attr.aria-label]="'ui.pieceModel.preview' | transloco"
+    (pointerdown)="press($event)"
+    (pointermove)="move($event)"
+    (pointerup)="letGo()"
+    (pointercancel)="letGo()"
+  ></canvas>
+  @if (state() !== 'shown' && !bare()) {
+    <span class="text-ui-dim pointer-events-none absolute inset-0 flex items-center justify-center text-[0.78em]">{{
+      (state() === 'failed' ? 'ui.pieceModel.previewFailed' : 'ui.pieceModel.previewLoading') | transloco
+    }}</span>
+  }
+</div>

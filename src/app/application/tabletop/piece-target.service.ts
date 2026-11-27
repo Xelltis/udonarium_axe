@@ -1,14 +1,25 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { PartyService } from '@axe/application/party/party.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { SolidRangeService } from '@axe/application/tabletop/solid-range.service';
-import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BATTLE_SIDE_OUT, type BattleSide } from '@axe/domain/battle/battle-lineup';
+import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import {
+  type AimBody,
+  type AimCandidate,
+  aimOrder,
+  bodyGap,
+  compareGaps,
+  nextAim,
+} from '@axe/domain/tabletop/aim-order';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import type { Solid } from '@axe/domain/tabletop/solid/solid';
@@ -23,8 +34,9 @@ export class PieceTargetService {
   private readonly zones = inject(EngagementZoneService);
   private readonly vision = inject(VisionService);
   private readonly solidRanges = inject(SolidRangeService);
-  private readonly pieces = inject(TablePiecesService);
-  private readonly tabletop = inject(TabletopService);
+  private readonly links = inject(PieceLinksService);
+  private readonly place = inject(PiecePlaceService);
+  private readonly parties = inject(PartyService);
 
   /**
    * The pieces on the table aimed at, read again as an aim is put on or taken off, as a piece
@@ -42,7 +54,128 @@ export class PieceTargetService {
     return aimed;
   });
 
+  /**
+   * The pieces this seat may aim at without pressing them, as from a list of them or by a key: on the
+   * table in view, in the fight, and seen by this seat. Read again as a piece arrives, goes or
+   * changes, and as what this seat sees does.
+   */
+  readonly aimable = computed<GameCharacter[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const aimable: GameCharacter[] = [];
+    for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
+      this.objectChange.versionOf(piece.identifier)();
+      if (this.mayAimAt(piece)) aimable.push(piece);
+    }
+    return aimable;
+  });
+
+  /** Whether this seat may aim at a piece: one on the table in view, not taken out of the fight, and seen by this seat. */
+  mayAimAt(piece: GameCharacter): boolean {
+    return piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece);
+  }
+
+  /**
+   * The piece aims are taken from, of these in order: the first on the table in view that this seat
+   * sees. A piece kept from its sight, as one in stealth, fog or darkness whose turn it is, is passed
+   * over, for an order measured from it would tell where it stands.
+   */
+  aimedFromOf(candidates: readonly (GameCharacter | null | undefined)[]): GameCharacter | null {
+    return (
+      candidates.find(
+        (piece): piece is GameCharacter => !!piece && piece.isVisibleOnTable && this.vision.isTokenVisible(piece)
+      ) ?? null
+    );
+  }
+
+  /**
+   * The side of the fight a piece is aimed at as standing on: its own, or for a part with none of its
+   * own, its body's; none for a piece taken out of the lineup, a part as well. A piece with no side of its own stands on its party's, so read where signals are
+   * followed, the side is read again as a party is put on another side or goes.
+   */
+  sideOf(piece: GameCharacter): BattleSide | null {
+    this.parties.parties();
+    if (piece.battleSide === BATTLE_SIDE_OUT) return null;
+    const own = standingBattleSide(piece);
+    if (own) return own;
+    const body = this.links.bodyOf(piece);
+    return body ? standingBattleSide(body) : null;
+  }
+
+  /**
+   * The pieces this seat may aim at, in the order a key aims at them one at a time from a piece (see
+   * `aimOrder`), measured between their bodies where they stand in the room (see `bodyReader`).
+   * While an effect is held ready, only those it can be cast at, its caster kept out.
+   */
+  aimOrderFrom(from: GameCharacter | null): GameCharacter[] {
+    const candidateOf = this.aimCandidateReader();
+    const picking = this.effectTargeting.isPicking();
+    const aimable = this.aimable().filter((piece) => !picking || this.effectTargeting.canPick(piece.identifier));
+    const byIdentifier = new Map(aimable.map((piece) => [piece.identifier, piece]));
+    return aimOrder(from ? candidateOf(from) : null, aimable.map(candidateOf))
+      .map((identifier) => byIdentifier.get(identifier))
+      .filter((piece): piece is GameCharacter => piece !== undefined);
+  }
+
+  /**
+   * Aims at the next piece of {@link aimOrderFrom} a piece, a step on (1) or back (-1) from the one
+   * aimed at now, and at it alone, as a key does over and over. With an area held ready, the step is
+   * from the piece it is centred on, as every piece it takes in is aimed at. Answers the piece aimed at, or null
+   * where there is none.
+   */
+  aimNext(from: GameCharacter | null, step: 1 | -1): GameCharacter | null {
+    const order = this.aimOrderFrom(from);
+    const epicenter = this.effectTargeting.isPicking() ? this.effectTargeting.epicenter() : '';
+    const aimed = new Set(
+      epicenter ? [epicenter] : order.filter((piece) => piece.targeted).map((piece) => piece.identifier)
+    );
+    const nextIdentifier = nextAim(
+      order.map((piece) => piece.identifier),
+      aimed,
+      step
+    );
+    const next = order.find((piece) => piece.identifier === nextIdentifier) ?? null;
+    if (next) this.setOnly([next]);
+    return next;
+  }
+
+  private aimCandidateReader(): (piece: GameCharacter) => AimCandidate {
+    const bodyOf = this.bodyReader();
+    return (piece) => ({
+      identifier: piece.identifier,
+      ...bodyOf(piece),
+      side: this.sideOf(piece),
+      whole: this.links.bodyOf(piece)?.identifier ?? piece.identifier,
+    });
+  }
+
+  /**
+   * Reads the body of each piece where it stands in the room now (see `PiecePlaceService.bodyAt`), a
+   * piece in an engagement zone at the zone's centre, every way a piece is aimed at or taken in by a
+   * range reading the same body.
+   */
+  private bodyReader(): (piece: GameCharacter) => AimBody {
+    const reading = this.zones.reading();
+    return (piece) => this.place.bodyAt(piece, reading.pointOf(piece));
+  }
+
+  /**
+   * Takes the aim off a piece, as from the list of pieces to aim at: off what an effect held ready is
+   * cast at too, without centring an area on it.
+   */
+  letGo(piece: GameCharacter): void {
+    if (this.effectTargeting.isPicking()) this.effectTargeting.unpick(piece.identifier);
+    this.drop([piece]);
+  }
+
+  /**
+   * Aims at a piece or takes the aim off it. While an effect is held ready, the aim is what it is cast
+   * at, so the piece is taken as a press of it would be (see `EffectTargetingService.press`).
+   */
   toggle(piece: GameCharacter): void {
+    if (this.effectTargeting.isPicking()) {
+      this.effectTargeting.press(piece.identifier);
+      return;
+    }
     piece.targeted = !piece.targeted;
     this.uiSignal.notifyTargetChange(piece.identifier, piece.aliasName);
   }
@@ -57,8 +190,15 @@ export class PieceTargetService {
     this.drop(this.objectStore.getObjects<GameCharacter>(GameCharacter));
   }
 
-  /** Aims at exactly these pieces, taking the aim off every other. */
+  /**
+   * Aims at exactly these pieces, taking the aim off every other. While an effect is held ready, they
+   * are what it is cast at instead (see `EffectTargetingService.pickOnly`), for the marks copy its picks.
+   */
   setOnly(pieces: readonly GameCharacter[]): void {
+    if (this.effectTargeting.isPicking()) {
+      this.effectTargeting.pickOnly(pieces.map((piece) => piece.identifier));
+      return;
+    }
     const wanted = new Set(pieces.map((piece) => piece.identifier));
     for (const piece of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       const next = wanted.has(piece.identifier);
@@ -70,14 +210,16 @@ export class PieceTargetService {
 
   /**
    * Aims at every piece a range takes in that the reader can see, counted in squares of `squarePx`,
-   * and at nothing else. A piece in an engagement zone is taken in where the range takes in the
-   * zone's centre; a piece taken out of the fight is not taken in at all. A range standing up off the
-   * table takes in a piece any part of whose body reaches into it, high or low.
+   * and at nothing else, each read by its body (see `bodyReader`). A range laid on the table takes in
+   * a piece whose feet stand over what it covers, a piece on a wall or a board where its feet stand
+   * out from the face; a piece in an engagement zone where the range takes in the zone's centre; a
+   * piece taken out of the fight not at all. A range standing up off the table takes in a piece any
+   * part of whose body reaches into it, high or low.
    */
   targetInsideRange(range: RangeArea, squarePx: number): void {
     const placed = range.isSolid ? this.solidRanges.placedOf(range.identifier) : null;
     if (placed) {
-      this.setOnly(this.takenIntoSolid(placed.solid));
+      this.setOnly(this.nearestFirst(this.takenIntoSolid(placed.solid), placed.origin));
       return;
     }
     const shape = {
@@ -87,31 +229,46 @@ export class PieceTargetService {
       rotate: range.rotate,
       origin: { x: range.location.x, y: range.location.y },
     };
-    const reading = this.zones.reading();
+    const bodyOf = this.bodyReader();
     const inside = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
-      .filter((piece) => rangeCovers(shape, squarePx, reading.pointOf(piece)) === true);
-    this.setOnly(inside);
+      .filter((piece) => this.mayAimAt(piece))
+      .filter((piece) => {
+        const { feet } = bodyOf(piece);
+        return rangeCovers(shape, squarePx, { x: feet.x, y: feet.y }) === true;
+      });
+    this.setOnly(this.nearestFirst(inside, shape.origin));
   }
 
   /**
-   * The pieces the reader can see that any part of reaches into a solid: the upright line through the
-   * middle of a piece, from its feet, its altitude included, up as far as it is wide. A piece in an
-   * engagement zone is read across the table at the zone's centre, and up from its own feet.
+   * Pieces in order of how near each stands to a point, so an effect held ready that takes fewer than
+   * a range holds takes the nearest: across the table to where each piece's feet stand for a range
+   * laid on it, and through the room to the nearest point of each piece's body (see `bodyGap`) for
+   * one standing up with a height of its own.
    */
+  private nearestFirst(pieces: readonly GameCharacter[], from: { x: number; y: number; z?: number }): GameCharacter[] {
+    const bodyOf = this.bodyReader();
+    const distance = (piece: GameCharacter) => {
+      const body = bodyOf(piece);
+      if (from.z === undefined) return Math.hypot(body.feet.x - from.x, body.feet.y - from.y);
+      const point = { x: from.x, y: from.y, z: from.z };
+      return bodyGap({ feet: point, head: point }, body);
+    };
+    return pieces
+      .map((piece, index) => ({ piece, index, away: distance(piece) }))
+      .sort((a, b) => compareGaps(a.away, b.away) || a.index - b.index)
+      .map(({ piece }) => piece);
+  }
+
+  /** The pieces the reader can see that any part of the body of reaches into a solid (see `bodyReader`). */
   private takenIntoSolid(solid: Solid): GameCharacter[] {
-    const reading = this.zones.reading();
-    const table = this.tabletop.currentTable;
-    const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+    const bodyOf = this.bodyReader();
     return this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
-      .filter((piece) => piece.isVisibleOnTable && piece.offField !== '1' && this.vision.isTokenVisible(piece))
+      .filter((piece) => this.mayAimAt(piece))
       .filter((piece) => {
-        const at = reading.pointOf(piece);
-        const feet = this.pieces.footOf(piece).height + piece.altitude * gridSize;
-        const tall = Math.max(0, piece.size) * gridSize;
-        return solidTouchesSegment(solid, { x: at.x, y: at.y, z: feet }, { x: at.x, y: at.y, z: feet + tall });
+        const { feet, head } = bodyOf(piece);
+        return solidTouchesSegment(solid, feet, head);
       });
   }
 

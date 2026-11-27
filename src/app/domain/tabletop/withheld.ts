@@ -40,10 +40,11 @@ export function isWithheldHere(object: unknown): boolean {
 /**
  * Whether a die or a note lacks what a room server withholds: the face of a die that has faces to
  * show, or the title or text of a note, blacked out. Loading a save takes every owner away, so who
- * owns the die is not asked.
+ * owns the die is not asked. A sealed die tells nobody its face, whatever withholds it, so that its
+ * having none is no sign of anything withheld.
  */
 function lacksWithheldPart(object: unknown): boolean {
-  if (object instanceof DiceSymbol) return object.face === '' && object.faces.length > 0;
+  if (object instanceof DiceSymbol) return !object.isSealed && object.face === '' && object.faces.length > 0;
   if (object instanceof TextNote) return isBlackedOut(object.title) || isBlackedOut(object.text);
   return false;
 }

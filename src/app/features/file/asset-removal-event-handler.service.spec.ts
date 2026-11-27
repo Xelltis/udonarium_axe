@@ -79,7 +79,7 @@ describe('AssetRemovalEventHandlerService', () => {
   });
 
   it('passes over a removal of a model bundled with the app, which the room cannot remove', () => {
-    const oak = bundledMapModels()['tree_oak'];
+    const oak = `${bundledMapModels()['tree_oak']}${'0'.repeat(48)}`;
     AssetRemoval.remove(oak, 'model');
 
     start();

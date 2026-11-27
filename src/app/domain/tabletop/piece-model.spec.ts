@@ -1,10 +1,27 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { modelScaleOf, modelTurnOf, pieceModelOf } from '@axe/domain/tabletop/piece-model';
+import { MODEL_FACE_AS_MADE, writeModelFace } from '@axe/domain/tabletop/model-face';
+import { MODEL_AS_MADE, writeModelLook } from '@axe/domain/tabletop/model-look';
+import { presetModelLook } from '@axe/domain/tabletop/model-look-presets';
+import { MODEL_MOTIONS_AS_MADE, writeModelMotions } from '@axe/domain/tabletop/model-motions';
+import { modelScaleOf, modelTurnOf, PIECE_MODEL_AS_MADE, pieceModelOf } from '@axe/domain/tabletop/piece-model';
+import { faceOf, lookOf, motionsOf } from '@axe/domain/tabletop/piece-model-setup';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
 describe('the 3D model a piece is drawn as', () => {
   function fields(
-    values: Partial<Record<'modelIdentifier' | 'modelScale' | 'modelTurn' | 'modelIdle' | 'modelWalk', unknown>>
+    values: Partial<
+      Record<
+        | 'modelIdentifier'
+        | 'modelScale'
+        | 'modelTurn'
+        | 'modelIdle'
+        | 'modelWalk'
+        | 'modelLook'
+        | 'modelMotions'
+        | 'modelFace',
+        unknown
+      >
+    >
   ) {
     return { modelIdentifier: '', modelScale: '', modelTurn: '', modelIdle: '', modelWalk: '', ...values };
   }
@@ -25,6 +42,7 @@ describe('the 3D model a piece is drawn as', () => {
       turnDeg: 0,
       idle: '',
       walk: '',
+      ...PIECE_MODEL_AS_MADE,
     });
   });
 
@@ -64,5 +82,59 @@ describe('the 3D model a piece is drawn as', () => {
 
     expect(pieceModelOf(piece)).toBeNull();
     piece.destroy();
+  });
+
+  it('reads how its materials are drawn, its motions in a fight and its shapes from what was stored', () => {
+    const model = pieceModelOf(
+      fields({
+        modelIdentifier: 'knight',
+        modelLook: writeModelLook(presetModelLook('steel')),
+        modelMotions: writeModelMotions({ ...MODEL_MOTIONS_AS_MADE, attack: 'Slash', made: false }),
+        modelFace: writeModelFace({ blink: '-', mouth: '', breath: '', weights: { Joy: 0.5 }, sways: [] }),
+      })
+    );
+
+    expect(lookOf(model!)).toMatchObject({ metalness: 1, roughness: 0.28, finish: '' });
+    expect(motionsOf(model!)).toMatchObject({ attack: 'Slash', made: false });
+    expect(faceOf(model!)).toMatchObject({ blink: '-', weights: { Joy: 0.5 } });
+  });
+
+  it('draws the model as it was made where the three later fields come empty, missing or unreadable', () => {
+    for (const value of ['', undefined, null, 'not json', '[]', '{"finish":']) {
+      const model = pieceModelOf(
+        fields({ modelIdentifier: 'knight', modelLook: value, modelMotions: value, modelFace: value })
+      );
+      expect([lookOf(model!), motionsOf(model!), faceOf(model!)]).toEqual([
+        MODEL_AS_MADE,
+        MODEL_MOTIONS_AS_MADE,
+        MODEL_FACE_AS_MADE,
+      ]);
+    }
+  });
+
+  it('keeps the look in the room data, and draws the model as made where an older peer sends the piece without it', () => {
+    const piece = new GameCharacter();
+    piece.initialize();
+    piece.modelIdentifier = 'knight';
+    piece.modelLook = writeModelLook(presetModelLook('gold'));
+    expect(piece.toXml()).toContain('modelLook=');
+
+    const older = piece.toContext();
+    for (const name of ['modelLook', 'modelMotions', 'modelFace']) delete attributesOf(older)[name];
+    older.majorVersion += 1;
+    piece.apply(older);
+
+    expect(pieceModelOf(piece)).toMatchObject({ identifier: 'knight', ...PIECE_MODEL_AS_MADE });
+    piece.destroy();
+  });
+
+  it('reads a block’s look as a piece’s is read', () => {
+    const block = new Terrain();
+    block.initialize();
+    block.modelIdentifier = 'statue';
+    block.modelLook = writeModelLook(presetModelLook('stone'));
+
+    expect(lookOf(pieceModelOf(block)!)).toMatchObject({ plain: true, roughness: 0.95 });
+    block.destroy();
   });
 });

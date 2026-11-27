@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -26,11 +26,11 @@ import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 })
 export class RangeDockingCharacterComponent {
   private readonly panelService = inject(PanelService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly modalService = inject(ModalService);
   private readonly objectStore = inject(ObjectStore);
   private readonly imageStorage = inject(ImageStorage);
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly tabletop = inject(TabletopService);
   private readonly vision = inject(VisionService);
   private readonly names = inject(PieceNameService);
 
@@ -83,7 +83,7 @@ export class RangeDockingCharacterComponent {
     if (object instanceof GameCharacter) {
       SoundEffect.play(PresetSound.lock);
       this.tabletopObject.followingCharacterIdentifier = object.identifier;
-      this.tabletopObject.following(this.tabletop.gridSize());
+      this.piecePlace.follow(this.tabletopObject);
     }
     this.panelService.close();
   }

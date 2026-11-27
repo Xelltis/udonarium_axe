@@ -7,6 +7,7 @@ import {
   type ImageDroppedEvent,
   xmlLoaded$,
 } from '@axe/core/event/domain-events';
+import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -264,16 +265,19 @@ describe('FileArchiver', () => {
       }
     });
 
-    it('takes in a binary glTF file as a 3D model, and leaves bytes under the name that are not one', async () => {
+    it('takes in a binary glTF file, as a .glb, a VRM or a motion for VRMs, as a 3D model, and leaves bytes under the name that are not one', async () => {
       const added = vi.spyOn(ModelStorage.instance, 'addAsync').mockResolvedValue(null);
 
       await FileArchiver.instance.load([
         new File([glbOf({ asset: { version: '2.0' } })], 'tree.glb'),
+        new File([glbOf({ asset: { version: '2.0' }, extensionsUsed: ['VRMC_vrm'] })], 'avatar.VRM'),
+        new File([glbOf({ asset: { version: '2.0' }, extensionsUsed: ['VRMC_vrm_animation'] })], 'wave.vrma'),
         new File([new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 1, 2, 3, 4])], 'cut-short.glb'),
         new File([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])], 'fake.glb'),
+        new File([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])], 'fake.vrm'),
       ]);
 
-      expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['tree.glb']);
+      expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['tree.glb', 'avatar.VRM', 'wave.vrma']);
     });
 
     it('leaves out a 3D model that draws more triangles than a model may, and says so', async () => {
@@ -326,6 +330,72 @@ describe('FileArchiver', () => {
 
       expect(result.images).toEqual(['taken-picture']);
       expect(result.audios).toEqual(['taken-sound']);
+    });
+
+    it('hands the parts a piece was saved with along with it, and not as data of their own', async () => {
+      const read: { tag: string; along?: string }[] = [];
+      const off = xmlLoaded$.subscribe((event) =>
+        read.push({
+          tag: event.xmlElement.tagName,
+          ...(event.along ? { along: event.along.tagName } : {}),
+        })
+      );
+      const saved = new File(
+        [
+          zipSync({
+            'data.xml': strToU8('<character></character>'),
+            'parts.xml': strToU8('<piece-parts><character></character></piece-parts>'),
+          }).slice(),
+        ],
+        'piece.zip',
+        { type: 'application/zip' }
+      );
+
+      try {
+        await FileArchiver.instance.load([saved]);
+
+        expect(read).toEqual([{ tag: 'character', along: 'piece-parts' }]);
+      } finally {
+        off();
+      }
+    });
+
+    it('hands the parts along with the piece where both were dropped loose, taken out of their zip', async () => {
+      const read: { tag: string; along?: string }[] = [];
+      const off = xmlLoaded$.subscribe((event) =>
+        read.push({
+          tag: event.xmlElement.tagName,
+          ...(event.along ? { along: event.along.tagName } : {}),
+        })
+      );
+
+      try {
+        await FileArchiver.instance.load([
+          new File(['<piece-parts><character></character></piece-parts>'], 'parts.xml', { type: 'text/xml' }),
+          new File(['<character></character>'], 'data.xml', { type: 'text/xml' }),
+        ]);
+
+        expect(read).toEqual([{ tag: 'character', along: 'piece-parts' }]);
+      } finally {
+        off();
+      }
+    });
+
+    it('reads nothing of parts dropped loose without the data of the piece they go with, and logs it', async () => {
+      const read: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
+      const warned = vi.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+
+      try {
+        await FileArchiver.instance.load([
+          new File(['<piece-parts><character></character></piece-parts>'], 'parts.xml', { type: 'text/xml' }),
+        ]);
+
+        expect(read).toEqual(['piece-parts']);
+        expect(warned).toHaveBeenCalledWith(expect.stringContaining('parts.xml'));
+      } finally {
+        off();
+      }
     });
 
     it('leaves the rest of an archive once it is no longer wanted', async () => {

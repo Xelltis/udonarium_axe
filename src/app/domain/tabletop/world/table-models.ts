@@ -1,3 +1,5 @@
+import type { ModelMotionFile } from '@axe/domain/media/model-motion-files';
+import type { ModelAct } from '@axe/domain/tabletop/model-motions';
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
 import type { WaterCurrent } from '@axe/domain/tabletop/water/water-current';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
@@ -16,6 +18,12 @@ export interface TableWorldModel {
   /** Where the model's bytes are read from: an object URL for bytes held here. */
   readonly url: string;
   readonly model: PieceModel;
+  /**
+   * The motions for VRM models its model is given, as the list of models was made, which are part of
+   * how it is read: a change of them is a change of the list. Left out, as for a figure on a stage,
+   * they are read where the list is taken in.
+   */
+  readonly motions?: readonly ModelMotionFile[];
   readonly foot: { readonly x: number; readonly y: number; readonly z: number };
   readonly footprintPx: number;
   /** How tall the box is that the model is fitted inside, in table pixels. */
@@ -47,6 +55,13 @@ export interface TableWorldModel {
   readonly cutFaces?: string;
   /** Whether the piece is being moved now, which plays its walk. */
   readonly walking: boolean;
+  /**
+   * What the piece's model is asked to act now, as a blow in a fight or its going down; left out
+   * where it only stands or walks.
+   */
+  readonly act?: ModelAct;
+  /** Whether the piece is speaking now, which moves the mouth of a model that has a shape for one. */
+  readonly speaking?: boolean;
   /**
    * For a door: whether it stands open, and where its opening has taken it from where it stands shut,
    * on the board, as its faces are taken. A model whose leaves swing on hinges of their own opens by

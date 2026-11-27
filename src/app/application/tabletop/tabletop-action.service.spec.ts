@@ -4,6 +4,7 @@ import { TabletopActionService } from '@axe/application/tabletop/tabletop-action
 import { getDiceMenuItems, TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { forgetSealedFace } from '@axe/core/storage/sealed-faces';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -116,6 +117,29 @@ describe('TabletopActionService', () => {
         [250, 350],
         [360, 350],
       ]);
+    });
+
+    it('seals the dice it keeps to their maker where asked, on a face nobody knows, and only those it keeps', () => {
+      vi.spyOn(PeerCursor, 'myUserId', 'get').mockReturnValue('me');
+      vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const item = getDiceMenuItems()[1];
+
+      const [kept] = service.createDiceSymbols({ x: 300, y: 400, z: 0 }, item, 1, { hiddenToOthers: true });
+      const [sealed] = service.createDiceSymbols({ x: 300, y: 400, z: 0 }, item, 1, {
+        hiddenToOthers: true,
+        sealed: true,
+      });
+      const [open] = service.createDiceSymbols({ x: 300, y: 400, z: 0 }, item, 1, { sealed: true });
+
+      expect([kept.owner, kept.isSealed]).toEqual(['me', false]);
+      expect([sealed.owner, sealed.isSealed, sealed.sentFace]).toEqual(['me', true, '']);
+      expect(sealed.face).toBe(sealed.faces.at(-1));
+      expect(kept.face).toBe(kept.faces[0]);
+      expect([open.owner, open.isSealed]).toEqual(['', false]);
+      for (const die of [kept, sealed, open]) {
+        forgetSealedFace(die.identifier);
+        die.destroy();
+      }
     });
   });
 

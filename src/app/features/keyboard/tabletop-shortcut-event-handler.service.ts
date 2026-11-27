@@ -1,4 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
+import { PieceNameService } from '@axe/application/character/piece-name.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -7,7 +9,9 @@ import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.s
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RulerService } from '@axe/application/tabletop/ruler.service';
+import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -19,8 +23,9 @@ import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { DisclosureMode, switchedDisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TextNote } from '@axe/domain/tabletop/text-note';
-import { tabletopKeyDown, TabletopShortcutCommand } from '@axe/features/keyboard/tabletop-shortcut';
+import { tabletopKeyDown, TabletopKeyFocus, TabletopShortcutCommand } from '@axe/features/keyboard/tabletop-shortcut';
 
 type DisclosablePiece = GameCharacter | Card | DiceSymbol | TextNote;
 
@@ -35,7 +40,8 @@ function isDisclosablePiece(object: GameObject): object is DisclosablePiece {
 
 /**
  * The keys that act on the pieces picked out on the table: T to aim at them, Shift+T to take every
- * aim away, and G to switch who they are disclosed to; and M, which takes the ruler up or puts it away.
+ * aim away, and G to switch who they are disclosed to; M, which takes the ruler up or puts it away;
+ * and Tab and Shift+Tab, which aim at the pieces of the other side one at a time, nearest first.
  *
  * The picked pieces are the ones gathered with Ctrl+click or a dragged box, or else the one piece
  * clicked last. Keys are only taken while nothing else holds the keyboard: not while typing, not
@@ -59,16 +65,67 @@ export class TabletopShortcutEventHandlerService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly ruler = inject(RulerService);
   private readonly permission = inject(RolePermissionService);
+  private readonly turnOrder = inject(TurnOrderService);
+  private readonly activeCharacter = inject(ActiveCharacterService);
+  private readonly names = inject(PieceNameService);
+  private readonly modal = inject(ModalService);
+
+  /** Whether the keyboard has moved the focus since the pointer last pressed anything. */
+  private keyboardMoved = false;
+  /** What the reader last used, the keyboard or the pointer, heard everywhere on the page, whatever is showing. */
+  private lastInput: 'keyboard' | 'pointer' = 'pointer';
+  /** What had the focus last, which it comes back to as the reader comes back to the window. */
+  private lastFocused: EventTarget | null = null;
 
   constructor() {
     document.addEventListener('keydown', this.onKeyDown);
-    inject(DestroyRef).onDestroy(() => document.removeEventListener('keydown', this.onKeyDown));
+    document.addEventListener('keydown', this.onAnyKey, true);
+    document.addEventListener('pointerdown', this.onPointerDown, true);
+    document.addEventListener('focusin', this.onFocusIn, true);
+    inject(DestroyRef).onDestroy(() => {
+      document.removeEventListener('keydown', this.onKeyDown);
+      document.removeEventListener('keydown', this.onAnyKey, true);
+      document.removeEventListener('pointerdown', this.onPointerDown, true);
+      document.removeEventListener('focusin', this.onFocusIn, true);
+    });
+  }
+
+  private readonly onAnyKey = (): void => {
+    this.lastInput = 'keyboard';
+  };
+
+  private readonly onPointerDown = (): void => {
+    this.lastInput = 'pointer';
+    this.keyboardMoved = false;
+  };
+
+  /**
+   * A focus moved while the keyboard was what the reader last used was moved by the keyboard, by Tab
+   * or any other key; a focus given back to what had it, as the reader comes back to the window from
+   * another, moved nowhere.
+   */
+  private readonly onFocusIn = (event: FocusEvent): void => {
+    const cameBack = event.relatedTarget === null && event.target === this.lastFocused;
+    this.lastFocused = event.target;
+    if (this.lastInput === 'keyboard' && !cameBack) this.keyboardMoved = true;
+  };
+
+  /**
+   * Where the focus is, as the keys on the table read it: on nothing where it is on the page itself;
+   * where the pointer left it, or a dialog gave it back after a press, while the keyboard has not
+   * moved it since; else where the keyboard moved it.
+   */
+  private focusOf(focused: Element | null): TabletopKeyFocus {
+    if (!focused || focused === document.body || focused === document.documentElement) return 'none';
+    return this.keyboardMoved ? 'keyboard' : 'pressed';
   }
 
   /** Does what a command asks of the picked pieces, telling the user how many it touched. */
   run(command: TabletopShortcutCommand): void {
     if (command === 'target') this.aimAtPicked();
     else if (command === 'clearTargets') this.takeAimsAway();
+    else if (command === 'nextTarget') this.aimOnward(1);
+    else if (command === 'previousTarget') this.aimOnward(-1);
     else if (command === 'toggleRuler') this.takeRuler();
     else this.switchDisclosure();
   }
@@ -85,15 +142,21 @@ export class TabletopShortcutEventHandlerService {
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.defaultPrevented || this.blocked()) return;
-    const focused = document.activeElement;
-    if (focused && focused !== document.body) return;
     const command = tabletopKeyDown(event.key, {
+      focus: this.focusOf(document.activeElement),
+      modal: this.modal.isShow || document.querySelector('[aria-modal="true"]') !== null,
       typing: isTypingTarget(event.target),
       composing: event.isComposing,
       chord: event.ctrlKey || event.metaKey || event.altKey,
       shift: event.shiftKey,
     });
     if (!command) return;
+    if (
+      (command === 'nextTarget' || command === 'previousTarget') &&
+      this.targets.aimOrderFrom(this.aimedFrom()).length < 1
+    ) {
+      return;
+    }
     event.preventDefault();
     this.run(command);
   };
@@ -121,6 +184,32 @@ export class TabletopShortcutEventHandlerService {
     }
     this.targets.setOnly(characters);
     this.snackbar.show(this.t('feature.keyboard.tabletop.targeted', { count: characters.length }));
+  }
+
+  /**
+   * Aims at the next piece of the other side, or the one before, from the piece the aim is taken from:
+   * the first this seat sees of the piece whose turn it is, the piece picked last, the piece this seat
+   * plays and the first piece of its own it may aim at (see `PieceTargetService.aimNext`). The key is
+   * read only where there is a piece to aim at, and moves the focus on as anywhere else where there is
+   * none.
+   */
+  private aimOnward(step: 1 | -1): void {
+    const next = this.targets.aimNext(this.aimedFrom(), step);
+    if (next) this.snackbar.show(this.t('feature.keyboard.tabletop.targetedOne', { name: this.names.shown(next) }));
+  }
+
+  private aimedFrom(): GameCharacter | null {
+    const piece = (identifier: string | null | undefined) => {
+      const found = identifier ? this.objectStore.get(identifier) : null;
+      return found instanceof GameCharacter ? found : null;
+    };
+    const me = PeerCursor.myCursor?.userId ?? '';
+    return this.targets.aimedFromOf([
+      piece(this.turnOrder.currentIdentifier),
+      piece(this.selection.selectedObject()?.identifier),
+      piece(this.activeCharacter.identifier()),
+      this.targets.aimable().find((one) => me.length > 0 && one.owner === me),
+    ]);
   }
 
   private takeAimsAway(): void {

@@ -47,5 +47,6 @@ export function fighterBetween(before: FighterReading, after: FighterReading, ru
     gauges: [...gauges, ...moved].slice(0, MAX_BATTLE_GAUGES),
     defeated,
     facing: after.facing,
+    model: after.model,
   };
 }

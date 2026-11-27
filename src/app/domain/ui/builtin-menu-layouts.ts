@@ -112,6 +112,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('npcBar'),
     item('partyList'),
     item('inventory'),
+    item('targetList'),
     item('scene'),
     item('darkness'),
     item('fog'),
@@ -134,6 +135,7 @@ const PL_TOOLBAR: MenuLayout = {
   nodes: [
     item('ownedCharacters'),
     item('inventory'),
+    item('targetList'),
     item('rangeShortcut'),
     item('ruler'),
     item('firstPerson'),

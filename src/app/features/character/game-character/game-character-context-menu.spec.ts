@@ -19,6 +19,7 @@ import {
   buildUnviewableCharacterContextMenu,
   collectRegisteredEffects,
   collectRegisteredRangeShapes,
+  type ModelMotionEntry,
 } from '@axe/features/character/game-character/game-character-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
@@ -180,6 +181,59 @@ describe('buildGameCharacterContextMenu()', () => {
 
     it('is left out where nothing about the stage is handed in', () => {
       expect(battleEntries(makeChar(), {})).toEqual([]);
+    });
+  });
+
+  describe('the motions of the piece’s model', () => {
+    function motionEntries(extra: object) {
+      const menu = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), ...extra },
+        t
+      );
+      const group = groupOf(menu, 'バフ・演出') as unknown as {
+        name: string;
+        subActions?: { name: string; action?: () => void }[];
+      }[];
+      return group.find((entry) => entry.name === 'モデルの動き')?.subActions ?? null;
+    }
+
+    it('are offered by the names handed in, each asked for by its own word', () => {
+      const onPlayModelMotion = vi.fn();
+      const entries = motionEntries({
+        modelMotions: () => [
+          { word: 'attack', label: '攻撃', named: false },
+          { word: 'Wave', label: 'Wave', named: true },
+        ],
+        onPlayModelMotion,
+      })!;
+
+      expect(entries.map((entry) => entry.name)).toEqual(['攻撃', 'Wave']);
+      entries[1].action!();
+      expect(onPlayModelMotion).toHaveBeenCalledWith({ word: 'Wave', label: 'Wave', named: true });
+    });
+
+    it('take in the model’s own motions read after the menu came up, once they are opened', () => {
+      const known: ModelMotionEntry[] = [{ word: 'attack', label: '攻撃', named: false }];
+      const menu = buildGameCharacterContextMenu(
+        makeChar() as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), modelMotions: () => known, onPlayModelMotion: vi.fn() },
+        t
+      );
+      known.push({ word: 'Wave', label: 'Wave', named: true });
+
+      const group = groupOf(menu, 'バフ・演出') as unknown as { name: string; subActions?: { name: string }[] }[];
+      const opened = group.find((entry) => entry.name === 'モデルの動き')!.subActions!;
+      expect(opened.map((entry) => entry.name)).toEqual(['攻撃', 'Wave']);
+    });
+
+    it('are left out for a piece with none to offer, as one drawn as no model', () => {
+      expect(motionEntries({ modelMotions: () => [], onPlayModelMotion: vi.fn() })).toBeNull();
+      expect(motionEntries({})).toBeNull();
     });
   });
 

@@ -97,6 +97,11 @@
           >{{ 'feature.dice.symbolSheet.currentFace' | transloco }}: <strong>{{ diceSymbol.face }}</strong></span
         >
       </h3>
+      @if (diceSymbol.isSealed) {
+        <p class="text-ui-muted m-0 mb-2 flex items-center gap-1 text-[12px]" data-testid="dice-sealed-note">
+          <i class="material-icons text-[14px]!">lock</i>{{ 'feature.dice.symbolSheet.sealed' | transloco }}
+        </p>
+      }
       <div class="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-2">
         @for (face of faceImages(); track face.faceName) {
           <div

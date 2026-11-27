@@ -1,0 +1,38 @@
+<div class="bg-ui-panel text-ui-text flex h-full flex-col overflow-y-auto p-2" data-testid="target-list">
+  @for (section of sections(); track section.side) {
+    <div class="text-ui-muted my-1 px-1 text-[11px] font-bold">
+      {{ 'feature.tabletop.targetList.side_' + section.side | transloco }}
+    </div>
+    @for (row of section.rows; track row.piece.identifier) {
+      <button
+        type="button"
+        class="rounded-ui-sm border-ui-border-panel hover:bg-ui-menu-hover mb-1 flex min-h-10 w-full cursor-pointer items-center gap-2 border border-solid bg-transparent px-2 text-left"
+        [class.bg-ui-accent-bg]="row.targeted"
+        [class.border-ui-accent]="row.targeted"
+        [attr.aria-pressed]="row.targeted"
+        data-testid="target-list-row"
+        (click)="toggle(row)"
+      >
+        <i
+          class="material-icons text-[18px]!"
+          aria-hidden="true"
+          [class.text-ui-accent]="row.targeted"
+          [class.text-ui-dim]="!row.targeted"
+        >
+          {{ row.targeted ? 'my_location' : 'location_searching' }}
+        </i>
+        <span class="text-ui-text min-w-0 flex-1 truncate text-[13px]">{{ row.name }}</span>
+        @if (row.offField) {
+          <span class="text-ui-dim shrink-0 text-[10px] whitespace-nowrap" data-testid="target-list-off-field">{{
+            'feature.tabletop.targetList.offField' | transloco
+          }}</span>
+        }
+        @if (row.gauge) {
+          <span class="text-ui-muted shrink-0 text-[11px] whitespace-nowrap tabular-nums">{{ row.gauge }}</span>
+        }
+      </button>
+    }
+  } @empty {
+    <p class="text-ui-dim m-auto text-center text-[12px]">{{ 'feature.tabletop.targetList.empty' | transloco }}</p>
+  }
+</div>

@@ -3,9 +3,11 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectFrameService } from '@axe/application/effect/effect-frame.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectField } from '@axe/domain/effect/effect-field';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { nothingStaged } from '@axe/domain/effect/scene/choreography';
@@ -45,6 +47,34 @@ describe('EffectFrameService', () => {
   function atPlayed(field: EffectField, playedMs: number): void {
     playback.now.set(playedMs - field.phaseOffset);
   }
+
+  it('plays on a piece on the floor where it is drawn standing, as high as it flies over that ground', () => {
+    const piece = GameCharacter.create('床', 1, '');
+    piece.location = { name: 'table', x: 0, y: 0 };
+    piece.altitude = 1;
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 325, y: 425, z: 70 });
+    const footingOf = (service as unknown as { footingOf(id: string, cellPx: number): unknown }).footingOf.bind(
+      service
+    );
+
+    expect(footingOf(piece.identifier, 50)).toEqual({ x: 325, y: 425, z: 120, groundZ: 70 });
+  });
+
+  it('plays on a piece on a wall at the feet of the body standing in for it, over the ground there', () => {
+    const piece = GameCharacter.create('壁', 1, '');
+    piece.location = { name: 'table', x: 0, y: 0 };
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({
+      x: 975,
+      y: 975,
+      footZ: 450,
+      groundZ: 30,
+    });
+    const footingOf = (service as unknown as { footingOf(id: string, cellPx: number): unknown }).footingOf.bind(
+      service
+    );
+
+    expect(footingOf(piece.identifier, 50)).toEqual({ x: 975, y: 975, z: 450, groundZ: 30 });
+  });
 
   it('draws nothing with nothing playing and nothing left standing', () => {
     expect(service.frame()).toBe(EMPTY_EFFECT_FRAME);

@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ShownPictureUrls } from '@axe/application/media/shown-picture-urls';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
@@ -151,6 +152,7 @@ const STEP_MS = SNAP_MS;
     CutInLayerPropertiesComponent,
     CutInTimelineComponent,
   ],
+  providers: [ShownPictureUrls],
 })
 export class CutInSceneEditorComponent {
   private readonly objectChange = inject(ObjectChangeService);
@@ -158,6 +160,7 @@ export class CutInSceneEditorComponent {
   private readonly modalService = inject(ModalService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
+  private readonly shownUrls = inject(ShownPictureUrls);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly cutIn = input<CutIn | null>(null);
@@ -635,6 +638,7 @@ export class CutInSceneEditorComponent {
 
     this.playing.set(true);
     const from = this.playheadMs() >= durationMs ? 0 : this.playheadMs();
+    if (from === 0) this.shownUrls.beginShowing();
     const startedAt = performance.now() - from;
     this.sceneSound?.stop();
     this.sceneSound = this.cutInSound.play(this.scene(), from, this.sceneLoop);

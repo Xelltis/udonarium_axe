@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable, signal, untracked } from '@angular/core';
+import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 
 export interface PointerCoordinate {
   x: number;
@@ -9,6 +10,13 @@ export interface PointerCoordinate {
 
 export interface PointerData extends PointerCoordinate {
   identifier: number;
+}
+
+/** Where the mouse is: the document of the window it is over, and the point of that window it is at. */
+export interface MousePlace {
+  readonly document: Document;
+  readonly x: number;
+  readonly y: number;
 }
 
 const MOUSE_IDENTIFIER = -9999;
@@ -58,6 +66,19 @@ export class PointerDeviceService {
 
   targetElement: HTMLElement = this.document.body;
 
+  /**
+   * Where the mouse was last seen, in whichever window of the app it is over, the main one or one a
+   * panel was taken out into (see `AttachedDocuments`): told by every move and by every crossing onto
+   * something, which a thing coming under a mouse at rest makes too. Null before it has been seen.
+   */
+  mouseAt: MousePlace | null = null;
+  private readonly heardDocuments = new Map<Document, () => void>();
+  private callbackOnMouseSeen = (e: MouseEvent) => {
+    if (!Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return;
+    const view = (e.target as Node | null)?.ownerDocument ?? (e.currentTarget as Document | null);
+    if (view) this.mouseAt = { document: view, x: e.clientX, y: e.clientY };
+  };
+
   pointers: PointerData[] = [{ x: 0, y: 0, z: 0, identifier: -1 }];
   private startPosition: PointerData = this.pointers[0];
   private primaryPointer: PointerData = this.pointers[0];
@@ -93,7 +114,30 @@ export class PointerDeviceService {
   /** Follows the mouse and touches on the page from the moment it is made until its injector goes. */
   constructor() {
     this.addEventListeners();
-    inject(DestroyRef).onDestroy(() => this.removeEventListeners());
+    const stopHearing = AttachedDocuments.onChange((documents) => this.hear([this.document, ...documents]));
+    inject(DestroyRef).onDestroy(() => {
+      this.removeEventListeners();
+      stopHearing();
+      this.hear([]);
+    });
+  }
+
+  /** Hears the mouse in exactly these documents, the main one and the windows taken out. */
+  private hear(documents: readonly Document[]): void {
+    for (const [heard, stop] of this.heardDocuments) {
+      if (documents.includes(heard)) continue;
+      stop();
+      this.heardDocuments.delete(heard);
+    }
+    for (const document of documents) {
+      if (this.heardDocuments.has(document)) continue;
+      document.addEventListener('mousemove', this.callbackOnMouseSeen, true);
+      document.addEventListener('mouseover', this.callbackOnMouseSeen, true);
+      this.heardDocuments.set(document, () => {
+        document.removeEventListener('mousemove', this.callbackOnMouseSeen, true);
+        document.removeEventListener('mouseover', this.callbackOnMouseSeen, true);
+      });
+    }
   }
 
   private onPointerDown(e: MouseEvent | TouchEvent) {

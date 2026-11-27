@@ -1,0 +1,507 @@
+import {
+  frameStandsMs,
+  type MovingFrame,
+  MovingPictures,
+  type MovingSource,
+} from '@axe/infrastructure/table-3d/moving-pictures';
+import { Texture } from 'three/webgpu';
+
+/** A moving picture of frames that stand as long as given, played as many times as given, that tells which frames it drew. */
+function source(
+  frames: number,
+  plays: number,
+  standsMs = 100
+): MovingSource & { drawn: number[]; closed: boolean; framesClosed: number } {
+  const made = {
+    width: 8,
+    height: 8,
+    frames,
+    plays,
+    drawn: [] as number[],
+    closed: false,
+    framesClosed: 0,
+    frame: async (index: number): Promise<MovingFrame> => ({
+      durationMs: standsMs,
+      draw: () => made.drawn.push(index),
+      close: () => {
+        made.framesClosed++;
+      },
+    }),
+    close: () => {
+      made.closed = true;
+    },
+  };
+  return made;
+}
+
+/** Lets what was started run through. */
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** Moves the pictures on to each moment in turn, letting each frame be drawn before the next. */
+async function advanceThrough(pictures: MovingPictures, moments: readonly number[]): Promise<(number | null)[]> {
+  const due: (number | null)[] = [];
+  for (const moment of moments) {
+    due.push(pictures.advance(moment));
+    await settled();
+  }
+  return due;
+}
+
+/** Two images of a GIF after its screen, each with its descriptor, its code size and an empty block, then its end. */
+const TWO_IMAGES = [0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0, 0x2c, 0, 0, 0, 0, 4, 0, 4, 0, 0, 2, 1, 0, 0, 0x3b];
+
+describe('MovingPictures', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: () => undefined,
+      drawImage: () => undefined,
+    } as unknown as CanvasRenderingContext2D);
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('wears a moving picture on a canvas of its own, the first frame standing its while from when it is first moved, and each after it', async () => {
+    const moving = source(3, Infinity);
+    const drawn = vi.fn();
+    const pictures = new MovingPictures(drawn, async () => moving);
+    const picture = new Texture();
+
+    pictures.follow('blob:apng', picture);
+    await settled();
+
+    expect(picture.image).toBeInstanceOf(HTMLCanvasElement);
+    expect(moving.drawn).toEqual([0]);
+    expect(await advanceThrough(pictures, [5000, 5050])).toEqual([5100, 5100]);
+    expect(moving.drawn).toEqual([0]);
+    await advanceThrough(pictures, [5100, 5200, 5300]);
+    expect(moving.drawn).toEqual([0, 1, 2, 0]);
+    expect(drawn).toHaveBeenCalledTimes(4);
+  });
+
+  it('counts each frame from when it was due, so frames drawn late do not fall further behind', async () => {
+    const moving = source(4, Infinity, 40);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:gif', new Texture());
+    await settled();
+
+    const due = await advanceThrough(pictures, [0, 50, 67, 100, 133]);
+
+    expect(due).toEqual([40, null, 80, null, null]);
+    expect(moving.drawn).toEqual([0, 1, 2, 3]);
+  });
+
+  it('has a frame told to stand ten milliseconds or less stand a tenth of a second, as browsers do', () => {
+    expect([frameStandsMs(0), frameStandsMs(10), frameStandsMs(20), frameStandsMs(70)]).toEqual([100, 100, 20, 70]);
+  });
+
+  it('stops once it has played as many times as it is made for, and wants no more frames', async () => {
+    const moving = source(2, 1);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    await advanceThrough(pictures, [0, 100]);
+    expect(pictures.advance(200)).toBeNull();
+
+    expect(moving.drawn).toEqual([0, 1]);
+  });
+
+  it('moves a picture only while something wearing it is in sight, its clock stopped where it got to while none is', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const board = new Texture();
+    pictures.follow('blob:apng', board, { judged: true });
+    await settled();
+
+    expect(pictures.judged()).toEqual(new Set([board]));
+    expect(pictures.advance(0)).toBeNull();
+    expect(pictures.see(new Set([board]))).toBe(true);
+    expect(pictures.advance(500)).toBe(600);
+    await advanceThrough(pictures, [550]);
+    pictures.see(new Set());
+    expect(pictures.advance(560)).toBeNull();
+    pictures.see(new Set([board]));
+
+    expect(pictures.advance(2560)).toBe(2600);
+    expect(moving.drawn).toEqual([0]);
+  });
+
+  it('moves a picture worn where the table cannot tell whether it is in sight, as a board laid over it', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:apng', new Texture(), { judged: true });
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    expect(pictures.advance(0)).toBe(100);
+  });
+
+  it('draws a frame due a little after the frame of the screen on it, within the slack it is given', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving,
+      4
+    );
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+    await advanceThrough(pictures, [0, 97]);
+
+    expect(moving.drawn).toEqual([0, 1]);
+  });
+
+  it('goes on from now once it has fallen a whole frame behind, rather than catching up', async () => {
+    const moving = source(4, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+
+    expect(await advanceThrough(pictures, [0, 450, 460])).toEqual([100, null, 550]);
+  });
+
+  it('tells whether a shadow cut to the picture is to be drawn again with each frame', async () => {
+    const moving = source(2, Infinity);
+    const drawn = vi.fn();
+    const pictures = new MovingPictures(drawn, async () => moving);
+    pictures.follow('blob:board', new Texture(), { judged: true, shadows: true });
+    pictures.follow('blob:layer', new Texture());
+    await settled();
+
+    expect(drawn.mock.calls.map(([shadows]) => shadows).sort()).toEqual([false, true]);
+  });
+
+  it('puts the frame it stands on back on a texture its still picture came over', async () => {
+    const moving = source(2, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const picture = new Texture();
+    pictures.follow('blob:apng', picture);
+    await settled();
+    const frame = picture.image;
+
+    picture.image = document.createElement('img');
+    pictures.redress(picture);
+
+    expect(picture.image).toBe(frame);
+  });
+
+  it('dresses a wearer that comes after the first frame with it at once', async () => {
+    const moving = source(2, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const first = new Texture();
+    pictures.follow('blob:apng', first);
+    await settled();
+
+    const later = new Texture();
+    pictures.follow('blob:apng', later);
+
+    expect(later.image).toBe(first.image);
+  });
+
+  it('reads a picture again for the next wearer where it could not be read', async () => {
+    let fail = true;
+    const moving = source(2, Infinity);
+    const read = vi.fn(async () => {
+      if (fail) throw new Error('offline');
+      return moving;
+    });
+    const pictures = new MovingPictures(() => undefined, read);
+    const first = new Texture();
+    pictures.follow('blob:apng', first);
+    await settled();
+
+    fail = false;
+    const later = new Texture();
+    pictures.follow('blob:apng', later);
+    await settled();
+
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(pictures.shown).toBe(1);
+    expect(first.image).toBe(later.image);
+    expect(first.image).toBeInstanceOf(HTMLCanvasElement);
+  });
+
+  it('reads a picture that could not be read again a while later, and for a new wearer, no more than a few times in all', async () => {
+    vi.useFakeTimers();
+    try {
+      const read = vi.fn(async () => {
+        throw new Error('offline');
+      });
+      const pictures = new MovingPictures(() => undefined, read);
+      pictures.follow('blob:apng', new Texture());
+
+      await vi.advanceTimersByTimeAsync(1000);
+      pictures.follow('blob:apng', new Texture());
+      for (let wait = 0; wait < 5; wait++) await vi.advanceTimersByTimeAsync(5000);
+
+      expect(read).toHaveBeenCalledTimes(3);
+      pictures.follow('blob:apng', new Texture());
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(read).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks whether a shadow is cut to the picture as each frame is drawn, as a piece may stand up or lie down', async () => {
+    const moving = source(2, Infinity);
+    const drawn = vi.fn();
+    let standing = false;
+    const pictures = new MovingPictures(drawn, async () => moving);
+    pictures.follow('blob:piece', new Texture(), { shadows: () => standing });
+    await settled();
+    standing = true;
+    await advanceThrough(pictures, [0, 100]);
+
+    expect(drawn.mock.calls.map(([shadows]) => shadows)).toEqual([false, true]);
+  });
+
+  it('answers no new sight where what was in sight stays so, and where what was out of it stays out', async () => {
+    const moving = source(2, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    const board = new Texture();
+    pictures.follow('blob:apng', board, { judged: true });
+    await settled();
+
+    expect(pictures.see(new Set())).toBe(false);
+    expect(pictures.see(new Set([board]))).toBe(true);
+    expect(pictures.see(new Set([board]))).toBe(false);
+  });
+
+  it('stands each on its first frame while pictures are not to move, and moves them again once they are', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async () => moving
+    );
+    pictures.follow('blob:apng', new Texture());
+    await settled();
+    await advanceThrough(pictures, [0, 100]);
+
+    pictures.setTurning(false);
+    await settled();
+
+    expect(moving.drawn).toEqual([0, 1, 0]);
+    expect(pictures.advance(500)).toBeNull();
+    pictures.setTurning(true);
+    expect(pictures.advance(600)).toBe(700);
+  });
+
+  it('reads a picture once for every texture and coin face wearing it, and dresses each with each frame', async () => {
+    const moving = source(2, Infinity);
+    const read = vi.fn(async () => moving);
+    const pictures = new MovingPictures(() => undefined, read);
+    const sprite = new Texture();
+    const tiled = new Texture();
+    const face = new Texture();
+    const painted: HTMLCanvasElement[] = [];
+
+    pictures.follow('blob:apng', sprite);
+    pictures.follow('blob:apng', tiled);
+    pictures.wear('blob:apng', { texture: face, paint: (frame) => painted.push(frame) });
+    await settled();
+    await advanceThrough(pictures, [0, 100]);
+
+    expect(read).toHaveBeenCalledOnce();
+    expect(sprite.image).toBe(tiled.image);
+    expect(painted).toHaveLength(2);
+    expect(face.image).not.toBe(sprite.image);
+  });
+
+  it('lets go of a picture once nothing wears it, and moves none that stands still', async () => {
+    const moving = source(3, Infinity);
+    const pictures = new MovingPictures(
+      () => undefined,
+      async (url) => (url === 'blob:apng' ? moving : null)
+    );
+    const worn = new Texture();
+    const still = new Texture();
+    pictures.follow('blob:apng', worn);
+    pictures.follow('blob:png', still);
+    await settled();
+
+    expect(pictures.shown).toBe(1);
+    worn.dispose();
+
+    expect(pictures.shown).toBe(0);
+    expect(moving.closed).toBe(true);
+    expect(pictures.advance(1000)).toBeNull();
+  });
+
+  it('lets go of a picture whose texture was let go of while it was being read, and wants no frames for it', async () => {
+    const moving = source(3, Infinity);
+    let arrive: (read: MovingSource) => void = () => undefined;
+    const pictures = new MovingPictures(
+      () => undefined,
+      () => new Promise<MovingSource | null>((resolve) => (arrive = resolve))
+    );
+    const picture = new Texture();
+    pictures.follow('blob:apng', picture);
+
+    picture.dispose();
+    arrive(moving);
+    await settled();
+
+    expect(moving.closed).toBe(true);
+    expect(pictures.shown).toBe(0);
+    expect(pictures.advance(1000)).toBeNull();
+  });
+
+  it('lets go of what comes after the table is gone, and closes every frame it draws', async () => {
+    const moving = source(3, Infinity);
+    let arrive: (read: MovingSource) => void = () => undefined;
+    const pictures = new MovingPictures(
+      () => undefined,
+      () => new Promise<MovingSource | null>((resolve) => (arrive = resolve))
+    );
+    pictures.follow('blob:apng', new Texture());
+
+    pictures.dispose();
+    arrive(moving);
+    await settled();
+
+    expect([moving.closed, moving.drawn, moving.framesClosed]).toEqual([true, [], 0]);
+  });
+
+  describe('reading a picture frame by frame', () => {
+    /** Has the page fetch a GIF and read it with a decoder of these frames, played as the picture says. */
+    function decoding(track: { frameCount: number; repetitionCount: number } | Error) {
+      const closed = { decoder: 0, frames: 0, decoded: [] as number[] };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(
+              new Uint8Array([...[...'GIF89a'].map((c) => c.charCodeAt(0)), 4, 0, 4, 0, 0, 0, 0, ...TWO_IMAGES])
+            )
+        )
+      );
+      vi.stubGlobal(
+        'ImageDecoder',
+        class {
+          static isTypeSupported = async () => true;
+          readonly tracks = {
+            ready: track instanceof Error ? Promise.reject(track) : Promise.resolve(),
+            selectedTrack: track instanceof Error ? null : track,
+          };
+          readonly completed = Promise.resolve();
+          decode = async ({ frameIndex }: { frameIndex: number }) => {
+            closed.decoded.push(frameIndex);
+            return { image: { displayWidth: 4, displayHeight: 4, duration: 50_000, close: () => closed.frames++ } };
+          };
+          close = () => closed.decoder++;
+        }
+      );
+      return closed;
+    }
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('plays a picture as many times as it repeats and once more, standing each frame as long as it says', async () => {
+      const read = decoding({ frameCount: 2, repetitionCount: 1 });
+      const pictures = new MovingPictures(() => undefined);
+      const picture = new Texture();
+      pictures.follow('blob:gif', picture);
+      await vi.waitFor(() => expect(picture.image).toBeInstanceOf(HTMLCanvasElement));
+
+      expect(await advanceThrough(pictures, [0, 50, 100, 150])).toEqual([50, null, null, null]);
+      expect(pictures.advance(200)).toBeNull();
+      expect(read.decoded).toEqual([0, 0, 1, 0, 1]);
+      expect(read.frames).toBe(read.decoded.length);
+    });
+
+    it('decodes no picture that says it stands still past its head, and decodes an AVIF that says it moves', async () => {
+      const made: string[] = [];
+      vi.stubGlobal(
+        'ImageDecoder',
+        class {
+          static isTypeSupported = async () => true;
+          readonly tracks = { ready: Promise.resolve(), selectedTrack: { frameCount: 2, repetitionCount: Infinity } };
+          readonly completed = Promise.resolve();
+          constructor({ type }: { type: string }) {
+            made.push(type);
+          }
+          decode = async () => ({
+            image: { displayWidth: 4, displayHeight: 4, duration: 50_000, close: () => undefined },
+          });
+          close = () => undefined;
+        }
+      );
+      const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+      const chunk = (name: string, length: number) => [
+        0,
+        (length >> 16) & 0xff,
+        (length >> 8) & 0xff,
+        length & 0xff,
+        ...[...name].map((c) => c.charCodeAt(0)),
+      ];
+      const longStill = new Uint8Array([
+        ...png,
+        ...chunk('IHDR', 13),
+        ...Array(17).fill(0),
+        ...chunk('iTXt', 100_000),
+        ...Array(100_004).fill(0),
+        ...chunk('IDAT', 1),
+        ...Array(5).fill(0),
+        ...Array(200_000).fill(0),
+      ]);
+      const avif = new Uint8Array([
+        0,
+        0,
+        0,
+        20,
+        ...'ftypavis'.split('').map((c) => c.charCodeAt(0)),
+        0,
+        0,
+        0,
+        0,
+        ...'avif'.split('').map((c) => c.charCodeAt(0)),
+      ]);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string) => new Response(url === 'blob:still' ? longStill : avif))
+      );
+
+      const pictures = new MovingPictures(() => undefined);
+      pictures.follow('blob:still', new Texture());
+      pictures.follow('blob:avif', new Texture());
+      await vi.waitFor(() => expect(pictures.shown).toBe(1));
+
+      expect(made).toEqual(['image/avif']);
+    });
+
+    it('closes the decoder of a picture that stands still or cannot be read', async () => {
+      const still = decoding({ frameCount: 1, repetitionCount: 0 });
+      new MovingPictures(() => undefined).follow('blob:still', new Texture());
+      await vi.waitFor(() => expect(still.decoder).toBe(1));
+
+      vi.unstubAllGlobals();
+      const broken = decoding(new Error('broken'));
+      new MovingPictures(() => undefined).follow('blob:broken', new Texture());
+      await vi.waitFor(() => expect(broken.decoder).toBe(1));
+    });
+  });
+});

@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SheetRangeFormComponent } from '@axe/features/character/game-character-sheet/sheet-range-form.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -39,6 +41,33 @@ describe('SheetRangeFormComponent', () => {
 
     expect(range.type).toBe('CIRCLE');
     expect(shapeButtons()[7].classList).toContain('font-semibold');
+  });
+
+  it('puts a cone following a piece back on it as it is stood up as a column', async () => {
+    const piece = GameCharacter.create('コマ', 1, '');
+    piece.location = { name: 'table', x: 100, y: 100 };
+    range.type = 'CORN';
+    range.solidKind = 'cone';
+    range.followingCharacterIdentifier = piece.identifier;
+    range.location = { name: 'table', x: 400, y: 400 };
+    await fixture.whenStable();
+    try {
+      root().querySelector<HTMLButtonElement>('[data-solid-kind="column"]')!.click();
+
+      expect(range.solidKind).toBe('column');
+      expect([range.location.x, range.location.y]).toEqual([125, 125]);
+    } finally {
+      piece.destroy();
+    }
+  });
+
+  it('changes the shape through the page, as every change of a range’s shape does', () => {
+    const reshape = vi.spyOn(TestBed.inject(PiecePlaceService), 'reshape');
+
+    shapeButtons()[6].click();
+
+    expect(reshape).toHaveBeenCalledWith(range, expect.any(Function));
+    expect(range.type).toBe('HEXAGON');
   });
 
   it('writes the two colours to the range from their fields', () => {

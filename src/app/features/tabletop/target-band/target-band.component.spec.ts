@@ -5,6 +5,7 @@ import { PieceTargetService } from '@axe/application/tabletop/piece-target.servi
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TargetBandComponent } from '@axe/features/tabletop/target-band/target-band.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { Z_TABLE_BANDS } from '@axe/ui/z-layers';
@@ -73,6 +74,17 @@ describe('TargetBandComponent', () => {
     expect(one.targeted).toBe(false);
     expect(two.targeted).toBe(false);
     expect(host.querySelector('[data-testid="target-band"]')).toBeNull();
+  });
+
+  it('opens the list of the pieces to aim at from a press of its button', async () => {
+    const opened = vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(() => undefined as never);
+    TestBed.inject(PieceTargetService).toggle(pieceOnTable());
+    const { host } = await band();
+
+    host.querySelector<HTMLButtonElement>('[data-testid="target-band-list"]')!.click();
+
+    expect(opened).toHaveBeenCalledWith('targetList');
+    vi.restoreAllMocks();
   });
 
   describe('while an effect is held ready', () => {

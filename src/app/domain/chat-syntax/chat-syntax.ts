@@ -92,8 +92,17 @@ export type SyntaxSpan = TextRange & { readonly parts: readonly SyntaxPart[] } &
      * leaves no such word, so a line with one starts no cut-in.
      */
     | { readonly kind: 'cutIn'; readonly name: string; readonly soundOnly: boolean }
-    /** A `《name》` token; `order` counts the effect tokens before it, the battle stage's left out. */
-    | { readonly kind: 'effect'; readonly name: string; readonly battle: boolean; readonly order: number }
+    /**
+     * A `《name》` token; `order` counts the effect tokens before it, the battle stage's and those
+     * that ask the speaker's model for a motion left out. `motion` is the motion such a token asks for.
+     */
+    | {
+        readonly kind: 'effect';
+        readonly name: string;
+        readonly battle: boolean;
+        readonly order: number;
+        readonly motion?: string;
+      }
     | { readonly kind: 'diceToken'; readonly name: string }
     | { readonly kind: 'ruby' }
     /** A stamp put inside the line, by the identifier it is kept under and the name it was written with. */
@@ -364,7 +373,8 @@ function scanEffectTokens(message: string, at: At, spans: SyntaxSpan[]): void {
       kind: 'effect',
       name: site.name,
       battle: site.battle,
-      order: site.battle ? -1 : order++,
+      order: site.battle || site.motion !== undefined ? -1 : order++,
+      ...(site.motion === undefined ? {} : { motion: site.motion }),
       from: at(site.from),
       to: at(site.to),
       parts: [

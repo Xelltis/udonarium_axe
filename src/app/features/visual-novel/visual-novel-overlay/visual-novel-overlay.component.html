@@ -198,18 +198,33 @@
       [style.left.%]="chara.left"
     >
       <div [class]="portraitAnimationClass()">
-        <img
-          class="w-auto max-w-none drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
-          [class]="
-            classes(
-              isCompact() ? 'h-[46dvh]' : 'h-[56dvh]',
-              chara.isActive ? speakClass() : '',
-              chara.isFlipped ? '-scale-x-100' : ''
-            )
-          "
-          [src]="chara.url | safe: 'resourceUrl'"
-          [alt]="chara.name"
-        />
+        @if (stageModels().get(chara.id); as piece) {
+          <model-preview
+            class="block drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
+            [class]="
+              classes(isCompact() ? 'h-[46dvh] w-[30dvh]' : 'h-[56dvh] w-[36dvh]', chara.isActive ? speakClass() : '')
+            "
+            data-testid="vn-stage-model"
+            [bare]="true"
+            [turnable]="false"
+            [turned]="chara.isFlipped ? modelTurnDeg : -modelTurnDeg"
+            [speaking]="chara.isActive && isTyping()"
+            [target]="$any(piece)"
+          />
+        } @else {
+          <img
+            class="w-auto max-w-none drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)]"
+            [class]="
+              classes(
+                isCompact() ? 'h-[46dvh]' : 'h-[56dvh]',
+                chara.isActive ? speakClass() : '',
+                chara.isFlipped ? '-scale-x-100' : ''
+              )
+            "
+            [src]="chara.url | safe: 'resourceUrl'"
+            [alt]="chara.name"
+          />
+        }
       </div>
     </div>
   }

@@ -11,6 +11,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePartsService } from '@axe/application/tabletop/piece-parts.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -67,6 +68,7 @@ import {
   objectInput,
   textField,
 } from '@axe/features/agent-tools/kinds/agent-kind';
+import { modelSetupFields } from '@axe/features/agent-tools/kinds/agent-model-setup-fields';
 import { AgentSquares, SQUARE_SCHEMA } from '@axe/features/agent-tools/kinds/agent-squares.service';
 
 /** The label the list of pictures goes by for every tag, which no tag may take. */
@@ -151,6 +153,7 @@ function removalKindOf(kind: string): AssetRemovalKind {
 @Injectable({ providedIn: 'root' })
 export class AgentAssetKinds {
   private readonly views = inject(AgentViews);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly tabletop = inject(TabletopService);
   private readonly actions = inject(TabletopActionService);
   private readonly ground = inject(StandingGroundService);
@@ -764,6 +767,7 @@ export class AgentAssetKinds {
           this.objectChange.notifyChanged(piece.identifier);
         }
       ),
+      ...modelSetupFields<GameCharacter>((piece) => this.objectChange.notifyChanged(piece.identifier)),
       {
         name: 'chat_colours',
         description: 'The three colours its chat lines may be written in, as #rrggbb, the first the usual one.',
@@ -878,7 +882,7 @@ export class AgentAssetKinds {
   /** A model held here in full, by id or name, as the model fields offer them. */
   private readyModel(reference: string): ModelFile {
     return findOne(
-      this.modelStorage.models.filter((model) => model.isReady),
+      this.modelStorage.drawableModels,
       reference,
       (model) => model.identifier,
       (model) => modelNameOf(model.name),
@@ -1312,7 +1316,7 @@ export class AgentAssetKinds {
           RANGE_SHAPE_NAMES,
           shapeOf,
           (range, value) => {
-            range.type = RANGE_SHAPES[value];
+            this.piecePlace.reshape(range, () => (range.type = RANGE_SHAPES[value]));
           }
         ),
         {
@@ -1323,7 +1327,7 @@ export class AgentAssetKinds {
             SOLIDS,
             (range) => range.solidKind || 'flat',
             (range, value) => {
-              range.solidKind = solidOf(value);
+              this.piecePlace.reshape(range, () => (range.solidKind = solidOf(value)));
             }
           ),
           refuse: (range, value) =>
@@ -1441,7 +1445,7 @@ export class AgentAssetKinds {
             },
             (range, value) => {
               range.followingCharacterIdentifier = value === '' ? '' : this.seenPiece(value).identifier;
-              if (value !== '') range.following(this.tabletop.gridSize());
+              if (value !== '') this.piecePlace.follow(range);
             },
             200
           ),

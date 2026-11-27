@@ -75,6 +75,13 @@ export class ImageFile {
   get thumbnail(): ThumbnailContext {
     return this.context.thumbnail;
   }
+  /**
+   * The type of the picture's own bytes, which a peer tells along with the thumbnail while only that
+   * has come, as a thumbnail is drawn as a picture of another type; empty where neither tells it.
+   */
+  get originalType(): string {
+    return this.context.blob?.type || this.context.type;
+  }
 
   /**
    * How much of the image this seat holds, compared with peers' catalogues to decide what to

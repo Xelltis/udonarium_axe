@@ -2,6 +2,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { Network } from '@axe/core/network/network';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -42,6 +43,16 @@ describe('DisclosureService', () => {
   });
 
   const shown = { disclosureMode: 'all', disclosureUserIds: [] };
+
+  it('lets nobody, the GM included, set the owner of a die a seat sealed, but a die only kept', () => {
+    setMe('gm', PeerRole.GameMaster);
+    const die = new DiceSymbol();
+    die.owner = 'p1';
+    expect(service.canSetOwner(die)).toBe(true);
+
+    die.sealed = true;
+    expect(service.canSetOwner(die)).toBe(false);
+  });
 
   it('lets a player set the owner of an unowned object but not an owned one', () => {
     setMe('p1', PeerRole.Player);

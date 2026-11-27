@@ -28,7 +28,10 @@ import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
 /** Whether a text is one chat message, or a palette, each line of which is a message of its own. */
 export type ChatRichMode = 'chat' | 'palette';
 
-/** A piece of syntax shown whole, and the text it was written with. */
+/**
+ * A piece of syntax shown whole, and the text it was written with. A token asking a model for a
+ * motion (`《動き:…》`) is no effect, and is left as the text it was written with.
+ */
 export type ChatRichChip =
   | { kind: 'ruby'; base: string; reading: string; raw: string }
   | { kind: 'reference'; name: string; targeted: boolean; useMax: boolean; raw: string }
@@ -178,7 +181,7 @@ function parseMessage(message: string, options: ChatRichParseOptions): PlacedLin
     take(site.from, site.to, { kind: 'reference', name: site.name, targeted: site.targeted, useMax: site.useMax, raw });
   }
   for (const site of effectTokenSites(message)) {
-    if (site.name.length < 1) continue;
+    if (site.name.length < 1 || site.motion !== undefined) continue;
     take(site.from, site.to, {
       kind: 'effect',
       name: site.name,

@@ -383,4 +383,44 @@
       }}</a>{{ 'feature.media.cutIn.youtubeTermsNotice' | transloco }}
     </p>
   }
+  @if (!isYouTubeCutIn()) {
+    <div class="my-1 flex flex-col gap-1" data-testid="cut-in-model">
+      <label class="text-ui-muted text-[11px] font-semibold tracking-[0.04em] uppercase">{{
+        'feature.media.cutIn.modelSection' | transloco
+      }}</label>
+      @if (isEditable() && cutIn(); as shown) {
+        <piece-model-fields [target]="$any(shown)" />
+      }
+      @if (model().shown) {
+        <div class="flex items-center gap-2">
+          <span class="text-ui-muted shrink-0 text-[11px]">{{ 'feature.media.cutIn.modelAct' | transloco }}</span>
+          <select
+            class="bg-ui-input border-ui-border-panel text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid px-2 py-1 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="cut-in-model-act"
+            [ngModel]="model().act"
+            (ngModelChange)="setModelAct($event)"
+            [disabled]="!isEditable()"
+          >
+            @for (act of modelActs; track act) {
+              <option [ngValue]="act">
+                {{
+                  (act === '' || act === 'walk'
+                    ? 'feature.media.cutIn.modelAct_' + (act || 'stand')
+                    : 'ui.pieceModel.' + act
+                  ) | transloco
+                }}
+              </option>
+            }
+            @if (model().act && !modelActs.includes($any(model().act)) && !model().motions.includes(model().act)) {
+              <option [ngValue]="model().act">{{ model().act }}</option>
+            }
+            @for (name of model().motions; track name) {
+              <option [ngValue]="name">{{ name }}</option>
+            }
+          </select>
+        </div>
+      }
+      <p class="text-ui-muted my-0.5 text-[11px]">{{ 'feature.media.cutIn.modelHint' | transloco }}</p>
+    </div>
+  }
 </div>

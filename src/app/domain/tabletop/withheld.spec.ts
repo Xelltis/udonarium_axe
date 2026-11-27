@@ -111,6 +111,20 @@ describe('isWithheldHere', () => {
     }
   });
 
+  it('holds back no die another seat sealed, away from a room server, as a seal tells nobody its face', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
+    markSeatWithheld(true, 'room');
+    try {
+      const sealed = die('someone');
+      sealed.sealed = true;
+      sealed.sentFace = '';
+
+      expect(isWithheldHere(sealed)).toBe(false);
+    } finally {
+      markLoadedWithheld(false, false);
+    }
+  });
+
   it('holds back a die whose face a marked save lacked, though loading took its owner away', () => {
     vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue(null);
     markLoadedWithheld(true, false);

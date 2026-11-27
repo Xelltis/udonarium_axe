@@ -202,8 +202,8 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() komaImageWidth: number = 0;
   /**
    * The 3D model the piece is drawn as on a table drawn on a canvas, in place of its picture, by the
-   * identifier it is kept under; empty for none. Read it, with the four after it, through
-   * `pieceModelOf`, as a peer that has never heard of models sends none of the five.
+   * identifier it is kept under; empty for none. Read it, with those after it, through
+   * `pieceModelOf`, as a peer that has never heard of models sends none of them.
    */
   @SyncVar() modelIdentifier: string = '';
   /** How many times larger than the piece's footprint its model is drawn; empty for the footprint itself. */
@@ -214,6 +214,12 @@ export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() modelIdle: string = '';
   /** The motion its model plays walking, by name; empty for the model's own. */
   @SyncVar() modelWalk: string = '';
+  /** How the materials of its model are drawn, as `writeModelLook` writes it; empty for the model as it was made. */
+  @SyncVar() modelLook: string = '';
+  /** The motions its model plays in a fight, as `writeModelMotions` writes them; empty for the model's own. */
+  @SyncVar() modelMotions: string = '';
+  /** What its model does with the shapes it can be blended towards, as `writeModelFace` writes it; empty for the model's own. */
+  @SyncVar() modelFace: string = '';
 
   @SyncVar() chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */

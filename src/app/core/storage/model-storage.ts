@@ -1,5 +1,5 @@
 import { isBundledModel } from '@axe/core/storage/bundled-models';
-import { ModelFile, ModelFileContext, ModelState } from '@axe/core/storage/model-file';
+import { isModelMotion, ModelFile, ModelFileContext, ModelState } from '@axe/core/storage/model-file';
 import { SharedAssetStorage } from '@axe/core/storage/shared-asset-storage';
 
 /**
@@ -30,5 +30,29 @@ export class ModelStorage extends SharedAssetStorage<ModelFile, ModelFileContext
   /** Every model this seat knows of, including placeholders whose bytes have not arrived. */
   get models(): ModelFile[] {
     return this.files;
+  }
+
+  /** The models held here in full that may be drawn, as a piece or a block is: every one but the motions for VRM models. */
+  get drawableModels(): ModelFile[] {
+    return this.models.filter((model) => model.isReady && !isModelMotion(model));
+  }
+
+  /**
+   * The first of the models given that may be drawn, as for a file just read to be taken up as a
+   * piece's or a brush's model: never a motion for VRM models, which only a VRM is given. One not
+   * held here yet is taken, as nothing yet says it is a motion. Null where there is none.
+   */
+  firstDrawable(identifiers: readonly string[]): string | null {
+    return (
+      identifiers.find((identifier) => {
+        const held = this.get(identifier);
+        return !held || !isModelMotion(held);
+      }) ?? null
+    );
+  }
+
+  /** The motions for VRM models (`.vrma`) held here in full, which a VRM may be given. */
+  get motionFiles(): ModelFile[] {
+    return this.models.filter((model) => model.isReady && isModelMotion(model));
   }
 }

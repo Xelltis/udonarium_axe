@@ -3,16 +3,21 @@ import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { targetArrowGeometry } from '@axe/domain/card/target-arrow';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { EngagementZone } from '@axe/domain/tabletop/zone/engagement-zone';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import type { MockInstance } from 'vitest';
@@ -55,6 +60,14 @@ describe('EffectTargetingService', () => {
 
     expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier]);
     expect(service.marks().map((mark) => mark.order)).toEqual([1, 2]);
+  });
+
+  it('marks each piece picked where it stands, as the page reads it on a wall too', () => {
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
+    service.begin(preset);
+    service.pick(characters[1].identifier);
+
+    expect(service.marks()).toEqual([{ identifier: characters[1].identifier, order: 1, x: 975, y: 975, z: 450 }]);
   });
 
   it('numbers a part picked with its body on its row alone, and marks one picked without its body on the table', () => {
@@ -169,6 +182,46 @@ describe('EffectTargetingService', () => {
     expect(cast?.origin).not.toBeNull();
   });
 
+  describe('pieces aimed at by a key, a range or a list while held ready', () => {
+    it('takes them as the picks, in their order and as many as the effect takes, the caster kept out', () => {
+      service.begin(preset);
+      service.setCaster(characters[0].identifier);
+
+      service.pickOnly(characters.map((character) => character.identifier));
+
+      expect(service.picks()).toEqual(characters.slice(1).map((character) => character.identifier));
+      expect(characters.map((character) => character.targeted)).toEqual([false, true, true, true]);
+    });
+
+    it('takes a piece aimed at as a press would: as the caster while one is waited for, else as a target', () => {
+      service.begin(preset);
+      service.changeCaster();
+
+      service.press(characters[1].identifier);
+      service.press(characters[2].identifier);
+
+      expect([service.casterIdentifier(), service.picks()]).toEqual([
+        characters[1].identifier,
+        [characters[2].identifier],
+      ]);
+    });
+
+    it('centres an area on the first of them, and takes the area away with none', () => {
+      preset.areaRadius = 5;
+      preset.maxTargets = 5;
+      service.begin(preset);
+
+      service.pickOnly([characters[1].identifier, characters[3].identifier]);
+      expect([service.epicenter(), service.picks()]).toEqual([
+        characters[1].identifier,
+        [characters[1].identifier, characters[0].identifier, characters[2].identifier],
+      ]);
+
+      service.pickOnly([]);
+      expect([service.epicenter(), service.picks()]).toEqual(['', []]);
+    });
+  });
+
   describe('the caster', () => {
     it('stays the piece selected at the start however many targets are pressed', () => {
       selection.selectObject(characters[3].identifier, characters[3].aliasName);
@@ -183,6 +236,26 @@ describe('EffectTargetingService', () => {
       expect(service.casterIdentifier()).toBe(characters[3].identifier);
       expect(service.casterMark()?.identifier).toBe(characters[3].identifier);
       expect(service.picks()).toEqual([characters[0].identifier, characters[1].identifier]);
+    });
+
+    it('rings the caster and draws the links from where it stands, as the page reads it on a wall too', () => {
+      const stood = (piece: GameCharacter) =>
+        piece === characters[3] ? { x: 975, y: 975, z: 450 } : { x: 125, y: 25, z: 0 };
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockImplementation((piece) =>
+        stood(piece as GameCharacter)
+      );
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+      service.pick(characters[0].identifier);
+
+      expect(service.casterMark()).toEqual({ identifier: characters[3].identifier, x: 975, y: 975, z: 450 });
+      expect(service.links()).toEqual([
+        {
+          identifier: characters[0].identifier,
+          ...targetArrowGeometry({ x: 975, y: 975, z: 450 }, { x: 125, y: 25, z: 0 })!,
+        },
+      ]);
     });
 
     it('tells which piece an effect chosen now would be cast from', () => {
@@ -441,7 +514,38 @@ describe('EffectTargetingService', () => {
       service.pick(characters[1].identifier);
 
       expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier, characters[2].identifier]);
-      expect(service.areaCenter()).not.toBeNull();
+      expect(service.areaCenter()).toEqual({ x: 225, y: 25, z: 0 });
+    });
+
+    it('reaches a piece on a wall on the floor under its feet, not at its place on the wall read as a place on the floor', () => {
+      const onWall = makeCharacter('壁', 0);
+      const byTheWall = makeCharacter('壁際', 950);
+      byTheWall.location.y = 975;
+      const pieces = TestBed.inject(TablePiecesService);
+      const footOf = pieces.footOf.bind(pieces);
+      vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+        one === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+      );
+      const surfaceOf = pieces.surfaceOf.bind(pieces);
+      vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === onWall ? 'south-wall' : surfaceOf(one)));
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+        surface === 'south-wall'
+          ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
+          : null
+      );
+      try {
+        service.begin(preset);
+        service.pick(characters[0].identifier);
+        expect(service.picks()).not.toContain(onWall.identifier);
+
+        service.cancel();
+        service.begin(preset);
+        service.pick(byTheWall.identifier);
+        expect(service.picks()).toContain(onWall.identifier);
+      } finally {
+        ObjectStore.instance.remove(onWall);
+        ObjectStore.instance.remove(byTheWall);
+      }
     });
 
     it('strikes a piece this reader cannot see without marking it, numbering the marks among those shown', () => {
@@ -572,6 +676,45 @@ describe('EffectTargetingService', () => {
       afterEach(() => {
         for (const character of characters) service.hoverPiece(character.identifier, false);
         canHover.set(false);
+      });
+
+      it('marks what the area would take where each piece stands, as the page reads it on a wall too', () => {
+        vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
+        service.begin(preset);
+        service.hoverPiece(characters[1].identifier, true);
+
+        expect(service.areaProspect()?.marks.every((mark) => mark.x === 975 && mark.y === 975 && mark.z === 450)).toBe(
+          true
+        );
+        expect(service.areaProspect()?.marks.length).toBeGreaterThan(0);
+      });
+
+      it('centres the area of a piece on a wall on the floor under its feet, on a block there, before the press as after it', () => {
+        const onWall = makeCharacter('壁', 0);
+        const pieces = TestBed.inject(TablePiecesService);
+        const footOf = pieces.footOf.bind(pieces);
+        vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+          one === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+        );
+        const surfaceOf = pieces.surfaceOf.bind(pieces);
+        vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === onWall ? 'south-wall' : surfaceOf(one)));
+        vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+          surface === 'south-wall'
+            ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
+            : null
+        );
+        vi.spyOn(pieces, 'landingPxAt').mockImplementation((_x, _y, below) => Math.min(460, below));
+        try {
+          service.begin(preset);
+          service.hoverPiece(onWall.identifier, true);
+          expect(service.areaProspect()?.center).toEqual({ x: 975, y: 1000, z: 450 });
+
+          service.pick(onWall.identifier);
+          expect(service.areaCenter()).toEqual({ x: 975, y: 1000, z: 450 });
+        } finally {
+          service.hoverPiece(onWall.identifier, false);
+          ObjectStore.instance.remove(onWall);
+        }
       });
 
       it('shows before the centre is pressed how far it would reach and exactly the pieces the press takes', () => {

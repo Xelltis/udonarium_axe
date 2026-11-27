@@ -116,6 +116,11 @@ export interface TableTestHooks {
   diceResting(): boolean;
   /** The face of a model drawn as a copy of its own a point of the page lands on first, or null. */
   modelFaceAt(pageX: number, pageY: number): { owner: string; mesh: number; triangle: number } | null;
+  /**
+   * What a piece or a block keeps of how its model is drawn and moved, as it is stored: its look, its
+   * motions in a fight and what it does with its shapes, each empty for one that keeps nothing of it.
+   */
+  modelFieldsOf(identifier: string): { look: string; motions: string; face: string };
   /** The part of a piece a press at a point of the page lands on, by its identifier, or null. */
   partAt(identifier: string, pageX: number, pageY: number): string | null;
   /** Takes the first table's tutorial away, as its menu does, for a spec the tutorial would stand in the way of. Answers how many things went. */
@@ -245,6 +250,14 @@ export function installTableTestHooks(win: Window, sources: TableTestHookSources
     keepDiceResting: (on) => dice.keepResting(on),
     diceResting: () => dice.diceResting,
     modelFaceAt: (pageX, pageY) => scene.modelFaceAt(pageX, pageY),
+    modelFieldsOf: (identifier) => {
+      const kept = store.get(identifier) as Partial<Record<'modelLook' | 'modelMotions' | 'modelFace', unknown>> | null;
+      return {
+        look: `${kept?.modelLook ?? ''}`,
+        motions: `${kept?.modelMotions ?? ''}`,
+        face: `${kept?.modelFace ?? ''}`,
+      };
+    },
     partAt,
     putAwayTutorial: () => putAwayTutorial(tabletop, store),
     clearToBlankTable: () => clearToBlankTable(tabletop, store),

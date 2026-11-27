@@ -1,0 +1,55 @@
+@if (motions().length < 1) {
+  <p class="text-ui-dim m-0 text-[0.72em]">{{ 'ui.pieceModel.noMotions' | transloco }}</p>
+}
+@for (row of rows(); track row.role) {
+  @if (motions().length > 0 || row.role !== 'idle') {
+    <div [class]="styles.row">
+      <span [class]="styles.label" class="w-[7.5em]!">{{ 'ui.pieceModel.' + row.role | transloco }}</span>
+      @if (motions().length > 0) {
+        <select
+          [class]="styles.input"
+          [attr.data-testid]="'piece-model-' + row.role"
+          [ngModel]="row.asked"
+          (ngModelChange)="setMotion(row.role, $event)"
+        >
+          <option [ngValue]="''">
+            {{
+              row.plays && !row.asked
+                ? ('ui.pieceModel.autoPlays' | transloco: { name: row.plays })
+                : ('ui.pieceModel.auto' | transloco)
+            }}
+          </option>
+          @if (row.asked && !motions().includes(row.asked)) {
+            <option [ngValue]="row.asked">{{ row.asked }}</option>
+          }
+          @for (name of motions(); track name) {
+            <option [ngValue]="name">{{ name }}</option>
+          }
+        </select>
+      } @else {
+        <span class="text-ui-dim min-w-0 flex-1 text-[0.78em]">{{
+          (made() ? 'ui.pieceModel.byHand' : 'ui.pieceModel.notPlayed') | transloco
+        }}</span>
+      }
+      <button
+        [class]="styles.button"
+        type="button"
+        [attr.data-testid]="'piece-model-try-' + row.role"
+        [disabled]="!canTry(row)"
+        [attr.aria-label]="'ui.pieceModel.try' | transloco"
+        [title]="'ui.pieceModel.try' | transloco"
+        (click)="tried.emit(row.role)"
+      >
+        <i class="material-icons text-[14px]!">play_arrow</i>
+      </button>
+    </div>
+  }
+}
+@if (fights()) {
+  <div [class]="styles.row">
+    <label [class]="styles.check">
+      <input type="checkbox" data-testid="piece-model-made" [ngModel]="made()" (ngModelChange)="setMade($event)" />
+      {{ 'ui.pieceModel.made' | transloco }}
+    </label>
+  </div>
+}

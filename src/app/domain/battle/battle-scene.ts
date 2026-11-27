@@ -1,6 +1,7 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
 import { asBattleTheme, BattleTheme } from '@axe/domain/battle/battle-settings';
 import { fixedGaugeColor } from '@axe/domain/character/piece-gauge';
+import { carriedSetupText } from '@axe/domain/tabletop/piece-model';
 
 /**
  * A resource of one fighter as it stood before the exchange and after it.
@@ -19,6 +20,22 @@ export interface BattleGauge {
   color?: string;
 }
 
+/**
+ * The 3D model a fighter is drawn as, as its piece keeps it: each field the text the piece stores,
+ * read as the piece's own are (see `pieceModelOf`). A screen that holds the model stands the fighter
+ * as it; one that does not stands its picture.
+ */
+export interface BattleFighterModel {
+  identifier: string;
+  scale: string;
+  turn: string;
+  idle: string;
+  walk: string;
+  look: string;
+  motions: string;
+  face: string;
+}
+
 /** One piece on the stage, written down as it was when the exchange was played. */
 export interface BattleFighter {
   identifier: string;
@@ -33,6 +50,8 @@ export interface BattleFighter {
    * drawn, as an older version sends it.
    */
   facing?: BattleSide | null;
+  /** The model it is drawn as on the table, or absent or none for a piece drawn as its picture, as an older version sends it. */
+  model?: BattleFighterModel | null;
 }
 
 /**
@@ -157,6 +176,25 @@ function normalizeFighter(raw: unknown): BattleFighter | null {
     gauges,
     defeated: source['defeated'] === true,
     facing: asBattleSide(source['facing']),
+    model: normalizeFighterModel(source['model']),
+  };
+}
+
+/** The model a fighter is drawn as, read from what came in; none where it names no model. */
+function normalizeFighterModel(raw: unknown): BattleFighterModel | null {
+  const source = asRecord(raw);
+  const identifier = text(source?.['identifier']).trim();
+  if (!source || identifier.length < 1) return null;
+  const field = (name: keyof BattleFighterModel) => carriedSetupText(source[name]);
+  return {
+    identifier,
+    scale: field('scale'),
+    turn: field('turn'),
+    idle: field('idle'),
+    walk: field('walk'),
+    look: field('look'),
+    motions: field('motions'),
+    face: field('face'),
   };
 }
 

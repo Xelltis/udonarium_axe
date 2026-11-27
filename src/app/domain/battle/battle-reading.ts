@@ -1,4 +1,6 @@
+import { battleFighterModelOf } from '@axe/domain/battle/battle-fighter-model';
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
+import type { BattleFighterModel } from '@axe/domain/battle/battle-scene';
 import { saidNameOf } from '@axe/domain/character/hidden-name';
 import { gaugeFixedColorOf, isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
@@ -15,6 +17,15 @@ export interface FighterSource {
   imageDataElement: DataElement | null;
   /** Which way the picture faces, `left` or `right`; anything else stands it as drawn. */
   battleFacing?: string;
+  /** The 3D model it is drawn as on the table and how, as a piece keeps them; left out for a piece with none. */
+  modelIdentifier?: unknown;
+  modelScale?: unknown;
+  modelTurn?: unknown;
+  modelIdle?: unknown;
+  modelWalk?: unknown;
+  modelLook?: unknown;
+  modelMotions?: unknown;
+  modelFace?: unknown;
 }
 
 /** One resource of a piece as it read at one moment. */
@@ -36,6 +47,8 @@ export interface FighterReading {
   image: string;
   /** Which way the picture faces, none where it is stood as drawn. */
   facing: BattleSide | null;
+  /** The model it is drawn as on the table, or none. */
+  model: BattleFighterModel | null;
   resources: ReadonlyMap<string, ResourceReading>;
 }
 
@@ -59,6 +72,7 @@ export function readFighter(source: FighterSource): FighterReading {
     name: saidNameOf(source),
     image: shownImageIdentifier(source.imageDataElement, source.detailDataElement),
     facing: asBattleSide(source.battleFacing),
+    model: battleFighterModelOf(source),
     resources,
   };
 }

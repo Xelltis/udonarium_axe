@@ -21,7 +21,7 @@
     <input
       class="hidden"
       type="file"
-      accept=".glb,model/gltf-binary"
+      accept=".glb,.vrm,model/gltf-binary"
       data-testid="piece-model-file"
       (change)="read($event)"
     />
@@ -55,26 +55,56 @@
     />
     <span class="text-ui-muted shrink-0 text-[0.78em]">°</span>
   </div>
-  <div class="flex items-center gap-1.5 text-[0.82em]">
-    <span class="text-ui-muted w-[5em] shrink-0 text-[0.85em] whitespace-nowrap">{{
-      'ui.pieceModel.motions' | transloco
-    }}</span>
-    <input
-      class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid px-1.25 py-0.5 text-[0.82em]"
-      type="text"
-      data-testid="piece-model-idle"
-      [placeholder]="'ui.pieceModel.idle' | transloco"
-      [ngModel]="now.idle"
-      (change)="setIdle($any($event.target).value)"
-    />
-    <input
-      class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid px-1.25 py-0.5 text-[0.82em]"
-      type="text"
-      data-testid="piece-model-walk"
-      [placeholder]="'ui.pieceModel.walk' | transloco"
-      [ngModel]="now.walk"
-      (change)="setWalk($any($event.target).value)"
-    />
-  </div>
+  <details
+    class="border-ui-border-panel rounded-sm border border-solid px-2 py-1"
+    data-testid="piece-model-setup"
+    (toggle)="settingUp.set($any($event.target).open)"
+  >
+    <summary class="text-ui-accent cursor-pointer text-[0.82em] select-none">
+      {{ 'ui.pieceModel.setUp' | transloco }}
+    </summary>
+    @if (settingUp()) {
+      <div class="mt-1.5 flex flex-col gap-1.5">
+        <model-preview [target]="target()" [act]="tried().act" [walking]="tried().walking" />
+        @if (portrayed()) {
+          <div class="flex justify-end">
+            <button
+              class="border-ui-accent text-ui-accent hover:bg-ui-accent-bg inline-flex cursor-pointer items-center gap-1 rounded-xs border border-solid bg-transparent px-2 py-0.5 text-[0.78em] whitespace-nowrap disabled:cursor-wait disabled:opacity-50"
+              type="button"
+              data-testid="piece-model-portrait"
+              [disabled]="portraying()"
+              [title]="'ui.pieceModel.addPortraitHint' | transloco"
+              (click)="addPortrait()"
+            >
+              <i class="material-icons text-[14px]!">add_photo_alternate</i
+              >{{ 'ui.pieceModel.addPortrait' | transloco }}
+            </button>
+          </div>
+        }
+        <div class="text-ui-accent border-ui-border-panel border-b border-solid pb-0.5 text-[0.72em] font-semibold">
+          {{ 'ui.pieceModel.look' | transloco }}
+        </div>
+        <model-look-fields [target]="target()" [materials]="names().materials" />
+        <div class="text-ui-accent border-ui-border-panel border-b border-solid pb-0.5 text-[0.72em] font-semibold">
+          {{ 'ui.pieceModel.motions' | transloco }}
+        </div>
+        @if (names().vrm) {
+          <model-given-motions [modelIdentifier]="fields().identifier" />
+        }
+        <model-motion-fields
+          [target]="target()"
+          [motions]="names().motions"
+          [fights]="fights()"
+          (tried)="try($event)"
+        />
+        @if (names().shapes.length > 0) {
+          <div class="text-ui-accent border-ui-border-panel border-b border-solid pb-0.5 text-[0.72em] font-semibold">
+            {{ 'ui.pieceModel.face' | transloco }}
+          </div>
+          <model-face-fields [target]="target()" [shapes]="names().shapes" />
+        }
+      </div>
+    }
+  </details>
 }
 <p class="text-ui-dim m-0 text-[0.72em]">{{ 'ui.pieceModel.hint' | transloco }}</p>
