@@ -146,6 +146,17 @@ describe('surfaceCrossing', () => {
       expect(faceHeightOver(under, size, 200, 240)).toBeNull();
     });
 
+    it('reads nothing of a board raised all but standing, crossed though it is from below', () => {
+      const leaning = board(90 - 1e-8);
+      const on = {
+        x: leaning.origin.x + leaning.u.x * 100 + leaning.v.x * 50,
+        y: leaning.origin.y + leaning.u.y * 100 + leaning.v.y * 50,
+      };
+      expect(leaning.normal.z).toBeLessThan(1e-9);
+      expect(leaning.normal.z).toBeGreaterThan(1e-12);
+      expect(faceHeightOver(leaning, size, on.x, on.y)).toBeNull();
+    });
+
     it('reads nothing of a face looking no way up', () => {
       expect(faceHeightOver(board(90), size, 200, 200)).toBeNull();
       expect(faceHeightOver(surfaceFrame('south-wall', dims), { width: 1000, height: 300 }, 500, 790)).toBeNull();
