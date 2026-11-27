@@ -57,7 +57,7 @@
     "tslib": "^2.9.1"
   },
   "devDependencies": {
-    "@analogjs/vite-plugin-angular": "^2.9.7",
+    "@analogjs/vite-plugin-angular": "^2.9.8",
     "@angular-eslint/builder": "^22.7.0",
     "@angular-eslint/eslint-plugin": "^22.7.0",
     "@angular-eslint/eslint-plugin-template": "^22.7.0",
@@ -78,10 +78,10 @@
     "@tailwindcss/postcss": "^4.3.5",
     "@types/node": "^25.9.9",
     "@types/three": "0.187.0",
-    "@typescript-eslint/eslint-plugin": "^8.73.0",
-    "@typescript-eslint/parser": "^8.73.0",
-    "@vitest/coverage-v8": "^5.1.0",
-    "angular-eslint": "^22.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.74.0",
+    "@typescript-eslint/parser": "^8.74.0",
+    "@vitest/coverage-v8": "^5.1.1",
+    "angular-eslint": "^22.8.0",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.0.0",
@@ -96,7 +96,7 @@
     "semantic-release": "^26.0.1",
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.73.0",
+    "typescript-eslint": "^8.74.0",
     "vitest": "^5.0.3"
   },
   "workspaces": [
