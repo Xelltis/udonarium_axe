@@ -1,7 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -21,7 +20,6 @@ import { autoEffectIdentifier } from '@axe/domain/effect/resource-effect-map';
 export class EffectAutoPlayService {
   private readonly objectStore = inject(ObjectStore);
   private readonly playbackService = inject(EffectPlaybackService);
-  private readonly tabletopService = inject(TabletopService);
   private readonly piecePlace = inject(PiecePlaceService);
   private readonly _enabled = signal(readLocal(STORAGE_KEYS.effectAutoPlay) === 'on');
   readonly enabled = this._enabled.asReadonly();
