@@ -214,7 +214,7 @@ export class HotbarRunnerService {
     const tag = hotbarSlotTag(Hotbar.ownerId, cell, character.identifier);
     if (this.takeAwayField(tag)) return OK;
 
-    const corner = this.piecePlace.floorCornerOf(character);
+    const corner = this.piecePlace.fieldCornerOf(character);
     const field = this.effectField.place(preset, corner.x, corner.y, corner.z);
     field.laidByHotbarSlot = tag;
     field.update();

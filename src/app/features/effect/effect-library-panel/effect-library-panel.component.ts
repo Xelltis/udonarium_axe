@@ -859,7 +859,7 @@ export class EffectLibraryPanelComponent {
       this.say(this.t('feature.effect.previewNoTarget'));
       return;
     }
-    const corner = this.piecePlace.floorCornerOf(anchor);
+    const corner = this.piecePlace.fieldCornerOf(anchor);
     this.fieldService.place(preset, corner.x, corner.y, corner.z);
     this.say(this.t('feature.effect.fieldPlaced', { name: preset.name }));
   }

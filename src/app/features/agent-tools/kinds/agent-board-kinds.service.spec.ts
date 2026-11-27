@@ -449,10 +449,10 @@ describe('AgentBoardKinds', () => {
   });
 
   describe('effect-field', () => {
-    it('stands an effect for a piece by the corner the page lays things at for it, on the floor under one on a wall', () => {
+    it('stands an effect for a piece by the corner the page stands effects at for it, in the room', () => {
       presetNamed('毒沼');
       const goblin = pieceAt('ゴブリン', 6, 4);
-      vi.spyOn(TestBed.inject(PiecePlaceService), 'floorCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'fieldCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
 
       const made = make('effect-field', { options: { preset: '毒沼', piece: goblin.identifier } });
       const field = ObjectStore.instance.get<EffectField>(made.id)!;

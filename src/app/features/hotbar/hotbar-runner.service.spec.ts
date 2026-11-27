@@ -718,9 +718,9 @@ describe('HotbarRunnerService', () => {
       expect(fields()).toHaveLength(0);
     });
 
-    it('puts it by the corner the page lays things at for the piece, on the floor under one on a wall', () => {
+    it('puts it by the corner the page stands effects at for the piece, in the room', () => {
       fieldPreset();
-      vi.spyOn(TestBed.inject(PiecePlaceService), 'floorCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'fieldCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
 
       run(slotOf('effect', '毒沼', { kind: 'effect', mode: 'field', onSelf: false }), character, {
         page: 0,

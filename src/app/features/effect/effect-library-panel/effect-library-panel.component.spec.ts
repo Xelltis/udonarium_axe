@@ -603,10 +603,10 @@ describe('EffectLibraryPanelComponent', () => {
       }
     });
 
-    it('leaves an effect standing for the selected piece by the corner the page lays things at, on the floor under one on a wall', () => {
+    it('leaves an effect standing for the selected piece by the corner the page stands effects at, in the room', () => {
       const anchor = GameCharacter.create('壁', 1, '');
       vi.spyOn(TestBed.inject(EffectCastService), 'candidateTargets').mockReturnValue([anchor]);
-      vi.spyOn(TestBed.inject(PiecePlaceService), 'floorCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'fieldCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
       const place = vi.spyOn(TestBed.inject(EffectFieldService), 'place').mockReturnValue({} as never);
       const panel = fixture.componentInstance as unknown as { placeField(preset: EffectPreset): void };
 

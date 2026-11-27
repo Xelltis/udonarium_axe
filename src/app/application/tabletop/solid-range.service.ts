@@ -293,7 +293,7 @@ export class SolidRangeService {
         x: laid.x,
         y: laid.y,
         footZ: middle.z - bodyPx / 2,
-        groundZ: laid.z,
+        groundZ: this.piecePlace.floorPointOf(caster).z,
         bodyPx,
         tip: { x: middle.x, y: middle.y },
       };

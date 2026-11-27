@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core';
-import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -26,7 +25,6 @@ export class PiecePlaceService {
   private readonly pieces = inject(TablePiecesService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly tabletop = inject(TabletopService);
-  private readonly ground = inject(StandingGroundService);
 
   /**
    * The body of a piece in the room: the line through its middle from its feet, at the height it
@@ -57,35 +55,44 @@ export class PiecePlaceService {
   }
 
   /**
-   * Where something laid on the table for a piece is put, as a range following a piece, of any kind,
-   * or the circle of an effect's area: across the table at `onFloor` (the middle of the piece unless
+   * Where a range is laid for a piece, as one following it or named for it, at the height a range is
+   * kept at, over the ground under it: across the table at `onFloor` (the middle of the piece unless
    * given), at the height the piece is put at, for a piece on the floor; on the ground under its feet,
-   * for a piece on a wall or a board.
+   * draped over it, for a piece on a wall or a board.
    */
   floorPlaceOf(piece: GameCharacter, onFloor?: { x: number; y: number }): Vec3 {
     const at = onFloor ?? pieceCentreOf(piece, this.grid());
     if (this.pieces.surfaceOf(piece) === 'floor') return { x: at.x, y: at.y, z: piece.posZ };
     const { feet } = this.bodyAt(piece, at);
-    return { x: feet.x, y: feet.y, z: this.ground.heightPxAt(feet.x, feet.y) };
+    return { x: feet.x, y: feet.y, z: 0 };
+  }
+
+  /**
+   * The same place as `floorPlaceOf`, at its height in the room, as an effect's area and the floor a
+   * range standing up keeps over are kept at: where a piece on the floor stands, on its ground or the
+   * block under it; the top of a block or the ground under the feet of a piece on a wall or a board.
+   */
+  floorPointOf(piece: GameCharacter, onFloor?: { x: number; y: number }): Vec3 {
+    const at = onFloor ?? pieceCentreOf(piece, this.grid());
+    if (this.pieces.surfaceOf(piece) === 'floor') return { x: at.x, y: at.y, z: this.pieces.footOf(piece).height };
+    const { feet } = this.bodyAt(piece, at);
+    return { x: feet.x, y: feet.y, z: this.pieces.landingPxAt(feet.x, feet.y, feet.z) };
   }
 
   /**
    * An upright body standing in for a piece on a wall or a board, for what reads a piece as standing
    * up on its feet, as what is cast at it, the marks over it and a ruler held to it: centred where the
-   * middle of its body stands out from the face in the room, its feet half its height below, over the
-   * ground under it there. Null for a piece on the floor, which stands up as it is.
+   * middle of its body stands out from the face in the room, its feet half its height below, over what
+   * can be stood on under it there, a block or the ground, no higher than its feet. Null for a piece on
+   * the floor, which stands up as it is.
    */
   standInOf(
     piece: StandingThing
   ): { readonly x: number; readonly y: number; readonly footZ: number; readonly groundZ: number } | null {
     if (this.pieces.surfaceOf(piece) === 'floor') return null;
     const middle = this.bodyMiddleOf(piece);
-    return {
-      x: middle.x,
-      y: middle.y,
-      footZ: middle.z - pieceCentreOffsetPx(piece, this.grid()),
-      groundZ: this.ground.heightPxAt(middle.x, middle.y),
-    };
+    const footZ = middle.z - pieceCentreOffsetPx(piece, this.grid());
+    return { x: middle.x, y: middle.y, footZ, groundZ: this.pieces.landingPxAt(middle.x, middle.y, footZ) };
   }
 
   /**
@@ -101,17 +108,32 @@ export class PiecePlaceService {
   }
 
   /**
-   * The corner something laid on the table for a piece by its corner is put at, as an effect left
-   * standing or a range named for it: the piece's own corner and height on the floor; on the floor
-   * under its feet for a piece on a wall or a board, as a box of the piece's size round them.
+   * The corner a range named for a piece is laid at, at the height a range is kept at (see
+   * `floorPlaceOf`): the piece's own corner and height on the floor; draped over the ground under its
+   * feet, as a box of the piece's size round them, for a piece on a wall or a board.
    */
   floorCornerOf(piece: GameCharacter): Vec3 {
     if (this.pieces.surfaceOf(piece) === 'floor') {
       return { x: piece.location.x, y: piece.location.y, z: piece.posZ };
     }
-    const under = this.floorPlaceOf(piece);
+    return this.cornerRound(piece, this.floorPlaceOf(piece));
+  }
+
+  /**
+   * The corner an effect is left standing at for a piece, at its height in the room (see
+   * `floorPointOf`): the piece's own corner, on its ground or the block under it, on the floor; round
+   * the floor under its feet for a piece on a wall or a board.
+   */
+  fieldCornerOf(piece: GameCharacter): Vec3 {
+    if (this.pieces.surfaceOf(piece) === 'floor') {
+      return { x: piece.location.x, y: piece.location.y, z: this.pieces.footOf(piece).height };
+    }
+    return this.cornerRound(piece, this.floorPointOf(piece));
+  }
+
+  private cornerRound(piece: GameCharacter, middle: Vec3): Vec3 {
     const half = pieceCentreOffsetPx(piece, this.grid());
-    return { x: under.x - half, y: under.y - half, z: under.z };
+    return { x: middle.x - half, y: middle.y - half, z: middle.z };
   }
 
   /** The middle of a piece's body in the room (see `bodyAt`), at the middle of the piece on the floor. */

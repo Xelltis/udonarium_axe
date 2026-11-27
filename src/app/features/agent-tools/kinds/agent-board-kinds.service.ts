@@ -1689,7 +1689,7 @@ export class AgentBoardKinds {
           );
           const piece = typeof args['piece'] === 'string' ? args['piece'] : '';
           if (piece) {
-            const corner = this.piecePlace.floorCornerOf(this.pieceNamed(piece));
+            const corner = this.piecePlace.fieldCornerOf(this.pieceNamed(piece));
             return this.effectFields.place(preset, corner.x, corner.y, corner.z);
           }
           if (!args['at'])
