@@ -28,6 +28,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
@@ -151,6 +152,7 @@ const EDITOR_GAP = 8;
 })
 export class EffectLibraryPanelComponent {
   private readonly hotbarFill = inject(HotbarFillService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly library = inject(EffectLibraryService);
   private readonly castService = inject(EffectCastService);
   private readonly targeting = inject(EffectTargetingService);
@@ -857,7 +859,8 @@ export class EffectLibraryPanelComponent {
       this.say(this.t('feature.effect.previewNoTarget'));
       return;
     }
-    this.fieldService.place(preset, anchor.location.x, anchor.location.y, anchor.posZ);
+    const corner = this.piecePlace.floorCornerOf(anchor);
+    this.fieldService.place(preset, corner.x, corner.y, corner.z);
     this.say(this.t('feature.effect.fieldPlaced', { name: preset.name }));
   }
 

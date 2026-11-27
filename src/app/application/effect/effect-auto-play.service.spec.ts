@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { EffectAutoPlayService } from '@axe/application/effect/effect-auto-play.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ResourceChange } from '@axe/domain/character/resource-change';
@@ -69,6 +70,17 @@ describe('EffectAutoPlayService', () => {
     service.play(character, [change('heal', 0.5), change('damage', 0.5)]);
 
     expect(playback.play.mock.calls[0][0].presetIdentifier).toBe(autoEffectIdentifier('damage', 'large'));
+  });
+
+  it('plays the effect where the piece stands, as the page reads it on a wall too', () => {
+    service.setEnabled(true);
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
+
+    service.play(character, [change('damage', 0.5)]);
+
+    expect(playback.play.mock.calls[0][0].targets).toEqual([
+      { identifier: character.identifier, x: 975, y: 975, z: 450 },
+    ]);
   });
 
   it('does nothing when nothing changed', () => {

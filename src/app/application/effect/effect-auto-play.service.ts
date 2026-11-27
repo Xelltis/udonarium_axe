@@ -1,5 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -21,6 +22,7 @@ export class EffectAutoPlayService {
   private readonly objectStore = inject(ObjectStore);
   private readonly playbackService = inject(EffectPlaybackService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly _enabled = signal(readLocal(STORAGE_KEYS.effectAutoPlay) === 'on');
   readonly enabled = this._enabled.asReadonly();
 
@@ -44,20 +46,12 @@ export class EffectAutoPlayService {
     const preset = this.objectStore.get<EffectPreset>(autoEffectIdentifier(kind, severity));
     if (!(preset instanceof EffectPreset)) return false;
 
-    const half = (this.tabletopService.gridSize() * (character.size > 0 ? character.size : 1)) / 2;
     return (
       this.playbackService.play({
         presetIdentifier: preset.identifier,
         casterIdentifier: '',
         origin: null,
-        targets: [
-          {
-            identifier: character.identifier,
-            x: character.location.x + half,
-            y: character.location.y + half,
-            z: character.posZ,
-          },
-        ],
+        targets: [{ identifier: character.identifier, ...this.piecePlace.standingCentreOf(character) }],
         seed: Math.floor(Math.random() * 0xffffffff),
       }) != null
     );

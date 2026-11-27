@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -40,6 +41,7 @@ export interface MeasuredRuler {
 export class RulerReadingService {
   private readonly tabletop = inject(TabletopService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly standing = inject(StandingGroundService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
@@ -135,6 +137,8 @@ export class RulerReadingService {
   }
 
   private pieceFeet(piece: GameCharacter): Vec3 {
+    const standIn = this.piecePlace.standInOf(piece);
+    if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
     const gridSize = this.gridSize();
     const foot = this.pieces.footOf(piece);
     const half = (Math.max(0, piece.size) * gridSize) / 2;

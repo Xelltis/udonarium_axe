@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -126,6 +127,17 @@ describe('TableEffectOverlayComponent', () => {
       ObjectStore.instance.remove(burst);
       motion.setting.set('auto');
     }
+  });
+
+  it('plays on a piece on a wall at the feet of the body standing in for it', () => {
+    const piece = GameCharacter.create('壁', 1, '');
+    piece.location = { name: 'table', x: 0, y: 0 };
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({ x: 975, y: 975, footZ: 450 });
+    const centerOf = (component as unknown as { centerOf(id: string, gridSize: number): unknown }).centerOf.bind(
+      component
+    );
+
+    expect(centerOf(piece.identifier, 50)).toEqual({ x: 975, y: 975, z: 450 });
   });
 
   it('draws nothing with no effect playing', () => {

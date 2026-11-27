@@ -63,6 +63,44 @@ export class PiecePlaceService {
     return { x: feet.x, y: feet.y, z: 0 };
   }
 
+  /**
+   * An upright body standing in for a piece on a wall or a board, for what reads a piece as standing
+   * up on its feet, as what is cast at it, the marks over it and a ruler held to it: centred where the
+   * middle of its body stands out from the face in the room, its feet half its height below, over the
+   * floor of the table. Null for a piece on the floor, which stands up as it is.
+   */
+  standInOf(piece: GameCharacter): { readonly x: number; readonly y: number; readonly footZ: number } | null {
+    if (this.pieces.footOf(piece).surface === 'floor') return null;
+    const middle = this.bodyMiddleOf(piece);
+    return { x: middle.x, y: middle.y, footZ: middle.z - pieceCentreOffsetPx(piece, this.grid()) };
+  }
+
+  /**
+   * Where a piece stands for what is cast at it or marked on it: the middle of a piece on the floor,
+   * read as one cell across where it has no size, at the height it is put at; the feet of the body
+   * standing in for a piece on a wall or a board (see `standInOf`).
+   */
+  standingCentreOf(piece: GameCharacter): Vec3 {
+    const standIn = this.standInOf(piece);
+    if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
+    const half = (this.grid() * (piece.size > 0 ? piece.size : 1)) / 2;
+    return { x: piece.location.x + half, y: piece.location.y + half, z: piece.posZ };
+  }
+
+  /**
+   * The corner something laid on the table for a piece by its corner is put at, as an effect left
+   * standing or a range named for it: the piece's own corner and height on the floor; on the floor
+   * under its feet for a piece on a wall or a board, as a box of the piece's size round them.
+   */
+  floorCornerOf(piece: GameCharacter): Vec3 {
+    if (this.pieces.footOf(piece).surface === 'floor') {
+      return { x: piece.location.x, y: piece.location.y, z: piece.posZ };
+    }
+    const under = this.floorPlaceOf(piece);
+    const half = pieceCentreOffsetPx(piece, this.grid());
+    return { x: under.x - half, y: under.y - half, z: under.z };
+  }
+
   /** The middle of a piece's body in the room (see `bodyAt`), at the middle of the piece on the floor. */
   bodyMiddleOf(piece: GameCharacter): Vec3 {
     const { feet, head } = this.bodyAt(piece, pieceCentreOf(piece, this.grid()));

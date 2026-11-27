@@ -243,11 +243,7 @@ export class PlToolbarComponent {
     const character = this.activeCharacter();
     this.rangeOpen.set(false);
     if (!character) return;
-    const range = this.tabletopAction.createSolidRangeArea(
-      { x: character.location.x, y: character.location.y, z: character.posZ },
-      typeName,
-      kind
-    );
+    const range = this.tabletopAction.createSolidRangeArea(this.piecePlace.floorCornerOf(character), typeName, kind);
     range.followingCharacterIdentifier = character.identifier;
     this.piecePlace.follow(range);
     SoundEffect.play(PresetSound.dicePut);

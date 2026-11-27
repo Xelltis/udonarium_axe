@@ -3,6 +3,7 @@ import { type EffectFieldRenderable, EffectFieldService } from '@axe/application
 import { effectElapsedOf, EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { type EffectSceneLooks, EffectSceneLooksService } from '@axe/application/effect/effect-scene-looks.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -35,6 +36,7 @@ export class EffectFrameService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly sceneLooks = inject(EffectSceneLooksService);
   private readonly fields = inject(EffectFieldService);
 
@@ -130,13 +132,16 @@ export class EffectFrameService {
 
   /**
    * The middle of a piece's foot as it is drawn now, on the raised ground or the block under it and
-   * following it while it is moved, raised as far as it flies, and the floor under it.
+   * following it while it is moved, raised as far as it flies, and the floor under it; for a piece on
+   * a wall or a board, the feet of the body standing in for it (see `PiecePlaceService.standInOf`).
    */
   private footingOf(identifier: string, cellPx: number): EffectFooting | null {
     const object = this.objectStore.get<TabletopObject>(identifier);
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
     // A piece out of the reader's sight is not followed, or where it goes while the look plays would show.
     if (object instanceof GameCharacter && !this.vision.isTokenVisible(object)) return null;
+    const standIn = object instanceof GameCharacter ? this.piecePlace.standInOf(object) : null;
+    if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ, groundZ: 0 };
     const half = (cellPx * this.sizeOf(identifier)) / 2;
     const foot = this.pieces.footOf(object);
     const onFloor = foot.surface === 'floor';

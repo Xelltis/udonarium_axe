@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -58,6 +59,14 @@ describe('EffectTargetingService', () => {
 
     expect(service.picks()).toEqual([characters[1].identifier, characters[0].identifier]);
     expect(service.marks().map((mark) => mark.order)).toEqual([1, 2]);
+  });
+
+  it('marks each piece picked where it stands, as the page reads it on a wall too', () => {
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
+    service.begin(preset);
+    service.pick(characters[1].identifier);
+
+    expect(service.marks()).toEqual([{ identifier: characters[1].identifier, order: 1, x: 975, y: 975, z: 450 }]);
   });
 
   it('numbers a part picked with its body on its row alone, and marks one picked without its body on the table', () => {

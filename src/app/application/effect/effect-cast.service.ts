@@ -1,11 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { callEffectCast } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { EffectCast, EffectCastTarget } from '@axe/domain/effect/effect-cast';
+import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 
 @Injectable({ providedIn: 'root' })
@@ -14,6 +15,7 @@ export class EffectCastService {
   private readonly tabletopService = inject(TabletopService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly playbackService = inject(EffectPlaybackService);
+  private readonly piecePlace = inject(PiecePlaceService);
 
   /** Who the effect is for: the named targets, or the selected pieces when there are none. */
   candidateTargets(): GameCharacter[] {
@@ -109,12 +111,15 @@ export class EffectCastService {
 
   private buildCast(preset: EffectPreset, targets: readonly GameCharacter[], caster: GameCharacter | null): EffectCast {
     const gridSize = this.tabletopService.gridSize();
-    const casterCenter = caster ? this.centerOf(caster, gridSize) : null;
+    const casterCenter = caster ? this.piecePlace.standingCentreOf(caster) : null;
     return {
       presetIdentifier: preset.identifier,
       casterIdentifier: caster?.identifier ?? '',
       origin: casterCenter ? { x: casterCenter.x, y: casterCenter.y, z: casterCenter.z + gridSize * 0.6 } : null,
-      targets: targets.map((target) => this.centerOf(target, gridSize)),
+      targets: targets.map((target) => ({
+        identifier: target.identifier,
+        ...this.piecePlace.standingCentreOf(target),
+      })),
       seed: Math.floor(Math.random() * 0xffffffff),
     };
   }
@@ -125,15 +130,5 @@ export class EffectCastService {
     const character = this.objectStore.get<GameCharacter>(selected.identifier);
     if (!(character instanceof GameCharacter) || !character.isVisibleOnTable) return [];
     return [character];
-  }
-
-  private centerOf(character: GameCharacter, gridSize: number): EffectCastTarget {
-    const half = (gridSize * (character.size > 0 ? character.size : 1)) / 2;
-    return {
-      identifier: character.identifier,
-      x: character.location.x + half,
-      y: character.location.y + half,
-      z: character.posZ,
-    };
   }
 }

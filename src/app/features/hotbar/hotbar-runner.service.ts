@@ -214,7 +214,8 @@ export class HotbarRunnerService {
     const tag = hotbarSlotTag(Hotbar.ownerId, cell, character.identifier);
     if (this.takeAwayField(tag)) return OK;
 
-    const field = this.effectField.place(preset, character.location.x, character.location.y, character.posZ);
+    const corner = this.piecePlace.floorCornerOf(character);
+    const field = this.effectField.place(preset, corner.x, corner.y, corner.z);
     field.laidByHotbarSlot = tag;
     field.update();
     return OK;
@@ -280,10 +281,7 @@ export class HotbarRunnerService {
 
   private namedRange(typeName: string, character: GameCharacter): RangeArea | null {
     if (!typeName) return null;
-    return this.tabletopAction.createRangeArea(
-      { x: character.location.x, y: character.location.y, z: character.posZ },
-      typeName
-    );
+    return this.tabletopAction.createRangeArea(this.piecePlace.floorCornerOf(character), typeName);
   }
 
   /**

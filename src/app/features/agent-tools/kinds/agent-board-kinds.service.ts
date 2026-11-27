@@ -5,6 +5,7 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { DoorService } from '@axe/application/tabletop/door.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { PlacedRulerService } from '@axe/application/tabletop/placed-ruler.service';
 import { RulerReadingService } from '@axe/application/tabletop/ruler-reading.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
@@ -193,6 +194,7 @@ function percentOf(share: number): number {
 @Injectable({ providedIn: 'root' })
 export class AgentBoardKinds {
   private readonly views = inject(AgentViews);
+  private readonly piecePlace = inject(PiecePlaceService);
   private readonly squares = inject(AgentSquares);
   private readonly tabletop = inject(TabletopService);
   private readonly actions = inject(TabletopActionService);
@@ -1687,8 +1689,8 @@ export class AgentBoardKinds {
           );
           const piece = typeof args['piece'] === 'string' ? args['piece'] : '';
           if (piece) {
-            const anchor = this.pieceNamed(piece);
-            return this.effectFields.place(preset, anchor.location.x, anchor.location.y, anchor.posZ);
+            const corner = this.piecePlace.floorCornerOf(this.pieceNamed(piece));
+            return this.effectFields.place(preset, corner.x, corner.y, corner.z);
           }
           if (!args['at'])
             throw new AgentToolError('invalid_input', 'Give a piece or a square to stand the effect in.');

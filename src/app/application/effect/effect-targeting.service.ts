@@ -177,13 +177,12 @@ export class EffectTargetingService {
   readonly marks = computed<EffectTargetMark[]>(() => {
     const order = this.pickOrder();
     if (order.size < 1) return [];
-    const gridSize = this.tabletopService.gridSize();
     const marks: EffectTargetMark[] = [];
     for (const [identifier, number] of order) {
       const character = this.characterOf(identifier)!;
       const body = this.pieceLinks.bodyOf(character);
       if (body && order.has(body.identifier)) continue;
-      marks.push({ identifier, order: number, ...this.centerOf(character, gridSize) });
+      marks.push({ identifier, order: number, ...this.place.standingCentreOf(character) });
     }
     return marks;
   });
@@ -199,7 +198,7 @@ export class EffectTargetingService {
     if (!caster) return null;
     this.objectChange.versionOf(caster.identifier)();
     if (!this.vision.isTokenVisible(caster)) return null;
-    return { identifier: caster.identifier, ...this.centerOf(caster, this.tabletopService.gridSize()) };
+    return { identifier: caster.identifier, ...this.place.standingCentreOf(caster) };
   });
 
   /**
@@ -221,7 +220,6 @@ export class EffectTargetingService {
     if (!center) return null;
     for (const character of this.tabletopService.characters) this.objectChange.versionOf(character.identifier)();
 
-    const gridSize = this.tabletopService.gridSize();
     const shown = this.areaPicks(preset, center)
       .map((identifier) => this.characterOf(identifier))
       .filter((character): character is GameCharacter => character != null && this.vision.isTokenVisible(character));
@@ -230,7 +228,7 @@ export class EffectTargetingService {
     for (const character of shown) {
       const body = this.pieceLinks.bodyOf(character);
       if (body && identifiers.has(body.identifier)) continue;
-      marks.push({ identifier: character.identifier, ...this.centerOf(character, gridSize) });
+      marks.push({ identifier: character.identifier, ...this.place.standingCentreOf(character) });
     }
     return { center: this.place.floorPlaceOf(center), radius, marks };
   });
@@ -240,9 +238,8 @@ export class EffectTargetingService {
     const caster = this.characterOf(this._casterIdentifier());
     if (!caster) return [];
 
-    const gridSize = this.tabletopService.gridSize();
     this.objectChange.versionOf(caster.identifier)();
-    const from = this.centerOf(caster, gridSize);
+    const from = this.place.standingCentreOf(caster);
 
     const links: EffectTargetLink[] = [];
     for (const mark of this.marks()) {
@@ -561,10 +558,5 @@ export class EffectTargetingService {
     const character = this.objectStore.get<GameCharacter>(identifier);
     if (!(character instanceof GameCharacter) || !character.isVisibleOnTable) return null;
     return character;
-  }
-
-  private centerOf(character: GameCharacter, gridSize: number): { x: number; y: number; z: number } {
-    const half = (gridSize * (character.size > 0 ? character.size : 1)) / 2;
-    return { x: character.location.x + half, y: character.location.y + half, z: character.posZ };
   }
 }

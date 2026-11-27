@@ -123,4 +123,32 @@ describe('PiecePlaceService', () => {
 
     expect([range.location.x, range.location.y, range.casterOffset.x, range.altitude]).toEqual([25, 25, 0, 0]);
   });
+
+  it('stands in for a piece on a wall by an upright body round the middle of its own, and for none on the floor', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    expect(place.standInOf(made)).toBeNull();
+
+    standOnSouthWall(made);
+    expect(place.standInOf(made)).toEqual({ x: 975, y: 975, footZ: 450 });
+  });
+
+  it('reads where a piece stands for what is cast at it: its middle on the floor, one cell across with no size, the feet of its stand-in on a wall', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    made.size = 0;
+    made.posZ = 30;
+    expect(place.standingCentreOf(made)).toEqual({ x: 25, y: 25, z: 30 });
+
+    made.size = 1;
+    standOnSouthWall(made);
+    expect(place.standingCentreOf(made)).toEqual({ x: 975, y: 975, z: 450 });
+  });
+
+  it('lays what goes by a corner at the piece’s corner on the floor, and round the floor under its feet on a wall', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    made.posZ = 30;
+    expect(place.floorCornerOf(made)).toEqual({ x: 0, y: 0, z: 30 });
+
+    standOnSouthWall(made);
+    expect(place.floorCornerOf(made)).toEqual({ x: 950, y: 975, z: 0 });
+  });
 });

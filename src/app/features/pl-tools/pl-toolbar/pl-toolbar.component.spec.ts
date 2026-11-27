@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
@@ -17,6 +19,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { parseMenuLayout } from '@axe/domain/ui/menu-layout';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
@@ -122,6 +125,25 @@ describe('PlToolbarComponent', () => {
     const named = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('.pl-toolbar [data-guide-label]'));
     expect(named.map((each) => each.getAttribute('data-guide-label'))).toContain('インベントリ');
     TestBed.inject(ButtonGuideService).hide();
+  });
+
+  it('lays a range for the piece by the corner the page lays things at for it, on the floor under one on a wall', () => {
+    const character = GameCharacter.create('壁', 1, '');
+    const toolbar = fixture.componentInstance as unknown as {
+      activeCharacter: () => GameCharacter | null;
+      createRange(typeName: string): void;
+    };
+    vi.spyOn(toolbar, 'activeCharacter').mockReturnValue(character);
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'floorCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'follow').mockImplementation(() => undefined);
+    const create = vi
+      .spyOn(TestBed.inject(TabletopActionService), 'createSolidRangeArea')
+      .mockReturnValue(RangeArea.create('範囲', 1, 2, 50));
+
+    toolbar.createRange('CIRCLE');
+
+    expect(create.mock.calls[0][0]).toEqual({ x: 950, y: 975, z: 0 });
+    character.destroy();
   });
 
   describe('once somebody has put the guide on the bar', () => {

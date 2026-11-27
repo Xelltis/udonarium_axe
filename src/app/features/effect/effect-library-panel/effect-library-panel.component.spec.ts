@@ -8,6 +8,7 @@ import { EffectTargetingService } from '@axe/application/effect/effect-targeting
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -600,6 +601,19 @@ describe('EffectLibraryPanelComponent', () => {
       for (const name of ['fire', 'cancel']) {
         expect(part(name).className.split(/\s+/)).toContain('pointer-coarse:h-11');
       }
+    });
+
+    it('leaves an effect standing for the selected piece by the corner the page lays things at, on the floor under one on a wall', () => {
+      const anchor = GameCharacter.create('壁', 1, '');
+      vi.spyOn(TestBed.inject(EffectCastService), 'candidateTargets').mockReturnValue([anchor]);
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'floorCornerOf').mockReturnValue({ x: 950, y: 975, z: 0 });
+      const place = vi.spyOn(TestBed.inject(EffectFieldService), 'place').mockReturnValue({} as never);
+      const panel = fixture.componentInstance as unknown as { placeField(preset: EffectPreset): void };
+
+      panel.placeField(preset);
+
+      expect(place).toHaveBeenCalledWith(preset, 950, 975, 0);
+      anchor.destroy();
     });
 
     it('lists the effects left standing in a headed group at the end of the list, where each can be taken away', () => {
