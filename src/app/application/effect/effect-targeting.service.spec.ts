@@ -10,6 +10,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { targetArrowGeometry } from '@axe/domain/card/target-arrow';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Config } from '@axe/domain/peer/config';
@@ -235,6 +236,26 @@ describe('EffectTargetingService', () => {
       expect(service.casterIdentifier()).toBe(characters[3].identifier);
       expect(service.casterMark()?.identifier).toBe(characters[3].identifier);
       expect(service.picks()).toEqual([characters[0].identifier, characters[1].identifier]);
+    });
+
+    it('rings the caster and draws the links from where it stands, as the page reads it on a wall too', () => {
+      const stood = (piece: GameCharacter) =>
+        piece === characters[3] ? { x: 975, y: 975, z: 450 } : { x: 125, y: 25, z: 0 };
+      vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockImplementation((piece) =>
+        stood(piece as GameCharacter)
+      );
+      selection.selectObject(characters[3].identifier, characters[3].aliasName);
+      TestBed.tick();
+      service.begin(preset);
+      service.pick(characters[0].identifier);
+
+      expect(service.casterMark()).toEqual({ identifier: characters[3].identifier, x: 975, y: 975, z: 450 });
+      expect(service.links()).toEqual([
+        {
+          identifier: characters[0].identifier,
+          ...targetArrowGeometry({ x: 975, y: 975, z: 450 }, { x: 125, y: 25, z: 0 })!,
+        },
+      ]);
     });
 
     it('tells which piece an effect chosen now would be cast from', () => {
@@ -505,6 +526,8 @@ describe('EffectTargetingService', () => {
       vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
         one === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
       );
+      const surfaceOf = pieces.surfaceOf.bind(pieces);
+      vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === onWall ? 'south-wall' : surfaceOf(one)));
       vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
         surface === 'south-wall'
           ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
@@ -655,6 +678,17 @@ describe('EffectTargetingService', () => {
         canHover.set(false);
       });
 
+      it('marks what the area would take where each piece stands, as the page reads it on a wall too', () => {
+        vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
+        service.begin(preset);
+        service.hoverPiece(characters[1].identifier, true);
+
+        expect(service.areaProspect()?.marks.every((mark) => mark.x === 975 && mark.y === 975 && mark.z === 450)).toBe(
+          true
+        );
+        expect(service.areaProspect()?.marks.length).toBeGreaterThan(0);
+      });
+
       it('centres the area of a piece on a wall on the floor under its feet, before the press as after it', () => {
         const onWall = makeCharacter('壁', 0);
         const pieces = TestBed.inject(TablePiecesService);
@@ -662,6 +696,8 @@ describe('EffectTargetingService', () => {
         vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
           one === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
         );
+        const surfaceOf = pieces.surfaceOf.bind(pieces);
+        vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === onWall ? 'south-wall' : surfaceOf(one)));
         vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
           surface === 'south-wall'
             ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
