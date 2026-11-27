@@ -111,7 +111,9 @@ export class PiecePlaceService {
    * Puts a range on the piece it follows where the piece lays it (see `floorPlaceOf`), whatever kind it
    * is, so that a range changed from one kind to another stands where it stood; a sphere or a column
    * keeps its offset from there. Every way a range comes to follow a piece or is put back on it does
-   * this.
+   * this. As the piece moves, the seat that moved it alone puts it on again (see `RangeComponent`),
+   * so that seats drawing the piece differently, one yet to get the picture of a wall, write nothing
+   * over each other.
    */
   follow(range: RangeArea): void {
     range.following(this.grid(), (piece) => this.floorPlaceOf(piece));

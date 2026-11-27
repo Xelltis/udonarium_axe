@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import type { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -12,7 +13,9 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -56,6 +59,21 @@ describe('RangeComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('puts the range on the piece it follows as the piece moves on this seat, and leaves a move made on another seat to that seat', async () => {
+    const piece = GameCharacter.create('コマ', 1, '');
+    piece.location = { name: 'table', x: 100, y: 100 };
+    (given as RangeArea).followingCharacterIdentifier = piece.identifier;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const follow = vi.spyOn(TestBed.inject(PiecePlaceService), 'follow').mockImplementation(() => undefined);
+
+    objectChanged$.emit({ identifier: piece.identifier, aliasName: 'character', isSendFromSelf: false });
+    expect(follow).not.toHaveBeenCalled();
+
+    objectChanged$.emit({ identifier: piece.identifier, aliasName: 'character', isSendFromSelf: true });
+    expect(follow).toHaveBeenCalledWith(given);
   });
 
   describe('the guide to how high it floats', () => {

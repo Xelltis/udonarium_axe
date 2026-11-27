@@ -347,7 +347,7 @@ export class RangeComponent {
       (e) => {
         if (!this._initialized) return;
         const range = this.range();
-        if (e.identifier === range.followingCharacterIdentifier) this.piecePlace.follow(range);
+        if (e.identifier === range.followingCharacterIdentifier && e.isSendFromSelf) this.piecePlace.follow(range);
         this.setRange();
       },
       this.destroyRef
