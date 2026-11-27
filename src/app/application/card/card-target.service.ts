@@ -3,6 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -21,14 +22,21 @@ export class CardTargetService {
   private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly piecePlace = inject(PiecePlaceService);
+  private readonly transient = inject(TransientPlacementService);
 
   private readonly _pickingIdentifier = signal('');
   readonly pickingIdentifier = this._pickingIdentifier.asReadonly();
   readonly isPicking = computed(() => this._pickingIdentifier().length > 0);
 
+  /**
+   * The arrows of the cards pointing at something, from where each card is drawn to where what it
+   * points at stands (see `PiecePlaceService.standingCentreOf`), following either end at each step
+   * this seat drags it; an arrow whose ends stay where they are is not drawn again.
+   */
   readonly arrows = computed<TargetArrow[]>(
     () => {
       this.objectChange.collectionOf('card')();
+      this.transient.version();
       const arrows: TargetArrow[] = [];
 
       for (const card of this.tabletopService.cards) {
