@@ -977,14 +977,27 @@ export class TablePiecesService {
   }
 
   /**
-   * The middle of the first picture of a thing lying on the face it is drawn on, in the room, as it
-   * stands before what it plays moves it: a card as tall as its picture, a stack of cards as wide as
-   * its top card. Null for a thing drawn with nothing lying on its face. Read inside a computed, what
-   * is drawn is followed.
+   * The middle of the topmost picture of a thing lying on the face it is drawn on, in the room, as it
+   * stands before what it plays moves it: a card as tall as its picture, the top card of a stack of
+   * cards, over the cards under it. Null for a thing drawn with nothing lying on its face. Read inside
+   * a computed, it is read again as what lies on the table moves, and not as it is only posed.
    */
   lyingMiddleOf(thing: TabletopObject): { x: number; y: number; z: number } | null {
-    return lyingSpriteOf(this.standing(), thing)?.centre ?? null;
+    return this.lyingMiddles().get(thing.identifier) ?? null;
   }
+
+  private readonly lyingMiddles = computed<ReadonlyMap<string, { x: number; y: number; z: number }>>(
+    () => {
+      const topmost = new Map<string, TableWorldSprite>();
+      for (const sprite of this.standing()) {
+        if (sprite.order === undefined || sprite.facing === 'eye') continue;
+        const kept = topmost.get(sprite.owner);
+        if (!kept || sprite.order > kept.order!) topmost.set(sprite.owner, sprite);
+      }
+      return new Map([...topmost].map(([owner, sprite]) => [owner, sprite.centre]));
+    },
+    { equal: sameMiddles }
+  );
 
   /**
    * Where a piece drawn on the table turns about: the middle of the first of its sprites lying on
@@ -1021,7 +1034,6 @@ export class TablePiecesService {
   }
 }
 
-/** The column or row of the floor's cells a point lies in. */
 /** The first of a thing's sprites lying on the face it is drawn on, if it has one. */
 function lyingSpriteOf(sprites: readonly TableWorldSprite[], thing: TabletopObject): TableWorldSprite | undefined {
   return sprites.find(
@@ -1029,6 +1041,20 @@ function lyingSpriteOf(sprites: readonly TableWorldSprite[], thing: TabletopObje
   );
 }
 
+/** Whether two sets of the middles things lie at name the same things at the same points. */
+function sameMiddles(
+  a: ReadonlyMap<string, { x: number; y: number; z: number }>,
+  b: ReadonlyMap<string, { x: number; y: number; z: number }>
+): boolean {
+  if (a.size !== b.size) return false;
+  for (const [owner, at] of a) {
+    const other = b.get(owner);
+    if (!other || other.x !== at.x || other.y !== at.y || other.z !== at.z) return false;
+  }
+  return true;
+}
+
+/** The column or row of the floor's cells a point lies in. */
 function cellOf(position: number, cellPx: number): number {
   return Math.floor(position / cellPx);
 }

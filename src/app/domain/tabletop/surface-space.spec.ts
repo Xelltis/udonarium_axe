@@ -125,6 +125,27 @@ describe('surfaceCrossing', () => {
       expect(nearTop).toBeCloseTo(80 + 60);
     });
 
+    it('reads a board turned about as high as it lies, over the points it reaches over once turned', () => {
+      const turned = whiteBoardFrame(
+        { width: 4, height: 2, pitch: 30, rotate: 90, posZ: 80, location: { x: 100, y: 100 } },
+        50
+      );
+      const at = (across: number, down: number) => ({
+        x: turned.origin.x + turned.u.x * across + turned.v.x * down,
+        y: turned.origin.y + turned.u.y * across + turned.v.y * down,
+        z: turned.origin.z + turned.u.z * across + turned.v.z * down,
+      });
+      const inside = at(120, 40);
+      expect(faceHeightOver(turned, size, inside.x, inside.y)).toBeCloseTo(inside.z);
+      const past = at(230, 40);
+      expect(faceHeightOver(turned, size, past.x, past.y)).toBeNull();
+    });
+
+    it('reads nothing of a face looking down', () => {
+      const under = board(150);
+      expect(faceHeightOver(under, size, 200, 200)).toBeNull();
+    });
+
     it('reads nothing of a face looking no way up', () => {
       expect(faceHeightOver(board(90), size, 200, 200)).toBeNull();
       expect(faceHeightOver(surfaceFrame('south-wall', dims), { width: 1000, height: 300 }, 500, 790)).toBeNull();

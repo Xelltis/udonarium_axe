@@ -48,6 +48,18 @@ describe('EffectFrameService', () => {
     playback.now.set(playedMs - field.phaseOffset);
   }
 
+  it('plays on a piece on the floor where it is drawn standing, as high as it flies over that ground', () => {
+    const piece = GameCharacter.create('床', 1, '');
+    piece.location = { name: 'table', x: 0, y: 0 };
+    piece.altitude = 1;
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 325, y: 425, z: 70 });
+    const footingOf = (service as unknown as { footingOf(id: string, cellPx: number): unknown }).footingOf.bind(
+      service
+    );
+
+    expect(footingOf(piece.identifier, 50)).toEqual({ x: 325, y: 425, z: 120, groundZ: 70 });
+  });
+
   it('plays on a piece on a wall at the feet of the body standing in for it, over the ground there', () => {
     const piece = GameCharacter.create('壁', 1, '');
     piece.location = { name: 'table', x: 0, y: 0 };

@@ -129,6 +129,17 @@ describe('TableEffectOverlayComponent', () => {
     }
   });
 
+  it('plays on a piece on the floor where it is drawn standing', () => {
+    const piece = GameCharacter.create('床', 1, '');
+    piece.location = { name: 'table', x: 0, y: 0 };
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 325, y: 425, z: 70 });
+    const centerOf = (component as unknown as { centerOf(id: string, gridSize: number): unknown }).centerOf.bind(
+      component
+    );
+
+    expect(centerOf(piece.identifier, 50)).toEqual({ x: 325, y: 425, z: 70 });
+  });
+
   it('plays on a piece on a wall at the feet of the body standing in for it', () => {
     const piece = GameCharacter.create('壁', 1, '');
     piece.location = { name: 'table', x: 0, y: 0 };

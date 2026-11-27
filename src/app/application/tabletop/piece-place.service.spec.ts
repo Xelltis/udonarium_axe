@@ -137,11 +137,12 @@ describe('PiecePlaceService', () => {
     expect(place.standInOf(made)).toEqual({ x: 975, y: 975, footZ: 450, groundZ: 0 });
   });
 
-  it('reads where a piece stands for what is cast at it: its middle on the floor, one cell across with no size, the feet of its stand-in on a wall', () => {
+  it('reads where a piece stands for what is cast at it: its middle on the floor, its corner with no size, the feet of its stand-in on a wall', () => {
     const place = TestBed.inject(PiecePlaceService);
-    made.size = 0;
     made.posZ = 30;
     expect(place.standingCentreOf(made)).toEqual({ x: 25, y: 25, z: 30 });
+    made.size = 0;
+    expect(place.standingCentreOf(made)).toEqual({ x: 0, y: 0, z: 30 });
 
     made.size = 1;
     standOnSouthWall(made);
@@ -205,6 +206,24 @@ describe('PiecePlaceService', () => {
     expect(place.floorPointOf(made)).toEqual({ x: 175, y: 175, z: frame.origin.z });
     expect(place.fieldCornerOf(made)).toEqual({ x: 150, y: 150, z: frame.origin.z });
     expect(place.standInOf(made)).toEqual({ x: 175, y: 175, footZ: frame.origin.z, groundZ: frame.origin.z });
+  });
+
+  it('stands what goes by the room for a piece sunk into a board no higher than its feet', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    const frame = whiteBoardFrame(
+      { width: 4, height: 4, pitch: 0, rotate: 0, posZ: 200, location: { x: 100, y: 100 } },
+      50
+    );
+    const pieces = TestBed.inject(TablePiecesService);
+    vi.spyOn(pieces, 'footOf').mockReturnValue({ surface: 'board-1', x: 50, y: 50, height: -10 });
+    vi.spyOn(pieces, 'surfaceOf').mockReturnValue('board-1');
+    const surfaces = TestBed.inject(TableSurfaceService);
+    vi.spyOn(surfaces, 'frameOf').mockReturnValue(frame);
+    vi.spyOn(surfaces, 'sizeOf').mockReturnValue({ width: 200, height: 200 });
+    vi.spyOn(pieces, 'landingPxAt').mockReturnValue(0);
+
+    expect(place.floorPointOf(made).z).toBeCloseTo(frame.origin.z - 10);
+    expect(place.standInOf(made)?.groundZ).toBeCloseTo(frame.origin.z - 10);
   });
 
   it('keeps a range laid for a piece on the floor at its height, and stands what goes by the room where its feet stand', () => {

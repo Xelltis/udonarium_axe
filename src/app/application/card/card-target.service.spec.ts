@@ -130,6 +130,23 @@ describe('CardTargetService', () => {
     expect(standing).toHaveBeenCalledWith(target);
   });
 
+  it('keeps the arrows drawn while what moves elsewhere on the table leaves them where they are', () => {
+    const source = makeCard(0, 0);
+    const target = makeCard(300, 0);
+    const other = makeCard(600, 0);
+    source.targetIdentifier = target.identifier;
+    const drawn = service.arrows();
+
+    const change = TestBed.inject(ObjectChangeService);
+    other.location = { name: 'table', x: 700, y: 100 };
+    change.notifyChanged(other.identifier);
+    expect(service.arrows()).toBe(drawn);
+
+    target.location = { name: 'table', x: 300, y: 200 };
+    change.notifyChanged(target.identifier);
+    expect(service.arrows()).not.toBe(drawn);
+  });
+
   it('draws no arrow to a target that is gone', () => {
     const source = makeCard(0, 0);
     const target = makeCard(300, 400);

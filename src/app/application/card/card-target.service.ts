@@ -26,26 +26,29 @@ export class CardTargetService {
   readonly pickingIdentifier = this._pickingIdentifier.asReadonly();
   readonly isPicking = computed(() => this._pickingIdentifier().length > 0);
 
-  readonly arrows = computed<TargetArrow[]>(() => {
-    this.objectChange.collectionOf('card')();
-    const arrows: TargetArrow[] = [];
+  readonly arrows = computed<TargetArrow[]>(
+    () => {
+      this.objectChange.collectionOf('card')();
+      const arrows: TargetArrow[] = [];
 
-    for (const card of this.tabletopService.cards) {
-      this.objectChange.versionOf(card.identifier)();
-      if (card.targetIdentifier.length < 1) continue;
+      for (const card of this.tabletopService.cards) {
+        this.objectChange.versionOf(card.identifier)();
+        if (card.targetIdentifier.length < 1) continue;
 
-      const target = this.objectStore.get<TabletopObject>(card.targetIdentifier);
-      if (!(target instanceof TabletopObject) || !target.isVisibleOnTable) continue;
-      this.objectChange.versionOf(target.identifier)();
+        const target = this.objectStore.get<TabletopObject>(card.targetIdentifier);
+        if (!(target instanceof TabletopObject) || !target.isVisibleOnTable) continue;
+        this.objectChange.versionOf(target.identifier)();
 
-      const geometry = targetArrowGeometry(
-        this.piecePlace.standingCentreOf(card),
-        this.piecePlace.standingCentreOf(target)
-      );
-      if (geometry) arrows.push({ identifier: card.identifier, ...geometry });
-    }
-    return arrows;
-  });
+        const geometry = targetArrowGeometry(
+          this.piecePlace.standingCentreOf(card),
+          this.piecePlace.standingCentreOf(target)
+        );
+        if (geometry) arrows.push({ identifier: card.identifier, ...geometry });
+      }
+      return arrows;
+    },
+    { equal: sameArrows }
+  );
 
   /**
    * Points the card being chosen for at the next other piece selected. A seat made a guest while it
@@ -84,4 +87,20 @@ export class CardTargetService {
   clearTarget(card: Card): void {
     card.targetIdentifier = '';
   }
+}
+
+/** Whether two sets of arrows are drawn alike, so that what moves elsewhere on the table draws none again. */
+function sameArrows(a: readonly TargetArrow[], b: readonly TargetArrow[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (arrow, i) =>
+        arrow.identifier === b[i].identifier &&
+        arrow.x === b[i].x &&
+        arrow.y === b[i].y &&
+        arrow.z === b[i].z &&
+        arrow.length === b[i].length &&
+        arrow.angle === b[i].angle
+    )
+  );
 }

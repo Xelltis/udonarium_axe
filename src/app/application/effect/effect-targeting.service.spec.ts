@@ -703,14 +703,14 @@ describe('EffectTargetingService', () => {
             ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
             : null
         );
-        vi.spyOn(pieces, 'landingPxAt').mockReturnValue(40);
+        vi.spyOn(pieces, 'landingPxAt').mockImplementation((_x, _y, below) => Math.min(460, below));
         try {
           service.begin(preset);
           service.hoverPiece(onWall.identifier, true);
-          expect(service.areaProspect()?.center).toEqual({ x: 975, y: 1000, z: 40 });
+          expect(service.areaProspect()?.center).toEqual({ x: 975, y: 1000, z: 450 });
 
           service.pick(onWall.identifier);
-          expect(service.areaCenter()).toEqual({ x: 975, y: 1000, z: 40 });
+          expect(service.areaCenter()).toEqual({ x: 975, y: 1000, z: 450 });
         } finally {
           service.hoverPiece(onWall.identifier, false);
           ObjectStore.instance.remove(onWall);

@@ -16,11 +16,13 @@ export type StandingThing = TabletopObject & { readonly size: number };
  * Where a piece, or anything else on the table, stands in the room, read in one place for everything
  * that measures from it, takes it in or is laid or drawn for it: the order a key aims in, the ranges a
  * piece casts and the ranges that take it in, an effect's area, what is cast at it, the marks over it,
- * a ruler held to it and an arrow pointing at it. Every point is read where the table draws the thing,
- * following it while this seat moves it, on the raised ground or the block under it; only the height
- * a range is kept at is read over the ground under it, as a range keeps it. A piece on a wall or a
- * board is read where it stands out from that face in the room, rather than at its place on the face
- * read as a place on the floor, over the ground under it read one way (see `groundUnder`).
+ * a ruler held to it and an arrow pointing at it. Every point is read where the table draws the thing
+ * as it is read, on the raised ground or the block under it, where this seat is moving it then; what
+ * keeps a point is read again as the thing is written, not at each step of a drag. Where a range is
+ * laid for a piece on the floor alone is read from where the piece is kept, at the height over the
+ * ground a range keeps (see `floorPlaceOf`). A piece on a wall or a board is read where it stands out
+ * from that face in the room, rather than at its place on the face read as a place on the floor, over
+ * the ground under it read one way (see `groundUnder`).
  */
 @Injectable({ providedIn: 'root' })
 export class PiecePlaceService {
@@ -102,8 +104,8 @@ export class PiecePlaceService {
 
   /**
    * Where something stands for what is cast at it, marked on it, held to it or pointed at it: the
-   * middle of a piece on the floor as it is drawn, read as one cell across where it has no size, on
-   * its ground or the block under it; the feet of the body standing in for a piece on a wall or a
+   * middle of a piece on the floor as it is drawn, at its corner where it has no size, on its ground
+   * or the block under it; the feet of the body standing in for a piece on a wall or a
    * board (see `standInOf`); anything else, a card or a stack of cards, at its middle on the face it
    * lies on (see `faceCentreOf`).
    */
@@ -112,13 +114,13 @@ export class PiecePlaceService {
     const standIn = this.standInOf(thing);
     if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
     const foot = this.pieces.footOf(thing);
-    const half = (this.grid() * cellsAcross(thing)) / 2;
+    const half = pieceCentreOffsetPx(thing, this.grid());
     return { x: foot.x + half, y: foot.y + half, z: foot.height };
   }
 
   /**
    * Where something lying on the face it is on meets what points at it, in the room: the middle of the
-   * first picture the table lays of it on that face, as tall as the picture is drawn (see
+   * topmost picture the table lays of it on that face, as tall as the picture is drawn (see
    * `TablePiecesService.lyingMiddleOf`); else half a cell across its size in from its corner, read as
    * one cell where it has no size, on the face it is drawn on.
    */

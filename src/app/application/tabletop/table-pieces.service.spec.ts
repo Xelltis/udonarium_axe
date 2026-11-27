@@ -519,6 +519,22 @@ describe('TablePiecesService', () => {
     ]);
   });
 
+  it('reads a card at the middle of its picture as tall as it is drawn, and a stack at its top card', () => {
+    const card = Card.create('card', 'front-picture', 'back-picture');
+    card.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(card.identifier, { url: 'blob:face', widthPx: 100, heightPx: 150 });
+    const stack = CardStack.create('stack');
+    stack.location = { name: 'table', x: 400, y: 200 };
+    for (let i = 0; i < 3; i++) stack.putOnTop(Card.create(`card-${i}`, 'front-picture', 'back-picture'));
+
+    const face = pieces.sprites().find((sprite) => sprite.id === `${card.identifier}#face`)!;
+    const top = pieces.sprites().find((sprite) => sprite.id === `${stack.identifier}#top`)!;
+    expect(face.centre.y).toBeCloseTo(200 + (gridSize * card.size * 1.5) / 2);
+    expect(pieces.lyingMiddleOf(card)).toEqual(face.centre);
+    expect(pieces.lyingMiddleOf(stack)).toEqual(top.centre);
+    expect(pieces.lyingMiddleOf(TextNote.create('title', 'text'))).toBeNull();
+  });
+
   it('stands a stack of cards on the floor as thick as its cards', () => {
     const stack = CardStack.create('stack');
     stack.location = { name: 'table', x: 100, y: 200 };
