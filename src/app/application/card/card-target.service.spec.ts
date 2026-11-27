@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
+import { targetArrowGeometry } from '@axe/domain/card/target-arrow';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -108,6 +110,19 @@ describe('CardTargetService', () => {
     expect(arrows).toHaveLength(1);
     expect(arrows[0].identifier).toBe(source.identifier);
     expect(arrows[0].length).toBeCloseTo(500, 5);
+  });
+
+  it('draws an arrow between where a card and its target stand, as the page reads a piece on a wall', () => {
+    const source = makeCard(0, 0);
+    const target = makeCard(300, 400);
+    source.targetIdentifier = target.identifier;
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockImplementation((thing) =>
+      thing === target ? { x: 975, y: 975, z: 450 } : { x: 25, y: 25, z: 0 }
+    );
+
+    expect(service.arrows()).toEqual([
+      { identifier: source.identifier, ...targetArrowGeometry({ x: 25, y: 25, z: 0 }, { x: 975, y: 975, z: 450 })! },
+    ]);
   });
 
   it('draws no arrow to a target that is gone', () => {

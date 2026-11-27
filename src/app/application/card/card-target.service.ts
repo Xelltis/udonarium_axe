@@ -1,6 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePlaceService, type StandingThing } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -19,6 +20,7 @@ export class CardTargetService {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly piecePlace = inject(PiecePlaceService);
 
   private readonly _pickingIdentifier = signal('');
   readonly pickingIdentifier = this._pickingIdentifier.asReadonly();
@@ -81,8 +83,13 @@ export class CardTargetService {
     card.targetIdentifier = '';
   }
 
+  /**
+   * Where an arrow meets a card or a piece: where it stands as the page reads it (see
+   * `PiecePlaceService.standingCentreOf`), on a board or a wall too; anything else by its corner.
+   */
   private centerOf(object: TabletopObject, gridSize: number): TargetArrowPoint {
     const size = (object as { size?: number }).size;
+    if (typeof size === 'number') return this.piecePlace.standingCentreOf(object as StandingThing);
     const half = (gridSize * (typeof size === 'number' && size > 0 ? size : 1)) / 2;
     return { x: object.location.x + half, y: object.location.y + half, z: object.posZ };
   }

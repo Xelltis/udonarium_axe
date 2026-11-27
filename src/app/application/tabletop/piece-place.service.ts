@@ -8,6 +8,10 @@ import type { AimBody } from '@axe/domain/tabletop/aim-order';
 import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import type { RangeArea } from '@axe/domain/tabletop/range';
 import type { Vec3 } from '@axe/domain/tabletop/surface-space';
+import type { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+
+/** Something on the table that stands as a piece does, by a corner and a size in cells: a piece, or a card. */
+export type StandingThing = TabletopObject & { readonly size: number };
 
 /**
  * Where a piece stands in the room, read in one place for everything that measures from a piece or
@@ -30,7 +34,7 @@ export class PiecePlaceService {
    * `onFloor` (the middle of the piece, or the centre of an engagement zone it is in, as the caller
    * reads it), and out from the face on a wall or a board.
    */
-  bodyAt(piece: GameCharacter, onFloor: { x: number; y: number }): AimBody {
+  bodyAt(piece: StandingThing, onFloor: { x: number; y: number }): AimBody {
     const grid = this.grid();
     const foot = this.pieces.footOf(piece);
     const lift = foot.height + piece.altitude * grid;
@@ -72,7 +76,7 @@ export class PiecePlaceService {
    * ground under it there. Null for a piece on the floor, which stands up as it is.
    */
   standInOf(
-    piece: GameCharacter
+    piece: StandingThing
   ): { readonly x: number; readonly y: number; readonly footZ: number; readonly groundZ: number } | null {
     if (this.pieces.surfaceOf(piece) === 'floor') return null;
     const middle = this.bodyMiddleOf(piece);
@@ -89,7 +93,7 @@ export class PiecePlaceService {
    * read as one cell across where it has no size, at the height it is put at; the feet of the body
    * standing in for a piece on a wall or a board (see `standInOf`).
    */
-  standingCentreOf(piece: GameCharacter): Vec3 {
+  standingCentreOf(piece: StandingThing): Vec3 {
     const standIn = this.standInOf(piece);
     if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
     const half = (this.grid() * (piece.size > 0 ? piece.size : 1)) / 2;
@@ -111,7 +115,7 @@ export class PiecePlaceService {
   }
 
   /** The middle of a piece's body in the room (see `bodyAt`), at the middle of the piece on the floor. */
-  bodyMiddleOf(piece: GameCharacter): Vec3 {
+  bodyMiddleOf(piece: StandingThing): Vec3 {
     const { feet, head } = this.bodyAt(piece, pieceCentreOf(piece, this.grid()));
     return { x: (feet.x + head.x) / 2, y: (feet.y + head.y) / 2, z: (feet.z + head.z) / 2 };
   }
