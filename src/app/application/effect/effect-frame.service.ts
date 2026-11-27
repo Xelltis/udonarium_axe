@@ -134,11 +134,12 @@ export class EffectFrameService {
    * The middle of a piece's foot as it is drawn now, on the raised ground or the block under it and
    * following it while it is moved, raised as far as it flies, and the floor under it; for a piece on
    * a wall or a board, the feet of the body standing in for it (see `PiecePlaceService.standInOf`).
+   * A piece out of the reader's sight is not followed, or where it goes while the look plays would
+   * show.
    */
   private footingOf(identifier: string, cellPx: number): EffectFooting | null {
     const object = this.objectStore.get<TabletopObject>(identifier);
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
-    // A piece out of the reader's sight is not followed, or where it goes while the look plays would show.
     if (object instanceof GameCharacter && !this.vision.isTokenVisible(object)) return null;
     const standIn = object instanceof GameCharacter ? this.piecePlace.standInOf(object) : null;
     if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ, groundZ: standIn.groundZ };
