@@ -965,7 +965,8 @@ export class TablePiecesService {
    * Where a piece drawn on the table stands: the point of the face it is drawn on that its place
    * is at, in the face's own pixels, and how far off the face that is, lifted onto the ground under
    * it on the floor and following it while this seat moves it. A piece on no face the table draws
-   * stands where it is kept.
+   * stands where it is kept. Where this seat moves it is read as it is, not followed: a computed that
+   * is to follow each step of a drag reads `TransientPlacementService.version` as well.
    */
   footOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } {
     const moving = this.transient.placementOf(piece.identifier);
@@ -980,9 +981,9 @@ export class TablePiecesService {
    * The middle of the topmost picture of a thing lying on the face it is drawn on, in the room, as it
    * stands before what it plays moves it: a card as tall as its picture, the top card of a stack of
    * cards, over the cards under it. Null for a thing drawn with nothing lying on its face, and for a
-   * piece, which is read where it stands instead (see `PiecePlaceService.standingCentreOf`). Read
+   * character, which is read where it stands instead (see `PiecePlaceService.standingCentreOf`). Read
    * inside a computed, it is read again as what lies on the table moves, a thing this seat drags at
-   * each step, and not as it is only posed or as a piece moves.
+   * each step, and not as it is only posed or as a character moves.
    */
   lyingMiddleOf(thing: TabletopObject): { x: number; y: number; z: number } | null {
     return this.lyingMiddles().get(thing.identifier) ?? null;
