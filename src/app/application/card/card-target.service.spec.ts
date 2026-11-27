@@ -119,12 +119,15 @@ describe('CardTargetService', () => {
     created.push(target);
     target.location.name = 'table';
     source.targetIdentifier = target.identifier;
-    vi.spyOn(TestBed.inject(PiecePlaceService), 'faceCentreOf').mockReturnValue({ x: 25, y: 25, z: 0 });
-    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
+    const standing = vi
+      .spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf')
+      .mockImplementation((one) => (one === source ? { x: 25, y: 25, z: 0 } : { x: 975, y: 975, z: 450 }));
 
     expect(service.arrows()).toEqual([
       { identifier: source.identifier, ...targetArrowGeometry({ x: 25, y: 25, z: 0 }, { x: 975, y: 975, z: 450 })! },
     ]);
+    expect(standing).toHaveBeenCalledWith(source);
+    expect(standing).toHaveBeenCalledWith(target);
   });
 
   it('draws no arrow to a target that is gone', () => {

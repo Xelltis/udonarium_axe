@@ -977,14 +977,22 @@ export class TablePiecesService {
   }
 
   /**
+   * The middle of the first picture of a thing lying on the face it is drawn on, in the room, as it
+   * stands before what it plays moves it: a card as tall as its picture, a stack of cards as wide as
+   * its top card. Null for a thing drawn with nothing lying on its face. Read inside a computed, what
+   * is drawn is followed.
+   */
+  lyingMiddleOf(thing: TabletopObject): { x: number; y: number; z: number } | null {
+    return lyingSpriteOf(this.standing(), thing)?.centre ?? null;
+  }
+
+  /**
    * Where a piece drawn on the table turns about: the middle of the first of its sprites lying on
    * its face, on the face it is drawn on, in the face's own pixels, and how far off the face that
    * lies. Null for a piece not drawn, or drawn with nothing lying on its face.
    */
   turnAboutOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } | null {
-    const lying = untracked(this.sprites).find(
-      (sprite) => sprite.owner === piece.identifier && sprite.order !== undefined && sprite.facing !== 'eye'
-    );
+    const lying = lyingSpriteOf(untracked(this.sprites), piece);
     const surface = this.surfaceOf(piece);
     const frame = this.surfaces.frameOf(surface);
     if (!lying || !frame) return null;
@@ -1014,6 +1022,13 @@ export class TablePiecesService {
 }
 
 /** The column or row of the floor's cells a point lies in. */
+/** The first of a thing's sprites lying on the face it is drawn on, if it has one. */
+function lyingSpriteOf(sprites: readonly TableWorldSprite[], thing: TabletopObject): TableWorldSprite | undefined {
+  return sprites.find(
+    (sprite) => sprite.owner === thing.identifier && sprite.order !== undefined && sprite.facing !== 'eye'
+  );
+}
+
 function cellOf(position: number, cellPx: number): number {
   return Math.floor(position / cellPx);
 }

@@ -287,13 +287,13 @@ export class SolidRangeService {
     const foot = this.pieces.footOf(caster);
     const bodyPx = Math.max(0, caster.size) * gridSize;
     if (foot.surface !== 'floor') {
-      const laid = this.piecePlace.floorPlaceOf(caster);
+      const laid = this.piecePlace.floorPointOf(caster);
       const middle = this.piecePlace.bodyMiddleOf(caster);
       return {
         x: laid.x,
         y: laid.y,
         footZ: middle.z - bodyPx / 2,
-        groundZ: this.piecePlace.floorPointOf(caster).z,
+        groundZ: laid.z,
         bodyPx,
         tip: { x: middle.x, y: middle.y },
       };

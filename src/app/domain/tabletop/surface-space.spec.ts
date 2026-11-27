@@ -1,10 +1,12 @@
 import {
+  faceHeightOver,
   surfaceCrossing,
   surfaceFrame,
   surfaceInwardDirection,
   surfacePointTo3D,
   surfaceWorldBox,
 } from '@axe/domain/tabletop/surface-space';
+import { whiteBoardFrame } from '@axe/domain/tabletop/white-board-frame';
 
 const dims = { widthPx: 1000, depthPx: 800, wallHeightPx: 300 };
 
@@ -101,5 +103,31 @@ describe('surfaceCrossing', () => {
 
   it('has nothing to say of a line running along the face', () => {
     expect(surfaceCrossing(surfaceFrame('floor', dims), { x: 0, y: 0, z: 10 }, { x: 1, y: 0, z: 0 })).toBeNull();
+  });
+
+  describe('faceHeightOver', () => {
+    const size = { width: 200, height: 100 };
+    const board = (pitch: number) =>
+      whiteBoardFrame({ width: 4, height: 2, pitch, rotate: 0, posZ: 80, location: { x: 100, y: 100 } }, 50);
+
+    it('reads a board lying flat as high as it lies, over the points it reaches over alone', () => {
+      const flat = board(0);
+      expect(faceHeightOver(flat, size, 150, 150)).toBeCloseTo(flat.origin.z);
+      expect(faceHeightOver(flat, size, 90, 150)).toBeNull();
+      expect(faceHeightOver(flat, size, 150, 210)).toBeNull();
+    });
+
+    it('reads a board raised half way up as higher towards its top edge', () => {
+      const raised = board(45);
+      const nearFoot = faceHeightOver(raised, size, 200, 195)!;
+      const nearTop = faceHeightOver(raised, size, 200, 140)!;
+      expect(nearFoot).toBeCloseTo(80 + 5);
+      expect(nearTop).toBeCloseTo(80 + 60);
+    });
+
+    it('reads nothing of a face looking no way up', () => {
+      expect(faceHeightOver(board(90), size, 200, 200)).toBeNull();
+      expect(faceHeightOver(surfaceFrame('south-wall', dims), { width: 1000, height: 300 }, 500, 790)).toBeNull();
+    });
   });
 });

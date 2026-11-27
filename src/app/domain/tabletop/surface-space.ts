@@ -171,3 +171,21 @@ export function surfaceCrossing(frame: SurfaceFrame, origin: Vec3, direction: Ve
     localY: dx * frame.v.x + dy * frame.v.y + dz * frame.v.z,
   };
 }
+
+/**
+ * How high a face that looks up stands over a point across the table, where the face reaches over the
+ * point, as something standing on the face has it for its floor; null where the face looks no way up,
+ * as a wall, or does not reach over the point.
+ */
+export function faceHeightOver(
+  frame: SurfaceFrame,
+  size: { readonly width: number; readonly height: number },
+  x: number,
+  y: number
+): number | null {
+  if (!(frame.normal.z > 1e-9)) return null;
+  const crossing = surfaceCrossing(frame, { x, y, z: 0 }, { x: 0, y: 0, z: 1 });
+  if (!crossing) return null;
+  const { localX, localY, point } = crossing;
+  return localX >= 0 && localX <= size.width && localY >= 0 && localY <= size.height ? point.z : null;
+}

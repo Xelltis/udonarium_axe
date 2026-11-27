@@ -209,9 +209,8 @@ export class TableEffectOverlayComponent {
     if (!(object instanceof TabletopObject) || !object.isVisibleOnTable) return null;
     const standIn = object instanceof GameCharacter ? this.piecePlace.standInOf(object) : null;
     if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
-    const size = (object as { size?: number }).size;
-    const half = (gridSize * (typeof size === 'number' && size > 0 ? size : 1)) / 2;
+    const at = this.piecePlace.standingCentreOf(object);
     const raised = this.eye() ? object.altitude * gridSize : 0;
-    return { x: object.location.x + half, y: object.location.y + half, z: object.posZ + raised };
+    return { x: at.x, y: at.y, z: at.z + raised };
   }
 }

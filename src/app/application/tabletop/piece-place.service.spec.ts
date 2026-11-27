@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -7,6 +8,7 @@ import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
+import { whiteBoardFrame } from '@axe/domain/tabletop/white-board-frame';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('PiecePlaceService', () => {
@@ -155,32 +157,82 @@ describe('PiecePlaceService', () => {
     expect(place.floorCornerOf(made)).toEqual({ x: 950, y: 975, z: 0 });
   });
 
-  it('drapes a range laid for a piece on a wall over the ground, and stands what goes by the room on a block there', () => {
+  it('drapes a range laid for a piece on a wall over raised ground, and stands what goes by the room on a block there', () => {
     const place = TestBed.inject(PiecePlaceService);
     standOnSouthWall(made);
-    const landing = vi.spyOn(TestBed.inject(TablePiecesService), 'landingPxAt').mockReturnValue(40);
+    vi.spyOn(TestBed.inject(StandingGroundService), 'heightPxAt').mockReturnValue(40);
+    vi.spyOn(TestBed.inject(TablePiecesService), 'landingPxAt').mockReturnValue(40);
 
     expect(place.floorPlaceOf(made)).toEqual({ x: 975, y: 1000, z: 0 });
     expect(place.floorCornerOf(made)).toEqual({ x: 950, y: 975, z: 0 });
     expect(place.floorPointOf(made)).toEqual({ x: 975, y: 1000, z: 40 });
     expect(place.fieldCornerOf(made)).toEqual({ x: 950, y: 975, z: 40 });
     expect(place.standInOf(made)).toEqual({ x: 975, y: 975, footZ: 450, groundZ: 40 });
+  });
+
+  it('reads the ground under a piece on a wall one way, below the feet of the body standing in for it, wherever it is read', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    standOnSouthWall(made);
+    const landing = vi
+      .spyOn(TestBed.inject(TablePiecesService), 'landingPxAt')
+      .mockImplementation((_x, _y, below) => Math.min(460, below));
+
+    expect(place.floorPointOf(made).z).toBe(450);
+    expect(place.standInOf(made)?.groundZ).toBe(450);
+    expect(landing).toHaveBeenCalledWith(975, 1000, 450);
     expect(landing).toHaveBeenCalledWith(975, 975, 450);
-    expect(landing).toHaveBeenCalledWith(975, 1000, 475);
+    expect(landing).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), 475);
+  });
+
+  it('stands what goes by the room for a piece on a board lying up high on the board, over the ground under it', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    const board = { width: 4, height: 4, pitch: 0, rotate: 0, posZ: 200, location: { x: 100, y: 100 } };
+    const frame = whiteBoardFrame(board, 50);
+    const pieces = TestBed.inject(TablePiecesService);
+    const footOf = pieces.footOf.bind(pieces);
+    vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+      one === made ? { surface: 'board-1', x: 50, y: 50, height: 0 } : footOf(one)
+    );
+    const surfaceOf = pieces.surfaceOf.bind(pieces);
+    vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === made ? 'board-1' : surfaceOf(one)));
+    const surfaces = TestBed.inject(TableSurfaceService);
+    vi.spyOn(surfaces, 'frameOf').mockImplementation((surface) => (surface === 'board-1' ? frame : null));
+    vi.spyOn(surfaces, 'sizeOf').mockImplementation((surface) =>
+      surface === 'board-1' ? { width: 200, height: 200 } : null
+    );
+    vi.spyOn(pieces, 'landingPxAt').mockReturnValue(0);
+
+    expect(place.floorPointOf(made)).toEqual({ x: 175, y: 175, z: frame.origin.z });
+    expect(place.fieldCornerOf(made)).toEqual({ x: 150, y: 150, z: frame.origin.z });
+    expect(place.standInOf(made)).toEqual({ x: 175, y: 175, footZ: frame.origin.z, groundZ: frame.origin.z });
   });
 
   it('keeps a range laid for a piece on the floor at its height, and stands what goes by the room where its feet stand', () => {
     const place = TestBed.inject(PiecePlaceService);
     const pieces = TestBed.inject(TablePiecesService);
-    vi.spyOn(pieces, 'footOf').mockReturnValue({ surface: 'floor', x: 0, y: 0, height: 70 });
+    vi.spyOn(pieces, 'footOf').mockReturnValue({ surface: 'floor', x: 300, y: 400, height: 70 });
 
     expect(place.floorPlaceOf(made)).toEqual({ x: 25, y: 25, z: 0 });
     expect(place.floorCornerOf(made)).toEqual({ x: 0, y: 0, z: 0 });
-    expect(place.floorPointOf(made)).toEqual({ x: 25, y: 25, z: 70 });
-    expect(place.fieldCornerOf(made)).toEqual({ x: 0, y: 0, z: 70 });
+    expect(place.floorPointOf(made)).toEqual({ x: 325, y: 425, z: 70 });
+    expect(place.fieldCornerOf(made)).toEqual({ x: 300, y: 400, z: 70 });
+    expect(place.standingCentreOf(made)).toEqual({ x: 325, y: 425, z: 70 });
   });
 
-  it('meets a card at its middle on the face it lies on, the table or a wall', () => {
+  it('meets a card at the middle of its picture as the table draws it, and anything but a piece as a card', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    const card = Card.create('カード', '', '', 2);
+    const lying = vi
+      .spyOn(TestBed.inject(TablePiecesService), 'lyingMiddleOf')
+      .mockReturnValue({ x: 150, y: 175, z: 11 });
+
+    expect(place.faceCentreOf(card)).toEqual({ x: 150, y: 175, z: 11 });
+    expect(place.standingCentreOf(card)).toEqual({ x: 150, y: 175, z: 11 });
+    expect(lying).toHaveBeenCalledWith(card);
+    card.destroy();
+  });
+
+  it('meets a card with no picture at its middle on the face it lies on, the table or a wall', () => {
     const place = TestBed.inject(PiecePlaceService);
     const card = Card.create('カード', '', '', 2);
     card.location = { name: 'table', x: 100, y: 100 };

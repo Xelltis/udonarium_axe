@@ -689,7 +689,7 @@ describe('EffectTargetingService', () => {
         expect(service.areaProspect()?.marks.length).toBeGreaterThan(0);
       });
 
-      it('centres the area of a piece on a wall on the floor under its feet, before the press as after it', () => {
+      it('centres the area of a piece on a wall on the floor under its feet, on a block there, before the press as after it', () => {
         const onWall = makeCharacter('壁', 0);
         const pieces = TestBed.inject(TablePiecesService);
         const footOf = pieces.footOf.bind(pieces);
@@ -703,13 +703,14 @@ describe('EffectTargetingService', () => {
             ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 })
             : null
         );
+        vi.spyOn(pieces, 'landingPxAt').mockReturnValue(40);
         try {
           service.begin(preset);
           service.hoverPiece(onWall.identifier, true);
-          expect(service.areaProspect()?.center).toEqual({ x: 975, y: 1000, z: 0 });
+          expect(service.areaProspect()?.center).toEqual({ x: 975, y: 1000, z: 40 });
 
           service.pick(onWall.identifier);
-          expect(service.areaCenter()).toEqual({ x: 975, y: 1000, z: 0 });
+          expect(service.areaCenter()).toEqual({ x: 975, y: 1000, z: 40 });
         } finally {
           service.hoverPiece(onWall.identifier, false);
           ObjectStore.instance.remove(onWall);

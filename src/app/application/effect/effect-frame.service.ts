@@ -142,12 +142,7 @@ export class EffectFrameService {
     if (object instanceof GameCharacter && !this.vision.isTokenVisible(object)) return null;
     const standIn = object instanceof GameCharacter ? this.piecePlace.standInOf(object) : null;
     if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ, groundZ: standIn.groundZ };
-    const half = (cellPx * this.sizeOf(identifier)) / 2;
-    const foot = this.pieces.footOf(object);
-    const onFloor = foot.surface === 'floor';
-    const x = onFloor ? foot.x : object.location.x;
-    const y = onFloor ? foot.y : object.location.y;
-    const groundZ = onFloor ? foot.height : object.posZ;
-    return { x: x + half, y: y + half, z: groundZ + object.altitude * cellPx, groundZ };
+    const at = this.piecePlace.standingCentreOf(object);
+    return { x: at.x, y: at.y, z: at.z + object.altitude * cellPx, groundZ: at.z };
   }
 }

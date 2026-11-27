@@ -1,13 +1,12 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { PiecePlaceService, type StandingThing } from '@axe/application/tabletop/piece-place.service';
+import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
-import { TargetArrowGeometry, targetArrowGeometry, TargetArrowPoint } from '@axe/domain/card/target-arrow';
-import { GameCharacter } from '@axe/domain/character/game-character';
+import { TargetArrowGeometry, targetArrowGeometry } from '@axe/domain/card/target-arrow';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface TargetArrow extends TargetArrowGeometry {
@@ -29,7 +28,6 @@ export class CardTargetService {
 
   readonly arrows = computed<TargetArrow[]>(() => {
     this.objectChange.collectionOf('card')();
-    const gridSize = this.tabletopService.gridSize();
     const arrows: TargetArrow[] = [];
 
     for (const card of this.tabletopService.cards) {
@@ -40,7 +38,10 @@ export class CardTargetService {
       if (!(target instanceof TabletopObject) || !target.isVisibleOnTable) continue;
       this.objectChange.versionOf(target.identifier)();
 
-      const geometry = targetArrowGeometry(this.centerOf(card, gridSize), this.centerOf(target, gridSize));
+      const geometry = targetArrowGeometry(
+        this.piecePlace.standingCentreOf(card),
+        this.piecePlace.standingCentreOf(target)
+      );
       if (geometry) arrows.push({ identifier: card.identifier, ...geometry });
     }
     return arrows;
@@ -82,18 +83,5 @@ export class CardTargetService {
   /** Takes the target arrow off a card, for every peer. */
   clearTarget(card: Card): void {
     card.targetIdentifier = '';
-  }
-
-  /**
-   * Where an arrow meets a piece, a card or anything else: a piece where it stands as the page reads it
-   * (see `PiecePlaceService.standingCentreOf`); a card, lying on the face it is on, at its middle there
-   * (see `PiecePlaceService.faceCentreOf`); anything else by its corner.
-   */
-  private centerOf(object: TabletopObject, gridSize: number): TargetArrowPoint {
-    if (object instanceof GameCharacter) return this.piecePlace.standingCentreOf(object);
-    const size = (object as { size?: number }).size;
-    if (typeof size === 'number') return this.piecePlace.faceCentreOf(object as StandingThing);
-    const half = gridSize / 2;
-    return { x: object.location.x + half, y: object.location.y + half, z: object.posZ };
   }
 }

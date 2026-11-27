@@ -116,6 +116,27 @@ describe('SolidRangeService', () => {
     expect(service.placedOf(range.identifier)?.origin).toEqual({ x: 975, y: 975, z: 475 });
   });
 
+  it('keeps a sphere following a piece on a wall over the ground under it no higher than the feet it stands on', () => {
+    const piece = caster(0, 0);
+    const pieces = TestBed.inject(TablePiecesService);
+    const footOf = pieces.footOf.bind(pieces);
+    vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
+      one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
+    );
+    const surfaceOf = pieces.surfaceOf.bind(pieces);
+    vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === piece ? 'south-wall' : surfaceOf(one)));
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
+      surface === 'south-wall' ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 }) : null
+    );
+    vi.spyOn(pieces, 'landingPxAt').mockImplementation((_x, _y, below) => Math.min(460, below));
+    const range = solidRange('CIRCLE', 'sphere');
+    range.followingCharacterIdentifier = piece.identifier;
+    TestBed.inject(PiecePlaceService).follow(range);
+    changed(range);
+
+    expect(service.placedOf(range.identifier)?.reach?.floorZ).toBe(450);
+  });
+
   it('keeps a sphere let go round a piece on a wall where it was let go as the piece is put back on', () => {
     const piece = caster(0, 0);
     const pieces = TestBed.inject(TablePiecesService);

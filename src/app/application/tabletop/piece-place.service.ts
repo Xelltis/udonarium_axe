@@ -2,23 +2,25 @@ import { inject, Injectable } from '@angular/core';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import type { GameCharacter } from '@axe/domain/character/game-character';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import type { AimBody } from '@axe/domain/tabletop/aim-order';
 import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import type { RangeArea } from '@axe/domain/tabletop/range';
-import type { Vec3 } from '@axe/domain/tabletop/surface-space';
+import { faceHeightOver, type Vec3 } from '@axe/domain/tabletop/surface-space';
 import type { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 /** Something on the table that stands as a piece does, by a corner and a size in cells: a piece, or a card. */
 export type StandingThing = TabletopObject & { readonly size: number };
 
 /**
- * Where a piece stands in the room, read in one place for everything that measures from a piece or
- * takes a piece in: the order a key aims in, the ranges a piece casts and the ranges that take it in,
- * and an effect's area. A piece on the floor is read where it stands across the table, as each of
- * those has always read it; a piece on a wall or a board, where it stands out from that face in the
- * room, worked out from the face as it is drawn, rather than at its place on the face read as a place
- * on the floor.
+ * Where a piece, or anything else on the table, stands in the room, read in one place for everything
+ * that measures from it, takes it in or is laid or drawn for it: the order a key aims in, the ranges a
+ * piece casts and the ranges that take it in, an effect's area, what is cast at it, the marks over it,
+ * a ruler held to it and an arrow pointing at it. Every point is read where the table draws the thing,
+ * following it while this seat moves it, on the raised ground or the block under it; only the height
+ * a range is kept at is read over the ground under it, as a range keeps it. A piece on a wall or a
+ * board is read where it stands out from that face in the room, rather than at its place on the face
+ * read as a place on the floor, over the ground under it read one way (see `groundUnder`).
  */
 @Injectable({ providedIn: 'root' })
 export class PiecePlaceService {
@@ -68,23 +70,26 @@ export class PiecePlaceService {
   }
 
   /**
-   * The same place as `floorPlaceOf`, at its height in the room, as an effect's area and the floor a
-   * range standing up keeps over are kept at: where a piece on the floor stands, on its ground or the
-   * block under it; the top of a block or the ground under the feet of a piece on a wall or a board.
+   * The floor under a piece, at its height in the room, as an effect's area and the floor a range
+   * standing up keeps over are kept at: the middle of a piece on the floor, as it is drawn, on its
+   * ground or the block under it; for a piece on a wall or a board, the ground under its feet (see
+   * `groundUnder`) where `floorPlaceOf` lays a range for it.
    */
-  floorPointOf(piece: GameCharacter, onFloor?: { x: number; y: number }): Vec3 {
-    const at = onFloor ?? pieceCentreOf(piece, this.grid());
-    if (this.pieces.surfaceOf(piece) === 'floor') return { x: at.x, y: at.y, z: this.pieces.footOf(piece).height };
-    const { feet } = this.bodyAt(piece, at);
-    return { x: feet.x, y: feet.y, z: this.pieces.landingPxAt(feet.x, feet.y, feet.z) };
+  floorPointOf(piece: GameCharacter): Vec3 {
+    const foot = this.pieces.footOf(piece);
+    if (foot.surface === 'floor') {
+      const half = pieceCentreOffsetPx(piece, this.grid());
+      return { x: foot.x + half, y: foot.y + half, z: foot.height };
+    }
+    const { feet } = this.bodyAt(piece, pieceCentreOf(piece, this.grid()));
+    return { x: feet.x, y: feet.y, z: this.groundUnder(piece, feet.x, feet.y) };
   }
 
   /**
    * An upright body standing in for a piece on a wall or a board, for what reads a piece as standing
    * up on its feet, as what is cast at it, the marks over it and a ruler held to it: centred where the
-   * middle of its body stands out from the face in the room, its feet half its height below, over what
-   * can be stood on under it there, a block or the ground, no higher than its feet. Null for a piece on
-   * the floor, which stands up as it is.
+   * middle of its body stands out from the face in the room, its feet half its height below, over the
+   * ground under it there (see `groundUnder`). Null for a piece on the floor, which stands up as it is.
    */
   standInOf(
     piece: StandingThing
@@ -92,32 +97,43 @@ export class PiecePlaceService {
     if (this.pieces.surfaceOf(piece) === 'floor') return null;
     const middle = this.bodyMiddleOf(piece);
     const footZ = middle.z - pieceCentreOffsetPx(piece, this.grid());
-    return { x: middle.x, y: middle.y, footZ, groundZ: this.pieces.landingPxAt(middle.x, middle.y, footZ) };
+    return { x: middle.x, y: middle.y, footZ, groundZ: this.groundBelow(piece, middle.x, middle.y, footZ) };
   }
 
   /**
-   * Where a piece stands for what is cast at it or marked on it: the middle of a piece on the floor,
-   * read as one cell across where it has no size, at the height it is put at; the feet of the body
-   * standing in for a piece on a wall or a board (see `standInOf`).
+   * Where something stands for what is cast at it, marked on it, held to it or pointed at it: the
+   * middle of a piece on the floor as it is drawn, read as one cell across where it has no size, on
+   * its ground or the block under it; the feet of the body standing in for a piece on a wall or a
+   * board (see `standInOf`); anything else, a card or a stack of cards, at its middle on the face it
+   * lies on (see `faceCentreOf`).
    */
-  standingCentreOf(piece: StandingThing): Vec3 {
-    const standIn = this.standInOf(piece);
+  standingCentreOf(thing: TabletopObject): Vec3 {
+    if (!(thing instanceof GameCharacter)) return this.faceCentreOf(thing);
+    const standIn = this.standInOf(thing);
     if (standIn) return { x: standIn.x, y: standIn.y, z: standIn.footZ };
-    const half = (this.grid() * (piece.size > 0 ? piece.size : 1)) / 2;
-    return { x: piece.location.x + half, y: piece.location.y + half, z: piece.posZ };
+    const foot = this.pieces.footOf(thing);
+    const half = (this.grid() * cellsAcross(thing)) / 2;
+    return { x: foot.x + half, y: foot.y + half, z: foot.height };
   }
 
   /**
-   * Where something lying on the face it is on meets what points at it, as a card: its middle on the
-   * floor, read as one cell across where it has no size, at the height it is put at; its middle on the
-   * face it lies on, in the room, on a wall or a board.
+   * Where something lying on the face it is on meets what points at it, in the room: the middle of the
+   * first picture the table lays of it on that face, as tall as the picture is drawn (see
+   * `TablePiecesService.lyingMiddleOf`); else half a cell across its size in from its corner, read as
+   * one cell where it has no size, on the face it is drawn on.
    */
-  faceCentreOf(thing: StandingThing): Vec3 {
-    if (this.pieces.surfaceOf(thing) === 'floor') {
-      const half = (this.grid() * (thing.size > 0 ? thing.size : 1)) / 2;
-      return { x: thing.location.x + half, y: thing.location.y + half, z: thing.posZ };
-    }
-    return this.bodyAt(thing, pieceCentreOf(thing, this.grid())).feet;
+  faceCentreOf(thing: TabletopObject): Vec3 {
+    const drawn = this.pieces.lyingMiddleOf(thing);
+    if (drawn) return drawn;
+    const foot = this.pieces.footOf(thing);
+    const half = (this.grid() * cellsAcross(thing)) / 2;
+    return (
+      this.surfaces.boardPointOf(foot.surface, foot.x + half, foot.y + half, foot.height) ?? {
+        x: foot.x + half,
+        y: foot.y + half,
+        z: foot.height,
+      }
+    );
   }
 
   /**
@@ -134,13 +150,10 @@ export class PiecePlaceService {
 
   /**
    * The corner an effect is left standing at for a piece, at its height in the room (see
-   * `floorPointOf`): the piece's own corner, on its ground or the block under it, on the floor; round
-   * the floor under its feet for a piece on a wall or a board.
+   * `floorPointOf`): the piece's own corner as it is drawn, on its ground or the block under it, on
+   * the floor; round the floor under its feet for a piece on a wall or a board.
    */
   fieldCornerOf(piece: GameCharacter): Vec3 {
-    if (this.pieces.surfaceOf(piece) === 'floor') {
-      return { x: piece.location.x, y: piece.location.y, z: this.pieces.footOf(piece).height };
-    }
     return this.cornerRound(piece, this.floorPointOf(piece));
   }
 
@@ -194,8 +207,34 @@ export class PiecePlaceService {
     else range.casterOffset = { x: 0, y: 0 };
   }
 
+  /**
+   * The ground under a piece on a wall or a board at a point across the table, in the room, as the
+   * floor it is read as standing over: what can be stood on below the feet of the body standing in for
+   * it (see `standInOf`), the top of a block or the ground, or the face of the board it is on where
+   * that face looks up and reaches over the point; never above those feet.
+   */
+  private groundUnder(piece: StandingThing, x: number, y: number): number {
+    const footZ = this.bodyMiddleOf(piece).z - pieceCentreOffsetPx(piece, this.grid());
+    return this.groundBelow(piece, x, y, footZ);
+  }
+
+  private groundBelow(piece: StandingThing, x: number, y: number, footZ: number): number {
+    const landed = this.pieces.landingPxAt(x, y, footZ);
+    const surface = this.pieces.surfaceOf(piece);
+    const frame = this.surfaces.frameOf(surface);
+    const size = this.surfaces.sizeOf(surface);
+    const face = frame && size ? faceHeightOver(frame, size, x, y) : null;
+    return face === null ? landed : Math.max(landed, Math.min(face, footZ));
+  }
+
   private grid(): number {
     const size = this.tabletop.currentTable.gridSize;
     return size > 0 ? size : 50;
   }
+}
+
+/** How many cells across a thing is read as, where it is measured from its middle: one where it has no size. */
+function cellsAcross(thing: TabletopObject): number {
+  const size = (thing as { size?: unknown }).size;
+  return typeof size === 'number' && size > 0 ? size : 1;
 }
