@@ -28,6 +28,8 @@ describe('PiecePlaceService', () => {
     vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
       one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
     );
+    const surfaceOf = pieces.surfaceOf.bind(pieces);
+    vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === piece ? 'south-wall' : surfaceOf(one)));
     vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
       surface === 'south-wall' ? surfaceFrame('south-wall', dims) : null
     );
@@ -129,7 +131,7 @@ describe('PiecePlaceService', () => {
     expect(place.standInOf(made)).toBeNull();
 
     standOnSouthWall(made);
-    expect(place.standInOf(made)).toEqual({ x: 975, y: 975, footZ: 450 });
+    expect(place.standInOf(made)).toEqual({ x: 975, y: 975, footZ: 450, groundZ: 0 });
   });
 
   it('reads where a piece stands for what is cast at it: its middle on the floor, one cell across with no size, the feet of its stand-in on a wall', () => {

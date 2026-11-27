@@ -48,15 +48,20 @@ describe('EffectFrameService', () => {
     playback.now.set(playedMs - field.phaseOffset);
   }
 
-  it('plays on a piece on a wall at the feet of the body standing in for it, over the floor of the table', () => {
+  it('plays on a piece on a wall at the feet of the body standing in for it, over the ground there', () => {
     const piece = GameCharacter.create('壁', 1, '');
     piece.location = { name: 'table', x: 0, y: 0 };
-    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({ x: 975, y: 975, footZ: 450 });
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({
+      x: 975,
+      y: 975,
+      footZ: 450,
+      groundZ: 30,
+    });
     const footingOf = (service as unknown as { footingOf(id: string, cellPx: number): unknown }).footingOf.bind(
       service
     );
 
-    expect(footingOf(piece.identifier, 50)).toEqual({ x: 975, y: 975, z: 450, groundZ: 0 });
+    expect(footingOf(piece.identifier, 50)).toEqual({ x: 975, y: 975, z: 450, groundZ: 30 });
   });
 
   it('draws nothing with nothing playing and nothing left standing', () => {

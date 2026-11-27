@@ -89,6 +89,8 @@ describe('PieceTargetService', () => {
       vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
         one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
       );
+      const surfaceOf = pieces.surfaceOf.bind(pieces);
+      vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === piece ? 'south-wall' : surfaceOf(one)));
       vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
         surface === 'south-wall' ? surfaceFrame('south-wall', dims) : null
       );
@@ -530,6 +532,8 @@ describe('PieceTargetService', () => {
       vi.spyOn(pieces, 'footOf').mockImplementation((piece) =>
         piece === onWall ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(piece)
       );
+      const surfaceOf = pieces.surfaceOf.bind(pieces);
+      vi.spyOn(pieces, 'surfaceOf').mockImplementation((piece) => (piece === onWall ? 'south-wall' : surfaceOf(piece)));
       vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
         surface === 'south-wall' ? surfaceFrame('south-wall', dims) : null
       );
@@ -616,6 +620,8 @@ describe('PieceTargetService', () => {
       vi.spyOn(pieces, 'footOf').mockImplementation((piece) =>
         piece === onBoard ? { surface: 'board-1', x: 0, y: 0, height: 0 } : footOf(piece)
       );
+      const surfaceOf = pieces.surfaceOf.bind(pieces);
+      vi.spyOn(pieces, 'surfaceOf').mockImplementation((piece) => (piece === onBoard ? 'board-1' : surfaceOf(piece)));
       vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
         surface === 'board-1'
           ? {

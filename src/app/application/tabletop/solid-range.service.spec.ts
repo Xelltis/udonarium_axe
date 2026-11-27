@@ -103,6 +103,8 @@ describe('SolidRangeService', () => {
     vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
       one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
     );
+    const surfaceOf = pieces.surfaceOf.bind(pieces);
+    vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === piece ? 'south-wall' : surfaceOf(one)));
     vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
       surface === 'south-wall' ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 }) : null
     );
@@ -121,6 +123,8 @@ describe('SolidRangeService', () => {
     vi.spyOn(pieces, 'footOf').mockImplementation((one) =>
       one === piece ? { surface: 'south-wall', x: 0, y: 0, height: 0 } : footOf(one)
     );
+    const surfaceOf = pieces.surfaceOf.bind(pieces);
+    vi.spyOn(pieces, 'surfaceOf').mockImplementation((one) => (one === piece ? 'south-wall' : surfaceOf(one)));
     vi.spyOn(TestBed.inject(TableSurfaceService), 'frameOf').mockImplementation((surface) =>
       surface === 'south-wall' ? surfaceFrame('south-wall', { widthPx: 1000, depthPx: 1000, wallHeightPx: 500 }) : null
     );

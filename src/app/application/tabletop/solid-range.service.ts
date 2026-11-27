@@ -280,7 +280,7 @@ export class SolidRangeService {
    * Where a piece stands for a range following it, as the table draws it now: on the floor, upright
    * over its feet; on a wall or a board, across the table where it lays a range following it (see
    * `PiecePlaceService.floorPlaceOf`), so that a sphere keeps its offset from where it was put on, and
-   * as high as the middle of its body stands, less half its height, over the floor of the table, a
+   * as high as the middle of its body stands, less half its height, over the ground there, a
    * cone or a beam it casts starting from the middle of its body.
    */
   private standingOf(caster: GameCharacter, gridSize: number): SolidCaster {
@@ -293,7 +293,7 @@ export class SolidRangeService {
         x: laid.x,
         y: laid.y,
         footZ: middle.z - bodyPx / 2,
-        groundZ: 0,
+        groundZ: laid.z,
         bodyPx,
         tip: { x: middle.x, y: middle.y },
       };

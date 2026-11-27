@@ -132,7 +132,12 @@ describe('TableEffectOverlayComponent', () => {
   it('plays on a piece on a wall at the feet of the body standing in for it', () => {
     const piece = GameCharacter.create('壁', 1, '');
     piece.location = { name: 'table', x: 0, y: 0 };
-    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({ x: 975, y: 975, footZ: 450 });
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standInOf').mockReturnValue({
+      x: 975,
+      y: 975,
+      footZ: 450,
+      groundZ: 0,
+    });
     const centerOf = (component as unknown as { centerOf(id: string, gridSize: number): unknown }).centerOf.bind(
       component
     );
