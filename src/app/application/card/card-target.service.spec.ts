@@ -6,6 +6,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { targetArrowGeometry } from '@axe/domain/card/target-arrow';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -112,13 +113,14 @@ describe('CardTargetService', () => {
     expect(arrows[0].length).toBeCloseTo(500, 5);
   });
 
-  it('draws an arrow between where a card and its target stand, as the page reads a piece on a wall', () => {
+  it('draws an arrow from a card at its middle on the face it lies on to a piece where it stands, on a wall too', () => {
     const source = makeCard(0, 0);
-    const target = makeCard(300, 400);
+    const target = GameCharacter.create('壁', 1, '');
+    created.push(target);
+    target.location.name = 'table';
     source.targetIdentifier = target.identifier;
-    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockImplementation((thing) =>
-      thing === target ? { x: 975, y: 975, z: 450 } : { x: 25, y: 25, z: 0 }
-    );
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'faceCentreOf').mockReturnValue({ x: 25, y: 25, z: 0 });
+    vi.spyOn(TestBed.inject(PiecePlaceService), 'standingCentreOf').mockReturnValue({ x: 975, y: 975, z: 450 });
 
     expect(service.arrows()).toEqual([
       { identifier: source.identifier, ...targetArrowGeometry({ x: 25, y: 25, z: 0 }, { x: 975, y: 975, z: 450 })! },

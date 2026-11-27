@@ -108,6 +108,19 @@ export class PiecePlaceService {
   }
 
   /**
+   * Where something lying on the face it is on meets what points at it, as a card: its middle on the
+   * floor, read as one cell across where it has no size, at the height it is put at; its middle on the
+   * face it lies on, in the room, on a wall or a board.
+   */
+  faceCentreOf(thing: StandingThing): Vec3 {
+    if (this.pieces.surfaceOf(thing) === 'floor') {
+      const half = (this.grid() * (thing.size > 0 ? thing.size : 1)) / 2;
+      return { x: thing.location.x + half, y: thing.location.y + half, z: thing.posZ };
+    }
+    return this.bodyAt(thing, pieceCentreOf(thing, this.grid())).feet;
+  }
+
+  /**
    * The corner a range named for a piece is laid at, at the height a range is kept at (see
    * `floorPlaceOf`): the piece's own corner and height on the floor; draped over the ground under its
    * feet, as a box of the piece's size round them, for a piece on a wall or a board.

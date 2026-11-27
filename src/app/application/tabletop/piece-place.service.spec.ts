@@ -3,6 +3,7 @@ import { PiecePlaceService } from '@axe/application/tabletop/piece-place.service
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
@@ -177,5 +178,18 @@ describe('PiecePlaceService', () => {
     expect(place.floorCornerOf(made)).toEqual({ x: 0, y: 0, z: 0 });
     expect(place.floorPointOf(made)).toEqual({ x: 25, y: 25, z: 70 });
     expect(place.fieldCornerOf(made)).toEqual({ x: 0, y: 0, z: 70 });
+  });
+
+  it('meets a card at its middle on the face it lies on, the table or a wall', () => {
+    const place = TestBed.inject(PiecePlaceService);
+    const card = Card.create('カード', '', '', 2);
+    card.location = { name: 'table', x: 100, y: 100 };
+    card.posZ = 10;
+    expect(place.faceCentreOf(card)).toEqual({ x: 150, y: 150, z: 10 });
+
+    card.location = { name: 'table', x: 0, y: 0 };
+    standOnSouthWall(card as unknown as GameCharacter);
+    expect(place.faceCentreOf(card)).toEqual({ x: 950, y: 1000, z: 450 });
+    card.destroy();
   });
 });

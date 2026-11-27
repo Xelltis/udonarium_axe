@@ -7,6 +7,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { TargetArrowGeometry, targetArrowGeometry, TargetArrowPoint } from '@axe/domain/card/target-arrow';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface TargetArrow extends TargetArrowGeometry {
@@ -84,13 +85,15 @@ export class CardTargetService {
   }
 
   /**
-   * Where an arrow meets a card or a piece: where it stands as the page reads it (see
-   * `PiecePlaceService.standingCentreOf`), on a board or a wall too; anything else by its corner.
+   * Where an arrow meets a piece, a card or anything else: a piece where it stands as the page reads it
+   * (see `PiecePlaceService.standingCentreOf`); a card, lying on the face it is on, at its middle there
+   * (see `PiecePlaceService.faceCentreOf`); anything else by its corner.
    */
   private centerOf(object: TabletopObject, gridSize: number): TargetArrowPoint {
+    if (object instanceof GameCharacter) return this.piecePlace.standingCentreOf(object);
     const size = (object as { size?: number }).size;
-    if (typeof size === 'number') return this.piecePlace.standingCentreOf(object as StandingThing);
-    const half = (gridSize * (typeof size === 'number' && size > 0 ? size : 1)) / 2;
+    if (typeof size === 'number') return this.piecePlace.faceCentreOf(object as StandingThing);
+    const half = gridSize / 2;
     return { x: object.location.x + half, y: object.location.y + half, z: object.posZ };
   }
 }
